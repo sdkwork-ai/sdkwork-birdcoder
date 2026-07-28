@@ -71,9 +71,12 @@ framework implementation.
     requests exactly one earlier server page while history remains available.
 11. Revealing or prepending history preserves the current reading anchor and
     does not jump the viewport to the newly inserted first message.
-12. The fixed provider E2E fixture renders without horizontal overflow at
+12. Leaving the sticky-bottom threshold exposes a keyboard-operable return-to-
+    latest control; conversation-map navigation also relinquishes sticky
+    ownership until the user returns to the latest message.
+13. The fixed provider E2E fixture renders without horizontal overflow at
    1440x900 and 900x800 and produces reviewable visual evidence.
-13. Focused transcript contracts, PC typecheck, lint, architecture checks, and
+14. Focused transcript contracts, PC typecheck, lint, architecture checks, and
    production build pass.
 
 ## Non-Functional Requirements

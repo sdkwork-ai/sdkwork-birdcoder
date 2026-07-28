@@ -33,6 +33,11 @@ assert.match(
 );
 assert.match(
   chatSource,
+  /const settleAnchor = \(\) => \{[\s\S]*isUserControllingScrollRef\.current[\s\S]*finishAnchorRepair\(\);[\s\S]*restoreTranscriptScrollAnchor/,
+  'User scroll intent must cancel a pending remote prepend anchor repair.',
+);
+assert.match(
+  chatSource,
   /interface RemoteMessageRequestState \{[\s\S]*isRequesting: boolean;[\s\S]*sessionId: string;[\s\S]*\}/,
   'Remote transcript request state must be scoped to the Session that started it.',
 );

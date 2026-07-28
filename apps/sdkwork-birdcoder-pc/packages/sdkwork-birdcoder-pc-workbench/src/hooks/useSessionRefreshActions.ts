@@ -374,6 +374,7 @@ export function useSessionRefreshActions({
             result.agentSession,
             resolvedLocation.project.workspaceId,
             userScope,
+            { itemMergeMode: 'ordered-window' },
           );
         }
       } catch (error) {

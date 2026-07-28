@@ -22,6 +22,14 @@ export function isTranscriptNearBottom(
   return measureTranscriptDistanceFromBottom(metrics) <= Math.max(0, thresholdPx);
 }
 
+export function shouldShowTranscriptJumpToLatest(
+  metrics: TranscriptScrollMetrics,
+  thresholdPx: number = CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX,
+): boolean {
+  return metrics.scrollHeight > metrics.clientHeight
+    && !isTranscriptNearBottom(metrics, thresholdPx);
+}
+
 export function computeTranscriptBottomScrollTop({
   clientHeight,
   scrollHeight,

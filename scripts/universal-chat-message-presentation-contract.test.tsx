@@ -10,6 +10,7 @@ import { AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, resolvePreferred
 import { ChatTranscriptAnchorRail } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ChatTranscriptAnchorRail.tsx";
 import { UniversalChatMarkdown } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx";
 import { resolveChatCodeFenceLanguage } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts";
+import { buildFileChangeDiffPreview } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileChangePresentation.ts";
 import { TurnFileChangesCard } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/TurnFileChangesCard.tsx";
 import { resolveTurnFileChangesMessagePresentations } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/turnFileChanges.ts";
 import { UserMessageAttachments } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/UserMessageAttachments.tsx";
@@ -302,11 +303,23 @@ const userAttachmentView = resolveAgentSessionItemPresentation({
       name: "unavailable.png",
       mimeType: "image/png",
     },
+    {
+      id: "voice-note",
+      kind: "audio",
+      name: "voice-note.wav",
+      mediaSource: "data:audio/wav;base64,UklGRg==",
+      mimeType: "audio/wav",
+    },
   ],
   createdAt: "2026-07-27T00:00:00.000Z",
 });
 const userAttachmentDisplay = resolveUserMessageDisplay(userAttachmentView);
 assert.equal(userAttachmentDisplay.imageAttachments.length, 2);
+assert.deepEqual(
+  userAttachmentDisplay.audioAttachments.map((audio) => audio.title),
+  ["voice-note.wav"],
+  "Playable audio resources must remain structured user-message attachments.",
+);
 assert.deepEqual(
   userAttachmentDisplay.imageAttachments.map((image) => image.title),
   ["first screenshot", "second screenshot"],
@@ -347,10 +360,15 @@ const attachmentContext = {
 } as ChatMessageRenderContext;
 const userAttachmentsHtml = renderToStaticMarkup(
   <UserMessageAttachments
+    audios={userAttachmentDisplay.audioAttachments}
     context={attachmentContext}
     files={userAttachmentDisplay.fileAttachments}
     images={userAttachmentDisplay.imageAttachments}
   />,
+);
+assert.equal(
+  [...userAttachmentsHtml.matchAll(/data-chat-user-audio="true"/gu)].length,
+  1,
 );
 assert.equal(
   [...userAttachmentsHtml.matchAll(/data-chat-user-image="true"/gu)].length,
@@ -373,8 +391,10 @@ assert.match(
 );
 assert.ok(
   userAttachmentsHtml.indexOf('data-chat-user-image-grid="true"') <
-    userAttachmentsHtml.indexOf('data-chat-user-file-list="true"'),
-  "User image previews must render before file attachments.",
+    userAttachmentsHtml.indexOf('data-chat-user-audio-list="true"')
+    && userAttachmentsHtml.indexOf('data-chat-user-audio-list="true"') <
+      userAttachmentsHtml.indexOf('data-chat-user-file-list="true"'),
+  "User image previews, playable audio, and file attachments must preserve media-first order.",
 );
 assert.match(
   userAttachmentsHtml,
@@ -649,7 +669,19 @@ const unfinishedTerminalLiveTurnPresentations = resolveTurnFileChangesMessagePre
       turnId: "unfinished-terminal-turn",
       fileChanges: [turnFileChanges[0]!],
       lifecycleEvents: [{ id: "unfinished-terminal-completed", kind: "completed" }],
-      taskProgress: { completed: 1, total: 2 },
+      tool_calls: [{
+        id: "unfinished-terminal-plan",
+        kind: "task",
+        name: "todo_write",
+        type: "tool_call",
+        arguments: JSON.stringify({
+          todos: [
+            { content: "Inspect provider output", status: "completed" },
+            { content: "Finish the renderer", status: "running" },
+          ],
+        }),
+        status: "completed",
+      }],
     },
   ],
   { deferLatestTurn: true },
@@ -659,6 +691,18 @@ assert.equal(
   false,
   "Incomplete task progress must keep a live turn inline despite an earlier terminal event.",
 );
+
+const beforeAfterPreferredPreview = buildFileChangeDiffPreview({
+  path: "src/gemini-message.ts",
+  additions: 1,
+  deletions: 1,
+  diff: '@@ -1 +1 @@\n-state = "before"\n+state = "after"',
+  originalContent: 'state = "before"',
+  content: 'state = "after"',
+});
+assert.equal(beforeAfterPreferredPreview.isFallback, true);
+assert.match(beforeAfterPreferredPreview.lines.map((line) => line.text).join("\n"), /state = "before"/u);
+assert.match(beforeAfterPreferredPreview.lines.map((line) => line.text).join("\n"), /state = "after"/u);
 
 const fileChangesPresentation = completedTurnPresentations[2]?.card;
 assert.ok(fileChangesPresentation);

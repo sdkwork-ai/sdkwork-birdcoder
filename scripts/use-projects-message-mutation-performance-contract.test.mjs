@@ -99,6 +99,16 @@ assert.doesNotMatch(
   /completed\.items\.map\(toAgentSessionItemView\)/,
   'completed Agent turns must not append canonical internal items through the unfiltered item mapper.',
 );
+assert.match(
+  submitTurnHandlerBody,
+  /if \(!shouldPreserveOptimisticTurn\)/,
+  'Agent turn failures must roll back optimistic items only after delivery is known to be unaccepted.',
+);
+assert.match(
+  submitTurnHandlerBody,
+  /onDeliveryUncertain: \(\) => \{[\s\S]*shouldPreserveOptimisticTurn = true;/,
+  'uncertain Agent turn delivery must preserve optimistic items for later authority reconciliation.',
+);
 const deleteHandlerBody = useProjectsSource.slice(deleteHandlerStart, submitTurnHandlerStart);
 assert.doesNotMatch(
   deleteHandlerBody,

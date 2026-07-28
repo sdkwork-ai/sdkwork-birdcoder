@@ -1,7 +1,9 @@
+mod desktop_lifecycle;
 mod provider_session_cwd;
 pub mod state;
 pub mod terminal_runtime;
 
+pub(crate) use desktop_lifecycle::setup_desktop_lifecycle;
 pub use provider_session_cwd::TauriProviderSessionProjectCwdResolver;
 
 pub use state::{

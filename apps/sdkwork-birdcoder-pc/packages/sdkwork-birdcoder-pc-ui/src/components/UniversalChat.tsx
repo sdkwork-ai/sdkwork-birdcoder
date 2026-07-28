@@ -67,10 +67,11 @@ import {
   CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
   computeTranscriptBottomScrollTop,
   computeTranscriptRepairScrollTop,
-  isTranscriptNearBottom,
   shouldDeferTranscriptAutoScrollForUserIntent,
+  shouldShowTranscriptJumpToLatest,
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
+import { ChatTranscriptJumpToLatestButton } from './ChatTranscriptJumpToLatestButton';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import {
   TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
@@ -428,6 +429,11 @@ type ChatScrollSnapshot = {
   messageId: string;
 };
 
+interface TranscriptJumpAffordanceState {
+  scopeKey: string;
+  visible: boolean;
+}
+
 type ChatScrollTiming = 'frame' | 'layout';
 
 function resolveChatScrollTiming(
@@ -596,6 +602,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;
     const settleAnchor = () => {
       remotePrependAnchorRepairAnimationFrameRef.current = null;
+      if (isUserControllingScrollRef.current) {
+        finishAnchorRepair();
+        return;
+      }
       restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor);
       remainingFrames -= 1;
       if (remainingFrames <= 0) {
@@ -611,7 +621,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       settleAnchor,
     );
     shouldStickToBottomRef.current = false;
-  }, [firstMessageId, isActive, messages.length, scrollContainerRef, shouldStickToBottomRef]);
+  }, [
+    firstMessageId,
+    isActive,
+    isUserControllingScrollRef,
+    messages.length,
+    scrollContainerRef,
+    shouldStickToBottomRef,
+  ]);
 
   const handleLoadMoreRemoteMessages = useCallback(async (): Promise<void> => {
     if (
@@ -1171,6 +1188,11 @@ export const UniversalChat = memo(function UniversalChat({
   const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
   const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
   const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
+  const [transcriptJumpAffordanceState, setTranscriptJumpAffordanceState] =
+    useState<TranscriptJumpAffordanceState>(() => ({
+      scopeKey: normalizedTranscriptScopeKey,
+      visible: false,
+    }));
   const [sessionPromptHistoryState, setSessionPromptHistoryState] =
     useState<SessionPromptHistoryState>(() => ({
       entries: [],
@@ -1530,6 +1552,11 @@ export const UniversalChat = memo(function UniversalChat({
   const focusedNewSessionScopeRef = useRef('');
   const shouldPresentNewSessionComposer =
     isNewSession && normalizedMessages.length === 0 && layout === 'main';
+  const isTranscriptJumpToLatestVisible =
+    isActive
+    && normalizedMessages.length > 0
+    && transcriptJumpAffordanceState.scopeKey === normalizedTranscriptScopeKey
+    && transcriptJumpAffordanceState.visible;
 
   useEffect(() => {
     if (!isActive || !isNewSession || disabled || hideComposer) {
@@ -1891,14 +1918,28 @@ export const UniversalChat = memo(function UniversalChat({
     };
   }, []);
 
+  const syncTranscriptJumpAffordance = useCallback((visible: boolean) => {
+    setTranscriptJumpAffordanceState((previousState) => (
+      previousState.scopeKey === normalizedTranscriptScopeKey
+      && previousState.visible === visible
+        ? previousState
+        : {
+            scopeKey: normalizedTranscriptScopeKey,
+            visible,
+          }
+    ));
+  }, [normalizedTranscriptScopeKey]);
+
   const updateTranscriptStickiness = useCallback(() => {
     const scrollMetrics = readTranscriptScrollMetrics();
     if (!scrollMetrics) {
       return;
     }
 
-    shouldStickTranscriptToBottomRef.current = isTranscriptNearBottom(scrollMetrics);
-  }, [readTranscriptScrollMetrics]);
+    const shouldShowJumpAffordance = shouldShowTranscriptJumpToLatest(scrollMetrics);
+    shouldStickTranscriptToBottomRef.current = !shouldShowJumpAffordance;
+    syncTranscriptJumpAffordance(shouldShowJumpAffordance);
+  }, [readTranscriptScrollMetrics, syncTranscriptJumpAffordance]);
 
   const scrollTranscriptToBottom = useCallback(() => {
     const scrollContainer = transcriptScrollContainerRef.current;
@@ -1913,12 +1954,14 @@ export const UniversalChat = memo(function UniversalChat({
     });
     if (Math.abs(scrollContainer.scrollTop - nextScrollTop) <= 1) {
       shouldStickTranscriptToBottomRef.current = true;
+      syncTranscriptJumpAffordance(false);
       return;
     }
 
     isProgrammaticTranscriptScrollRef.current = true;
     scrollContainer.scrollTop = nextScrollTop;
     shouldStickTranscriptToBottomRef.current = true;
+    syncTranscriptJumpAffordance(false);
 
     if (typeof window === 'undefined') {
       isProgrammaticTranscriptScrollRef.current = false;
@@ -1926,10 +1969,40 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     window.requestAnimationFrame(() => {
+      if (
+        shouldStickTranscriptToBottomRef.current
+        && !isUserControllingTranscriptScrollRef.current
+        && !isTranscriptPointerScrollActiveRef.current
+      ) {
+        const settledScrollTop = computeTranscriptBottomScrollTop({
+          clientHeight: scrollContainer.clientHeight,
+          scrollHeight: scrollContainer.scrollHeight,
+          scrollTop: scrollContainer.scrollTop,
+        });
+        if (Math.abs(scrollContainer.scrollTop - settledScrollTop) > 1) {
+          scrollContainer.scrollTop = settledScrollTop;
+        }
+      }
       isProgrammaticTranscriptScrollRef.current = false;
       updateTranscriptStickiness();
     });
-  }, [updateTranscriptStickiness]);
+  }, [syncTranscriptJumpAffordance, updateTranscriptStickiness]);
+
+  const handleJumpToLatestMessage = useCallback(() => {
+    if (userTranscriptScrollSettleTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
+      userTranscriptScrollSettleTimerRef.current = null;
+    }
+    if (userTranscriptScrollAnimationFrameRef.current !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
+      userTranscriptScrollAnimationFrameRef.current = null;
+    }
+    isTranscriptPointerScrollActiveRef.current = false;
+    isUserControllingTranscriptScrollRef.current = false;
+    lastUserTranscriptScrollAtRef.current = 0;
+    scrollTranscriptToBottom();
+    transcriptScrollContainerRef.current?.focus({ preventScroll: true });
+  }, [scrollTranscriptToBottom]);
 
   const releaseUserTranscriptScrollControl = useCallback(() => {
     userTranscriptScrollSettleTimerRef.current = null;
@@ -2204,6 +2277,40 @@ export const UniversalChat = memo(function UniversalChat({
     normalizedSessionId,
     releaseTranscriptPointerScrollIntent,
     scheduleTranscriptUserScrollSync,
+    updateTranscriptStickiness,
+  ]);
+
+  useEffect(() => {
+    if (!isActive || typeof ResizeObserver !== 'function') {
+      return;
+    }
+
+    const scrollContainer = transcriptScrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (
+        shouldStickTranscriptToBottomRef.current
+        && !isUserControllingTranscriptScrollRef.current
+        && !isTranscriptPointerScrollActiveRef.current
+      ) {
+        scrollTranscriptToBottom();
+        return;
+      }
+
+      updateTranscriptStickiness();
+    });
+    resizeObserver.observe(scrollContainer);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [
+    isActive,
+    normalizedSessionId,
+    scrollTranscriptToBottom,
     updateTranscriptStickiness,
   ]);
 
@@ -3093,6 +3200,13 @@ export const UniversalChat = memo(function UniversalChat({
         window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
         userTranscriptScrollSettleTimerRef.current = null;
       }
+      if (
+        userTranscriptScrollAnimationFrameRef.current !== null
+        && typeof window !== 'undefined'
+      ) {
+        window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
+        userTranscriptScrollAnimationFrameRef.current = null;
+      }
     }
 
     if (normalizedMessages.length === 0) {
@@ -3358,12 +3472,15 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
+    shouldStickTranscriptToBottomRef.current = false;
+    syncTranscriptJumpAffordance(true);
+
     const renderedMessage = scrollContainer.querySelector<HTMLDivElement>(
       `[data-transcript-message-index="${messageIndex}"]`,
     );
     if (renderedMessage) {
       scrollContainer.scrollTo({
-        behavior: 'smooth',
+        behavior: 'auto',
         top: Math.max(0, renderedMessage.offsetTop - 16),
       });
       return;
@@ -3375,10 +3492,10 @@ export const UniversalChat = memo(function UniversalChat({
       Math.min(normalizedMessages.length - 1, messageIndex),
     );
     scrollContainer.scrollTo({
-      behavior: 'smooth',
+      behavior: 'auto',
       top: maxScrollTop * (messagePosition / Math.max(1, normalizedMessages.length - 1)),
     });
-  }, [normalizedMessages.length]);
+  }, [normalizedMessages.length, syncTranscriptJumpAffordance]);
 
   return (
     <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
@@ -3478,6 +3595,11 @@ export const UniversalChat = memo(function UniversalChat({
             turnLabel={t('chat.goToConversationTurn')}
           />
         ) : null}
+        <ChatTranscriptJumpToLatestButton
+          label={t('chat.jumpToLatestMessage')}
+          onClick={handleJumpToLatestMessage}
+          visible={isTranscriptJumpToLatestVisible}
+        />
       </div>
 
       {!hideComposer && (

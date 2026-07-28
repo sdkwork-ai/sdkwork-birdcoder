@@ -42,6 +42,7 @@ export default defineLocaleModule('chat', {
     copyFailed: '\u65e0\u6cd5\u590d\u5236\u5230\u526a\u8d34\u677f',
     loadEarlierMessages: '\u52a0\u8f7d\u66f4\u65e9\u7684\u6d88\u606f',
     loadingEarlierMessages: '\u6b63\u5728\u52a0\u8f7d\u66f4\u65e9\u7684\u6d88\u606f...',
+    jumpToLatestMessage: '\u56de\u5230\u6700\u65b0\u6d88\u606f',
     transcriptRegion: '\u5bf9\u8bdd\u6d88\u606f',
     conversationMap: '\u5bf9\u8bdd\u5bfc\u822a',
     goToConversationTurn: '\u8df3\u8f6c\u5230\u5bf9\u8bdd\u8f6e\u6b21',

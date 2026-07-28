@@ -1,5 +1,8 @@
 import {
+  normalizeAgentSessionItemToolCalls,
   resolveAgentSessionActivityFileChangeViews,
+  resolveTaskProgressDisplayState,
+  resolveToolCallsTaskProgressDisplayState,
   type AgentSessionItemView,
   type FileChange,
 } from "@sdkwork/birdcoder-pc-workbench/chat/types";
@@ -76,7 +79,17 @@ function hasUnfinishedTaskProgress(
   messageIndexes: readonly number[],
 ): boolean {
   return messageIndexes.some((messageIndex) => {
-    const progress = messages[messageIndex]?.taskProgress;
+    const message = messages[messageIndex];
+    if (!message) {
+      return false;
+    }
+    const explicitProgress = resolveTaskProgressDisplayState(message.taskProgress);
+    const toolProgress = resolveToolCallsTaskProgressDisplayState(
+      normalizeAgentSessionItemToolCalls(message.tool_calls),
+    );
+    const progress = explicitProgress?.items.length
+      ? explicitProgress
+      : toolProgress ?? explicitProgress;
     return Boolean(progress && progress.completed < progress.total);
   });
 }

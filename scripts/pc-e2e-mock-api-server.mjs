@@ -560,6 +560,56 @@ const sessionItemsBySessionId = new Map([
           createdAt,
         };
       }
+      if (sequence === 42) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-user-text',
+          turnId: 'e2e-codex-multimodal-turn',
+          kind: 'user_input',
+          status: 'completed',
+          sequence: '42',
+          content: 'Inspect this Codex screenshot and the attached protocol notes.',
+          contentType: 'text/plain',
+          providerId: 'provider.model.codex',
+          createdAt: '2026-01-01T00:00:42.000Z',
+        };
+      }
+      if (sequence === 41) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-user-image',
+          turnId: 'e2e-codex-multimodal-turn',
+          kind: 'artifact_reference',
+          status: 'completed',
+          sequence: '41',
+          content: JSON.stringify({
+            type: 'input_image',
+            image_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
+          }),
+          contentType: 'application/json',
+          providerId: 'provider.model.codex',
+          createdAt: '2026-01-01T00:00:42.000Z',
+        };
+      }
+      if (sequence === 40) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-user-file',
+          turnId: 'e2e-codex-multimodal-turn',
+          kind: 'artifact_reference',
+          status: 'completed',
+          sequence: '40',
+          content: JSON.stringify({
+            type: 'file',
+            name: 'codex-protocol-notes.md',
+            path: 'E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md',
+            mime_type: 'text/markdown',
+          }),
+          contentType: 'application/json',
+          providerId: 'provider.model.codex',
+          createdAt: '2026-01-01T00:00:42.000Z',
+        };
+      }
       return {
         sessionId: 'e2e-codex-session',
         itemId: `e2e-codex-item-${sequence}`,

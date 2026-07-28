@@ -53,6 +53,7 @@ async function scrollTranscriptToTopAndReadAnchor(
 ): Promise<number> {
   const anchor = transcript.getByText(anchorText, { exact: true });
   await transcript.evaluate((element) => {
+    element.dispatchEvent(new WheelEvent('wheel', { deltaY: -1_000 }));
     element.scrollTop = 0;
     element.dispatchEvent(new Event('scroll'));
   });
@@ -91,6 +92,42 @@ test('opens at the latest message and auto-loads anchored history at the top', a
     element.scrollHeight - element.clientHeight - element.scrollTop
   ))).toBeLessThanOrEqual(2);
 
+  const jumpToLatestMessage = page.getByRole('button', {
+    name: 'Jump to latest message',
+    exact: true,
+  });
+  await transcript.evaluate((element) => {
+    element.dispatchEvent(new WheelEvent('wheel', { deltaY: -600 }));
+    element.scrollTop = Math.max(0, element.scrollTop - 600);
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(jumpToLatestMessage).toBeVisible();
+  await jumpToLatestMessage.focus();
+  await jumpToLatestMessage.press('Enter');
+  await expect.poll(async () => transcript.evaluate((element) => (
+    element.scrollHeight - element.clientHeight - element.scrollTop
+  ))).toBeLessThanOrEqual(2);
+  await expect(jumpToLatestMessage).toHaveCount(0);
+  await expect(transcript).toBeFocused();
+
+  const middleConversationTurn = page.getByRole('button', {
+    name: 'Go to conversation turn 5: Codex historical message 35',
+    exact: true,
+  });
+  await middleConversationTurn.click();
+  await expect(transcript.getByText('Codex historical message 35', { exact: true })).toBeVisible();
+  await expect(jumpToLatestMessage).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect.poll(async () => transcript.evaluate((element) => (
+    element.scrollHeight - element.clientHeight - element.scrollTop
+  ))).toBeGreaterThan(200);
+  await expect(jumpToLatestMessage).toBeVisible();
+  await jumpToLatestMessage.click();
+  await expect.poll(async () => transcript.evaluate((element) => (
+    element.scrollHeight - element.clientHeight - element.scrollTop
+  ))).toBeLessThanOrEqual(2);
+  await expect(jumpToLatestMessage).toHaveCount(0);
+
   const secondPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
@@ -128,5 +165,47 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   )).toBeLessThanOrEqual(4);
 
   await expect(transcript.getByText('Codex historical message 1', { exact: true })).toHaveCount(1);
+  await expect.poll(async () => (
+    transcript.locator('[data-transcript-message-index]').count()
+  )).toBe(45);
+  const historicalMessageSequence = await transcript
+    .locator('[data-transcript-message-index]')
+    .evaluateAll((elements) => elements.flatMap((element) => {
+      const match = element.textContent?.match(/Codex historical message (\d+)/u);
+      return match ? [Number(match[1])] : [];
+    }));
+  expect(historicalMessageSequence.length).toBeGreaterThanOrEqual(42);
+  expect(new Set(historicalMessageSequence).size).toBe(historicalMessageSequence.length);
+  expect(historicalMessageSequence[0]).toBe(1);
+  expect(historicalMessageSequence.at(-1)).toBe(45);
+  expect(historicalMessageSequence).toEqual(
+    [...historicalMessageSequence].sort((left, right) => left - right),
+  );
   expect(requestedHistoryPages).toEqual(['2', '3']);
+
+  await expect(jumpToLatestMessage).toBeVisible();
+  await jumpToLatestMessage.click();
+  await page.setViewportSize({ width: 1_024, height: 720 });
+  await expect.poll(async () => transcript.evaluate((element) => (
+    element.scrollHeight - element.clientHeight - element.scrollTop
+  ))).toBeLessThanOrEqual(2);
+  await transcript.evaluate((element) => {
+    element.dispatchEvent(new WheelEvent('wheel', { deltaY: -400 }));
+    element.scrollTop = Math.max(0, element.scrollTop - 400);
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(jumpToLatestMessage).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Conversation map' })).toBeHidden();
+  const narrowLayoutGeometry = await jumpToLatestMessage.evaluate((element) => {
+    const buttonRect = element.getBoundingClientRect();
+    const composerRect = document.querySelector('textarea')?.getBoundingClientRect();
+    return {
+      buttonBottom: buttonRect.bottom,
+      buttonRight: buttonRect.right,
+      composerTop: composerRect?.top ?? 0,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(narrowLayoutGeometry.buttonBottom).toBeLessThan(narrowLayoutGeometry.composerTop);
+  expect(narrowLayoutGeometry.buttonRight).toBeLessThanOrEqual(narrowLayoutGeometry.viewportWidth);
 });

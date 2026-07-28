@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { ChatMessageRenderContext } from './types.ts';
 import type {
+  UserMessageAudioAttachment,
   UserMessageFileAttachment,
   UserMessageImageAttachment,
 } from './userMessageDisplay.ts';
@@ -25,9 +26,52 @@ const FILE_ICON_BY_KIND = {
 } as const;
 
 interface UserMessageAttachmentsProps {
+  audios: readonly UserMessageAudioAttachment[];
   context: ChatMessageRenderContext;
   files: readonly UserMessageFileAttachment[];
   images: readonly UserMessageImageAttachment[];
+}
+
+function UserMessageAudioList({
+  audios,
+  context,
+}: {
+  audios: readonly UserMessageAudioAttachment[];
+  context: ChatMessageRenderContext;
+}) {
+  if (audios.length === 0) {
+    return null;
+  }
+  const resourcesLabel = context.environment?.t('chat.messageResources') ?? 'Message resources';
+  return (
+    <ul
+      className="flex w-[min(22rem,78vw)] min-w-0 flex-col items-stretch gap-1.5"
+      aria-label={resourcesLabel}
+      data-chat-user-audio-list="true"
+    >
+      {audios.map((audio) => (
+        <li
+          className="min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.035] p-2.5"
+          key={audio.id}
+          data-chat-user-audio="true"
+        >
+          <span className="mb-2 flex min-w-0 items-center gap-2 text-[12px] font-medium leading-4 text-gray-200">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.055] text-gray-400">
+              <AudioLines size={14} aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1 truncate" title={audio.title}>{audio.title}</span>
+          </span>
+          <audio
+            className="h-8 w-full min-w-0 [color-scheme:dark]"
+            controls
+            preload="metadata"
+            src={audio.source}
+            aria-label={audio.title}
+          />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function ImagePreviewDialog({
@@ -289,11 +333,12 @@ function UserMessageFileList({
 }
 
 export const UserMessageAttachments = memo(function UserMessageAttachments({
+  audios,
   context,
   files,
   images,
 }: UserMessageAttachmentsProps) {
-  if (images.length === 0 && files.length === 0) {
+  if (images.length === 0 && audios.length === 0 && files.length === 0) {
     return null;
   }
   return (
@@ -302,6 +347,7 @@ export const UserMessageAttachments = memo(function UserMessageAttachments({
       data-chat-user-attachments="true"
     >
       <UserMessageImageGrid context={context} images={images} />
+      <UserMessageAudioList audios={audios} context={context} />
       <UserMessageFileList context={context} files={files} />
     </div>
   );

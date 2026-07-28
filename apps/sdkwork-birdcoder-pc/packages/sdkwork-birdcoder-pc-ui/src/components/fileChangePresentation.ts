@@ -157,6 +157,12 @@ function buildFileChangeContentPreview(fileChange: FileChange): ActivityDiffPrev
 }
 
 export function buildFileChangeDiffPreview(fileChange: FileChange): ActivityDiffPreview {
+  if (
+    typeof fileChange.originalContent === 'string'
+    && typeof fileChange.content === 'string'
+  ) {
+    return buildFileChangeContentPreview(fileChange);
+  }
   const diffContent = typeof fileChange.diff === 'string' ? fileChange.diff.trim() : '';
   if (!diffContent) {
     return buildFileChangeContentPreview(fileChange);

@@ -54,6 +54,7 @@ export {
   resolveSessionItemCopyContent,
   resolveAgentSessionActivityFileChangeViews,
   resolveTaskProgressDisplayState,
+  resolveToolCallsTaskProgressDisplayState,
   resolveVisibleAssistantSessionItemContent,
   resolveAgentSessionItemVisibleMarkdownContent,
   shouldHideSessionItemContentAsFileUpdateSummary,

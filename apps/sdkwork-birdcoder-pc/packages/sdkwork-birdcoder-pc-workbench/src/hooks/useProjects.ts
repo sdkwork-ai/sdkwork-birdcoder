@@ -1747,6 +1747,7 @@ export function useProjects(options?: UseProjectsOptions) {
       );
     });
     let didAuthorityAcceptTurn = false;
+    let shouldPreserveOptimisticTurn = false;
     let previousAgentSession: AgentSessionView | null = null;
     mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
       updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
@@ -1780,6 +1781,11 @@ export function useProjects(options?: UseProjectsOptions) {
         agentId: selectedSession.agentId,
         onAccepted: () => {
           didAuthorityAcceptTurn = true;
+          shouldPreserveOptimisticTurn = true;
+          void invalidateWorkspaceSessionInbox();
+        },
+        onDeliveryUncertain: () => {
+          shouldPreserveOptimisticTurn = true;
           void invalidateWorkspaceSessionInbox();
         },
         onDelta: ({ content: assistantContent }) => {
@@ -1805,7 +1811,10 @@ export function useProjects(options?: UseProjectsOptions) {
               (items, item) => appendAgentSessionItemIfMissing(items, item),
               reconciledItems,
             ),
-            runtimeStatus: completed.turn.status === 'failed' ? 'failed' : 'ready',
+            runtimeStatus:
+              completed.turn.status === 'failed' || completed.turn.status === 'cancelled'
+                ? 'failed'
+                : 'ready',
             updatedAt: activityAt,
             lastTurnAt: activityAt,
             lastMessageAt: activityAt,
@@ -1822,17 +1831,19 @@ export function useProjects(options?: UseProjectsOptions) {
       return submittedItems.find((item) => item.role === 'user') ?? submittedItems.at(-1);
     } catch (error: unknown) {
       streamPresentation.close();
-      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
-        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) =>
-          rollbackOptimisticAgentSessionItems(
-            agentSession,
-            previousAgentSession,
-            optimisticItem,
-            streamingItem.id,
+      if (!shouldPreserveOptimisticTurn) {
+        mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+          updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) =>
+            rollbackOptimisticAgentSessionItems(
+              agentSession,
+              previousAgentSession,
+              optimisticItem,
+              streamingItem.id,
+            ),
           ),
-        ),
-      );
-      if (didAuthorityAcceptTurn) {
+        );
+      }
+      if (shouldPreserveOptimisticTurn) {
         void invalidateWorkspaceSessionInbox();
       }
       const message =

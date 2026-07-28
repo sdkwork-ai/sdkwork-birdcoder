@@ -5,6 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areAgentSessionItemsEquivalent,
+  areAgentSessionItemsLogicallyMatched,
   buildAgentSessionViewSynchronizationVersion,
   compareWorkbenchLongIntegers,
   compareWorkbenchProjectsByActivity,
@@ -32,6 +33,12 @@ export interface ProjectsStore {
   listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
   removedProjectIds: Set<string>;
   snapshot: ProjectsStoreSnapshot;
+}
+
+export type AgentSessionItemMergeMode = 'latest' | 'ordered-window';
+
+export interface AgentSessionStoreUpsertOptions {
+  itemMergeMode?: AgentSessionItemMergeMode;
 }
 
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
@@ -346,7 +353,7 @@ function normalizeAgentSessionItemsForStore(
   );
 }
 
-interface CloneAgentSessionForStoreOptions {
+interface CloneAgentSessionForStoreOptions extends AgentSessionStoreUpsertOptions {
   preserveEmptyItems?: boolean;
   projectId?: string;
 }
@@ -535,6 +542,7 @@ function resolveLaterLongInteger(
 export function mergeAgentSessionProjectionForStore(
   existing: AgentSessionView,
   incoming: AgentSessionView,
+  options: AgentSessionStoreUpsertOptions = {},
 ): AgentSessionView {
   if (existing.id !== incoming.id || existing.projectId !== incoming.projectId) {
     throw new Error('Incoming Agents Session projection does not match the Store identity.');
@@ -618,12 +626,35 @@ export function mergeAgentSessionProjectionForStore(
     itemPageInfo: incoming.itemPageInfo ?? existing.itemPageInfo,
     items: incoming.items.length === 0
       ? existing.items
-      : mergeLatestAgentSessionItems(existing.items, incoming.items),
+      : options.itemMergeMode === 'ordered-window'
+        ? mergeOrderedAgentSessionItemWindow(existing.items, incoming.items)
+        : mergeLatestAgentSessionItems(existing.items, incoming.items),
     sortTimestamp: String(Math.max(
       Number(existing.sortTimestamp) || 0,
       Number(incoming.sortTimestamp) || 0,
     )),
   };
+}
+
+function mergeOrderedAgentSessionItemWindow(
+  existingItems: readonly AgentSessionItemView[],
+  orderedIncomingItems: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  const latestMergedItems = mergeLatestAgentSessionItems(
+    existingItems,
+    orderedIncomingItems,
+  );
+  const orderedItems = orderedIncomingItems.map((incomingItem) =>
+    latestMergedItems.find((candidate) =>
+      areAgentSessionItemsLogicallyMatched(candidate, incomingItem),
+    ) ?? incomingItem,
+  );
+  const concurrentItems = latestMergedItems.filter((candidate) =>
+    !orderedIncomingItems.some((incomingItem) =>
+      areAgentSessionItemsLogicallyMatched(candidate, incomingItem),
+    ),
+  );
+  return deduplicateAgentSessionItemViews([...orderedItems, ...concurrentItems]);
 }
 
 function cloneAgentSessionForStore(
@@ -637,7 +668,11 @@ function cloneAgentSessionForStore(
     options.projectId,
   );
   const activityScopedAgentSession = existingAgentSession
-    ? mergeAgentSessionProjectionForStore(existingAgentSession, projectScopedAgentSession)
+    ? mergeAgentSessionProjectionForStore(
+        existingAgentSession,
+        projectScopedAgentSession,
+        options,
+      )
     : projectScopedAgentSession;
   const incomingItems =
     activityScopedAgentSession.items.length > 0
@@ -883,6 +918,7 @@ export function upsertAgentSessionIntoCollection(
   projects: readonly AgentProjectView[],
   projectId: string,
   agentSession: AgentSessionView,
+  options: AgentSessionStoreUpsertOptions = {},
 ): AgentProjectView[] {
   const projectIndex = projects.findIndex((project) => project.projectId === projectId);
   if (projectIndex < 0) {
@@ -900,7 +936,7 @@ export function upsertAgentSessionIntoCollection(
   const nextAgentSession = cloneAgentSessionForStore(
     agentSession,
     existingAgentSession,
-    { preserveEmptyItems: false, projectId },
+    { ...options, preserveEmptyItems: false, projectId },
   );
   let unsortedAgentSessions: readonly AgentSessionView[];
   if (existingAgentSessionIndex >= 0) {
@@ -1232,6 +1268,7 @@ export function upsertAgentSessionIntoProjectsStore(
   agentSession: AgentSessionView,
   workspaceId: string,
   userScope?: string,
+  options: AgentSessionStoreUpsertOptions = {},
 ): void {
   const normalizedWorkspaceId = workspaceId.trim();
   if (!projectId.trim() || !normalizedWorkspaceId) {
@@ -1248,7 +1285,12 @@ export function upsertAgentSessionIntoProjectsStore(
 
   mutateProjectsStoreByScopeKey(
     scopeKey,
-    (projects) => upsertAgentSessionIntoCollection(projects, projectId, agentSession),
+    (projects) => upsertAgentSessionIntoCollection(
+      projects,
+      projectId,
+      agentSession,
+      options,
+    ),
   );
 }
 

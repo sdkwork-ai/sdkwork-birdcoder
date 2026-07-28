@@ -5,12 +5,43 @@ import {
   computeTranscriptRepairScrollTop,
   isTranscriptNearBottom,
   measureTranscriptDistanceFromBottom,
+  shouldShowTranscriptJumpToLatest,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatScrollBehavior.ts';
 
 assert.equal(
   CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX > 0,
   true,
   'chat transcript sticky scroll threshold must stay positive.',
+);
+
+assert.equal(
+  shouldShowTranscriptJumpToLatest({
+    clientHeight: 480,
+    scrollHeight: 480,
+    scrollTop: 0,
+  }),
+  false,
+  'a transcript that does not overflow must not show a jump-to-latest affordance.',
+);
+
+assert.equal(
+  shouldShowTranscriptJumpToLatest({
+    clientHeight: 480,
+    scrollHeight: 1600,
+    scrollTop: 620,
+  }),
+  true,
+  'a transcript materially above the latest message must expose a jump-to-latest affordance.',
+);
+
+assert.equal(
+  shouldShowTranscriptJumpToLatest({
+    clientHeight: 480,
+    scrollHeight: 1600,
+    scrollTop: 1600 - 480 - CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX + 1,
+  }),
+  false,
+  'the jump-to-latest affordance must disappear inside the sticky bottom threshold.',
 );
 
 assert.equal(

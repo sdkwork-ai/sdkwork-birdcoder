@@ -129,6 +129,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
     return (
       <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
         <UserMessageAttachments
+          audios={display.audioAttachments}
           context={context}
           files={display.fileAttachments}
           images={display.imageAttachments}
@@ -159,6 +160,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
   return (
     <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
       <UserMessageAttachments
+        audios={display.audioAttachments}
         context={context}
         files={display.fileAttachments}
         images={display.imageAttachments}

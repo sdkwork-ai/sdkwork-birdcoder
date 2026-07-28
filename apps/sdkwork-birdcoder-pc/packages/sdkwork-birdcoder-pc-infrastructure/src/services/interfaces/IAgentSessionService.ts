@@ -98,6 +98,7 @@ export interface SubmitAgentTurnOptions extends AgentSessionReadOptions {
   agentId: string;
   onAccepted?: () => void;
   onDelta?: (delta: Readonly<AgentTurnStreamDelta>) => void;
+  onDeliveryUncertain?: () => void;
 }
 
 export interface AgentTurnCompletion {

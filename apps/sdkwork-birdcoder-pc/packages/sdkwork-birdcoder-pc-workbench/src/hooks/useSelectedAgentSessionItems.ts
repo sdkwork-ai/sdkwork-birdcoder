@@ -99,6 +99,25 @@ export function useSelectedAgentSessionItems({
   }, [isActive, isExecuting, normalizedSessionId]);
 
   useEffect(() => {
+    if (!isActive || !normalizedSessionId) {
+      return undefined;
+    }
+    const refreshOnResume = () => {
+      if (document.visibilityState !== 'hidden') {
+        setPollRevision((revision) => revision + 1);
+      }
+    };
+    window.addEventListener('focus', refreshOnResume);
+    window.addEventListener('online', refreshOnResume);
+    document.addEventListener('visibilitychange', refreshOnResume);
+    return () => {
+      window.removeEventListener('focus', refreshOnResume);
+      window.removeEventListener('online', refreshOnResume);
+      document.removeEventListener('visibilitychange', refreshOnResume);
+    };
+  }, [isActive, normalizedSessionId]);
+
+  useEffect(() => {
     if (!isActive || !normalizedSessionId || activeRequestKeyRef.current === requestKey) {
       return undefined;
     }

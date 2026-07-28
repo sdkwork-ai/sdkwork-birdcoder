@@ -39,6 +39,13 @@ export interface UserMessageImageAttachment {
   title: string;
 }
 
+export interface UserMessageAudioAttachment {
+  id: string;
+  mimeType?: string;
+  source: string;
+  title: string;
+}
+
 export interface UserMessageFileAttachment {
   driveNodeId?: string;
   externalUrl?: string;
@@ -50,6 +57,7 @@ export interface UserMessageFileAttachment {
 }
 
 export interface UserMessageDisplay {
+  audioAttachments: UserMessageAudioAttachment[];
   fileAttachments: UserMessageFileAttachment[];
   imageAttachments: UserMessageImageAttachment[];
   supplementaryBlocks: AgentSessionItemPresentationBlock[];
@@ -267,6 +275,7 @@ function extractMarkdownImageAttachments(content: string): {
 
 function appendStructuredResource(
   resource: AgentSessionItemResourceView,
+  audios: UserMessageAudioAttachment[],
   files: UserMessageFileAttachment[],
   images: UserMessageImageAttachment[],
 ): void {
@@ -280,6 +289,22 @@ function appendStructuredResource(
     : undefined;
   if (imageSource) {
     images.push({ id: resource.id, source: imageSource, title });
+    return;
+  }
+  const audioSource = resource.kind === 'audio'
+    ? resolveAgentSessionItemMediaSource(
+        resource.mediaSource ?? resource.uri ?? resource.origin?.uri,
+        'audio',
+        resource.mimeType,
+      )
+    : undefined;
+  if (audioSource) {
+    audios.push({
+      id: resource.id,
+      source: audioSource,
+      title,
+      ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
+    });
     return;
   }
   const path = resolveOpenableFilePath(resource);
@@ -349,6 +374,7 @@ function deduplicateFileAttachments(
 }
 
 export function resolveUserMessageDisplay(view: AgentSessionItemPresentation): UserMessageDisplay {
+  const audioAttachments: UserMessageAudioAttachment[] = [];
   const fileAttachments: UserMessageFileAttachment[] = [];
   const imageAttachments: UserMessageImageAttachment[] = [];
   const textBlocks: AgentSessionItemPresentationBlock[] = [];
@@ -357,7 +383,12 @@ export function resolveUserMessageDisplay(view: AgentSessionItemPresentation): U
   for (const block of view.blocks) {
     if (block.type === 'resources') {
       block.items.forEach((resource) => {
-        appendStructuredResource(resource, fileAttachments, imageAttachments);
+        appendStructuredResource(
+          resource,
+          audioAttachments,
+          fileAttachments,
+          imageAttachments,
+        );
       });
       continue;
     }
@@ -376,6 +407,10 @@ export function resolveUserMessageDisplay(view: AgentSessionItemPresentation): U
   }
 
   return {
+    audioAttachments: deduplicateAttachments(
+      audioAttachments,
+      (attachment) => attachment.source,
+    ),
     fileAttachments: deduplicateFileAttachments(fileAttachments),
     imageAttachments: deduplicateAttachments(
       imageAttachments,

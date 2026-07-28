@@ -1,7 +1,11 @@
 import {
+  type AgentSessionItemRecord,
   type AgentResourceUserStateRecord,
+  type AgentSessionRecord,
   type AgentSessionRuntimeBindingRecord,
+  type AgentTurnRecord,
   type AgentTurnStreamEvent,
+  completeAgentTurn,
   type CreateAgentSessionRuntimeBindingRequest,
   type SessionActivitySummary,
   type SdkworkAppClient as AgentsAppSdkClient,
@@ -29,6 +33,10 @@ const SESSION_USER_STATE_BATCH_SIZE = 100;
 const SESSION_ACTIVITY_CURSOR_MAX_LENGTH = 2_048;
 const SESSION_ACTIVITY_DEFAULT_PAGE_SIZE = 20;
 const SESSION_ACTIVITY_MAX_PAGE_SIZE = 200;
+const TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS = 300;
+const TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS = 2_000;
+const TURN_RECOVERY_ITEM_PAGE_SIZE = 200;
+const TURN_RECOVERY_MAX_ITEM_PAGES = 10;
 
 export interface BirdCoderAgentSessionServiceOptions {
   agentId?: string;
@@ -36,6 +44,8 @@ export interface BirdCoderAgentSessionServiceOptions {
   providerSessionDirectoryIdentityProvider?: (
     projectId: string,
   ) => Promise<{ directoryFingerprint: string; directoryName: string } | null>;
+  turnRecoveryMaxAttempts?: number;
+  turnRecoveryPollIntervalMs?: number;
 }
 
 function hashPayload(value: unknown): string {
@@ -256,20 +266,254 @@ function readAgentTurnCompletionEvent(event: unknown): AgentTurnCompletion {
   return completion;
 }
 
+function isAgentTurnNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as {
+    httpStatus?: unknown;
+    message?: unknown;
+    response?: { status?: unknown };
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  const status = candidate.status
+    ?? candidate.statusCode
+    ?? candidate.httpStatus
+    ?? candidate.response?.status;
+  return status === 404 || (
+    typeof candidate.message === 'string'
+    && /(?:agent\s+)?turn\s+not\s+found/iu.test(candidate.message)
+  );
+}
+
+function throwIfTurnDeliveryAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) {
+    return;
+  }
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new Error('Agent turn delivery was aborted.');
+}
+
+async function waitForTurnRecovery(intervalMs: number, signal?: AbortSignal): Promise<void> {
+  throwIfTurnDeliveryAborted(signal);
+  if (intervalMs === 0) {
+    await Promise.resolve();
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const timeout = globalThis.setTimeout(() => {
+      signal?.removeEventListener('abort', handleAbort);
+      resolve();
+    }, intervalMs);
+    const handleAbort = () => {
+      globalThis.clearTimeout(timeout);
+      reject(
+        signal?.reason instanceof Error
+          ? signal.reason
+          : new Error('Agent turn delivery was aborted.'),
+      );
+    };
+    signal?.addEventListener('abort', handleAbort, { once: true });
+  });
+}
+
+function compareAgentSessionItemSequence(
+  left: AgentSessionItemRecord,
+  right: AgentSessionItemRecord,
+): number {
+  try {
+    const leftSequence = BigInt(left.sequence);
+    const rightSequence = BigInt(right.sequence);
+    return leftSequence < rightSequence ? -1 : leftSequence > rightSequence ? 1 : 0;
+  } catch {
+    return left.sequence.localeCompare(right.sequence);
+  }
+}
+
+function isTerminalAgentTurn(turn: AgentTurnRecord): boolean {
+  return turn.status === 'completed'
+    || turn.status === 'failed'
+    || turn.status === 'cancelled';
+}
+
+function normalizeTurnRecoveryOption(value: number, fallback: number, minimum: number): number {
+  return Number.isFinite(value)
+    ? Math.max(minimum, Math.trunc(value))
+    : fallback;
+}
+
 export class BirdCoderAgentSessionService implements IAgentSessionService {
   private readonly agentId: string;
   private readonly client: AgentsAppSdkClient;
   private readonly providerSessionDirectoryIdentityProvider?: BirdCoderAgentSessionServiceOptions['providerSessionDirectoryIdentityProvider'];
   private readonly sessionAgentIds = new Map<string, string>();
+  private readonly turnRecoveryMaxAttempts: number;
+  private readonly turnRecoveryPollIntervalMs: number;
 
   constructor({
     agentId,
     client,
     providerSessionDirectoryIdentityProvider,
+    turnRecoveryMaxAttempts = TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS,
+    turnRecoveryPollIntervalMs = TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS,
   }: BirdCoderAgentSessionServiceOptions) {
     this.agentId = resolveAgentId(agentId);
     this.client = client;
     this.providerSessionDirectoryIdentityProvider = providerSessionDirectoryIdentityProvider;
+    this.turnRecoveryMaxAttempts = normalizeTurnRecoveryOption(
+      turnRecoveryMaxAttempts,
+      TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS,
+      1,
+    );
+    this.turnRecoveryPollIntervalMs = normalizeTurnRecoveryOption(
+      turnRecoveryPollIntervalMs,
+      TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS,
+      0,
+    );
+  }
+
+  private async loadRecoveredTurnCompletion(
+    agentId: string,
+    sessionId: string,
+    turn: AgentTurnRecord,
+    options: SubmitAgentTurnOptions,
+  ): Promise<AgentTurnCompletion> {
+    const requestOptions = toApiRequestOptions(options);
+    const matchedItems = new Map<string, AgentSessionItemRecord>();
+    let page = 1;
+    let hasMore = true;
+    while (hasMore && page <= TURN_RECOVERY_MAX_ITEM_PAGES) {
+      const response = await this.client.ai.agents.sessionItems.list(
+        agentId,
+        sessionId,
+        { page, pageSize: TURN_RECOVERY_ITEM_PAGE_SIZE, sort: '-sequence' },
+        requestOptions,
+      );
+      for (const item of response.items) {
+        if (
+          item.turnId === turn.turnId
+          || item.itemId === turn.requestItemId
+          || item.itemId === turn.responseItemId
+        ) {
+          matchedItems.set(item.itemId, item);
+        }
+      }
+      const hasRequestItem = matchedItems.has(turn.requestItemId);
+      const hasResponseItem = !turn.responseItemId || matchedItems.has(turn.responseItemId);
+      if (hasRequestItem && hasResponseItem) {
+        break;
+      }
+      hasMore = response.pageInfo.hasMore === true;
+      page += 1;
+    }
+
+    const missingItemIds = [turn.requestItemId, turn.responseItemId]
+      .filter((itemId): itemId is string => Boolean(itemId && !matchedItems.has(itemId)));
+    const directlyRetrievedItems = await Promise.all(
+      missingItemIds.map((itemId) => this.client.ai.agents.sessionItems.retrieve(
+        agentId,
+        sessionId,
+        itemId,
+        requestOptions,
+      )),
+    );
+    for (const item of directlyRetrievedItems) {
+      matchedItems.set(item.itemId, item);
+    }
+
+    if (!matchedItems.has(turn.requestItemId)) {
+      throw new Error(`Agents turn ${turn.turnId} replay is missing its user Session Item.`);
+    }
+    if (turn.status === 'completed' && (
+      !turn.responseItemId || !matchedItems.has(turn.responseItemId)
+    )) {
+      throw new Error(`Agents turn ${turn.turnId} replay is missing its assistant Session Item.`);
+    }
+
+    const session = await this.client.ai.agents.sessions.retrieve(
+      agentId,
+      sessionId,
+      requestOptions,
+    );
+    return {
+      session,
+      turn,
+      items: [...matchedItems.values()].sort(compareAgentSessionItemSequence),
+    };
+  }
+
+  private async recoverTurnCompletion(
+    agentId: string,
+    sessionId: string,
+    turnId: string,
+    options: SubmitAgentTurnOptions,
+    notifyAccepted: () => void,
+    notifyDeliveryUncertain: () => void,
+  ): Promise<AgentTurnCompletion | null> {
+    const turnsApi = this.client.ai.agents.turns as {
+      retrieve?: (
+        requestedAgentId: string,
+        requestedSessionId: string,
+        requestedTurnId: string,
+        requestOptions?: ReturnType<typeof toApiRequestOptions>,
+      ) => Promise<AgentTurnRecord>;
+    };
+    if (typeof turnsApi.retrieve !== 'function') {
+      return null;
+    }
+
+    let didFindTurn = false;
+    let didObserveNotFound = false;
+    let lastRecoveryError: unknown;
+    for (let attempt = 0; attempt < this.turnRecoveryMaxAttempts; attempt += 1) {
+      throwIfTurnDeliveryAborted(options.signal);
+      try {
+        const turn = await turnsApi.retrieve(
+          agentId,
+          sessionId,
+          turnId,
+          toApiRequestOptions(options),
+        );
+        didFindTurn = true;
+        notifyAccepted();
+        if (isTerminalAgentTurn(turn)) {
+          try {
+            return await this.loadRecoveredTurnCompletion(agentId, sessionId, turn, options);
+          } catch (error: unknown) {
+            lastRecoveryError = error;
+          }
+        }
+      } catch (error: unknown) {
+        if (isAgentTurnNotFoundError(error)) {
+          didObserveNotFound = true;
+        } else {
+          lastRecoveryError = error;
+        }
+      }
+      if (attempt + 1 < this.turnRecoveryMaxAttempts) {
+        await waitForTurnRecovery(this.turnRecoveryPollIntervalMs, options.signal);
+      }
+    }
+
+    if (!didFindTurn) {
+      if (!didObserveNotFound && lastRecoveryError !== undefined) {
+        notifyDeliveryUncertain();
+        throw new Error(
+          `Agents turn ${turnId} delivery could not be confirmed because recovery is unavailable.`,
+          { cause: lastRecoveryError },
+        );
+      }
+      return null;
+    }
+    const detail = lastRecoveryError instanceof Error && lastRecoveryError.message.trim()
+      ? ` Last recovery error: ${lastRecoveryError.message}`
+      : '';
+    throw new Error(
+      `Agents accepted turn ${turnId}, but it did not reach a replayable terminal state before recovery timed out.${detail}`,
+      lastRecoveryError === undefined ? undefined : { cause: lastRecoveryError },
+    );
   }
 
   private rememberSession(session: { agentId: string; sessionId: string }): void {
@@ -533,12 +777,15 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     }
 
     const idempotencyKey = uuid();
+    const turnId = input.turnId?.trim() || `turn.${uuid()}`;
+    const clientRequestId = input.clientRequestId?.trim() || idempotencyKey;
     const payload = {
       ...input,
       content: input.content.trim(),
+      clientRequestId,
       requestedModelId: input.requestedModelId?.trim() || undefined,
       runtimeBindingId: input.runtimeBindingId?.trim() || undefined,
-      turnId: input.turnId?.trim() || undefined,
+      turnId,
       turnMode: input.turnMode ?? 'interactive',
     };
     if (!payload.content) {
@@ -547,17 +794,17 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     if (!payload.runtimeBindingId) {
       throw new Error('Agent runtime binding ID is required for turn submission.');
     }
-    const events = await this.client.ai.agents.turns.stream(agentId, normalizedSessionId, {
+    const command = {
       ...payload,
       idempotencyKey,
       payloadHash: hashPayload(payload),
-      clientRequestId: input.clientRequestId ?? idempotencyKey,
       requestedAt: new Date().toISOString(),
-    }, { stream: true }, toApiRequestOptions(options));
+    };
 
     let completion: AgentTurnCompletion | null = null;
     let content = '';
     let didNotifyAccepted = false;
+    let didNotifyDeliveryUncertain = false;
     let expectedDeltaIndex = 0;
     const notifyAccepted = () => {
       if (didNotifyAccepted) {
@@ -570,48 +817,111 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         // Presentation observers cannot change the outcome of an accepted backend command.
       }
     };
-    for await (const event of events) {
-      if (completion) {
-        throw new Error('Agents turn stream emitted an event after completion.');
+    const notifyDeliveryUncertain = () => {
+      if (didNotifyDeliveryUncertain) {
+        return;
       }
-      if (!event || typeof event !== 'object') {
-        throw new Error('Agents turn stream emitted a malformed event.');
+      didNotifyDeliveryUncertain = true;
+      try {
+        options.onDeliveryUncertain?.();
+      } catch {
+        // Presentation observers cannot change the durable recovery outcome.
       }
-      if (event.eventType === 'delta') {
-        if (
-          !Number.isSafeInteger(event.index)
-          || event.index !== expectedDeltaIndex
-          || typeof event.delta !== 'string'
-        ) {
-          throw new Error(
-            `Agents turn stream delta ${expectedDeltaIndex} is missing or out of order.`,
-          );
+    };
+    let streamError: unknown;
+    try {
+      const events = await this.client.ai.agents.turns.stream(
+        agentId,
+        normalizedSessionId,
+        command,
+        { stream: true },
+        toApiRequestOptions(options),
+      );
+      for await (const event of events) {
+        if (completion) {
+          throw new Error('Agents turn stream emitted an event after completion.');
         }
+        if (!event || typeof event !== 'object') {
+          throw new Error('Agents turn stream emitted a malformed event.');
+        }
+        if (event.eventType === 'delta') {
+          if (
+            !Number.isSafeInteger(event.index)
+            || event.index !== expectedDeltaIndex
+            || typeof event.delta !== 'string'
+          ) {
+            throw new Error(
+              `Agents turn stream delta ${expectedDeltaIndex} is missing or out of order.`,
+            );
+          }
+          notifyAccepted();
+          content += event.delta;
+          try {
+            options.onDelta?.({ content, delta: event.delta, index: event.index });
+          } catch {
+            // Presentation observers cannot change the outcome of an accepted backend command.
+          }
+          expectedDeltaIndex += 1;
+          continue;
+        }
+        if (event.eventType !== 'completion') {
+          throw new Error('Agents turn stream emitted an unsupported event type.');
+        }
+        completion = readAgentTurnCompletionEvent(event);
         notifyAccepted();
-        content += event.delta;
-        try {
-          options.onDelta?.({ content, delta: event.delta, index: event.index });
-        } catch {
-          // Presentation observers cannot change the outcome of an accepted backend command.
-        }
-        expectedDeltaIndex += 1;
-        continue;
       }
-      if (event.eventType !== 'completion') {
-        throw new Error('Agents turn stream emitted an unsupported event type.');
+      if (!completion) {
+        throw new Error('Agents turn stream ended without a completion event.');
       }
-      completion = readAgentTurnCompletionEvent(event);
-      notifyAccepted();
+    } catch (error: unknown) {
+      completion = null;
+      streamError = error;
     }
 
     if (!completion) {
-      throw new Error('Agents turn stream ended without a completion event.');
+      throwIfTurnDeliveryAborted(options.signal);
+      const clientWithHttp = this.client as AgentsAppSdkClient & {
+        http?: { post?: unknown };
+      };
+      if (typeof clientWithHttp.http?.post === 'function') {
+        try {
+          completion = await completeAgentTurn(
+            this.client,
+            agentId,
+            normalizedSessionId,
+            command,
+          );
+          notifyAccepted();
+        } catch {
+          // The durable turn and Session Item APIs are the final recovery authority.
+        }
+      }
+    }
+
+    if (!completion) {
+      const recovered = await this.recoverTurnCompletion(
+        agentId,
+        normalizedSessionId,
+        turnId,
+        options,
+        notifyAccepted,
+        notifyDeliveryUncertain,
+      );
+      if (recovered) {
+        completion = recovered;
+      }
+    }
+
+    if (!completion) {
+      throw streamError instanceof Error
+        ? streamError
+        : new Error('Agents turn delivery failed before the command was accepted.');
     }
     assertAgentTurnCompletionIdentity(
       completion,
       agentId,
       normalizedSessionId,
-      payload.turnId,
+      input.turnId?.trim() || undefined,
       payload.runtimeBindingId,
     );
     this.rememberSession(completion.session);

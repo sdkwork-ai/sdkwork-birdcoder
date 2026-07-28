@@ -395,6 +395,70 @@ test('Conversation messages render rich content and expandable command evidence'
   ))).toEqual([]);
 });
 
+test('Codex user input preserves text, images, and files in one message', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 900, height: 800 });
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expandProjectSessions(page);
+  await selectSessionByTitle(page, 'Codex implementation');
+
+  const transcript = page.getByRole('region', { name: 'Conversation messages' });
+  const codexUserText = transcript.locator('[data-chat-user-text="true"]').filter({
+    hasText: 'Inspect this Codex screenshot and the attached protocol notes.',
+  });
+  const codexUserImage = transcript.locator('[data-chat-user-image="true"]');
+  const codexUserFile = transcript.locator('[data-chat-user-file-attachment="true"]').filter({
+    hasText: 'codex-protocol-notes.md',
+  });
+  await expect(codexUserText).toHaveCount(1);
+  await expect(codexUserText).toBeVisible();
+  await expect(codexUserImage).toHaveCount(1);
+  await expect(codexUserImage).toBeVisible();
+  await expect(codexUserFile).toHaveCount(1);
+  await expect(codexUserFile).toBeVisible();
+  await expect(transcript.getByText('"type":"input_image"', { exact: false })).toHaveCount(0);
+  await expect.poll(() => codexUserImage.locator('img').evaluate((image) => (
+    image instanceof HTMLImageElement ? image.naturalWidth : 0
+  ))).toBeGreaterThan(0);
+  await expect.poll(() => codexUserImage.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => codexUserFile.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => transcript.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+
+  await codexUserImage.click();
+  const codexImagePreview = page.locator('[data-chat-image-preview-dialog="true"]');
+  await expect(codexImagePreview).toBeVisible();
+  await expect(codexImagePreview.getByRole('img', { name: 'Image' })).toBeVisible();
+  await codexImagePreview.getByRole('button', { name: 'Close image preview' }).click();
+  await expect(codexImagePreview).toHaveCount(0);
+  await captureVisualEvidenceScreenshot(page, 'message-presentation-codex-input-900x800');
+
+  expect(pageErrors).toEqual([]);
+  expect(consoleErrors.filter((entry) => (
+    /codex|image|attachment|undefined.*map/iu.test(entry)
+  ))).toEqual([]);
+});
+
 test('Provider lifecycle protocols share one structured expandable presentation', async ({
   page,
   request,

@@ -216,4 +216,36 @@ describe('Agent turn item reconciliation', () => {
     expect(merged.items.map((entry) => entry.id)).toEqual(['item-a', 'item-b', 'item-c']);
     expect(merged.transcriptUpdatedAt).toBe('2026-07-27T10:00:03.000Z');
   });
+
+  it('keeps historical pages ordered while retaining items appended during pagination', () => {
+    const buildItemWindow = (start: number, end: number) =>
+      Array.from({ length: end - start + 1 }, (_, index) => {
+        const sequence = start + index;
+        return item(`item-${sequence}`, sequence % 2 === 0 ? 'assistant' : 'user');
+      });
+    const firstPage = session({ items: buildItemWindow(26, 45) });
+    const secondPage = mergeAgentSessionProjectionForStore(
+      firstPage,
+      session({ items: buildItemWindow(6, 45) }),
+      { itemMergeMode: 'ordered-window' },
+    );
+
+    expect(secondPage.items.map((entry) => entry.id)).toEqual(
+      buildItemWindow(6, 45).map((entry) => entry.id),
+    );
+
+    const concurrentLatestItem = item('item-46', 'assistant');
+    const thirdPage = mergeAgentSessionProjectionForStore(
+      {
+        ...secondPage,
+        items: [...secondPage.items, concurrentLatestItem],
+      },
+      session({ items: buildItemWindow(1, 45) }),
+      { itemMergeMode: 'ordered-window' },
+    );
+
+    expect(thirdPage.items.map((entry) => entry.id)).toEqual(
+      buildItemWindow(1, 46).map((entry) => entry.id),
+    );
+  });
 });

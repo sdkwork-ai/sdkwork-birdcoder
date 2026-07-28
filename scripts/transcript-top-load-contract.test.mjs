@@ -38,6 +38,18 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
+  /const pendingTopLoadAfterRemoteRequestRef = useRef\(false\);[\s\S]*setRemoteTopLoadRearmVersion\(\(version\) => version \+ 1\);/s,
+  'A user top-scroll intent during an active remote request must rearm one threshold check after that request settles.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /scrollContainer\.addEventListener\('wheel', markPendingTopLoadIntent[\s\S]*scrollContainer\.addEventListener\('touchstart', markPendingTopLoadIntent[\s\S]*scrollContainer\.addEventListener\('keydown', handleTranscriptKeyDown/s,
+  'Remote top-load rearming must be driven by explicit user input instead of request completion alone.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
   /const scheduleEarlierTranscriptPageRequest = \(\) => \{[\s\S]*topLoadAnimationFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*requestEarlierTranscriptPage\(\);[\s\S]*\}\);[\s\S]*\}/s,
   'Progressive transcript pagination must batch top-load threshold reads onto animation frames instead of doing layout work inside native scroll events.',
 );
@@ -89,6 +101,12 @@ assert.match(
   progressiveTranscriptHookSource,
   /currentRemoteHistory\?\.hasMoreMessages[\s\S]*!currentRemoteHistory\.isLoadingMessages[\s\S]*!remoteLoadRequestRef\.current/s,
   'Progressive transcript pagination must require remote page metadata and an idle request gate before dispatching another server page.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /remoteHistory\?\.hasMoreMessages,[\s\S]*remoteHistory\?\.isLoadingMessages,[\s\S]*remoteTopLoadRearmVersion,/s,
+  'Progressive transcript pagination must recheck the top threshold when the parent loading gate becomes idle after a user rearm request.',
 );
 
 assert.match(

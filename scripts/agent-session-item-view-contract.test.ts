@@ -84,6 +84,117 @@ assert.equal(
   'Legacy Session Items without Drive references must remain renderable.',
 );
 
+const codexUserMessageCreatedAt = '2026-07-23T08:00:02.000Z';
+const codexUserTextItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-user-text',
+  kind: 'user_input',
+  content: 'Inspect the attached screenshot and README.',
+  contentType: 'text/plain',
+  providerId: 'provider.model.codex',
+  sequence: '20',
+  createdAt: codexUserMessageCreatedAt,
+};
+const codexUserImageItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-user-image',
+  kind: 'artifact_reference',
+  content: JSON.stringify({
+    type: 'input_image',
+    image_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
+  }),
+  contentType: 'application/json',
+  providerId: 'provider.model.codex',
+  sequence: '21',
+  createdAt: codexUserMessageCreatedAt,
+};
+const codexUserMentionItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-user-mention',
+  kind: 'artifact_reference',
+  content: JSON.stringify({
+    type: 'mention',
+    name: 'README.md',
+    path: 'E:\\workspace\\README.md',
+  }),
+  contentType: 'application/json',
+  providerId: 'provider.model.codex',
+  sequence: '22',
+  createdAt: codexUserMessageCreatedAt,
+};
+const codexUserMessageViews = toAgentSessionTranscriptItemViews([
+  codexUserImageItem,
+  codexUserTextItem,
+  codexUserMentionItem,
+]);
+assert.equal(
+  codexUserMessageViews.length,
+  1,
+  'Codex rollout parts from one user message must render as one transcript message.',
+);
+assert.equal(codexUserMessageViews[0]?.role, 'user');
+assert.equal(codexUserMessageViews[0]?.content, codexUserTextItem.content);
+assert.deepEqual(
+  codexUserMessageViews[0]?.resources?.map((resource) => ({
+    kind: resource.kind,
+    name: resource.name,
+    path: resource.path,
+  })),
+  [
+    { kind: 'image', name: 'Image', path: undefined },
+    { kind: 'mention', name: 'README.md', path: 'E:\\workspace\\README.md' },
+  ],
+  'Codex image and mention inputs must remain structured user-message resources.',
+);
+assert.equal(
+  codexUserMessageViews[0]?.resources?.[0]?.mediaSource,
+  JSON.parse(codexUserImageItem.content ?? '{}').image_url,
+);
+
+const codexEnvelopeItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-user-envelope',
+  kind: 'user_input',
+  content: JSON.stringify({
+    id: 'codex-user-message-1',
+    content: [
+      { type: 'text', text: 'Use every referenced input.' },
+      { type: 'localImage', path: 'E:\\workspace\\capture.png' },
+      { type: 'audio', url: 'data:audio/wav;base64,UklGRg==' },
+      { type: 'local_audio', path: 'E:\\workspace\\note.mp3' },
+      { type: 'file', name: 'requirements.pdf', path: 'E:\\workspace\\requirements.pdf' },
+      { type: 'skill', name: 'release-check', path: 'E:\\skills\\release-check\\SKILL.md' },
+    ],
+  }),
+  contentType: 'application/json',
+  providerId: 'provider.model.codex',
+  sequence: '23',
+};
+const codexEnvelopeView = toAgentSessionItemView(codexEnvelopeItem);
+assert.equal(codexEnvelopeView.content, 'Use every referenced input.');
+assert.deepEqual(
+  codexEnvelopeView.resources?.map((resource) => resource.kind),
+  ['image', 'audio', 'audio', 'file', 'skill'],
+  'Codex App Server UserInput variants must project through the shared resource model.',
+);
+assert.equal(codexEnvelopeView.resources?.[0]?.path, 'E:\\workspace\\capture.png');
+assert.equal(codexEnvelopeView.resources?.[1]?.mediaSource, 'data:audio/wav;base64,UklGRg==');
+assert.equal(codexEnvelopeView.resources?.[2]?.path, 'E:\\workspace\\note.mp3');
+
+const unrelatedJsonUserItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-openai-json-user',
+  kind: 'user_input',
+  content: '{"type":"input_image","image_url":"https://example.test/image.png"}',
+  contentType: 'application/json',
+  providerId: 'openai',
+};
+assert.equal(
+  toAgentSessionItemView(unrelatedJsonUserItem).content,
+  unrelatedJsonUserItem.content,
+  'Provider-native parsing must require explicit Codex provider evidence.',
+);
+
 const renderedView = resolveAgentSessionItemPresentation(transientItemView, {
   engineId: canonicalItem.providerId ?? undefined,
 });

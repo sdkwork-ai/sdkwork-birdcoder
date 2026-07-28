@@ -13,6 +13,7 @@ import {
   formatAgentSessionActivityDisplayTime,
   formatAgentSessionDisplayTime,
   isAgentSessionItemVisibleInTranscript,
+  normalizeAgentSessionItemResources,
   normalizeAgentSessionItemLifecycleEvents,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { AgentResourceUserStateRecord } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
@@ -23,6 +24,10 @@ import {
 import { resolveAgentSessionActivityRuntimeStatus } from '../workbench/agentSessionActivity.ts';
 import { mergeAgentSessionProjectionForStore } from '../stores/projectsStore.ts';
 import { resolveAgentSessionFileChanges } from './agentSessionFileChanges.ts';
+import {
+  resolveAgentSessionUserContent,
+  type AgentSessionUserContentProjection,
+} from './agentSessionUserContent.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -201,9 +206,10 @@ function resolveDriveResourceKind(
 
 function resolveItemResources(
   item: AgentSessionItemRecord,
+  providerProjection?: AgentSessionUserContentProjection | null,
 ): AgentSessionItemResourceView[] | undefined {
   const driveRefs = Array.isArray(item.driveRefs) ? item.driveRefs : [];
-  const resources = driveRefs
+  const driveResources = driveRefs
     .filter((resource) => resource.status === 'active' && resource.driveNodeId.trim())
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder)
@@ -213,7 +219,23 @@ function resolveItemResources(
       uri: `drive://nodes/${encodeURIComponent(resource.driveNodeId)}`,
       ...(resource.altText?.trim() ? { name: resource.altText.trim() } : {}),
     }));
-  return resources.length > 0 ? resources : undefined;
+  const resources = normalizeAgentSessionItemResources([
+    ...driveResources,
+    ...(providerProjection?.resources ?? []),
+  ]);
+  if (resources.length < 2) {
+    return resources.length > 0 ? resources : undefined;
+  }
+  const resourceKeys = new Set<string>();
+  return resources.filter((resource) => {
+    const location = resource.path ?? resource.mediaSource ?? resource.uri;
+    const key = location?.trim().toLowerCase() ?? `${resource.kind}:${resource.name ?? resource.id}`;
+    if (resourceKeys.has(key)) {
+      return false;
+    }
+    resourceKeys.add(key);
+    return true;
+  });
 }
 
 function resolveItemNoticeKind(
@@ -389,12 +411,13 @@ export function toAgentSessionItemView(
   item: AgentSessionItemRecord,
 ): AgentSessionItemView {
   const noticeKind = resolveItemNoticeKind(item);
+  const userContent = resolveAgentSessionUserContent(item);
   return {
     id: item.itemId,
     sessionId: item.sessionId,
     turnId: item.turnId ?? undefined,
     role: resolveItemRole(item.kind),
-    content: resolveItemContent(item),
+    content: userContent?.content ?? resolveItemContent(item),
     metadata: {
       agentItemKind: item.kind,
       agentItemSequence: item.sequence,
@@ -415,16 +438,80 @@ export function toAgentSessionItemView(
     fileChanges: resolveAgentSessionFileChanges(item.toolResult),
     lifecycleEvents: resolveItemLifecycleEvents(item),
     reasoning: resolveItemReasoning(item),
-    resources: resolveItemResources(item),
+    resources: resolveItemResources(item, userContent),
+  };
+}
+
+function isCodexUserContentCarrier(item: AgentSessionItemRecord): boolean {
+  return resolveAgentSessionUserContent(item) !== null;
+}
+
+function hasSameCodexMessageIdentity(
+  left: AgentSessionItemRecord,
+  right: AgentSessionItemRecord,
+): boolean {
+  return left.sessionId === right.sessionId
+    && left.createdAt === right.createdAt
+    && (left.turnId ?? undefined) === (right.turnId ?? undefined)
+    && left.providerId === right.providerId;
+}
+
+function mergeCodexUserContentGroup(
+  items: readonly AgentSessionItemRecord[],
+): AgentSessionItemView {
+  const views = items.map(toAgentSessionItemView);
+  const userIndex = items.findIndex((item) => item.kind === 'user_input');
+  const targetIndex = userIndex >= 0 ? userIndex : 0;
+  const target = views[targetIndex]!;
+  const content = views
+    .map((view) => view.content.trim())
+    .filter(Boolean)
+    .join('\n');
+  const resources = normalizeAgentSessionItemResources(
+    views.flatMap((view) => view.resources ?? []),
+  );
+  return {
+    ...target,
+    role: 'user',
+    content,
+    metadata: {
+      ...target.metadata,
+      agentItemKind: 'user_input',
+    },
+    resources: resources.length > 0 ? resources : undefined,
   };
 }
 
 export function toAgentSessionTranscriptItemViews(
   items: readonly AgentSessionItemRecord[],
 ): AgentSessionItemView[] {
-  return items
-    .map(toAgentSessionItemView)
-    .filter(isAgentSessionItemVisibleInTranscript);
+  const transcriptItems: AgentSessionItemView[] = [];
+  for (let index = 0; index < items.length;) {
+    const item = items[index]!;
+    if (!isCodexUserContentCarrier(item)) {
+      const view = toAgentSessionItemView(item);
+      if (isAgentSessionItemVisibleInTranscript(view)) {
+        transcriptItems.push(view);
+      }
+      index += 1;
+      continue;
+    }
+
+    let groupEnd = index + 1;
+    while (
+      groupEnd < items.length
+      && isCodexUserContentCarrier(items[groupEnd]!)
+      && hasSameCodexMessageIdentity(item, items[groupEnd]!)
+    ) {
+      groupEnd += 1;
+    }
+    const view = mergeCodexUserContentGroup(items.slice(index, groupEnd));
+    if (isAgentSessionItemVisibleInTranscript(view)) {
+      transcriptItems.push(view);
+    }
+    index = groupEnd;
+  }
+  return transcriptItems;
 }
 
 export function toAgentSessionView(

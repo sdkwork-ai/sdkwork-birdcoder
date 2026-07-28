@@ -72,6 +72,97 @@ function createService(events: readonly unknown[]) {
   };
 }
 
+function createRecoveredCompletion(status: 'completed' | 'failed' = 'completed') {
+  const base = createTurnCompletion();
+  const turn = {
+    ...base.turn,
+    requestItemId: 'item.user',
+    responseItemId: status === 'completed' ? 'item.assistant' : null,
+    status,
+  };
+  const items = [
+    {
+      ...base.items[0],
+      itemId: 'item.user',
+      turnId: turn.turnId,
+    },
+    ...(status === 'completed'
+      ? [{
+          ...base.items[0],
+          content: 'hello back',
+          itemId: 'item.assistant',
+          kind: 'assistant_output',
+          sequence: '2',
+          turnId: turn.turnId,
+        }]
+      : []),
+  ];
+  return { session: base.session, turn, items };
+}
+
+type RecoveryTurn = Omit<
+  ReturnType<typeof createRecoveredCompletion>['turn'],
+  'status'
+> & {
+  status: 'requested' | 'running' | 'completed' | 'failed' | 'cancelled';
+};
+
+function createRecoveryService({
+  completion,
+  retrieveTurns,
+  stream,
+}: {
+  completion: ReturnType<typeof createRecoveredCompletion>;
+  retrieveTurns: readonly RecoveryTurn[];
+  stream: () => Promise<AsyncIterable<unknown>>;
+}) {
+  let retrieveIndex = 0;
+  const retrieveTurn = vi.fn(async () => {
+    const turn = retrieveTurns[Math.min(retrieveIndex, retrieveTurns.length - 1)];
+    retrieveIndex += 1;
+    return turn;
+  });
+  const retrieveSession = vi.fn(async () => completion.session);
+  const listItems = vi.fn(async () => ({
+    items: completion.items,
+    pageInfo: { hasMore: false },
+  }));
+  const retrieveItem = vi.fn(async (
+    _agentId: string,
+    _sessionId: string,
+    itemId: string,
+  ) => {
+    const item = completion.items.find((candidate) => candidate.itemId === itemId);
+    if (!item) {
+      throw Object.assign(new Error('Agent Session Item not found'), { status: 404 });
+    }
+    return item;
+  });
+  const post = vi.fn(async () => {
+    throw new Error('Non-streaming response was unavailable.');
+  });
+  return {
+    listItems,
+    post,
+    retrieveSession,
+    retrieveTurn,
+    service: new BirdCoderAgentSessionService({
+      client: {
+        http: { post },
+        ai: {
+          agents: {
+            sessions: { retrieve: retrieveSession },
+            sessionItems: { list: listItems, retrieve: retrieveItem },
+            turns: { retrieve: retrieveTurn, stream },
+          },
+        },
+      } as never,
+      turnRecoveryMaxAttempts: Math.max(1, retrieveTurns.length),
+      turnRecoveryPollIntervalMs: 0,
+    }),
+  };
+}
+
 describe('Agent turn streaming completion contract', () => {
   it('streams ordered deltas and returns the authoritative completion', async () => {
     const completion = createTurnCompletion();
@@ -287,6 +378,154 @@ describe('Agent turn streaming completion contract', () => {
     }, { agentId })).rejects.toThrow(
       'Agents turn stream emitted an event after completion.',
     );
+  });
+
+  it('falls back to the SDK non-streaming completion with the same command identity', async () => {
+    const completion = createTurnCompletion({ turnId: 'turn.non-stream' });
+    const stream = vi.fn(async (
+      _agentId: string,
+      _sessionId: string,
+      _command: unknown,
+    ) => {
+      throw new Error('SSE transport is unavailable.');
+    });
+    const post = vi.fn(async (
+      _path: string,
+      _command: unknown,
+      _query: unknown,
+    ) => completion);
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        http: { post },
+        ai: { agents: { turns: { stream } } },
+      } as never,
+    });
+    const onAccepted = vi.fn();
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.non-stream',
+    }, { agentId, onAccepted })).resolves.toBe(completion);
+
+    const streamedCommand = stream.mock.calls[0]?.[2];
+    const replayedCommand = post.mock.calls[0]?.[1];
+    expect(replayedCommand).toEqual(streamedCommand);
+    expect(post.mock.calls[0]?.[2]).toEqual({ stream: false });
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers an interrupted stream by polling the turn and replaying Session Items', async () => {
+    const completion = createRecoveredCompletion();
+    const runningTurn = { ...completion.turn, status: 'running' as const };
+    const stream = vi.fn(async () => (async function* interruptedStream() {
+      yield { eventType: 'delta', index: 0, delta: 'hello' };
+      throw new Error('SSE connection reset.');
+    })());
+    const recovery = createRecoveryService({
+      completion,
+      retrieveTurns: [runningTurn, completion.turn],
+      stream,
+    });
+    const onAccepted = vi.fn();
+    const onDelta = vi.fn();
+
+    await expect(recovery.service.submitTurn(sessionId, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: completion.turn.turnId,
+    }, { agentId, onAccepted, onDelta })).resolves.toEqual(completion);
+
+    expect(recovery.retrieveTurn).toHaveBeenCalledTimes(2);
+    expect(recovery.listItems).toHaveBeenCalledWith(
+      agentId,
+      sessionId,
+      { page: 1, pageSize: 200, sort: '-sequence' },
+      { signal: undefined, timeout: undefined },
+    );
+    expect(onDelta).toHaveBeenCalledWith({ content: 'hello', delta: 'hello', index: 0 });
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns failed terminal turns with their authoritative user Session Item', async () => {
+    const completion = createRecoveredCompletion('failed');
+    const stream = vi.fn(async () => {
+      throw new Error('SSE response was lost.');
+    });
+    const recovery = createRecoveryService({
+      completion,
+      retrieveTurns: [completion.turn],
+      stream,
+    });
+
+    await expect(recovery.service.submitTurn(sessionId, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: completion.turn.turnId,
+    }, { agentId })).resolves.toEqual(completion);
+  });
+
+  it('preserves the original transport error when neither delivery path accepted the turn', async () => {
+    const stream = vi.fn(async () => {
+      throw new Error('Initial turn request failed.');
+    });
+    const post = vi.fn(async () => {
+      throw new Error('Non-streaming turn request failed.');
+    });
+    const retrieve = vi.fn(async () => {
+      throw Object.assign(new Error('Agent turn not found'), { status: 404 });
+    });
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        http: { post },
+        ai: { agents: { turns: { retrieve, stream } } },
+      } as never,
+      turnRecoveryMaxAttempts: 2,
+      turnRecoveryPollIntervalMs: 0,
+    });
+    const onAccepted = vi.fn();
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.not-accepted',
+    }, { agentId, onAccepted })).rejects.toThrow('Initial turn request failed.');
+    expect(retrieve).toHaveBeenCalledTimes(2);
+    expect(onAccepted).not.toHaveBeenCalled();
+  });
+
+  it('reports uncertain delivery when authority recovery is unavailable', async () => {
+    const stream = vi.fn(async () => {
+      throw new Error('SSE network failure.');
+    });
+    const post = vi.fn(async () => {
+      throw new Error('JSON completion network failure.');
+    });
+    const retrieve = vi.fn(async () => {
+      throw new Error('Turn recovery network failure.');
+    });
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        http: { post },
+        ai: { agents: { turns: { retrieve, stream } } },
+      } as never,
+      turnRecoveryMaxAttempts: 2,
+      turnRecoveryPollIntervalMs: 0,
+    });
+    const onAccepted = vi.fn();
+    const onDeliveryUncertain = vi.fn();
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.uncertain',
+    }, {
+      agentId,
+      onAccepted,
+      onDeliveryUncertain,
+    })).rejects.toThrow('delivery could not be confirmed');
+    expect(onAccepted).not.toHaveBeenCalled();
+    expect(onDeliveryUncertain).toHaveBeenCalledTimes(1);
   });
 
   it.each([

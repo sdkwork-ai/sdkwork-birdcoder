@@ -22,6 +22,13 @@ function resolveTranscriptAnchorMessageIdentity(message: AgentSessionItemView): 
   ].join('\u0001');
 }
 
+function resolveTranscriptScrollAnchorElement(
+  messageElement: HTMLElement,
+): HTMLElement {
+  return messageElement.querySelector<HTMLElement>('[data-chat-transcript-track="true"]')
+    ?? messageElement;
+}
+
 export function findTranscriptScrollAnchorMessageIndex(
   messages: readonly AgentSessionItemView[],
   anchor: Pick<TranscriptScrollAnchorSnapshot, 'messageIdentity' | 'occurrence'>,
@@ -60,6 +67,7 @@ export function captureTranscriptScrollAnchor(
   if (!anchorElement) {
     return null;
   }
+  const visualAnchorElement = resolveTranscriptScrollAnchorElement(anchorElement);
 
   const messageIndex = Number(anchorElement.dataset.transcriptMessageIndex);
   const message = messages[messageIndex];
@@ -82,7 +90,7 @@ export function captureTranscriptScrollAnchor(
   return {
     messageIdentity,
     occurrence,
-    viewportOffsetTop: anchorElement.getBoundingClientRect().top - containerRect.top,
+    viewportOffsetTop: visualAnchorElement.getBoundingClientRect().top - containerRect.top,
   };
 }
 
@@ -108,7 +116,9 @@ export function restoreTranscriptScrollAnchor(
   }
 
   const containerRect = scrollContainer.getBoundingClientRect();
-  const nextViewportOffsetTop = anchorElement.getBoundingClientRect().top - containerRect.top;
+  const visualAnchorElement = resolveTranscriptScrollAnchorElement(anchorElement);
+  const nextViewportOffsetTop =
+    visualAnchorElement.getBoundingClientRect().top - containerRect.top;
   const offsetDelta = nextViewportOffsetTop - anchor.viewportOffsetTop;
   if (Math.abs(offsetDelta) > 1) {
     scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + offsetDelta);
