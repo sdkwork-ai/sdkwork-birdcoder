@@ -11,6 +11,7 @@ families are:
 | --- | --- |
 | BirdCoder System metadata | `sdkwork-birdcoder-app-sdk` |
 | Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, Runtime Binding | `sdkwork-agents-app-sdk` |
+| Application artifact publication and deployment | `sdkwork-deployments-app-sdk` |
 | Documents | `sdkwork-documents-app-sdk` |
 | Drive and sandbox storage | `sdkwork-drive-app-sdk` |
 | Identity and organization scope | `sdkwork-iam-app-sdk` |

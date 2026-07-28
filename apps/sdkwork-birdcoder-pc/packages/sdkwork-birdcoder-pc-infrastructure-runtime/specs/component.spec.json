@@ -100,6 +100,10 @@
         "export": "./defaultIdeServices"
       },
       {
+        "name": "applicationPublishService",
+        "export": "./defaultIdeServices"
+      },
+      {
         "name": "sdkConnectivityPlaneRuntime",
         "export": "."
       },
@@ -122,6 +126,12 @@
         "export": "./defaultIdeServices",
         "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
         "sourceExport": "./services/dependencyAppSdkClients"
+      },
+      {
+        "name": "applicationPublishService",
+        "export": "./defaultIdeServices",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+        "sourceExport": "./services/impl/ApplicationPublishService"
       },
       {
         "name": "membershipCheckoutPort",

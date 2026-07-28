@@ -69,6 +69,55 @@ async fn local_store_list(
 }
 
 #[tauri::command]
+fn application_publish_discover(
+    root_path: String,
+) -> Result<host::ApplicationPublishDiscoverySnapshot, host::ApplicationPublishError> {
+    host::application_publish_discover(root_path)
+}
+
+#[tauri::command]
+fn application_publish_preflight(
+    state: tauri::State<'_, host::ApplicationPublishState>,
+    root_path: String,
+    application_relative_path: String,
+    target_id: String,
+) -> Result<host::ApplicationPublishPreflightSnapshot, host::ApplicationPublishError> {
+    host::application_publish_preflight(
+        state,
+        root_path,
+        application_relative_path,
+        target_id,
+    )
+}
+
+#[tauri::command]
+async fn application_publish_build_package(
+    state: tauri::State<'_, host::ApplicationPublishState>,
+    plan_id: String,
+) -> Result<host::ApplicationPublishBuildSnapshot, host::ApplicationPublishError> {
+    host::application_publish_build_package(state, plan_id).await
+}
+
+#[tauri::command]
+fn application_publish_read_artifact_range(
+    state: tauri::State<'_, host::ApplicationPublishState>,
+    artifact_id: String,
+    offset: u64,
+    length: u32,
+) -> Result<tauri::ipc::Response, host::ApplicationPublishError> {
+    host::application_publish_read_artifact_range(state, artifact_id, offset, length)
+        .map(tauri::ipc::Response::new)
+}
+
+#[tauri::command]
+fn application_publish_artifact_discard(
+    state: tauri::State<'_, host::ApplicationPublishState>,
+    artifact_id: String,
+) -> Result<host::ApplicationPublishArtifactDiscardSnapshot, host::ApplicationPublishError> {
+    host::application_publish_artifact_discard(state, artifact_id)
+}
+
+#[tauri::command]
 async fn secure_app_session_read() -> Result<Option<String>, String> {
     host::secure_app_session_read().await
 }
@@ -437,6 +486,11 @@ pub fn run() {
             project_device_mount_find,
             project_device_mount_provider_session_directory_identity,
             local_store_list,
+            application_publish_discover,
+            application_publish_preflight,
+            application_publish_build_package,
+            application_publish_read_artifact_range,
+            application_publish_artifact_discard,
             secure_app_session_read,
             secure_app_session_write,
             secure_app_session_delete,

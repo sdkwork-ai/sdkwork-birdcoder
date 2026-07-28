@@ -63,6 +63,25 @@ export type {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IVipMembershipService';
 
 export type { IAuthService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAuthService';
+export { ApplicationPublishError } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IApplicationPublishService';
+export type {
+  ApplicationPublishDiscovery,
+  ApplicationPublishErrorCode,
+  ApplicationPublishEvidence,
+  ApplicationPublishFramework,
+  ApplicationPublishOutputType,
+  ApplicationPublishPreflight,
+  ApplicationPublishPreflightCheck,
+  ApplicationPublishPreflightRequest,
+  ApplicationPublishProgress,
+  ApplicationPublishReadiness,
+  ApplicationPublishRequest,
+  ApplicationPublishStage,
+  ApplicationPublishTarget,
+  ApplicationPublishTargetOutput,
+  IApplicationPublishService,
+  PublishableApplication,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IApplicationPublishService';
 export type {
   AgentInteractionClaim,
   AgentProjectSessionPageRequest,

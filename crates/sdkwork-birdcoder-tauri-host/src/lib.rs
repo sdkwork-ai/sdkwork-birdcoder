@@ -1,8 +1,10 @@
 pub mod adapters;
+pub mod application_publish;
 pub mod bootstrap;
 pub mod commands;
 pub mod host;
 
+pub use application_publish::*;
 pub use bootstrap::services::setup_tauri_host;
 pub use commands::*;
 pub use host::{

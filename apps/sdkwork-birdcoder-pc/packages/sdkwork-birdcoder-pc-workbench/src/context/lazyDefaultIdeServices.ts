@@ -5,6 +5,7 @@ import type {
 
 const APP_IDE_SERVICE_KEYS = [
   'agentSessionService',
+  'applicationPublishService',
   'authService',
   'catalogService',
   'documentService',
@@ -140,6 +141,9 @@ export function createLazyDefaultIdeServices(): AppIdeServices {
   return {
     agentSessionService: createLazyServiceProxy(
       async () => loadDefaultIdeService('agentSessionService'),
+    ),
+    applicationPublishService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('applicationPublishService'),
     ),
     authService: createLazyServiceProxy(async () => loadDefaultIdeService('authService')),
     catalogService: createLazyServiceProxy(async () => loadDefaultIdeService('catalogService')),

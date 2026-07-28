@@ -182,6 +182,12 @@
         "required": true
       },
       {
+        "workspace": "sdkwork-deployments-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
         "workspace": "sdkwork-drive-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
@@ -260,6 +266,17 @@
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
         ]
+      },
+      {
+        "workspace": "sdkwork-deployments-app-sdk",
+        "sdkFamily": "sdkwork-deployments-app-sdk",
+        "apiAuthority": "sdkwork-deploy-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       },
       {
         "workspace": "sdkwork-drive-app-sdk",

@@ -54,6 +54,8 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
           providerSessionDirectoryIdentityProvider: (projectId) =>
             runtime.projectDeviceMountRegistry.resolveProviderSessionDirectoryIdentity(projectId),
         });
+      case 'applicationPublishService':
+        return runtime.applicationPublishService;
       case 'authService':
         return runtime.authService;
       case 'catalogService':

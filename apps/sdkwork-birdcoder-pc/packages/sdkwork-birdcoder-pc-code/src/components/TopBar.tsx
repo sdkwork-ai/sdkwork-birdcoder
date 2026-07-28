@@ -3,6 +3,7 @@ import {
   Bot,
   FileCode2,
   Loader2,
+  Rocket,
   Smartphone,
   Terminal,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import { useTranslation } from 'react-i18next';
+import { ApplicationPublishDialog } from './publish/ApplicationPublishDialog.tsx';
 
 type TopBarDensity = 'regular' | 'balanced' | 'compact' | 'minimal';
 
@@ -80,6 +82,7 @@ function TopBarComponent({
 
   const [showGitDiffDialog, setShowGitDiffDialog] = useState(false);
   const [gitSubmitMode, setGitSubmitMode] = useState<ProjectGitSubmitMode | null>(null);
+  const [showApplicationPublishDialog, setShowApplicationPublishDialog] = useState(false);
 
   useEffect(
     () => globalEventBus.on('toggleDiffPanel', () => {
@@ -211,6 +214,27 @@ function TopBarComponent({
           <Button
             variant="ghost"
             size="sm"
+            title={t('code.publish.action')}
+            aria-label={t('code.publish.action')}
+            aria-expanded={showApplicationPublishDialog}
+            aria-haspopup="dialog"
+            className={`h-8 text-xs transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+              showPrimaryActionLabels ? 'gap-1.5 px-2.5' : 'w-8 px-0'
+            } ${showApplicationPublishDialog
+              ? 'bg-blue-500/[0.12] text-blue-300 hover:bg-blue-500/[0.16] hover:text-blue-200'
+              : 'text-gray-400 hover:bg-white/[0.06] hover:text-gray-200'
+            }`}
+            style={{ animationDelay: '200ms' }}
+            disabled={!projectId?.trim()}
+            onClick={() => setShowApplicationPublishDialog(true)}
+          >
+            <Rocket size={14} />
+            {showPrimaryActionLabels ? <span>{t('code.publish.action')}</span> : null}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
             title={t('app.terminal')}
             aria-label={t('app.terminal')}
             className={`h-8 text-xs transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${
@@ -237,6 +261,12 @@ function TopBarComponent({
         onClose={() => setGitSubmitMode(null)}
         projectGitOverviewState={resolvedProjectGitOverviewState}
         projectId={projectId}
+      />
+      <ApplicationPublishDialog
+        isOpen={showApplicationPublishDialog}
+        onClose={() => setShowApplicationPublishDialog(false)}
+        projectId={projectId}
+        projectName={projectName}
       />
     </>
   );

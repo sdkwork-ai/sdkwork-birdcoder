@@ -81,6 +81,8 @@
       "./services/defaultIdeServices",
       "./services/defaultIdeServicesRuntime",
       "./services/defaultIdeServicesShared",
+      "./services/applicationPublishHost",
+      "./services/applicationPublishSdk",
       "./services/dependencyAppSdkClients",
       "./platform/openLocalFolder",
       "./services/interfaces/IPromptService",
@@ -89,6 +91,8 @@
       "./services/interfaces/IDocumentService",
       "./services/interfaces/IFileSystemService",
       "./services/interfaces/IProjectRuntimeLocationService",
+      "./services/interfaces/IApplicationPublishService",
+      "./services/impl/ApplicationPublishService",
       "./services/interfaces/IGitService",
       "./services/interfaces/IProjectService",
       "./services/interfaces/IWorkspaceService",
@@ -115,6 +119,10 @@
       {
         "name": "ideServiceComposition",
         "export": "./services/defaultIdeServicesRuntime"
+      },
+      {
+        "name": "applicationPublishService",
+        "export": "./services/impl/ApplicationPublishService"
       },
       {
         "name": "agentsSessionAdapter",
@@ -172,6 +180,7 @@
     ],
     "runtimeEntrypoints": [
       "src/services/defaultIdeServicesRuntime.ts",
+      "src/services/impl/ApplicationPublishService.ts",
       "src/services/iamRuntime.ts",
       "src/services/membershipSdkBootstrap.ts",
       "src/bootstrap/appSessionPersistenceBinding.ts"
@@ -180,6 +189,7 @@
     "sdkClients": [
       "@sdkwork/agents-app-sdk",
       "@sdkwork/birdcoder-app-sdk",
+      "@sdkwork/deployments-app-sdk",
       "@sdkwork/documents-app-sdk",
       "@sdkwork/drive-app-sdk",
       "@sdkwork/iam-app-sdk",
@@ -198,6 +208,12 @@
       },
       {
         "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-deployments-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
@@ -279,6 +295,7 @@
     "commands": [
       "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
       "node scripts/run-local-tsx.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeProjectRuntimeLocationService.test.ts",
+      "node scripts/run-local-tsx.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApplicationPublishService.test.ts",
       "node scripts/desktop-app-session-persistence-contract.test.mjs",
       "node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts",
       "node scripts/pc-local-business-storage-boundary-contract.test.mjs",

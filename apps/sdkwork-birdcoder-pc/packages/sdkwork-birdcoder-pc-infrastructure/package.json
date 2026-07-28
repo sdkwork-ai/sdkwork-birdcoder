@@ -27,6 +27,14 @@
       "import": "./src/services/defaultIdeServicesShared.ts",
       "types": "./src/services/defaultIdeServicesShared.ts"
     },
+    "./services/applicationPublishHost": {
+      "import": "./src/services/applicationPublishHost.ts",
+      "types": "./src/services/applicationPublishHost.ts"
+    },
+    "./services/applicationPublishSdk": {
+      "import": "./src/services/applicationPublishSdk.ts",
+      "types": "./src/services/applicationPublishSdk.ts"
+    },
     "./services/dependencyAppSdkClients": {
       "import": "./src/services/dependencyAppSdkClients.ts",
       "types": "./src/services/dependencyAppSdkClients.ts"
@@ -62,6 +70,14 @@
     "./services/interfaces/IProjectRuntimeLocationService": {
       "import": "./src/services/interfaces/IProjectRuntimeLocationService.ts",
       "types": "./src/services/interfaces/IProjectRuntimeLocationService.ts"
+    },
+    "./services/interfaces/IApplicationPublishService": {
+      "import": "./src/services/interfaces/IApplicationPublishService.ts",
+      "types": "./src/services/interfaces/IApplicationPublishService.ts"
+    },
+    "./services/impl/ApplicationPublishService": {
+      "import": "./src/services/impl/ApplicationPublishService.ts",
+      "types": "./src/services/impl/ApplicationPublishService.ts"
     },
     "./services/interfaces/IGitService": {
       "import": "./src/services/interfaces/IGitService.ts",
@@ -149,6 +165,7 @@
     }
   },
   "dependencies": {
+    "@sdkwork/deployments-app-sdk": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",

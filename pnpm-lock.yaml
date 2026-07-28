@@ -547,6 +547,25 @@ importers:
         specifier: ^4.1.2
         version: 4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
 
+  ../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript:
+    dependencies:
+      '@sdkwork/drive-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+    devDependencies:
+      rollup:
+        specifier: ^4.0.0
+        version: 4.60.1
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+
   ../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
@@ -2396,6 +2415,9 @@ importers:
       '@sdkwork/birdcoder-pc-host-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-host-core
+      '@sdkwork/deployments-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript
       '@sdkwork/drive-pc-sandbox-contracts':
         specifier: workspace:*
         version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts

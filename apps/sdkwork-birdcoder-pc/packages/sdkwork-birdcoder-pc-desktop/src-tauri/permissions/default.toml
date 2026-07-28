@@ -29,6 +29,11 @@ permissions = [
   "allow-fs-rename-entry",
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
+  "allow-application-publish-discover",
+  "allow-application-publish-preflight",
+  "allow-application-publish-build-package",
+  "allow-application-publish-read-artifact-range",
+  "allow-application-publish-artifact-discard",
   "allow-git-project-overview",
   "allow-git-project-diff",
   "allow-git-create-branch",
@@ -276,6 +281,31 @@ commands.allow = ["fs_watch_start"]
 identifier = "allow-fs-watch-stop"
 description = "Enables the fs_watch_stop command."
 commands.allow = ["fs_watch_stop"]
+
+[[permission]]
+identifier = "allow-application-publish-discover"
+description = "Enables bounded discovery of publishable applications within an authorized project root."
+commands.allow = ["application_publish_discover"]
+
+[[permission]]
+identifier = "allow-application-publish-preflight"
+description = "Enables manifest-backed application publish preflight planning."
+commands.allow = ["application_publish_preflight"]
+
+[[permission]]
+identifier = "allow-application-publish-build-package"
+description = "Enables execution of the preflight-approved manifest build target and local artifact packaging."
+commands.allow = ["application_publish_build_package"]
+
+[[permission]]
+identifier = "allow-application-publish-read-artifact-range"
+description = "Enables bounded binary reads from an opaque staged publish artifact."
+commands.allow = ["application_publish_read_artifact_range"]
+
+[[permission]]
+identifier = "allow-application-publish-artifact-discard"
+description = "Enables cleanup of an opaque staged publish artifact."
+commands.allow = ["application_publish_artifact_discard"]
 
 [[permission]]
 identifier = "allow-git-project-overview"

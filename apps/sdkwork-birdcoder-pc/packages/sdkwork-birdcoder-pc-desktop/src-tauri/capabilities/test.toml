@@ -75,6 +75,10 @@ permissions = [
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
 
+  # Read-only application publish inspection. Build execution remains excluded.
+  "allow-application-publish-discover",
+  "allow-application-publish-preflight",
+
   # Desktop shell host bridge commands (non-destructive subset)
   "allow-desktop-pick-working-directory",
   "allow-desktop-reveal-in-file-manager",

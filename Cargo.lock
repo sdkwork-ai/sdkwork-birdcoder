@@ -6161,6 +6161,7 @@ dependencies = [
  "tauri",
  "tokio",
  "uuid",
+ "zip",
 ]
 
 [[package]]

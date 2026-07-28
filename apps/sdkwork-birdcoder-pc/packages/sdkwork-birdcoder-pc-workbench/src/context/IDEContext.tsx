@@ -2,6 +2,7 @@ import React, { ReactNode, useRef } from 'react';
 import type {
   IAuthService,
   IAgentSessionService,
+  IApplicationPublishService,
   ICatalogService,
   IDocumentService,
   IFileSystemService,
@@ -25,6 +26,7 @@ import {
 export interface IDEProviderProps {
   children: ReactNode;
   agentSessionService?: IAgentSessionService;
+  applicationPublishService?: IApplicationPublishService;
   catalogService?: ICatalogService;
   projectService?: IProjectService;
   workspaceService?: IWorkspaceService;
@@ -40,6 +42,7 @@ export interface IDEProviderProps {
 export const IDEProvider: React.FC<IDEProviderProps> = ({
   children,
   agentSessionService,
+  applicationPublishService,
   catalogService,
   projectService,
   workspaceService,
@@ -59,6 +62,8 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
     <IDEContext.Provider
       value={{
         agentSessionService: agentSessionService ?? defaultContext.agentSessionService,
+        applicationPublishService:
+          applicationPublishService ?? defaultContext.applicationPublishService,
         catalogService: catalogService ?? defaultContext.catalogService,
         projectService: projectService ?? defaultContext.projectService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,

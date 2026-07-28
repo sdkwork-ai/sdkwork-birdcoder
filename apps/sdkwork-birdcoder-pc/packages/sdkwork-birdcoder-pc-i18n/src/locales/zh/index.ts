@@ -17,6 +17,7 @@ import appGit from './app/git.ts';
 import appTools from './app/tools.ts';
 import codeSidebar from './code/sidebar.ts';
 import codeTopBar from './code/topbar.ts';
+import codePublish from './code/publish.ts';
 import codeActions from './code/actions.ts';
 import codeMobileProgramming from './code/mobile-programming.ts';
 import studioPreview from './studio/preview.ts';
@@ -46,6 +47,7 @@ export const zhModules = [
   appTools,
   codeSidebar,
   codeTopBar,
+  codePublish,
   codeActions,
   codeMobileProgramming,
   studioPreview,

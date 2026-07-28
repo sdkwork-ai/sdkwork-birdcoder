@@ -8,6 +8,7 @@ import { createBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
 import { createBirdCoderDocumentsAppSdkClient } from './dependencyAppSdkClients.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
+import { ApplicationPublishService } from './impl/ApplicationPublishService.ts';
 import { AgentsDocumentsProjectDocumentService } from './impl/AgentsDocumentsProjectDocumentService.ts';
 import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
@@ -17,6 +18,7 @@ import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
 import { createTauriProjectGitRuntime } from '../platform/tauriProjectGitRuntime.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
+import type { IApplicationPublishService } from './interfaces/IApplicationPublishService.ts';
 import type { IAgentSessionService } from './interfaces/IAgentSessionService.ts';
 import type { ICatalogService } from './interfaces/ICatalogService.ts';
 import type { IDocumentService } from './interfaces/IDocumentService.ts';
@@ -35,6 +37,7 @@ import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
 
 export interface BirdCoderDefaultIdeServices {
   agentSessionService: IAgentSessionService;
+  applicationPublishService: IApplicationPublishService;
   authService: IAuthService;
   catalogService: ICatalogService;
   documentService: IDocumentService;
@@ -58,6 +61,7 @@ export interface CreateBirdCoderDefaultIdeServicesOptions {
 
 export interface BirdCoderDefaultIdeSharedRuntime {
   agentsClient: AgentsAppSdkClient;
+  applicationPublishService: IApplicationPublishService;
   authService: IAuthService;
   documentService: IDocumentService;
   fileSystemService: IFileSystemService;
@@ -134,6 +138,9 @@ export function createBirdCoderDefaultIdeSharedRuntime(
       mountRegistry: projectDeviceMountRegistry,
     }),
   });
+  const applicationPublishService = new ApplicationPublishService({
+    projectRuntimeLocationService,
+  });
   const gitService = createTauriProjectGitRuntime({
     resolveProjectRoot: (projectId) =>
       projectRuntimeLocationService.resolveProjectLocalWorkingDirectory(
@@ -147,6 +154,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
 
   return {
     agentsClient,
+    applicationPublishService,
     authService,
     documentService,
     fileSystemService,

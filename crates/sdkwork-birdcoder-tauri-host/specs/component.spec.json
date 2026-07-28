@@ -87,7 +87,12 @@
       "project_device_mount_find",
       "secure_app_session_read",
       "secure_app_session_write",
-      "secure_app_session_delete"
+      "secure_app_session_delete",
+      "application_publish_discover",
+      "application_publish_preflight",
+      "application_publish_build_package",
+      "application_publish_read_artifact_range",
+      "application_publish_artifact_discard"
     ],
     "providedPorts": [
       {
@@ -114,6 +119,17 @@
           "secure_app_session_write",
           "secure_app_session_delete"
         ]
+      },
+      {
+        "name": "applicationPublishHostBridge",
+        "export": "application_publish_discover",
+        "operations": [
+          "application_publish_discover",
+          "application_publish_preflight",
+          "application_publish_build_package",
+          "application_publish_read_artifact_range",
+          "application_publish_artifact_discard"
+        ]
       }
     ],
     "requiredPorts": [
@@ -134,6 +150,15 @@
       "src/commands/secure_app_session_commands.rs#secure_app_session_read",
       "src/commands/secure_app_session_commands.rs#secure_app_session_write",
       "src/commands/secure_app_session_commands.rs#secure_app_session_delete",
+      "src/application_publish/mod.rs",
+      "src/application_publish/discovery.rs",
+      "src/application_publish/manifest.rs",
+      "src/application_publish/packaging.rs",
+      "src/application_publish/path_safety.rs",
+      "src/application_publish/runtime.rs",
+      "src/application_publish/state.rs",
+      "src/application_publish/types.rs",
+      "src/commands/application_publish_commands.rs",
       "src/adapters/secure_app_session_store.rs",
       "src/commands/mod.rs",
       "Cargo.toml"
@@ -170,7 +195,7 @@
     "authority": "The Tauri host owns native commands, local filesystem boundaries, device and host state, operating-system credential-store access, and embedded gateway startup. It owns no business database or Session domain.",
     "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-api-birdcoder-standalone-gateway and sdkwork-agents routes.",
     "persistencePolicy": "BirdCoder-owned device-state SQLite owns exactly one device_state_entry table. Its allowlist permits settings/app, project-device-mounts/<sha256>, and the internal desktop-runtime-location-identity/installation.v1 row only. Project, Session, Conversation, Message, and other business aggregates are forbidden. Dependency-owned local stores remain outside BirdCoder database ownership. IAM accessToken, authToken, refresh material, and persisted application-session payloads use only the operating-system credential store.",
-    "securityPolicy": "Filesystem roots and native commands are explicitly registered with least-privilege Tauri permissions. Credential-store failures fail closed and never fall back to SQLite or plaintext storage."
+    "securityPolicy": "Filesystem roots and native commands are explicitly registered with least-privilege Tauri permissions. Application publishing accepts only authorized project roots, executes manifest-declared build targets after digest-bound preflight, rejects linked or escaping paths, and exposes staged artifacts only through opaque identifiers and bounded range reads. Credential-store failures fail closed and never fall back to SQLite or plaintext storage."
   },
   "verification": {
     "commands": [

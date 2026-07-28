@@ -119,16 +119,29 @@
       {
         "name": "sessionListPresentation",
         "export": "."
+      },
+      {
+        "name": "applicationPublishExperience",
+        "export": "."
       }
     ],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "applicationPublishService",
+        "export": ".",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure-runtime",
+        "sourceExport": "./defaultIdeServices"
+      }
+    ],
     "publicExports": [
       "."
     ],
     "runtimeEntrypoints": [
       "package.json#scripts.dev",
       "package.json#scripts.build",
-      "package.json#scripts.typecheck"
+      "package.json#scripts.typecheck",
+      "src/components/TopBar.tsx",
+      "src/components/publish/ApplicationPublishDialog.tsx"
     ],
     "sdkClients": [],
     "events": [],
@@ -147,7 +160,9 @@
   "verification": {
     "commands": [
       "pnpm --filter @sdkwork/birdcoder-pc-code typecheck",
-      "node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx"
+      "node scripts/run-local-tsx.mjs scripts/application-publish-presentation.test.ts",
+      "node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx",
+      "node scripts/code-header-publish-ide-experience-contract.test.mjs"
     ]
   },
   "metadata": {

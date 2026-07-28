@@ -1,3 +1,4 @@
+pub mod application_publish_commands;
 pub mod dialog_commands;
 pub mod filesystem_commands;
 pub mod git_commands;
@@ -8,6 +9,7 @@ pub mod session_commands;
 pub mod watch_commands;
 pub mod window_commands;
 
+pub use application_publish_commands::*;
 pub use dialog_commands::*;
 pub use filesystem_commands::*;
 pub use git_commands::*;

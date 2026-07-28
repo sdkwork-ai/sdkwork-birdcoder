@@ -83,6 +83,13 @@ permissions = [
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
 
+  # Application publishing. Build execution and artifact access are production-only.
+  "allow-application-publish-discover",
+  "allow-application-publish-preflight",
+  "allow-application-publish-build-package",
+  "allow-application-publish-read-artifact-range",
+  "allow-application-publish-artifact-discard",
+
   # Native Git bridge commands. Branch, commit, push, and worktree operations
   # are production-only because they mutate the checked-out repository.
   "allow-git-project-overview",
