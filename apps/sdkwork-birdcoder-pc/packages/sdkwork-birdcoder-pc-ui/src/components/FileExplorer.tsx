@@ -161,6 +161,7 @@ const FILE_EXPLORER_NAME_VALIDATION_MESSAGE_KEYS: Record<
   'dot-entry': 'code.fileNameDotEntryInvalid',
   'path-separator': 'code.fileNamePathSeparatorInvalid',
   'invalid-character': 'code.fileNameCharacterInvalid',
+  'too-long': 'code.fileNameTooLong',
   'trailing-dot-or-space': 'code.fileNameTrailingDotOrSpaceInvalid',
   'windows-reserved-name': 'code.fileNameWindowsReserved',
 };

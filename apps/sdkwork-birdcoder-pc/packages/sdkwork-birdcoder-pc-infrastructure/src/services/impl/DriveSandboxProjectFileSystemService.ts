@@ -50,6 +50,7 @@ interface DriveSandboxProjectFileSystemServiceOptions {
 interface RemoteProjectState {
   readonly binding: ProjectDriveComposition;
   readonly context: DriveSandboxProjectPathContext;
+  readonly directoryRequestGenerations: Map<string, number>;
   readonly entriesByVirtualPath: Map<string, SandboxEntry>;
   tree: IFileNode[];
 }
@@ -155,6 +156,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const state: RemoteProjectState = {
       binding,
       context: createDriveSandboxProjectPathContext(binding.logicalPath),
+      directoryRequestGenerations: new Map(),
       entriesByVirtualPath: new Map(),
       tree: [],
     };
@@ -185,9 +187,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   private async loadRemoteDirectory(
     state: RemoteProjectState,
     virtualPath: string,
-  ): Promise<IFileNode> {
+    requestGeneration: number,
+  ): Promise<IFileNode | null> {
     const logicalPath = toSandboxLogicalPath(state.context, virtualPath);
     const entries = await this.collectDirectoryChildrenBounded(state, logicalPath);
+    if (state.directoryRequestGenerations.get(virtualPath) !== requestGeneration) {
+      return null;
+    }
     const currentChildrenByPath = new Map(
       entries.map((entry) => [toVirtualProjectPath(state.context, entry.logicalPath), entry]),
     );
@@ -237,7 +243,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     state: RemoteProjectState,
     virtualPath: string,
   ): Promise<IFileNode[]> {
-    const directory = await this.loadRemoteDirectory(state, virtualPath);
+    const requestGeneration = this.advanceDirectoryRequestGeneration(state, virtualPath);
+    const directory = await this.loadRemoteDirectory(
+      state,
+      virtualPath,
+      requestGeneration,
+    );
+    if (!directory) return state.tree;
     if (state.tree.length === 0) {
       if (virtualPath !== state.context.virtualRootPath) {
         throw new Error('Project Drive root must be loaded before a nested directory.');
@@ -248,6 +260,15 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
 
     state.tree = replaceDirectoryInTree(state.tree, directory);
     return state.tree;
+  }
+
+  private advanceDirectoryRequestGeneration(
+    state: RemoteProjectState,
+    virtualPath: string,
+  ): number {
+    const nextGeneration = (state.directoryRequestGenerations.get(virtualPath) ?? 0) + 1;
+    state.directoryRequestGenerations.set(virtualPath, nextGeneration);
+    return nextGeneration;
   }
 
   private async requireRemote<T>(
@@ -459,6 +480,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       projectId,
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
+        this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
         const entry = await this.drivePort.createFile({
           sandboxId: state.binding.driveId,
           parentPath: target.logicalParentPath,
@@ -477,6 +499,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       projectId,
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
+        this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
         const entry = await this.drivePort.createDirectory({
           sandboxId: state.binding.driveId,
           parentPath: target.logicalParentPath,
@@ -496,6 +519,8 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   ): Promise<void> {
     const entry = await this.resolveKnownRemoteEntry(state, path);
     if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
+    const target = splitVirtualMutationPath(state.context, path);
+    this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
     await this.drivePort.deleteEntry({
       sandboxId: state.binding.driveId,
       entryId: entry.id,
@@ -526,7 +551,12 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       projectId,
       async (state) => {
         const entry = await this.resolveKnownRemoteEntry(state, oldPath);
+        const currentTarget = splitVirtualMutationPath(state.context, oldPath);
         const target = splitVirtualMutationPath(state.context, newPath);
+        this.advanceDirectoryRequestGeneration(state, currentTarget.virtualParentPath);
+        if (target.virtualParentPath !== currentTarget.virtualParentPath) {
+          this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+        }
         const moved = await this.drivePort.moveEntry({
           sandboxId: state.binding.driveId,
           entryId: entry.id,

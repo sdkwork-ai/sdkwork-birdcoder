@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  MAX_FILE_EXPLORER_NAME_UTF8_BYTES,
   normalizeFileExplorerNameForComparison,
   validateFileExplorerNodeName,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerNameValidation.ts';
@@ -27,6 +28,14 @@ for (const input of ['src/index.ts', String.raw`src\index.ts`]) {
 for (const input of ['a<b', 'a>b', 'a:b', 'a"b', 'a|b', 'a?b', 'a*b', `a${String.fromCharCode(1)}b`]) {
   assertRejected(input, 'invalid-character');
 }
+
+assert.equal(MAX_FILE_EXPLORER_NAME_UTF8_BYTES, 255);
+assertRejected('a'.repeat(256), 'too-long');
+assertRejected('\ud83d\udc26'.repeat(64), 'too-long');
+assert.deepEqual(
+  validateFileExplorerNodeName('a'.repeat(255)),
+  { isValid: true, name: 'a'.repeat(255) },
+);
 
 for (const input of [' name', 'name.', 'name ']) {
   assertRejected(input, 'trailing-dot-or-space');

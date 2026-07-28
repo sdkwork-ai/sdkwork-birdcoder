@@ -134,6 +134,7 @@ export default defineLocaleModule('code/sidebar', {
     fileNameDotEntryInvalid: 'A file or folder name cannot be "." or "..".',
     fileNamePathSeparatorInvalid: 'A file or folder name cannot contain a path separator.',
     fileNameCharacterInvalid: 'A file or folder name contains unsupported characters.',
+    fileNameTooLong: 'A file or folder name cannot exceed 255 UTF-8 bytes.',
     fileNameTrailingDotOrSpaceInvalid: 'A name cannot start or end with whitespace, or end with a dot.',
     fileNameWindowsReserved: 'That name is reserved by Windows. Choose a different name.',
     fileNameConflict: 'A file or folder with this name already exists.',

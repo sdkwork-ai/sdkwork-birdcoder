@@ -3,6 +3,7 @@ export type FileExplorerNameValidationReason =
   | 'dot-entry'
   | 'path-separator'
   | 'invalid-character'
+  | 'too-long'
   | 'trailing-dot-or-space'
   | 'windows-reserved-name';
 
@@ -19,6 +20,7 @@ export type FileExplorerNameValidationResult =
 const WINDOWS_RESERVED_DEVICE_NAME_PATTERN =
   /^(?:con|prn|aux|nul|com(?:[1-9]|\u00b9|\u00b2|\u00b3)|lpt(?:[1-9]|\u00b9|\u00b2|\u00b3))(?:\..*)?$/iu;
 const WINDOWS_INVALID_FILE_NAME_CHARACTER_PATTERN = /[<>:"|?*\u0000-\u001f]/u;
+export const MAX_FILE_EXPLORER_NAME_UTF8_BYTES = 255;
 
 export function validateFileExplorerNodeName(
   input: string,
@@ -37,6 +39,10 @@ export function validateFileExplorerNodeName(
 
   if (WINDOWS_INVALID_FILE_NAME_CHARACTER_PATTERN.test(input)) {
     return { isValid: false, reason: 'invalid-character' };
+  }
+
+  if (new TextEncoder().encode(input).byteLength > MAX_FILE_EXPLORER_NAME_UTF8_BYTES) {
+    return { isValid: false, reason: 'too-long' };
   }
 
   if (input !== input.trim() || input.endsWith('.')) {
