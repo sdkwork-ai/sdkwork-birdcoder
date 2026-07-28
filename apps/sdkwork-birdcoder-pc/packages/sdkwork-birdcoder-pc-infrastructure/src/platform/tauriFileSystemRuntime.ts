@@ -331,6 +331,7 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
 
       let unlisten: (() => void) | null = null;
       let registration: BirdCoderTauriFileSystemWatchRegistration | null = null;
+      let startedWatchId: string | null = null;
       const pendingPayloads: BirdCoderTauriFileSystemWatchEventPayload[] = [];
       const publishPayload = (payload: BirdCoderTauriFileSystemWatchEventPayload) => {
         if (!registration) {
@@ -342,10 +343,14 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
         if (payload.watchId !== registration.watchId) {
           return;
         }
-        listener({
-          kind: normalizeWatchEventKind(payload.kind),
-          paths: normalizeWatchEventPaths(payload.paths),
-        });
+        try {
+          listener({
+            kind: normalizeWatchEventKind(payload.kind),
+            paths: normalizeWatchEventPaths(payload.paths),
+          });
+        } catch {
+          console.error('A desktop file-system watch listener failed while handling an event.');
+        }
       };
 
       try {
@@ -359,15 +364,23 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
             publishPayload(payload);
           },
         );
-        registration = normalizeWatchRegistration(
+        const hostRegistration =
           await invokeTauriFileSystemCommand<BirdCoderTauriFileSystemWatchRegistration>(
             'fs_watch_start',
             { rootPath: rootSystemPath },
-          ),
-        );
+          );
+        startedWatchId = typeof hostRegistration?.watchId === 'string'
+          ? hostRegistration.watchId.trim()
+          : null;
+        registration = normalizeWatchRegistration(hostRegistration);
         pendingPayloads.splice(0).forEach(publishPayload);
       } catch (error) {
         unlisten?.();
+        if (startedWatchId) {
+          await invokeTauriFileSystemCommand('fs_watch_stop', {
+            watchId: startedWatchId,
+          }).catch(() => undefined);
+        }
         if (error instanceof BirdCoderTauriFileSystemRuntimeError) {
           throw error;
         }

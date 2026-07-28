@@ -1703,6 +1703,13 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     persistFileContentForProject,
   ]);
 
+  const loadFileContent = useCallback(async (path: string): Promise<string> => {
+    if (!normalizedProjectId) {
+      throw new Error('A project must be selected before loading file content.');
+    }
+    return fileSystemService.getFileContent(normalizedProjectId, path);
+  }, [fileSystemService, normalizedProjectId]);
+
   const updateFileDraft = useCallback((content: string) => {
     const activePath = selectedFileRef.current;
     if (!activePath) {
@@ -2259,6 +2266,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     loadDirectory,
     closeFile,
     updateFileDraft,
+    loadFileContent,
     saveFileContent,
     flushPendingAutosave,
     createFile,

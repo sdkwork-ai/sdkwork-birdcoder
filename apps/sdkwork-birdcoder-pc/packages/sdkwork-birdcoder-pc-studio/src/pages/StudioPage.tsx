@@ -525,6 +525,7 @@ function StudioPageComponent({
     loadDirectory,
     closeFile,
     updateFileDraft,
+    loadFileContent,
     saveFileContent,
     createFile,
     createFolder,
@@ -890,6 +891,7 @@ function StudioPageComponent({
     try {
       const didRestore = await restoreWorkbenchAgentSessionItemFiles({
         fileChanges: fileChanges ?? msg?.fileChanges,
+        loadFileContent,
         saveFileContent,
       });
       if (!didRestore) {
@@ -906,6 +908,7 @@ function StudioPageComponent({
     currentProjectId,
     resolveAgentSessionLocation,
     restoreWorkbenchAgentSessionItemFiles,
+    loadFileContent,
     saveFileContent,
     t,
   ]);

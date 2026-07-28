@@ -393,6 +393,7 @@ function CodePageComponent({
     loadDirectory,
     closeFile,
     updateFileDraft,
+    loadFileContent,
     saveFileContent,
     createFile,
     createFolder,
@@ -936,6 +937,7 @@ function CodePageComponent({
     try {
       const didRestore = await restoreWorkbenchAgentSessionItemFiles({
         fileChanges: fileChanges ?? msg?.fileChanges,
+        loadFileContent,
         saveFileContent,
       });
       if (!didRestore) {
@@ -951,6 +953,7 @@ function CodePageComponent({
     addToast,
     resolveSessionActionLocation,
     restoreWorkbenchAgentSessionItemFiles,
+    loadFileContent,
     saveFileContent,
   ]);
 

@@ -24,7 +24,10 @@ async function withWindow<T>(value: Window & typeof globalThis, operation: () =>
   }
 }
 
-const { createBirdCoderTauriFileSystemRuntime } = await import(
+const {
+  BirdCoderTauriFileSystemRuntimeError,
+  createBirdCoderTauriFileSystemRuntime,
+} = await import(
   `${tauriFileSystemRuntimeModulePath.href}?t=${Date.now()}`
 );
 
@@ -66,6 +69,33 @@ await withWindow(
         children: [],
       },
     });
+  },
+);
+
+await withWindow(
+  {
+    __TAURI_INTERNALS__: {
+      async invoke() {
+        throw new Error('Access denied for D:/private/customer-source/secrets.txt');
+      },
+    },
+  } as unknown as Window & typeof globalThis,
+  async () => {
+    const runtime = createBirdCoderTauriFileSystemRuntime();
+    await assert.rejects(
+      () => runtime.readFile(
+        'D:/private/customer-source',
+        '/customer-source',
+        '/customer-source/secrets.txt',
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof BirdCoderTauriFileSystemRuntimeError);
+        assert.equal(error.operation, 'fs_read_file');
+        assert.doesNotMatch(error.message, /D:|customer-source|secrets\.txt/u);
+        return true;
+      },
+      'Native filesystem failures must not expose device-private paths to the frontend.',
+    );
   },
 );
 

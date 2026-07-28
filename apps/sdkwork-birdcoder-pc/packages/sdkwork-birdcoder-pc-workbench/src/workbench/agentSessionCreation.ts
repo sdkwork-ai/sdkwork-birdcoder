@@ -4,7 +4,10 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import { globalEventBus } from '../utils/EventBus.ts';
-import { buildFileChangeRestorePlan } from './fileChangeRestore.ts';
+import {
+  buildFileChangeRestorePlan,
+  reverseUnifiedFileChangeDiff,
+} from './fileChangeRestore.ts';
 
 export interface WorkbenchAgentSessionTurnContext {
   projectId?: string;
@@ -114,6 +117,8 @@ export type SaveWorkbenchFileContent = (
   path: string,
   content: string,
 ) => Promise<void>;
+
+export type LoadWorkbenchFileContent = (path: string) => Promise<string>;
 
 const WORKBENCH_AGENT_TURN_SESSION_TITLE_MAX_LENGTH = 20;
 
@@ -423,9 +428,11 @@ export async function editWorkbenchAgentSessionItem({
 
 export async function restoreWorkbenchAgentSessionItemFiles({
   fileChanges,
+  loadFileContent,
   saveFileContent,
 }: {
   fileChanges?: readonly FileChange[] | null;
+  loadFileContent: LoadWorkbenchFileContent;
   saveFileContent: SaveWorkbenchFileContent;
 }): Promise<boolean> {
   const restorePlan = buildFileChangeRestorePlan(fileChanges);
@@ -434,7 +441,16 @@ export async function restoreWorkbenchAgentSessionItemFiles({
   }
 
   for (const operation of restorePlan.operations) {
-    await saveFileContent(operation.path, operation.content);
+    if (operation.type === 'write') {
+      await saveFileContent(operation.path, operation.content);
+      continue;
+    }
+    const currentContent = await loadFileContent(operation.path);
+    const restoredContent = reverseUnifiedFileChangeDiff(currentContent, operation.diff);
+    if (restoredContent === null) {
+      return false;
+    }
+    await saveFileContent(operation.path, restoredContent);
   }
 
   return true;

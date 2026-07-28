@@ -638,6 +638,28 @@ assert.equal(
   "An explicit terminal lifecycle must finalize the latest turn even while session state is stale.",
 );
 
+const unfinishedTerminalLiveTurnPresentations = resolveTurnFileChangesMessagePresentations(
+  [
+    {
+      ...createMessage("unfinished-terminal-assistant", "assistant", "One task remains."),
+      turnId: "unfinished-terminal-turn",
+    },
+    {
+      ...createMessage("unfinished-terminal-activity", "tool", ""),
+      turnId: "unfinished-terminal-turn",
+      fileChanges: [turnFileChanges[0]!],
+      lifecycleEvents: [{ id: "unfinished-terminal-completed", kind: "completed" }],
+      taskProgress: { completed: 1, total: 2 },
+    },
+  ],
+  { deferLatestTurn: true },
+);
+assert.equal(
+  unfinishedTerminalLiveTurnPresentations.some((presentation) => presentation.card),
+  false,
+  "Incomplete task progress must keep a live turn inline despite an earlier terminal event.",
+);
+
 const fileChangesPresentation = completedTurnPresentations[2]?.card;
 assert.ok(fileChangesPresentation);
 const cardEnvironment = {

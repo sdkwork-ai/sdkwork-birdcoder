@@ -71,6 +71,16 @@ function hasTerminalLifecycleEvent(
   ));
 }
 
+function hasUnfinishedTaskProgress(
+  messages: readonly AgentSessionItemView[],
+  messageIndexes: readonly number[],
+): boolean {
+  return messageIndexes.some((messageIndex) => {
+    const progress = messages[messageIndex]?.taskProgress;
+    return Boolean(progress && progress.completed < progress.total);
+  });
+}
+
 /**
  * Assigns one aggregate file card after the terminal visible item in each authored turn.
  * File activity remains inline while the latest turn is still running, unless
@@ -102,7 +112,10 @@ export function resolveTurnFileChangesMessagePresentations(
     if (
       options.deferLatestTurn
       && scopeKey === latestScopeKey
-      && !hasTerminalLifecycleEvent(messages, messageIndexes)
+      && (
+        !hasTerminalLifecycleEvent(messages, messageIndexes)
+        || hasUnfinishedTaskProgress(messages, messageIndexes)
+      )
     ) {
       continue;
     }
