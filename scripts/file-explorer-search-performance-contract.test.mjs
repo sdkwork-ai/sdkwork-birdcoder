@@ -12,6 +12,12 @@ assert.match(
   'FileExplorer should centralize search filtering and search-state folder expansion in one cancellable task so large trees are not traversed from render.',
 );
 
+assert.doesNotMatch(
+  source,
+  /function fuzzyScore\([\s\S]*?\{[\s\S]*?while \([\s\S]*?\.toLowerCase\(\)/,
+  'FileExplorer fuzzy scoring must normalize each candidate once instead of lowercasing characters repeatedly inside the hot comparison loop.',
+);
+
 assert.match(
   source,
   /const FILE_EXPLORER_SEARCH_CHUNK_SIZE = \d+;/,

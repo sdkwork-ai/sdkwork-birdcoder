@@ -53,6 +53,11 @@ test('Browser Explorer renders and mutates the current project Drive root', asyn
   await expect(sourceActions).toHaveCount(0);
   await expect(sourceDirectory).toBeFocused();
 
+  await sourceDirectory.press('Shift+F10');
+  await expect(sourceActions).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(sourceActions).toHaveCount(0);
+
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
   const newFileInput = projectTree.getByRole('textbox');
   await expect(newFileInput).toBeVisible();
