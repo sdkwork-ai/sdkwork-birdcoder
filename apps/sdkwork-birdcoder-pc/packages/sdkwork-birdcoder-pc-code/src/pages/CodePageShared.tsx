@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import i18n from '@sdkwork/birdcoder-pc-workbench/i18n';
 import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-pc-ui-shell';
+import { resolveBirdCoderEditorLanguage } from '@sdkwork/birdcoder-pc-ui/components/editorLanguage';
 import { CodeChatEmptyState } from './CodeChatEmptyState';
 
 export interface CodePageProps {
@@ -52,12 +53,7 @@ export function createCodeChatEmptyStates(isHydrating: boolean): {
     };
 }
 
-export function getLanguageFromPath(path: string) {
-  if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
-  if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
-  if (path.endsWith('.json')) return 'json';
-  if (path.endsWith('.html')) return 'html';
-  if (path.endsWith('.css')) return 'css';
-  return 'plaintext';
+export function getLanguageFromPath(path: string): string {
+  return resolveBirdCoderEditorLanguage(path);
 }
 

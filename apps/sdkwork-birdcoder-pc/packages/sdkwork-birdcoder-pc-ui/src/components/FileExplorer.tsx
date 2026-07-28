@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -23,6 +23,11 @@ import {
   validateFileExplorerNodeName,
   type FileExplorerNameValidationReason,
 } from './fileExplorerNameValidation';
+import {
+  collapseFileExplorerSearchFolders,
+  resolveFileExplorerExpandedFolders,
+  setFileExplorerFolderExpanded,
+} from './fileExplorerExpansionState';
 
 export interface FileNode {
   name: string;
@@ -47,8 +52,8 @@ export interface FileExplorerProps {
   selectedFile?: string;
   onCreateFile?: (path: string) => void | Promise<void>;
   onCreateFolder?: (path: string) => void | Promise<void>;
-  onDeleteFile?: (path: string) => void;
-  onDeleteFolder?: (path: string) => void;
+  onDeleteFile?: (path: string) => void | Promise<void>;
+  onDeleteFolder?: (path: string) => void | Promise<void>;
   onRenameNode?: (oldPath: string, newPath: string) => void | Promise<void>;
 }
 
@@ -116,14 +121,26 @@ type FileExplorerNodeRowProps = {
   depth: number;
   inputValue: string;
   isDirectoryLoading: boolean;
+  isFocused: boolean;
+  hasDirectoryLoadError: boolean;
   isExpanded: boolean;
   isMutationPending: boolean;
   isSelected: boolean;
   renamingNode: FileExplorerRenameDraft | null;
-  onExpandDirectory?: (path: string) => void | Promise<void>;
   onNodePrimaryAction: (node: FileNode, isExpanded: boolean) => void;
+  onNodeFocus: (path: string) => void;
+  onNodeKeyDown: (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    node: FileNode,
+    isExpanded: boolean,
+    depth: number,
+  ) => void;
   onContextMenu: (event: React.MouseEvent, node: FileNode) => void;
-  onBeginCreateNode: (parentPath: string, type: 'file' | 'directory') => void;
+  onBeginCreateNode: (
+    parentPath: string,
+    type: 'file' | 'directory',
+    loadDirectory: boolean,
+  ) => void;
   onRequestDeleteNode: (node: FileNode) => void;
   onInputValueChange: (value: string) => void;
   onInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -174,8 +191,41 @@ function fuzzyScore(pattern: string, str: string): number {
 }
 
 const FILE_EXPLORER_CONTEXT_MENU_Z_INDEX = 2147483647;
+const FILE_EXPLORER_CONTEXT_MENU_WIDTH = 224;
+const FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING = 8;
 const FILE_EXPLORER_SEARCH_CHUNK_SIZE = 250;
 const FILE_EXPLORER_SEARCH_IDLE_TIMEOUT_MS = 80;
+
+function resolveFileExplorerContextMenuPosition({
+  estimatedHeight,
+  x,
+  y,
+}: {
+  estimatedHeight: number;
+  x: number;
+  y: number;
+}): { x: number; y: number } {
+  const viewportWidth = typeof window === 'undefined' ? FILE_EXPLORER_CONTEXT_MENU_WIDTH : window.innerWidth;
+  const viewportHeight = typeof window === 'undefined' ? estimatedHeight : window.innerHeight;
+  const maxX = Math.max(
+    FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING,
+    viewportWidth - FILE_EXPLORER_CONTEXT_MENU_WIDTH - FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING,
+  );
+  const maxY = Math.max(
+    FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING,
+    viewportHeight - estimatedHeight - FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING,
+  );
+  return {
+    x: Math.min(Math.max(x, FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING), maxX),
+    y: Math.min(Math.max(y, FILE_EXPLORER_CONTEXT_MENU_VIEWPORT_PADDING), maxY),
+  };
+}
+
+function resolveFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  ));
+}
 
 function createFileExplorerSearchTaskFrame(
   nodes: readonly FileNode[],
@@ -408,6 +458,15 @@ function isFileExplorerNameConflictError(error: unknown): boolean {
   );
 }
 
+function resolveFileExplorerErrorCategory(error: unknown): string {
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name || 'DOMException';
+  }
+  if (error instanceof TypeError) return 'TypeError';
+  if (error instanceof Error) return 'Error';
+  return 'UnknownError';
+}
+
 function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase();
   switch (ext) {
@@ -481,12 +540,15 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
   depth,
   inputValue,
   isDirectoryLoading,
+  isFocused,
+  hasDirectoryLoadError,
   isExpanded,
   isMutationPending,
   isSelected,
   renamingNode,
-  onExpandDirectory,
   onNodePrimaryAction,
+  onNodeFocus,
+  onNodeKeyDown,
   onContextMenu,
   onBeginCreateNode,
   onRequestDeleteNode,
@@ -494,6 +556,8 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
   onInputKeyDown,
   onInputBlur,
 }: FileExplorerNodeRowProps) {
+  const { t } = useTranslation();
+  const loadErrorDescriptionId = useId();
   return (
     <div className="relative">
       {depth > 0 ? (
@@ -504,40 +568,30 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
       ) : null}
       <div
         role="treeitem"
+        aria-label={node.name}
+        aria-describedby={hasDirectoryLoadError ? loadErrorDescriptionId : undefined}
         aria-expanded={node.type === 'directory' ? isExpanded : undefined}
+        aria-busy={node.type === 'directory' ? isDirectoryLoading : undefined}
+        aria-invalid={node.type === 'directory' && hasDirectoryLoadError ? true : undefined}
         aria-level={depth + 1}
         aria-selected={isSelected}
-        tabIndex={0}
+        tabIndex={isFocused ? 0 : -1}
+        data-file-explorer-path={node.path}
+        title={hasDirectoryLoadError ? t('code.retryDirectoryLoad') : undefined}
         className={`group flex h-8 items-center gap-1.5 px-2 cursor-pointer hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-500 text-[13px] transition-colors ${isSelected ? 'bg-white/10 text-white' : 'text-gray-400'}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={() => {
           onNodePrimaryAction(node, Boolean(isExpanded));
         }}
-        onKeyDown={(event) => {
-          if (event.currentTarget !== event.target) {
-            return;
-          }
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onNodePrimaryAction(node, Boolean(isExpanded));
-            return;
-          }
-          if (node.type !== 'directory') {
-            return;
-          }
-          if (event.key === 'ArrowRight' && !isExpanded) {
-            event.preventDefault();
-            onNodePrimaryAction(node, false);
-          } else if (event.key === 'ArrowLeft' && isExpanded) {
-            event.preventDefault();
-            onNodePrimaryAction(node, true);
-          }
-        }}
+        onFocus={() => onNodeFocus(node.path)}
+        onKeyDown={(event) => onNodeKeyDown(event, node, Boolean(isExpanded), depth)}
         onContextMenu={(event) => onContextMenu(event, node)}
       >
         {node.type === 'directory' ? (
           isDirectoryLoading ? (
             <Loader2 size={14} className="shrink-0 animate-spin" />
+          ) : hasDirectoryLoadError ? (
+            <AlertCircle size={14} className="shrink-0 text-red-400" aria-hidden="true" />
           ) : isExpanded ? (
             <ChevronDown size={14} className="shrink-0" />
           ) : (
@@ -546,6 +600,12 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
         ) : (
           <span className="w-[14px] shrink-0"></span>
         )}
+
+        {hasDirectoryLoadError ? (
+          <span id={loadErrorDescriptionId} className="sr-only">
+            {t('code.directoryLoadFailedRetry')}
+          </span>
+        ) : null}
 
         {node.type === 'directory' ? (
           <Folder size={14} className="shrink-0 text-blue-400/90" />
@@ -576,15 +636,13 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
             <>
               <button
                 type="button"
-                title="New File"
-                aria-label={`Create file in ${node.name}`}
+                tabIndex={-1}
+                title={t('code.newFile')}
+                aria-label={t('code.createFileInFolder', { name: node.name })}
                 className="rounded p-1 text-gray-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onBeginCreateNode(node.path, 'file');
-                  if (node.children === undefined && onExpandDirectory) {
-                    void onExpandDirectory(node.path);
-                  }
+                  onBeginCreateNode(node.path, 'file', node.children === undefined);
                 }}
               >
                 <FilePlus
@@ -594,15 +652,13 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
               </button>
               <button
                 type="button"
-                title="New Folder"
-                aria-label={`Create folder in ${node.name}`}
+                tabIndex={-1}
+                title={t('code.newFolder')}
+                aria-label={t('code.createFolderInFolder', { name: node.name })}
                 className="rounded p-1 text-gray-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onBeginCreateNode(node.path, 'directory');
-                  if (node.children === undefined && onExpandDirectory) {
-                    void onExpandDirectory(node.path);
-                  }
+                  onBeginCreateNode(node.path, 'directory', node.children === undefined);
                 }}
               >
                 <FolderPlus
@@ -614,8 +670,9 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
           ) : null}
           <button
             type="button"
-            title={`Delete ${node.type}`}
-            aria-label={`Delete ${node.name}`}
+            tabIndex={-1}
+            title={node.type === 'directory' ? t('code.deleteFolder') : t('code.deleteFile')}
+            aria-label={t('code.deleteNamedNode', { name: node.name })}
             className="rounded p-1 text-gray-400 transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
             onClick={(event) => {
               event.stopPropagation();
@@ -650,11 +707,14 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
 
   if (
     left.isDirectoryLoading !== right.isDirectoryLoading ||
+    left.isFocused !== right.isFocused ||
+    left.hasDirectoryLoadError !== right.hasDirectoryLoadError ||
     left.isExpanded !== right.isExpanded ||
     left.isMutationPending !== right.isMutationPending ||
     left.isSelected !== right.isSelected ||
-    left.onExpandDirectory !== right.onExpandDirectory ||
     left.onNodePrimaryAction !== right.onNodePrimaryAction ||
+    left.onNodeFocus !== right.onNodeFocus ||
+    left.onNodeKeyDown !== right.onNodeKeyDown ||
     left.onContextMenu !== right.onContextMenu ||
     left.onBeginCreateNode !== right.onBeginCreateNode ||
     left.onRequestDeleteNode !== right.onRequestDeleteNode ||
@@ -692,6 +752,9 @@ export const FileExplorer = React.memo(function FileExplorer({
 }: FileExplorerProps) {
   const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [searchExpansionOverrides, setSearchExpansionOverrides] = useState<Record<string, boolean>>({});
+  const [directoryLoadErrors, setDirectoryLoadErrors] = useState<Record<string, boolean>>({});
+  const [focusedNodePath, setFocusedNodePath] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [nodeToDelete, setNodeToDelete] = useState<FileNode | null>(null);
@@ -709,10 +772,21 @@ export const FileExplorer = React.memo(function FileExplorer({
   const { addToast } = useToast();
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedDeferredSearchQuery = deferredSearchQuery.trim().toLowerCase();
+  const isSearchActive = isSearchVisible && Boolean(normalizedDeferredSearchQuery);
   const [searchResult, setSearchResult] = useState<FileExplorerSearchResult>(EMPTY_FILE_EXPLORER_SEARCH_RESULT);
   const [isSearchPending, setIsSearchPending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const floatingMenuRef = useRef<HTMLDivElement | null>(null);
+  const deleteDialogRef = useRef<HTMLDivElement | null>(null);
+  const deleteDialogCancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pendingTreeFocusPathRef = useRef('');
+  const floatingMenuReturnFocusPathRef = useRef('');
+  const deleteDialogReturnFocusPathRef = useRef('');
+  const directoryLoadRequestsRef = useRef<Map<string, Promise<boolean>>>(new Map());
+  const directoryLoadScopeGenerationRef = useRef(0);
   const mutationGenerationRef = useRef(0);
+  const deleteDialogTitleId = useId();
+  const deleteDialogDescriptionId = useId();
 
   const resolveProjectMountTarget = (mountedPath?: string) => {
     return resolveProjectDeviceMountTarget({ projectId, mountedPath });
@@ -726,6 +800,9 @@ export const FileExplorer = React.memo(function FileExplorer({
     }
     setCreatingNode({ parentPath: rootCreationParentPath, type });
     setInputValue('');
+    setIsSearchVisible(false);
+    setSearchQuery('');
+    setSearchExpansionOverrides({});
     if (rootCreationParentPath) {
       setExpandedFolders((previousState) => ({
         ...previousState,
@@ -739,9 +816,35 @@ export const FileExplorer = React.memo(function FileExplorer({
     setRootContextMenu(null);
   }, []);
 
+  const restoreTreeFocus = useCallback((path: string) => {
+    if (!path) return;
+    setFocusedNodePath(path);
+    pendingTreeFocusPathRef.current = path;
+    window.requestAnimationFrame(() => {
+      const scrollContainer = scrollContainerRef.current;
+      const mountedRow = scrollContainer
+        ? Array.from(
+            scrollContainer.querySelectorAll<HTMLElement>('[data-file-explorer-path]'),
+          ).find((element) => element.dataset.fileExplorerPath === path)
+        : null;
+      if (mountedRow) {
+        pendingTreeFocusPathRef.current = '';
+        mountedRow.focus();
+      }
+    });
+  }, []);
+
   useEffect(() => {
     mutationGenerationRef.current += 1;
     setExpandedFolders({});
+    setSearchExpansionOverrides({});
+    setDirectoryLoadErrors({});
+    directoryLoadRequestsRef.current.clear();
+    directoryLoadScopeGenerationRef.current += 1;
+    setFocusedNodePath('');
+    pendingTreeFocusPathRef.current = '';
+    floatingMenuReturnFocusPathRef.current = '';
+    deleteDialogReturnFocusPathRef.current = '';
     setIsSearchVisible(false);
     setSearchQuery('');
     setNodeToDelete(null);
@@ -810,6 +913,26 @@ export const FileExplorer = React.memo(function FileExplorer({
   }, [handleClickOutside, hasOpenViewportMenu, isActive]);
 
   useEffect(() => {
+    if (!isActive || !hasOpenViewportMenu) {
+      return;
+    }
+    const animationFrameId = window.requestAnimationFrame(() => {
+      floatingMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    });
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [hasOpenViewportMenu, isActive]);
+
+  useEffect(() => {
+    if (!isActive || !nodeToDelete) {
+      return;
+    }
+    const animationFrameId = window.requestAnimationFrame(() => {
+      deleteDialogCancelButtonRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [isActive, nodeToDelete]);
+
+  useEffect(() => {
     if (!isActive) {
       return;
     }
@@ -822,9 +945,12 @@ export const FileExplorer = React.memo(function FileExplorer({
       closeFloatingMenus();
     };
 
+    const scrollContainer = scrollContainerRef.current;
     window.addEventListener('resize', handleViewportChange, { passive: true });
+    scrollContainer?.addEventListener('scroll', handleViewportChange, { passive: true });
     return () => {
       window.removeEventListener('resize', handleViewportChange);
+      scrollContainer?.removeEventListener('scroll', handleViewportChange);
     };
   }, [closeFloatingMenus, hasOpenViewportMenu, isActive]);
 
@@ -838,68 +964,138 @@ export const FileExplorer = React.memo(function FileExplorer({
     }
   }, [closeFloatingMenus, contextMenu, isActive, rootContextMenu]);
 
+  const openNodeContextMenu = useCallback((node: FileNode, x: number, y: number) => {
+    floatingMenuReturnFocusPathRef.current = node.path;
+    setRootContextMenu(null);
+    const position = resolveFileExplorerContextMenuPosition({
+      estimatedHeight: node.type === 'directory' ? 360 : 290,
+      x,
+      y,
+    });
+    setContextMenu({ ...position, node });
+  }, []);
+
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
-    setRootContextMenu(null);
-    
-    let x = e.clientX;
-    let y = e.clientY;
-    
-    if (x + 224 > window.innerWidth) {
-      x = window.innerWidth - 224 - 10;
-    }
-    if (y + 250 > window.innerHeight) {
-      y = window.innerHeight - 250 - 10;
-    }
-
-    setContextMenu({ x, y, node });
-  }, []);
+    openNodeContextMenu(node, e.clientX, e.clientY);
+  }, [openNodeContextMenu]);
 
   const handleRootContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    floatingMenuReturnFocusPathRef.current = '';
     setContextMenu(null);
     
-    let x = e.clientX;
-    let y = e.clientY;
-    
-    if (x + 224 > window.innerWidth) {
-      x = window.innerWidth - 224 - 10;
-    }
-    if (y + 150 > window.innerHeight) {
-      y = window.innerHeight - 150 - 10;
-    }
-
-    setRootContextMenu({ x, y });
-  }, []);
-
-  const toggleFolder = useCallback((path: string) => {
-    setExpandedFolders(prev => ({
-      ...prev,
-      [path]: !prev[path]
+    setRootContextMenu(resolveFileExplorerContextMenuPosition({
+      estimatedHeight: 190,
+      x: e.clientX,
+      y: e.clientY,
     }));
   }, []);
 
-  const ensureFolderExpanded = useCallback((path: string) => {
+  const handleFloatingMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      const returnFocusPath = floatingMenuReturnFocusPathRef.current;
+      closeFloatingMenus();
+      restoreTreeFocus(returnFocusPath);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+    const menuItems = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])'),
+    );
+    if (menuItems.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const currentIndex = menuItems.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'Home') {
+      menuItems[0]?.focus();
+      return;
+    }
+    if (event.key === 'End') {
+      menuItems.at(-1)?.focus();
+      return;
+    }
+    const offset = event.key === 'ArrowDown' ? 1 : -1;
+    const nextIndex = currentIndex < 0
+      ? 0
+      : (currentIndex + offset + menuItems.length) % menuItems.length;
+    menuItems[nextIndex]?.focus();
+  }, [closeFloatingMenus, restoreTreeFocus]);
+
+  const setFolderExpanded = useCallback((
+    path: string,
+    expanded: boolean,
+    searchMode: boolean,
+  ) => {
+    const update = (previousState: Readonly<Record<string, boolean>>) =>
+      setFileExplorerFolderExpanded(previousState, path, expanded);
+    if (searchMode) {
+      setSearchExpansionOverrides(update);
+      return;
+    }
+    setExpandedFolders(update);
+  }, []);
+
+  const ensureFolderExpanded = useCallback((path: string, searchMode = false) => {
     if (!path) {
       return;
     }
-
-    setExpandedFolders((previousState) => {
-      if (previousState[path]) {
-        return previousState;
-      }
-
-      return {
-        ...previousState,
-        [path]: true,
-      };
-    });
+    setExpandedFolders((previousState) =>
+      setFileExplorerFolderExpanded(previousState, path, true));
+    if (searchMode) {
+      setSearchExpansionOverrides((previousState) =>
+        setFileExplorerFolderExpanded(previousState, path, true));
+    }
   }, []);
 
+  const requestDirectoryLoad = useCallback((path: string, searchMode: boolean) => {
+    if (!onExpandDirectory) return Promise.resolve(true);
+    const existingRequest = directoryLoadRequestsRef.current.get(path);
+    if (existingRequest) return existingRequest;
+    const scopeGeneration = directoryLoadScopeGenerationRef.current;
+    setDirectoryLoadErrors((previousState) => {
+      if (!previousState[path]) return previousState;
+      const nextState = { ...previousState };
+      delete nextState[path];
+      return nextState;
+    });
+    const directoryLoadRequest = Promise.resolve()
+      .then(() => onExpandDirectory(path))
+      .then(() => true)
+      .catch((error) => {
+        if (directoryLoadScopeGenerationRef.current !== scopeGeneration) {
+          return false;
+        }
+        console.error(
+          'Failed to expand file explorer directory',
+          resolveFileExplorerErrorCategory(error),
+        );
+        setFolderExpanded(path, false, searchMode);
+        setDirectoryLoadErrors((previousState) => ({
+          ...previousState,
+          [path]: true,
+        }));
+        addToast(t('code.failedToLoadDirectory'), 'error');
+        return false;
+      });
+    directoryLoadRequestsRef.current.set(path, directoryLoadRequest);
+    const completeDirectoryLoad = () => {
+      if (directoryLoadRequestsRef.current.get(path) === directoryLoadRequest) {
+        directoryLoadRequestsRef.current.delete(path);
+      }
+    };
+    void directoryLoadRequest.then(completeDirectoryLoad, completeDirectoryLoad);
+    return directoryLoadRequest;
+  }, [addToast, onExpandDirectory, setFolderExpanded, t]);
+
   useEffect(() => {
-    if (!isActive || !normalizedDeferredSearchQuery) {
+    if (!isActive || !isSearchActive) {
       setSearchResult(EMPTY_FILE_EXPLORER_SEARCH_RESULT);
       setIsSearchPending(false);
       return;
@@ -919,39 +1115,185 @@ export const FileExplorer = React.memo(function FileExplorer({
     return () => {
       searchTask.cancel();
     };
-  }, [files, isActive, normalizedDeferredSearchQuery]);
+  }, [files, isActive, isSearchActive, normalizedDeferredSearchQuery]);
 
-  const filteredFiles = normalizedDeferredSearchQuery
+  useEffect(() => {
+    setSearchExpansionOverrides({});
+  }, [normalizedDeferredSearchQuery]);
+
+  const filteredFiles = isSearchActive
     ? searchResult.files
     : files;
-  const currentExpandedFolders = normalizedDeferredSearchQuery
-    ? searchResult.expandedFolders
-    : expandedFolders;
+  const currentExpandedFolders = useMemo(
+    () => resolveFileExplorerExpandedFolders({
+      expandedFolders,
+      searchActive: isSearchActive,
+      searchExpandedFolders: searchResult.expandedFolders,
+      searchExpansionOverrides,
+    }),
+    [
+      expandedFolders,
+      isSearchActive,
+      searchExpansionOverrides,
+      searchResult.expandedFolders,
+    ],
+  );
 
   const handleNodePrimaryAction = useCallback((node: FileNode, isExpanded: boolean) => {
     if (node.type === 'directory') {
-      if (!isExpanded && node.children === undefined && onExpandDirectory) {
-        void onExpandDirectory(node.path);
+      const searchMode = isSearchActive;
+      const shouldRetryLoad = directoryLoadErrors[node.path] === true;
+      const nextExpanded = shouldRetryLoad ? true : !isExpanded;
+      setFolderExpanded(node.path, nextExpanded, searchMode);
+      if (nextExpanded && (shouldRetryLoad || node.children === undefined)) {
+        void requestDirectoryLoad(node.path, searchMode);
       }
-      toggleFolder(node.path);
       return;
     }
 
     onSelectFile(node.path);
-  }, [onExpandDirectory, onSelectFile, toggleFolder]);
+  }, [
+    directoryLoadErrors,
+    isSearchActive,
+    onSelectFile,
+    requestDirectoryLoad,
+    setFolderExpanded,
+  ]);
 
-  const handleBeginCreateNode = useCallback((parentPath: string, type: 'file' | 'directory') => {
+  const handleBeginCreateNode = useCallback((
+    parentPath: string,
+    type: 'file' | 'directory',
+    loadDirectory: boolean,
+  ) => {
     if (isMutationPending) {
       return;
     }
     setCreatingNode({ parentPath, type });
     setInputValue('');
-    ensureFolderExpanded(parentPath);
-  }, [ensureFolderExpanded, isMutationPending]);
+    const searchMode = isSearchActive;
+    ensureFolderExpanded(parentPath, searchMode);
+    if (loadDirectory) void requestDirectoryLoad(parentPath, searchMode);
+  }, [
+    ensureFolderExpanded,
+    isMutationPending,
+    isSearchActive,
+    requestDirectoryLoad,
+  ]);
+
+  const handleCollapseAllFolders = useCallback(() => {
+    setExpandedFolders({});
+    if (isSearchActive) {
+      setSearchExpansionOverrides(
+        collapseFileExplorerSearchFolders(searchResult.expandedFolders),
+      );
+    }
+  }, [isSearchActive, searchResult.expandedFolders]);
+
+  const handleToggleSearch = useCallback(() => {
+    setIsSearchVisible((wasVisible) => {
+      if (wasVisible) {
+        setSearchQuery('');
+        setSearchExpansionOverrides({});
+      }
+      return !wasVisible;
+    });
+  }, []);
 
   const handleRequestDeleteNode = useCallback((node: FileNode) => {
+    if (isMutationPending) {
+      return;
+    }
+    deleteDialogReturnFocusPathRef.current = node.path;
     setNodeToDelete(node);
-  }, []);
+  }, [isMutationPending]);
+
+  const handleCancelDeleteNode = useCallback(() => {
+    if (!isMutationPending) {
+      const returnFocusPath = deleteDialogReturnFocusPathRef.current;
+      setNodeToDelete(null);
+      restoreTreeFocus(returnFocusPath);
+    }
+  }, [isMutationPending, restoreTreeFocus]);
+
+  const handleConfirmDeleteNode = useCallback(async () => {
+    if (!nodeToDelete || isMutationPending) {
+      return;
+    }
+    const deleteNode = nodeToDelete.type === 'directory' ? onDeleteFolder : onDeleteFile;
+    const failureMessageKey = nodeToDelete.type === 'directory'
+      ? 'code.failedToDeleteFolder'
+      : 'code.failedToDeleteFile';
+    if (!deleteNode) {
+      addToast(t(failureMessageKey), 'error');
+      return;
+    }
+
+    const mutationGeneration = mutationGenerationRef.current + 1;
+    mutationGenerationRef.current = mutationGeneration;
+    setIsMutationPending(true);
+    try {
+      await deleteNode(nodeToDelete.path);
+      if (mutationGenerationRef.current !== mutationGeneration) {
+        return;
+      }
+      const parentSeparatorIndex = nodeToDelete.path.lastIndexOf('/');
+      const parentPath = parentSeparatorIndex > 0
+        ? nodeToDelete.path.slice(0, parentSeparatorIndex)
+        : '';
+      setNodeToDelete(null);
+      restoreTreeFocus(parentPath);
+    } catch (error) {
+      console.error(
+        'Failed to delete file explorer node',
+        resolveFileExplorerErrorCategory(error),
+      );
+      if (mutationGenerationRef.current === mutationGeneration) {
+        addToast(t(failureMessageKey), 'error');
+        window.requestAnimationFrame(() => deleteDialogCancelButtonRef.current?.focus());
+      }
+    } finally {
+      if (mutationGenerationRef.current === mutationGeneration) {
+        setIsMutationPending(false);
+      }
+    }
+  }, [
+    addToast,
+    isMutationPending,
+    nodeToDelete,
+    onDeleteFile,
+    onDeleteFolder,
+    restoreTreeFocus,
+    t,
+  ]);
+
+  const handleDeleteDialogKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancelDeleteNode();
+      return;
+    }
+    if (event.key !== 'Tab') {
+      return;
+    }
+    const dialog = deleteDialogRef.current;
+    if (!dialog) {
+      return;
+    }
+    const focusableElements = resolveFocusableElements(dialog);
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const firstElement = focusableElements[0]!;
+    const lastElement = focusableElements.at(-1)!;
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }, [handleCancelDeleteNode]);
 
   const handleBeginRenameNode = useCallback((node: FileNode) => {
     if (isMutationPending || !onRenameNode) {
@@ -1012,7 +1354,10 @@ export const FileExplorer = React.memo(function FileExplorer({
         setCreatingNode(null);
         setInputValue('');
       } catch (error) {
-        console.error('Failed to create file explorer node', error);
+        console.error(
+          'Failed to create file explorer node',
+          resolveFileExplorerErrorCategory(error),
+        );
         if (mutationGenerationRef.current !== mutationGeneration) {
           return;
         }
@@ -1070,7 +1415,10 @@ export const FileExplorer = React.memo(function FileExplorer({
       setRenamingNode(null);
       setInputValue('');
     } catch (error) {
-      console.error('Failed to rename file explorer node', error);
+      console.error(
+        'Failed to rename file explorer node',
+        resolveFileExplorerErrorCategory(error),
+      );
       if (mutationGenerationRef.current !== mutationGeneration) {
         return;
       }
@@ -1131,6 +1479,133 @@ export const FileExplorer = React.memo(function FileExplorer({
       }),
     [creatingNode, currentExpandedFolders, filteredFiles],
   );
+  const navigableRows = useMemo(
+    () => visibleRows.flatMap((row, rowIndex) => (
+      row.kind === 'node'
+        ? [{ depth: row.depth, node: row.node, rowIndex }]
+        : []
+    )),
+    [visibleRows],
+  );
+  const currentTabStopPath = useMemo(() => {
+    if (navigableRows.some((row) => row.node.path === focusedNodePath)) {
+      return focusedNodePath;
+    }
+    if (selectedFile && navigableRows.some((row) => row.node.path === selectedFile)) {
+      return selectedFile;
+    }
+    return navigableRows[0]?.node.path ?? '';
+  }, [focusedNodePath, navigableRows, selectedFile]);
+
+  const handleNodeFocus = useCallback((path: string) => {
+    setFocusedNodePath(path);
+  }, []);
+
+  const focusTreeRow = useCallback((row: typeof navigableRows[number]) => {
+    setFocusedNodePath(row.node.path);
+    pendingTreeFocusPathRef.current = row.node.path;
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const mountedRow = Array.from(
+      scrollContainer.querySelectorAll<HTMLElement>('[data-file-explorer-path]'),
+    ).find((element) => element.dataset.fileExplorerPath === row.node.path);
+    if (mountedRow) {
+      pendingTreeFocusPathRef.current = '';
+      mountedRow.focus();
+      return;
+    }
+
+    const rowTop = row.rowIndex * FILE_EXPLORER_ROW_HEIGHT;
+    const rowBottom = rowTop + FILE_EXPLORER_ROW_HEIGHT;
+    const viewportBottom = scrollContainer.scrollTop + scrollContainer.clientHeight;
+    const nextScrollTop = rowTop < scrollContainer.scrollTop
+      ? rowTop
+      : rowBottom > viewportBottom
+        ? Math.max(0, rowBottom - scrollContainer.clientHeight)
+        : scrollContainer.scrollTop;
+    scrollContainer.scrollTop = nextScrollTop;
+    setViewport({
+      clientHeight: scrollContainer.clientHeight,
+      scrollTop: nextScrollTop,
+    });
+  }, []);
+
+  const handleNodeKeyDown = useCallback((
+    event: React.KeyboardEvent<HTMLDivElement>,
+    node: FileNode,
+    isExpanded: boolean,
+    depth: number,
+  ) => {
+    if (event.currentTarget !== event.target) return;
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      event.preventDefault();
+      const bounds = event.currentTarget.getBoundingClientRect();
+      openNodeContextMenu(node, bounds.left + 20, bounds.bottom);
+      return;
+    }
+    if (event.key === 'Delete') {
+      event.preventDefault();
+      handleRequestDeleteNode(node);
+      return;
+    }
+    if (event.key === 'F2') {
+      event.preventDefault();
+      handleBeginRenameNode(node);
+      return;
+    }
+    const currentIndex = navigableRows.findIndex((row) => row.node.path === node.path);
+    if (currentIndex < 0) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleNodePrimaryAction(node, isExpanded);
+      return;
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const targetRow = event.key === 'Home' ? navigableRows[0] : navigableRows.at(-1);
+      if (targetRow) focusTreeRow(targetRow);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const offset = event.key === 'ArrowDown' ? 1 : -1;
+      const targetRow = navigableRows[currentIndex + offset];
+      if (targetRow) focusTreeRow(targetRow);
+      return;
+    }
+    if (event.key === 'ArrowRight' && node.type === 'directory') {
+      event.preventDefault();
+      if (!isExpanded) {
+        handleNodePrimaryAction(node, false);
+        return;
+      }
+      const childRow = navigableRows[currentIndex + 1];
+      if (childRow && childRow.depth > depth) focusTreeRow(childRow);
+      return;
+    }
+    if (event.key !== 'ArrowLeft') return;
+    event.preventDefault();
+    if (node.type === 'directory' && isExpanded) {
+      handleNodePrimaryAction(node, true);
+      return;
+    }
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const parentRow = navigableRows[index]!;
+      if (parentRow.depth === depth - 1) {
+        focusTreeRow(parentRow);
+        return;
+      }
+    }
+  }, [
+    focusTreeRow,
+    handleBeginRenameNode,
+    handleNodePrimaryAction,
+    handleRequestDeleteNode,
+    navigableRows,
+    openNodeContextMenu,
+  ]);
   const totalVisibleRowHeight = visibleRows.length * FILE_EXPLORER_ROW_HEIGHT;
   const shouldTrackViewportScroll = viewport.clientHeight > 0 && totalVisibleRowHeight > viewport.clientHeight;
 
@@ -1144,6 +1619,24 @@ export const FileExplorer = React.memo(function FileExplorer({
       }),
     [viewport, visibleRows],
   );
+
+  useEffect(() => {
+    const pendingPath = pendingTreeFocusPathRef.current;
+    if (!pendingPath || !isActive) return;
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const scrollContainer = scrollContainerRef.current;
+      const mountedRow = scrollContainer
+        ? Array.from(
+            scrollContainer.querySelectorAll<HTMLElement>('[data-file-explorer-path]'),
+          ).find((element) => element.dataset.fileExplorerPath === pendingPath)
+        : null;
+      if (mountedRow) {
+        pendingTreeFocusPathRef.current = '';
+        mountedRow.focus();
+      }
+    });
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [isActive, virtualizedRows.visibleRows]);
 
   useEffect(() => {
     if (!isActive) {
@@ -1267,11 +1760,11 @@ export const FileExplorer = React.memo(function FileExplorer({
       );
     }
 
-    if (isSearchPending && normalizedDeferredSearchQuery) {
+    if (isSearchPending && isSearchActive) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4 text-center gap-3">
           <Loader2 size={18} className="text-gray-400 animate-spin" />
-          <p className="text-sm text-gray-400">Searching files...</p>
+          <p className="text-sm text-gray-400">{t('code.searchingFiles')}</p>
         </div>
       );
     }
@@ -1308,12 +1801,15 @@ export const FileExplorer = React.memo(function FileExplorer({
                 isDirectoryLoading={
                   row.node.type === 'directory' && loadingDirectoryPaths[row.node.path] === true
                 }
+                isFocused={currentTabStopPath === row.node.path}
+                hasDirectoryLoadError={directoryLoadErrors[row.node.path] === true}
                 isExpanded={currentExpandedFolders[row.node.path] === true}
                 isMutationPending={isMutationPending}
                 isSelected={selectedFile === row.node.path}
                 renamingNode={renamingNode}
-                onExpandDirectory={onExpandDirectory}
                 onNodePrimaryAction={handleNodePrimaryAction}
+                onNodeFocus={handleNodeFocus}
+                onNodeKeyDown={handleNodeKeyDown}
                 onContextMenu={handleContextMenu}
                 onBeginCreateNode={handleBeginCreateNode}
                 onRequestDeleteNode={handleRequestDeleteNode}
@@ -1341,12 +1837,12 @@ export const FileExplorer = React.memo(function FileExplorer({
             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2">
               <Search size={20} className="text-gray-400" />
             </div>
-            <p className="text-sm text-gray-400">No files match "{searchQuery}"</p>
+            <p className="text-sm text-gray-400">{t('code.noFilesMatch', { query: searchQuery })}</p>
             <button
               className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
               onClick={() => setSearchQuery('')}
             >
-              Clear search
+              {t('code.clearSearch')}
             </button>
           </>
         ) : (
@@ -1355,15 +1851,15 @@ export const FileExplorer = React.memo(function FileExplorer({
               <Folder size={20} className="text-gray-400" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-300 font-medium">Project is empty</p>
-              <p className="text-xs text-gray-500">Create a file to get started.</p>
+              <p className="text-sm text-gray-300 font-medium">{t('code.projectEmpty')}</p>
+              <p className="text-xs text-gray-500">{t('code.createFileToGetStarted')}</p>
             </div>
             <button
               className="mt-2 flex items-center gap-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-md transition-colors border border-blue-500/20"
               onClick={() => startCreatingRootNode('file')}
             >
               <Plus size={14} />
-              <span>Create File</span>
+              <span>{t('code.createFile')}</span>
             </button>
           </>
         )}
@@ -1377,16 +1873,19 @@ export const FileExplorer = React.memo(function FileExplorer({
     handleInputKeyDown,
     handleInputValueChange,
     handleNodePrimaryAction,
+    handleNodeFocus,
+    handleNodeKeyDown,
     handleRequestDeleteNode,
     hasLoadError,
     inputValue,
     isMutationPending,
     isLoading,
     currentExpandedFolders,
+    currentTabStopPath,
     isSearchPending,
     loadingDirectoryPaths,
-    normalizedDeferredSearchQuery,
-    onExpandDirectory,
+    directoryLoadErrors,
+    isSearchActive,
     onRetryLoad,
     renamingNode,
     searchQuery,
@@ -1408,12 +1907,12 @@ export const FileExplorer = React.memo(function FileExplorer({
     >
       <div className="flex flex-col shrink-0">
         <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          <span>Explorer</span>
+          <span>{t('code.explorer')}</span>
           <div className="flex gap-1">
             <button
               type="button"
-              title="New File"
-              aria-label="Create file"
+              title={t('code.newFile')}
+              aria-label={t('code.createFile')}
               className="rounded p-1 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
               onClick={() => startCreatingRootNode('file')}
             >
@@ -1424,8 +1923,8 @@ export const FileExplorer = React.memo(function FileExplorer({
             </button>
             <button
               type="button"
-              title="New Folder"
-              aria-label="Create folder"
+              title={t('code.newFolder')}
+              aria-label={t('code.createFolder')}
               className="rounded p-1 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
               onClick={() => startCreatingRootNode('directory')}
             >
@@ -1436,10 +1935,10 @@ export const FileExplorer = React.memo(function FileExplorer({
             </button>
             <button
               type="button"
-              title="Collapse All"
-              aria-label="Collapse all folders"
+              title={t('code.collapseAllFolders')}
+              aria-label={t('code.collapseAllFolders')}
               className="rounded p-1 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-              onClick={() => setExpandedFolders({})}
+              onClick={handleCollapseAllFolders}
             >
               <ListCollapse 
                 size={14}
@@ -1448,14 +1947,11 @@ export const FileExplorer = React.memo(function FileExplorer({
             </button>
             <button
               type="button"
-              title="Search"
-              aria-label={isSearchVisible ? 'Close file search' : 'Search files'}
+              title={t('code.searchFilesAction')}
+              aria-label={isSearchVisible ? t('code.closeFileSearch') : t('code.searchFilesAction')}
               aria-pressed={isSearchVisible}
               className={`rounded p-1 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${isSearchVisible ? 'text-white' : 'hover:text-white'}`}
-              onClick={() => {
-                setIsSearchVisible(!isSearchVisible);
-                if (isSearchVisible) setSearchQuery('');
-              }}
+              onClick={handleToggleSearch}
             >
               <Search 
                 size={14}
@@ -1471,16 +1967,20 @@ export const FileExplorer = React.memo(function FileExplorer({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label={t('code.searchFilesAction')}
                 placeholder={t('code.searchFiles')}
-                className="w-full bg-[#0e0e11] border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500/50"
+                className="w-full rounded border border-white/10 bg-[#0e0e11] py-1 pl-2 pr-7 text-xs text-gray-200 focus:border-blue-500/50 focus:outline-none"
                 autoFocus
               />
               {searchQuery && (
-                <X 
-                  size={12} 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 cursor-pointer hover:text-gray-300"
+                <button
+                  type="button"
+                  aria-label={t('code.clearSearch')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-gray-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                   onClick={() => setSearchQuery('')}
-                />
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
               )}
             </div>
           </div>
@@ -1489,7 +1989,7 @@ export const FileExplorer = React.memo(function FileExplorer({
       <div 
         ref={scrollContainerRef}
         role="tree"
-        aria-label="Project files"
+        aria-label={t('code.projectFilesLabel')}
         className="flex-1 overflow-y-auto py-2 custom-scrollbar"
         onContextMenu={handleRootContextMenu}
       >
@@ -1497,34 +1997,47 @@ export const FileExplorer = React.memo(function FileExplorer({
       </div>
 
       {rootContextMenu && (
-        <div 
-          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+        <div
+          ref={floatingMenuRef}
+          role="menu"
+          aria-label={t('code.explorerActions')}
+          className="fixed max-h-[calc(100vh_-_16px)] w-[min(14rem,calc(100vw_-_16px))] overflow-y-auto rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-left"
           style={{ top: rootContextMenu.y, left: rootContextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={handleFloatingMenuKeyDown}
         >
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               startCreatingRootNode('file');
               setRootContextMenu(null);
             }}
           >
-            <FilePlus size={14} className="text-gray-400" />
-            <span>New File</span>
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <FilePlus size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.newFile')}</span>
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               startCreatingRootNode('directory');
               setRootContextMenu(null);
             }}
           >
-            <FolderPlus size={14} className="text-gray-400" />
-            <span>New Folder</span>
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <FolderPlus size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.newFolder')}</span>
+          </button>
+          <div role="separator" className="my-1.5 h-px bg-white/10" />
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               const target = resolveProjectMountTarget();
               if (!target || !emitOpenProjectTerminal(target)) {
@@ -1535,11 +2048,14 @@ export const FileExplorer = React.memo(function FileExplorer({
               setRootContextMenu(null);
             }}
           >
-            <Terminal size={14} className="text-gray-400" />
-            <span>Open in Terminal</span>
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <Terminal size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.openInTerminal')}</span>
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               const target = resolveProjectMountTarget();
               if (!target || !emitRevealProjectInFileManager(target)) {
@@ -1550,67 +2066,85 @@ export const FileExplorer = React.memo(function FileExplorer({
               setRootContextMenu(null);
             }}
           >
-            <ExternalLink size={14} className="text-gray-400" />
-            <span>Open in File Explorer</span>
-          </div>
+            <ExternalLink size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.openInFileExplorer')}</span>
+          </button>
         </div>
       )}
 
       {contextMenu && (
-        <div 
-          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+        <div
+          ref={floatingMenuRef}
+          role="menu"
+          aria-label={t('code.nodeActions', { name: contextMenu.node.name })}
+          className="fixed max-h-[calc(100vh_-_16px)] w-[min(14rem,calc(100vw_-_16px))] overflow-y-auto rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-left"
           style={{ top: contextMenu.y, left: contextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={handleFloatingMenuKeyDown}
         >
           {contextMenu.node.type === 'directory' && (
             <>
-              <div 
-                className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+              <button
+                type="button"
+                tabIndex={-1}
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
                 onClick={() => {
-                  handleBeginCreateNode(contextMenu.node.path, 'file');
-                  if (contextMenu.node.children === undefined && onExpandDirectory) {
-                    void onExpandDirectory(contextMenu.node.path);
-                  }
+                  handleBeginCreateNode(
+                    contextMenu.node.path,
+                    'file',
+                    contextMenu.node.children === undefined,
+                  );
                   setContextMenu(null);
                 }}
               >
-                <FilePlus size={14} className="text-gray-400" />
-                <span>New File</span>
-              </div>
-              <div 
-                className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+                <FilePlus size={14} className="text-gray-400" aria-hidden="true" />
+                <span>{t('code.newFile')}</span>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
                 onClick={() => {
-                  handleBeginCreateNode(contextMenu.node.path, 'directory');
-                  if (contextMenu.node.children === undefined && onExpandDirectory) {
-                    void onExpandDirectory(contextMenu.node.path);
-                  }
+                  handleBeginCreateNode(
+                    contextMenu.node.path,
+                    'directory',
+                    contextMenu.node.children === undefined,
+                  );
                   setContextMenu(null);
                 }}
               >
-                <FolderPlus size={14} className="text-gray-400" />
-                <span>New Folder</span>
-              </div>
-              <div className="h-px bg-white/10 my-1.5"></div>
+                <FolderPlus size={14} className="text-gray-400" aria-hidden="true" />
+                <span>{t('code.newFolder')}</span>
+              </button>
+              <div role="separator" className="my-1.5 h-px bg-white/10" />
             </>
           )}
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               void copyTextToClipboard(contextMenu.node.path).then((didCopy) => {
                 if (!didCopy) {
-                  addToast('Unable to copy relative path', 'error');
+                  addToast(t('code.unableToCopyRelativePath'), 'error');
                   return;
                 }
-                addToast('Copied relative path', 'success');
+                addToast(t('code.copiedRelativePath'), 'success');
               });
               setContextMenu(null);
             }}
           >
-            <Copy size={14} className="text-gray-400" />
-            <span>Copy Relative Path</span>
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <Copy size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.copyRelativePath')}</span>
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               const target = resolveProjectMountTarget(contextMenu.node.path);
               if (!target || !emitCopyProjectLocalPath(target)) {
@@ -1621,33 +2155,42 @@ export const FileExplorer = React.memo(function FileExplorer({
               setContextMenu(null);
             }}
           >
-            <Copy size={14} className="text-gray-400" />
-            <span>Copy Full Path</span>
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <Copy size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.copyFullPath')}</span>
+          </button>
+          <div role="separator" className="my-1.5 h-px bg-white/10" />
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               handleBeginRenameNode(contextMenu.node);
               setContextMenu(null);
             }}
           >
-            <FileEdit size={14} className="text-gray-400" />
-            <span>Rename</span>
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-red-500/20 hover:text-red-400 cursor-pointer transition-colors flex items-center gap-2 text-red-500/80"
+            <FileEdit size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.renameNode')}</span>
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-red-500/80 transition-colors hover:bg-red-500/20 hover:text-red-400 focus-visible:bg-red-500/20 focus-visible:text-red-400 focus-visible:outline-none"
             onClick={() => {
-              setNodeToDelete(contextMenu.node);
+              handleRequestDeleteNode(contextMenu.node);
               setContextMenu(null);
             }}
           >
-            <Trash2 size={14} />
-            <span>Delete</span>
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <Trash2 size={14} aria-hidden="true" />
+            <span>{t('code.deleteNode')}</span>
+          </button>
+          <div role="separator" className="my-1.5 h-px bg-white/10" />
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               const target = resolveProjectMountTarget(resolveMountedDirectoryPath(contextMenu.node));
               if (!target || !emitOpenProjectTerminal(target)) {
@@ -1658,11 +2201,14 @@ export const FileExplorer = React.memo(function FileExplorer({
               setContextMenu(null);
             }}
           >
-            <Terminal size={14} className="text-gray-400" />
-            <span>Open in Terminal</span>
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+            <Terminal size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.openInTerminal')}</span>
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
               const target = resolveProjectMountTarget(contextMenu.node.path);
               if (!target || !emitRevealProjectInFileManager(target)) {
@@ -1673,50 +2219,60 @@ export const FileExplorer = React.memo(function FileExplorer({
               setContextMenu(null);
             }}
           >
-            <ExternalLink size={14} className="text-gray-400" />
-            <span>Open in File Explorer</span>
-          </div>
+            <ExternalLink size={14} className="text-gray-400" aria-hidden="true" />
+            <span>{t('code.openInFileExplorer')}</span>
+          </button>
         </div>
       )}
 
       {nodeToDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            ref={deleteDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={deleteDialogTitleId}
+            aria-describedby={deleteDialogDescriptionId}
+            aria-busy={isMutationPending}
+            className="w-[calc(100%_-_32px)] max-w-sm overflow-hidden rounded-lg border border-white/10 bg-[#18181b] shadow-2xl animate-in zoom-in-95 duration-200"
+            onKeyDown={handleDeleteDialogKeyDown}
+          >
             <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-[#18181b]/50">
               <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                <Trash2 size={16} className="text-red-400" />
+                <Trash2 size={16} className="text-red-400" aria-hidden="true" />
               </div>
-              <h3 className="text-base font-semibold text-white">Delete {nodeToDelete.type === 'directory' ? 'Folder' : 'File'}</h3>
+              <h3 id={deleteDialogTitleId} className="text-base font-semibold text-white">
+                {nodeToDelete.type === 'directory' ? t('code.deleteFolder') : t('code.deleteFile')}
+              </h3>
             </div>
             <div className="p-5">
-              <p className="text-sm text-gray-300">
-                Are you sure you want to delete <span className="font-semibold text-white break-all">{nodeToDelete.name}</span>?
+              <p id={deleteDialogDescriptionId} className="text-sm text-gray-300">
+                {t('code.deleteNodeQuestion', { name: nodeToDelete.name })}
               </p>
               {nodeToDelete.type === 'directory' && (
                 <p className="text-xs text-red-400 mt-2">
-                  This will also delete all files and folders inside it. This action cannot be undone.
+                  {t('code.deleteFolderWarning')}
                 </p>
               )}
             </div>
             <div className="flex items-center justify-end gap-2 p-4 border-t border-white/5 bg-[#121214]">
-              <button 
-                onClick={() => setNodeToDelete(null)}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+              <button
+                ref={deleteDialogCancelButtonRef}
+                type="button"
+                disabled={isMutationPending}
+                onClick={handleCancelDeleteNode}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
-              <button 
-                onClick={() => {
-                  if (nodeToDelete.type === 'directory' && onDeleteFolder) {
-                    onDeleteFolder(nodeToDelete.path);
-                  } else if (nodeToDelete.type === 'file' && onDeleteFile) {
-                    onDeleteFile(nodeToDelete.path);
-                  }
-                  setNodeToDelete(null);
-                }}
-                className="px-4 py-2 rounded-md text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors"
+              <button
+                type="button"
+                disabled={isMutationPending}
+                onClick={() => void handleConfirmDeleteNode()}
+                className="flex min-w-[88px] items-center justify-center gap-2 rounded-md border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Delete
+                {isMutationPending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : null}
+                {t('code.deleteNode')}
               </button>
             </div>
           </div>

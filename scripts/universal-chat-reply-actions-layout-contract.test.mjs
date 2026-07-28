@@ -37,8 +37,8 @@ assert.doesNotMatch(
 
 assert.match(
   assistantReplyRendererSource,
-  /<ContentBlockList view=\{view\} context=\{context\} \/>\s*\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
-  'UniversalChat assistant reply actions must render after all structured Session Item blocks so the toolbar anchors to the full reply edge.',
+  /<ContentBlockList view=\{view\} context=\{context\} \/>[\s\S]*?<TurnFileChangesCard[\s\S]*?\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
+  'UniversalChat assistant reply actions must render after structured Session Item blocks and the optional turn file-change summary.',
 );
 
 assert.match(

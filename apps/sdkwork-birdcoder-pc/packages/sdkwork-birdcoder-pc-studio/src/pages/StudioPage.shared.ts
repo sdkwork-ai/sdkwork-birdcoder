@@ -2,6 +2,7 @@ import {
   buildAgentSessionProjectScopedKey,
 } from '@sdkwork/birdcoder-pc-workbench';
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { resolveBirdCoderEditorLanguage } from '@sdkwork/birdcoder-pc-ui/components/editorLanguage';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 export interface StudioPageProps {
@@ -68,10 +69,5 @@ export function restoreStudioSelectionAfterRefresh({
 }
 
 export function getLanguageFromPath(path: string): string {
-  if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
-  if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
-  if (path.endsWith('.json')) return 'json';
-  if (path.endsWith('.html')) return 'html';
-  if (path.endsWith('.css')) return 'css';
-  return 'plaintext';
+  return resolveBirdCoderEditorLanguage(path);
 }

@@ -12,6 +12,7 @@ export type {
 const EMPTY_CAPABILITIES: ComposerProviderCapabilities = {
   plugins: [],
   skills: [],
+  errors: [],
 };
 
 export interface UseComposerProviderCapabilitiesOptions {
@@ -55,7 +56,7 @@ export function useComposerProviderCapabilities({
     }
 
     let isCurrent = true;
-    setCapabilities(EMPTY_CAPABILITIES);
+    setCapabilities((previous) => previous);
     setError(null);
     setIsLoading(true);
 

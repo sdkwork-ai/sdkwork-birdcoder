@@ -11,6 +11,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import {
   useFixedSizeWindowedRange,
   useRelativeMinuteNow,
@@ -38,6 +39,7 @@ import type {
 } from './ProjectExplorer.shared';
 import type { ProjectExplorerProps } from './ProjectExplorer.types';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
+import { TaskSearchDialog } from './TaskSearchDialog';
 import {
   buildSidebarGlobalSessions,
   canRequestMoreSidebarProjectSessions,
@@ -262,6 +264,10 @@ function areSidebarProjectInventoriesEqual(
 function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorerProps): boolean {
   return (
     areSidebarProjectInventoriesEqual(left.projects, right.projects) &&
+    areSidebarProjectInventoriesEqual(
+      left.taskSearchProjects ?? left.projects,
+      right.taskSearchProjects ?? right.projects,
+    ) &&
     left.hasMoreProjects === right.hasMoreProjects &&
     left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.isVisible === right.isVisible &&
@@ -324,6 +330,7 @@ export const Sidebar = React.memo(function Sidebar({
   isLoadingMoreProjects = false,
   isVisible = true,
   projects,
+  taskSearchProjects = projects,
   selectedProjectId,
   selectedAgentSessionId,
   onSelectProject,
@@ -369,6 +376,8 @@ export const Sidebar = React.memo(function Sidebar({
   const loadingMoreSessionProjectIdsRef = useRef(new Set<string>());
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const taskSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
@@ -418,6 +427,10 @@ export const Sidebar = React.memo(function Sidebar({
   const renderProjects = useMemo(
     () => deduplicateAgentProjectsForRender(projects),
     [projects],
+  );
+  const renderTaskSearchProjects = useMemo(
+    () => deduplicateAgentProjectsForRender(taskSearchProjects),
+    [taskSearchProjects],
   );
   const projectNamesById = useMemo(
     () => new Map(renderProjects.map((project) => [project.projectId, project.name])),
@@ -869,18 +882,58 @@ export const Sidebar = React.memo(function Sidebar({
     }
     onNewAgentSessionInProject(selectedProjectId, engineId, modelId);
   }, [onNewAgentSessionInProject, selectedProjectId]);
-  const handleToggleSearch = useCallback(() => {
-    setShowSearch((previousState) => {
-      const nextState = !previousState;
-      if (!nextState && setSearchQuery) {
-        setSearchQuery('');
-      }
-      return nextState;
-    });
-  }, [setSearchQuery]);
-  const handleClearSearch = useCallback(() => {
+  const handleOpenTaskSearch = useCallback((trigger: HTMLButtonElement) => {
+    taskSearchTriggerRef.current = trigger;
+    setShowFilterMenu(false);
+    setContextMenu(null);
+    setProjectContextMenu(null);
+    setRootContextMenu(null);
+    setTaskSearchQuery('');
+    setShowSearch(true);
+  }, []);
+  const handleCloseTaskSearch = useCallback(() => {
+    setShowSearch(false);
+    setTaskSearchQuery('');
     setSearchQuery?.('');
   }, [setSearchQuery]);
+  const handleSelectTaskSearchEntry = useCallback((entry: {
+    projectId: string;
+    session: AgentSessionView;
+  }) => {
+    handleSelectAgentSession(entry.session.id, entry.projectId);
+    handleCloseTaskSearch();
+  }, [handleCloseTaskSearch, handleSelectAgentSession]);
+  const handleCreateTaskFromSearch = useCallback(() => {
+    if (!selectedProjectId) {
+      return;
+    }
+    handleCloseTaskSearch();
+    onNewAgentSessionInProject(
+      selectedProjectId,
+      newSessionEngineCatalog.preferredSelection.engineId,
+      newSessionEngineCatalog.preferredSelection.modelId,
+    );
+  }, [
+    handleCloseTaskSearch,
+    newSessionEngineCatalog.preferredSelection.engineId,
+    newSessionEngineCatalog.preferredSelection.modelId,
+    onNewAgentSessionInProject,
+    selectedProjectId,
+  ]);
+  const handleOpenFolderFromTaskSearch = useCallback(() => {
+    if (!onOpenFolder) {
+      return;
+    }
+    handleCloseTaskSearch();
+    onOpenFolder();
+  }, [handleCloseTaskSearch, onOpenFolder]);
+  const handleSearchFilesFromTaskSearch = useCallback(() => {
+    if (!selectedProjectId) {
+      return;
+    }
+    handleCloseTaskSearch();
+    globalEventBus.emit('openQuickOpen');
+  }, [handleCloseTaskSearch, selectedProjectId]);
   const handleCreateProjectFromHeader = useCallback(async () => {
     const newId = await onNewProject();
     if (newId) {
@@ -1321,7 +1374,6 @@ export const Sidebar = React.memo(function Sidebar({
         selectedProjectId={selectedProjectId}
         showFilterMenu={showFilterMenu}
         showSearch={showSearch}
-        searchQuery={searchQuery}
         organizeBy={organizeBy}
         sortBy={sortBy}
         showArchived={showArchived}
@@ -1339,8 +1391,7 @@ export const Sidebar = React.memo(function Sidebar({
         selectedEngineId={preferences.codeEngineId}
         selectedModelId={preferences.codeModelId}
         sessionsLabel={t('app.sessions')}
-        searchSessionsTitleLabel={t('app.searchSessionsTitle')}
-        searchSessionsPlaceholder={t('app.searchSessions')}
+        searchSessionsTitleLabel={t('app.searchTasks')}
         newProjectLabel={t('app.newProject')}
         openFolderLabel={t('app.menu.openFolder').replace('...', '')}
         organizeLabel={t('app.organize')}
@@ -1366,9 +1417,7 @@ export const Sidebar = React.memo(function Sidebar({
         scrollRegionRef={scrollRegionRef}
         onCreateSession={handleCreateEngineSession}
         onRefreshSelectedProject={onRefreshProjectSessions ? handleRefreshSelectedProject : undefined}
-        onToggleSearch={handleToggleSearch}
-        onSearchQueryChange={setSearchQuery}
-        onClearSearch={handleClearSearch}
+        onToggleSearch={handleOpenTaskSearch}
         onCreateProject={handleCreateProjectFromHeader}
         onOpenFolder={onOpenFolder}
         onToggleFilterMenu={() => setShowFilterMenu((previousState) => !previousState)}
@@ -1539,6 +1588,37 @@ export const Sidebar = React.memo(function Sidebar({
         </div>
         </ProjectExplorerHeader>
       </div>
+
+      {showSearch &&
+        renderSidebarContextMenuPortal(
+          <TaskSearchDialog
+            canCreateTask={Boolean(selectedProjectId)}
+            canSearchFiles={Boolean(selectedProjectId)}
+            labels={{
+              clearSearch: t('app.clearTaskSearch'),
+              newTask: t('app.newTask'),
+              noTasksFound: t('app.noTasksFound'),
+              openFolder: t('app.openFolderAction'),
+              recommendations: t('app.taskSearchRecommendations'),
+              searchFiles: t('app.searchFilesAction'),
+              searchPlaceholder: t('app.searchTasks'),
+              selectProjectFirst: t('code.selectProjectFirst'),
+              tasks: t('app.tasks'),
+            }}
+            projects={renderTaskSearchProjects}
+            query={taskSearchQuery}
+            returnFocusElement={taskSearchTriggerRef.current}
+            runtimeStatusLabels={sessionRuntimeStatusLabels}
+            selectedProjectId={selectedProjectId}
+            selectedSessionId={selectedAgentSessionId}
+            onClose={handleCloseTaskSearch}
+            onCreateTask={handleCreateTaskFromSearch}
+            onOpenFolder={onOpenFolder ? handleOpenFolderFromTaskSearch : undefined}
+            onQueryChange={setTaskSearchQuery}
+            onSearchFiles={handleSearchFilesFromTaskSearch}
+            onSelectTask={handleSelectTaskSearchEntry}
+          />,
+        )}
 
       {rootContextMenu &&
         renderSidebarContextMenuPortal(

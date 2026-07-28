@@ -99,6 +99,7 @@ export type {
   ComposerProviderCapabilities,
   ComposerProviderCapabilitiesOptions,
   ComposerProviderCapabilityItem,
+  ComposerProviderCapabilityLoadError,
   ICatalogService,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
 export type {

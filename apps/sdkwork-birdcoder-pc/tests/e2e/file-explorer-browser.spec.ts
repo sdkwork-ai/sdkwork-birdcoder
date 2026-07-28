@@ -27,6 +27,32 @@ test('Browser Explorer renders and mutates the current project Drive root', asyn
   await expect(projectTree.getByText('src', { exact: true })).toBeVisible();
   await expect(projectTree.getByText('README.md', { exact: true })).toBeVisible();
 
+  const sourceDirectory = projectTree.getByRole('treeitem', { name: 'src', exact: true });
+  await sourceDirectory.click();
+  await expect(sourceDirectory).toHaveAttribute('aria-expanded', 'true');
+  await expect(projectTree.getByText('index.ts', { exact: true })).toBeVisible();
+  await sourceDirectory.click();
+  await expect(sourceDirectory).toHaveAttribute('aria-expanded', 'false');
+  await expect(projectTree.getByText('index.ts', { exact: true })).toHaveCount(0);
+  await sourceDirectory.click();
+  await expect(projectTree.getByText('index.ts', { exact: true })).toBeVisible();
+
+  await sourceDirectory.focus();
+  await sourceDirectory.press('ArrowLeft');
+  await expect(sourceDirectory).toHaveAttribute('aria-expanded', 'false');
+  await expect(projectTree.getByText('index.ts', { exact: true })).toHaveCount(0);
+  await sourceDirectory.press('ArrowRight');
+  await expect(sourceDirectory).toHaveAttribute('aria-expanded', 'true');
+  await expect(projectTree.getByText('index.ts', { exact: true })).toBeVisible();
+
+  await sourceDirectory.press('Shift+F10');
+  const sourceActions = page.getByRole('menu', { name: 'Actions for src' });
+  await expect(sourceActions).toBeVisible();
+  await expect(sourceActions.getByRole('menuitem', { name: 'New File' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(sourceActions).toHaveCount(0);
+  await expect(sourceDirectory).toBeFocused();
+
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
   const newFileInput = projectTree.getByRole('textbox');
   await expect(newFileInput).toBeVisible();

@@ -185,7 +185,7 @@ const MAX_IMAGE_UPLOAD_FILES = 8;
 const MAX_COMPOSER_ATTACHMENTS = 24;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
 const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
-const TERMINAL_FILE_CARD_LAYOUT_SETTLEMENT_FRAME_LIMIT = 60;
+const TERMINAL_TRANSCRIPT_LAYOUT_SETTLEMENT_FRAME_LIMIT = 60;
 
 export interface UniversalChatProps {
   sessionId?: string;
@@ -722,10 +722,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       terminalFileCardHydrationRef.current = hydrationState;
     }
 
-    if (
-      !turnFileChangesCardSignature
-      || !isActive
-    ) {
+    if (!isActive || (!turnFileChangesCardSignature && !isLive)) {
       return undefined;
     }
 
@@ -738,24 +735,24 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     let lastObservedScrollHeight = -1;
     let remainingSettlementFrames = 0;
     let stableSettlementFrames = 0;
-    let isFileCardFooterVisible = false;
-    const updateFileCardFooterVisibility = () => {
-      const fileCardFooters = scrollContainer.querySelectorAll<HTMLElement>(
-        '[data-chat-turn-file-toggle="true"]',
+    let isTerminalTargetVisible = false;
+    const updateTerminalTargetVisibility = () => {
+      const terminalTargets = scrollContainer.querySelectorAll<HTMLElement>(
+        '[data-chat-turn-file-toggle="true"], [data-chat-turn-active-tail="true"]',
       );
-      const fileCardFooter = fileCardFooters[fileCardFooters.length - 1];
-      if (!fileCardFooter) {
-        isFileCardFooterVisible = false;
+      const terminalTarget = terminalTargets[terminalTargets.length - 1];
+      if (!terminalTarget) {
+        isTerminalTargetVisible = false;
         return;
       }
 
-      const footerRect = fileCardFooter.getBoundingClientRect();
+      const targetRect = terminalTarget.getBoundingClientRect();
       const transcriptRect = scrollContainer.getBoundingClientRect();
-      isFileCardFooterVisible =
-        footerRect.top >= transcriptRect.top - 1
-        && footerRect.bottom <= transcriptRect.bottom + 1;
+      isTerminalTargetVisible =
+        targetRect.top >= transcriptRect.top - 1
+        && targetRect.bottom <= transcriptRect.bottom + 1;
     };
-    updateFileCardFooterVisibility();
+    updateTerminalTargetVisibility();
     let shouldFollowFileCardResize =
       hydrationState.isPending || shouldStickToBottomRef.current;
     hydrationState.isPending = false;
@@ -767,7 +764,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       }
 
       scrollTranscriptToBottom();
-      updateFileCardFooterVisibility();
+      updateTerminalTargetVisibility();
       const nextScrollHeight = scrollContainer.scrollHeight;
       const nextBottomGap = Math.max(
         0,
@@ -776,7 +773,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       stableSettlementFrames =
         nextScrollHeight === lastObservedScrollHeight
           && nextBottomGap <= 1
-          && isFileCardFooterVisible
+          && isTerminalTargetVisible
           ? stableSettlementFrames + 1
           : 0;
       lastObservedScrollHeight = nextScrollHeight;
@@ -798,7 +795,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       }
 
       lastObservedScrollHeight = -1;
-      remainingSettlementFrames = TERMINAL_FILE_CARD_LAYOUT_SETTLEMENT_FRAME_LIMIT;
+      remainingSettlementFrames = TERMINAL_TRANSCRIPT_LAYOUT_SETTLEMENT_FRAME_LIMIT;
       stableSettlementFrames = 0;
       if (animationFrame === 0) {
         animationFrame = window.requestAnimationFrame(settleFileCardAtBottom);
@@ -823,19 +820,20 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     resizeObserver?.observe(scrollContainer);
     observeCurrentLayoutTargets();
     mutationObserver?.observe(scrollContainer, { childList: true, subtree: true });
-    scrollContainer.addEventListener('scroll', updateFileCardFooterVisibility, { passive: true });
+    scrollContainer.addEventListener('scroll', updateTerminalTargetVisibility, { passive: true });
     scheduleScrollAfterFileCardLayout();
 
     return () => {
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
-      scrollContainer.removeEventListener('scroll', updateFileCardFooterVisibility);
+      scrollContainer.removeEventListener('scroll', updateTerminalTargetVisibility);
       if (animationFrame !== 0) {
         window.cancelAnimationFrame(animationFrame);
       }
     };
   }, [
     isActive,
+    isLive,
     isUserControllingScrollRef,
     scrollContainerRef,
     scrollTranscriptToBottom,

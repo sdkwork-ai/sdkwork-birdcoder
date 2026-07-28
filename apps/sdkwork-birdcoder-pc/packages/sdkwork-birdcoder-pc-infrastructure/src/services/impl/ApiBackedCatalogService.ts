@@ -19,10 +19,15 @@ import type {
   ICatalogService,
   InstallSkillPackageOptions,
 } from '../interfaces/ICatalogService.ts';
+import {
+  createBirdCoderLocalPluginCatalogRuntime,
+  type LocalPluginCatalogRuntime,
+} from '../../platform/localPluginCatalogRuntime.ts';
 
 export interface ApiBackedCatalogServiceOptions {
   agentsClient: AgentsAppSdkClient;
   skillsClient: SdkworkSkillsAppClient;
+  localPluginRuntime?: LocalPluginCatalogRuntime;
 }
 
 const DEFAULT_COMPOSER_CAPABILITY_PAGE_SIZE = 20;
@@ -37,6 +42,14 @@ function normalizePageSize(value: number | undefined): number {
     return DEFAULT_COMPOSER_CAPABILITY_PAGE_SIZE;
   }
   return Math.min(Number(value), MAX_COMPOSER_CAPABILITY_PAGE_SIZE);
+}
+
+function resolveLocalPluginProviderId(agentId: string): string {
+  const normalized = agentId.trim().toLowerCase();
+  if (normalized.includes('claude')) return 'provider.plugin.claude-code';
+  if (normalized.includes('opencode')) return 'provider.plugin.opencode';
+  if (normalized.includes('gemini')) return 'provider.plugin.gemini-cli';
+  return 'provider.plugin.codex';
 }
 
 function normalizeReference(value: string): string {
@@ -84,6 +97,8 @@ function toPluginCapability(
     id: plugin.slotId.trim() || plugin.serverId.trim() || targetRef,
     name: humanizeReference(targetRef || plugin.serverId),
     targetRef,
+    source: 'remote',
+    status: plugin.enabled ? 'enabled' : 'unavailable',
   };
 }
 
@@ -102,16 +117,20 @@ function toSkillCapability(
     id: slot.slotId.trim() || String(slot.id),
     name: skillPackage?.displayName.trim() || humanizeReference(targetRef),
     targetRef,
+    source: 'remote',
+    status: slot.enabled && slot.status === 'active' ? 'enabled' : 'unavailable',
   };
 }
 
 export class ApiBackedCatalogService implements ICatalogService {
   private readonly agentsClient: AgentsAppSdkClient;
   private readonly skillsClient: SdkworkSkillsAppClient;
+  private readonly localPluginRuntime: LocalPluginCatalogRuntime;
 
-  constructor({ agentsClient, skillsClient }: ApiBackedCatalogServiceOptions) {
+  constructor({ agentsClient, skillsClient, localPluginRuntime = createBirdCoderLocalPluginCatalogRuntime() }: ApiBackedCatalogServiceOptions) {
     this.agentsClient = agentsClient;
     this.skillsClient = skillsClient;
+    this.localPluginRuntime = localPluginRuntime;
   }
 
   async getComposerProviderCapabilities({
@@ -121,12 +140,12 @@ export class ApiBackedCatalogService implements ICatalogService {
   }: ComposerProviderCapabilitiesOptions): Promise<ComposerProviderCapabilities> {
     const normalizedAgentId = agentId.trim();
     if (!normalizedAgentId) {
-      return { plugins: [], skills: [] };
+      return { plugins: [], skills: [], errors: [] };
     }
 
     const boundedPage = normalizePage(page);
     const boundedPageSize = normalizePageSize(pageSize);
-    const [mcpPage, slotPage, skillPackagePage] = await Promise.all([
+    const [mcpResult, slotResult, skillPackageResult, localResult] = await Promise.allSettled([
       this.agentsClient.ai.agents.mcpServers.list({
         page: boundedPage,
         pageSize: boundedPageSize,
@@ -139,16 +158,44 @@ export class ApiBackedCatalogService implements ICatalogService {
         page: boundedPage,
         pageSize: boundedPageSize,
       }),
+      this.localPluginRuntime.discover(resolveLocalPluginProviderId(normalizedAgentId)),
     ]);
+    const errors = [] as ComposerProviderCapabilities['errors'];
+    const mcpPage = mcpResult.status === 'fulfilled' ? mcpResult.value : null;
+    const slotPage = slotResult.status === 'fulfilled' ? slotResult.value : null;
+    const skillPackagePage = skillPackageResult.status === 'fulfilled' ? skillPackageResult.value : null;
+    if (!mcpPage) errors.push({ message: 'Remote plugin catalog could not be loaded.', source: 'remote' });
+    if (!slotPage || !skillPackagePage) errors.push({ message: 'Remote skill catalog could not be loaded.', source: 'remote' });
+    const localCatalog = localResult.status === 'fulfilled' ? localResult.value : null;
+    if (!localCatalog && localResult.status === 'rejected') errors.push({ message: 'Local plugin catalog could not be loaded.', source: 'local' });
+    if (localCatalog) errors.push(...localCatalog.errors.map((error) => ({ message: error.message, source: 'local' as const, providerId: error.providerId })));
 
-    const plugins = (mcpPage.items as McpServerMarketplaceRecord[])
+    const remotePlugins = (mcpPage?.items as McpServerMarketplaceRecord[] | undefined ?? [])
       .filter((plugin) => plugin.agentId === normalizedAgentId)
       .map(toPluginCapability);
-    const skills = (slotPage.items as AgentCompositionSlotRecord[])
+    const remoteSkills = (slotPage?.items as AgentCompositionSlotRecord[] | undefined ?? [])
       .filter((slot) => slot.slotKind === 'skill')
-      .map((slot) => toSkillCapability(slot, skillPackagePage.items));
+      .map((slot) => toSkillCapability(slot, (skillPackagePage?.items as SkillPackageRecord[] | undefined) ?? []));
+    const localPlugins = localCatalog?.plugins.map((plugin) => ({
+      description: plugin.description?.trim() || plugin.rootPath,
+      enabled: plugin.status !== 'unavailable',
+      id: plugin.id,
+      name: plugin.name,
+      targetRef: `plugin://${plugin.name}`,
+      source: 'local' as const,
+      status: plugin.status === 'manifest-only' ? 'manifest-only' as const : plugin.status === 'unavailable' ? 'unavailable' as const : 'enabled' as const,
+    })) ?? [];
+    const localSkills = localCatalog?.plugins.flatMap((plugin) => plugin.skills.map((skill) => ({
+      description: skill.description?.trim() || skill.path,
+      enabled: plugin.status !== 'unavailable',
+      id: skill.id,
+      name: skill.name,
+      targetRef: skill.name,
+      source: 'local' as const,
+      status: plugin.status === 'manifest-only' ? 'manifest-only' as const : plugin.status === 'unavailable' ? 'unavailable' as const : 'enabled' as const,
+    }))) ?? [];
 
-    return { plugins, skills };
+    return { plugins: [...localPlugins, ...remotePlugins], skills: [...localSkills, ...remoteSkills], errors };
   }
 
   async getSkillPackages(

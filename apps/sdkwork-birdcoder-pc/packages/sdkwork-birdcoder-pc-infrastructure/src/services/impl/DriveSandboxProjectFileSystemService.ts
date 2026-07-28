@@ -25,10 +25,13 @@ import type {
 } from '../interfaces/IProjectService.ts';
 import {
   createDriveSandboxProjectPathContext,
+  relocateNodeInTree,
+  removeNodeFromTree,
   replaceDirectoryInTree,
   splitVirtualMutationPath,
   toSandboxLogicalPath,
   toVirtualProjectPath,
+  upsertNodeInDirectory,
   type DriveSandboxProjectPathContext,
 } from './driveSandboxProjectPaths.ts';
 
@@ -184,8 +187,42 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     virtualPath: string,
   ): Promise<IFileNode> {
     const logicalPath = toSandboxLogicalPath(state.context, virtualPath);
-    const children = (await this.collectDirectoryChildrenBounded(state, logicalPath))
-      .map((entry) => entryToFileNode(state, entry));
+    const entries = await this.collectDirectoryChildrenBounded(state, logicalPath);
+    const currentChildrenByPath = new Map(
+      entries.map((entry) => [toVirtualProjectPath(state.context, entry.logicalPath), entry]),
+    );
+    for (const [childPath, currentEntry] of currentChildrenByPath) {
+      const cachedEntry = state.entriesByVirtualPath.get(childPath);
+      if (cachedEntry && cachedEntry.id !== currentEntry.id) {
+        state.tree = removeNodeFromTree(state.tree, childPath);
+        this.removeCachedEntryTree(state, childPath);
+      }
+    }
+    const descendantPrefix = `${virtualPath}/`;
+    for (const cachedPath of [...state.entriesByVirtualPath.keys()]) {
+      if (!cachedPath.startsWith(descendantPrefix)) continue;
+      const relativePath = cachedPath.slice(descendantPrefix.length);
+      const firstSeparatorIndex = relativePath.indexOf('/');
+      const directChildPath = firstSeparatorIndex < 0
+        ? cachedPath
+        : `${virtualPath}/${relativePath.slice(0, firstSeparatorIndex)}`;
+      const currentEntry = currentChildrenByPath.get(directChildPath);
+      const cachedDirectEntry = state.entriesByVirtualPath.get(directChildPath);
+      if (
+        !currentEntry
+        || (
+          firstSeparatorIndex >= 0
+          && (
+            currentEntry.kind === 'file'
+            || !cachedDirectEntry
+            || cachedDirectEntry.id !== currentEntry.id
+          )
+        )
+      ) {
+        state.entriesByVirtualPath.delete(cachedPath);
+      }
+    }
+    const children = entries.map((entry) => entryToFileNode(state, entry));
     return {
       name: virtualPath === state.context.virtualRootPath
         ? state.context.virtualRootName
@@ -196,6 +233,23 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     };
   }
 
+  private async refreshRemoteDirectoryState(
+    state: RemoteProjectState,
+    virtualPath: string,
+  ): Promise<IFileNode[]> {
+    const directory = await this.loadRemoteDirectory(state, virtualPath);
+    if (state.tree.length === 0) {
+      if (virtualPath !== state.context.virtualRootPath) {
+        throw new Error('Project Drive root must be loaded before a nested directory.');
+      }
+      state.tree = [directory];
+      return state.tree;
+    }
+
+    state.tree = replaceDirectoryInTree(state.tree, directory);
+    return state.tree;
+  }
+
   private async requireRemote<T>(
     projectId: string,
     remote: (state: RemoteProjectState) => Promise<T>,
@@ -204,6 +258,41 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (state) return remote(state);
     throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
+  }
+
+  private removeCachedEntryTree(state: RemoteProjectState, virtualPath: string): void {
+    const descendantPrefix = `${virtualPath}/`;
+    for (const cachedPath of [...state.entriesByVirtualPath.keys()]) {
+      if (cachedPath === virtualPath || cachedPath.startsWith(descendantPrefix)) {
+        state.entriesByVirtualPath.delete(cachedPath);
+      }
+    }
+  }
+
+  private relocateCachedEntryTree(
+    state: RemoteProjectState,
+    oldPath: string,
+    newPath: string,
+    movedEntry: SandboxEntry,
+  ): void {
+    const descendantPrefix = `${oldPath}/`;
+    for (const [cachedPath, cachedEntry] of [...state.entriesByVirtualPath.entries()]) {
+      if (cachedPath !== oldPath && !cachedPath.startsWith(descendantPrefix)) continue;
+      state.entriesByVirtualPath.delete(cachedPath);
+      const relocatedPath = cachedPath === oldPath
+        ? newPath
+        : `${newPath}${cachedPath.slice(oldPath.length)}`;
+      state.entriesByVirtualPath.set(
+        relocatedPath,
+        cachedPath === oldPath
+          ? movedEntry
+          : {
+              ...cachedEntry,
+              logicalPath: toSandboxLogicalPath(state.context, relocatedPath),
+            },
+      );
+    }
+    state.entriesByVirtualPath.set(newPath, movedEntry);
   }
 
   private async resolveRemoteEntry(
@@ -223,15 +312,22 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     return entry;
   }
 
+  private async resolveKnownRemoteEntry(
+    state: RemoteProjectState,
+    virtualPath: string,
+  ): Promise<SandboxEntry> {
+    return state.entriesByVirtualPath.get(virtualPath)
+      ?? this.resolveRemoteEntry(state, virtualPath);
+  }
+
   async getFiles(projectId: string): Promise<IFileNode[]> {
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
       throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
     }
-    const root = await this.loadRemoteDirectory(state, state.context.virtualRootPath);
-    state.tree = [root];
-    return state.tree;
+    if (state.tree.length > 0) return state.tree;
+    return this.refreshRemoteDirectoryState(state, state.context.virtualRootPath);
   }
 
   async resolveProjectRoot(projectId: string): Promise<ProjectFileSystemRoot | null> {
@@ -253,31 +349,49 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     return this.requireRemote(
       projectId,
       async (state) => {
-        if (state.tree.length === 0) await this.getFiles(projectId);
-        const directory = await this.loadRemoteDirectory(state, path);
-        state.tree = replaceDirectoryInTree(state.tree, directory);
-        return state.tree;
+        if (state.tree.length === 0) {
+          await this.refreshRemoteDirectoryState(state, state.context.virtualRootPath);
+        }
+        return this.refreshRemoteDirectoryState(state, path);
       },
     );
   }
 
   async refreshDirectory(projectId: string, path?: string): Promise<IFileNode[]> {
-    if (!path) return this.getFiles(projectId);
-    return this.loadDirectory(projectId, path);
+    return this.requireRemote(
+      projectId,
+      async (state) => {
+        if (state.tree.length === 0) {
+          await this.refreshRemoteDirectoryState(state, state.context.virtualRootPath);
+        }
+        return this.refreshRemoteDirectoryState(
+          state,
+          path ?? state.context.virtualRootPath,
+        );
+      },
+    );
   }
 
   async refreshDirectories(projectId: string, paths: readonly string[]): Promise<IFileNode[]> {
-    if (paths.length === 0) return this.getFiles(projectId);
-    let tree: IFileNode[] = [];
-    for (const path of new Set(paths)) tree = await this.loadDirectory(projectId, path);
-    return tree;
+    return this.requireRemote(projectId, async (state) => {
+      if (state.tree.length === 0) {
+        await this.refreshRemoteDirectoryState(state, state.context.virtualRootPath);
+      }
+      const targetPaths = paths.length > 0
+        ? new Set(paths)
+        : new Set([state.context.virtualRootPath]);
+      for (const targetPath of targetPaths) {
+        await this.refreshRemoteDirectoryState(state, targetPath);
+      }
+      return state.tree;
+    });
   }
 
   async getFileContent(projectId: string, path: string): Promise<string> {
     return this.requireRemote(
       projectId,
       async (state) => {
-        const entry = await this.resolveRemoteEntry(state, path);
+        const entry = await this.resolveKnownRemoteEntry(state, path);
         if (entry.kind !== 'file') throw new Error('The requested project Drive entry is not a file.');
         const result = await this.drivePort.readFile({
           sandboxId: state.binding.driveId,
@@ -325,7 +439,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     await this.requireRemote(
       projectId,
       async (state) => {
-        const entry = await this.resolveRemoteEntry(state, path);
+        const entry = await this.resolveKnownRemoteEntry(state, path);
         if (entry.kind !== 'file') throw new Error('The requested project Drive entry is not a file.');
         const updated = await this.drivePort.updateFile({
           sandboxId: state.binding.driveId,
@@ -352,7 +466,8 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           content: '',
           encoding: 'utf8',
         });
-        state.entriesByVirtualPath.set(path, entry);
+        const node = entryToFileNode(state, entry);
+        state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
       },
     );
   }
@@ -367,7 +482,8 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           parentPath: target.logicalParentPath,
           name: target.name,
         });
-        state.entriesByVirtualPath.set(path, entry);
+        const node = entryToFileNode(state, entry);
+        state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
       },
     );
   }
@@ -378,7 +494,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     recursive: boolean,
     expectedKind: SandboxEntry['kind'],
   ): Promise<void> {
-    const entry = await this.resolveRemoteEntry(state, path);
+    const entry = await this.resolveKnownRemoteEntry(state, path);
     if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
     await this.drivePort.deleteEntry({
       sandboxId: state.binding.driveId,
@@ -387,7 +503,8 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       revision: entry.revision,
       recursive,
     });
-    state.entriesByVirtualPath.delete(path);
+    this.removeCachedEntryTree(state, path);
+    state.tree = removeNodeFromTree(state.tree, path);
   }
 
   async deleteFile(projectId: string, path: string): Promise<void> {
@@ -408,7 +525,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     await this.requireRemote(
       projectId,
       async (state) => {
-        const entry = await this.resolveRemoteEntry(state, oldPath);
+        const entry = await this.resolveKnownRemoteEntry(state, oldPath);
         const target = splitVirtualMutationPath(state.context, newPath);
         const moved = await this.drivePort.moveEntry({
           sandboxId: state.binding.driveId,
@@ -418,8 +535,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           destinationParentPath: target.logicalParentPath,
           destinationName: target.name,
         });
-        state.entriesByVirtualPath.delete(oldPath);
-        state.entriesByVirtualPath.set(newPath, moved);
+        this.relocateCachedEntryTree(state, oldPath, newPath, moved);
+        state.tree = relocateNodeInTree(
+          state.tree,
+          oldPath,
+          target.virtualParentPath,
+          entryToFileNode(state, moved),
+        );
       },
     );
   }

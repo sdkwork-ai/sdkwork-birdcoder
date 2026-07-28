@@ -12,7 +12,9 @@ import { ChatInteractionEvents } from '../blocks/ChatInteractionEvents.tsx';
 import { buildChatContentPreview } from '../contentPreview.ts';
 import { CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME } from '../messageLayout.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
+import { ContextToolCallGroup } from './ContextToolCallGroup.tsx';
 import { ToolCallCard } from './ToolCallCard.tsx';
+import { groupToolCallsForPresentation } from './toolCallPresentation.ts';
 
 const NOTICE_DEFAULT_CONTENT = {
   blocked: 'Agent execution blocked',
@@ -382,20 +384,42 @@ export const ToolCallsContentBlockRenderer = memo(function ToolCallsContentBlock
   const disclosureScopeKey = `${context.sessionId}\u0001${
     sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || String(context.index)
   }\u0001tool`;
+  const presentationItems = groupToolCallsForPresentation(block.calls);
 
   return (
     <div className={`flex flex-col gap-0.5 ${compact ? 'mt-1.5' : 'mt-2'}`}>
-      {block.calls.map((toolCall) => (
-        <ToolCallCard
-          key={toolCall.id}
-          call={toolCall}
-          compact={compact}
-          copyMessageToClipboard={context.copyMessageToClipboard}
-          isExpanded={context.expandedDisclosureKeys.has(`${disclosureScopeKey}\u0001${toolCall.id}`)}
-          onToggle={() => context.toggleDisclosure(`${disclosureScopeKey}\u0001${toolCall.id}`)}
-          t={context.environment?.t}
-        />
-      ))}
+      {presentationItems.map((item) => {
+        if (item.type === 'context') {
+          const groupDisclosureKey = `${disclosureScopeKey}\u0001${item.key}`;
+          return (
+            <ContextToolCallGroup
+              key={item.key}
+              compact={compact}
+              copyMessageToClipboard={context.copyMessageToClipboard}
+              disclosureScopeKey={disclosureScopeKey}
+              expandedDisclosureKeys={context.expandedDisclosureKeys}
+              group={item}
+              isExpanded={context.expandedDisclosureKeys.has(groupDisclosureKey)}
+              onToggle={() => context.toggleDisclosure(groupDisclosureKey)}
+              t={context.environment?.t}
+              toggleDisclosure={context.toggleDisclosure}
+            />
+          );
+        }
+
+        const disclosureKey = `${disclosureScopeKey}\u0001${item.call.id}`;
+        return (
+          <ToolCallCard
+            key={item.key}
+            call={item.call}
+            compact={compact}
+            copyMessageToClipboard={context.copyMessageToClipboard}
+            isExpanded={context.expandedDisclosureKeys.has(disclosureKey)}
+            onToggle={() => context.toggleDisclosure(disclosureKey)}
+            t={context.environment?.t}
+          />
+        );
+      })}
     </div>
   );
 });

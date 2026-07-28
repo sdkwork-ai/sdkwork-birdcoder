@@ -193,7 +193,7 @@ assert.deepEqual(
   'Provider variability must be declared in explicit provider presentation profiles.',
 );
 for (const profile of CHAT_PROVIDER_PRESENTATION_PROFILES) {
-  assert.equal(profile.transcriptStyle, 'opencode-aligned');
+  assert.equal(profile.presentation.transcriptStyle, 'opencode-aligned');
 }
 
 const canonicalTurnPresentation = buildChatTranscriptTurnPresentations([
@@ -328,8 +328,8 @@ assert.match(
 );
 assert.match(
   transcriptMessageSource,
-  /data-chat-turn-position=\{resolvedContext\.turn\.position\}[\s\S]*ChatTurnActiveTail/,
-  'Transcript rows must expose turn position and delegate the shared active-tail presentation.',
+  /<ChatTranscriptSurface[\s\S]*turn=\{resolvedContext\.turn\}[\s\S]*ChatTurnActiveTail/,
+  'Transcript rows must delegate turn structure and the active tail to shared presentation components.',
 );
 assert.match(
   activeTailSource,
@@ -343,7 +343,7 @@ assert.match(
 );
 assert.match(
   enginePluginsSource,
-  /const isAuthoredReply =[\s\S]*const showEngineLabel = props\.context\.layout === 'sidebar'[\s\S]*&& isAuthoredReply[\s\S]*props\.view\.blocks\.some\([\s\S]*block\.type === 'markdown'[\s\S]*&& !block\.noticeKind/,
+  /const isAuthoredReply =[\s\S]*shouldShowChatProviderByline\(profile,[\s\S]*hasAuthoredMarkdown: props\.view\.blocks\.some\([\s\S]*block\.type === 'markdown'[\s\S]*&& !block\.noticeKind[\s\S]*isAuthoredReply,[\s\S]*layout: props\.context\.layout/,
   'Engine identity must stay in sidebars, follow visible authored Markdown, and stay off main or protocol-only rows.',
 );
 assert.doesNotMatch(

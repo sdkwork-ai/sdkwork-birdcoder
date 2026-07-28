@@ -73,6 +73,7 @@ interface UseCodePageSurfacePropsOptions {
   projectRootPath: string;
   fileTreeLoadError: boolean;
   filteredProjects: AgentProjectView[];
+  projects: AgentProjectView[];
   hasMoreProjects: boolean;
   hasMoreRemoteMessages: boolean;
   isChatBusy: boolean;
@@ -221,6 +222,7 @@ export function useCodePageSurfaceProps({
   projectRootPath,
   fileTreeLoadError,
   filteredProjects,
+  projects,
   hasMoreProjects,
   hasMoreRemoteMessages,
   isChatBusy,
@@ -420,6 +422,7 @@ export function useCodePageSurfaceProps({
     isVisible: isVisible && isSidebarVisible,
     width: sidebarWidth,
     projects: filteredProjects,
+    taskSearchProjects: projects,
     selectedProjectId: currentProjectId,
     selectedAgentSessionId: sessionId,
     onSelectProject: onProjectSelect,
@@ -487,6 +490,7 @@ export function useCodePageSurfaceProps({
     onRenameAgentSession,
     onRenameProject,
     onSelectAgentSession,
+    projects,
     refreshingAgentSessionId,
     refreshingProjectId,
     searchQuery,

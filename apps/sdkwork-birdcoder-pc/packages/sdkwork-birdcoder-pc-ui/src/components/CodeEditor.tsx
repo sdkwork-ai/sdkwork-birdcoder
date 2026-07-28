@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Editor, { useMonaco } from '@monaco-editor/react';
+import Editor, {
+  type Monaco,
+  type OnMount,
+  useMonaco,
+} from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import { AlignLeft, Check, Copy, Loader2, Map, WrapText } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
@@ -9,7 +14,16 @@ import {
   applyBirdCoderMonacoTheme,
   configureBirdCoderMonacoTypeScriptDefaults,
   observeBirdCoderMonacoLayout,
+  synchronizeBirdCoderMonacoModelLanguage,
 } from './monacoRuntime';
+import { configureBirdCoderMonacoLanguages } from './monacoLanguageSupport';
+import {
+  resolveBirdCoderEditorLanguageLabel,
+} from './editorLanguage';
+import {
+  BIRDCODER_EDITOR_THEME,
+  BIRDCODER_EDITOR_THEME_ID,
+} from './editorTheme';
 import { cn } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   claimEditorCommandTarget,
@@ -31,52 +45,10 @@ export interface CodeEditorProps {
   retainedModelPaths?: readonly string[];
   showLanguageBadge?: boolean;
   showToolbar?: boolean;
-  themeDefinition?: Record<string, unknown>;
+  themeDefinition?: editor.IStandaloneThemeData;
   themeId?: string;
   value: string;
 }
-
-const DEFAULT_CODE_EDITOR_THEME_ID = 'birdcoder-content-editor';
-
-const DEFAULT_CODE_EDITOR_THEME_DEFINITION = {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-    { token: 'keyword', foreground: '569CD6' },
-    { token: 'string', foreground: 'CE9178' },
-    { token: 'number', foreground: 'B5CEA8' },
-    { token: 'type', foreground: '4EC9B0' },
-    { token: 'function', foreground: 'DCDCAA' },
-    { token: 'variable', foreground: '9CDCFE' },
-  ],
-  colors: {
-    'editor.background': '#0e0e11',
-    'editor.foreground': '#D4D4D4',
-    'editorLineNumber.foreground': '#6e7681',
-    'editorLineNumber.activeForeground': '#cccccc',
-    'editor.selectionBackground': '#264F78',
-    'editor.inactiveSelectionBackground': '#3A3D41',
-    'editorCursor.foreground': '#AEAFAD',
-    'editorWhitespace.foreground': '#404040',
-    'editorIndentGuide.background': '#404040',
-    'editorIndentGuide.activeBackground': '#707070',
-    'editorLineHighlight.background': '#ffffff0a',
-    'editorLineHighlight.border': '#28282800',
-    'scrollbarSlider.background': '#79797933',
-    'scrollbarSlider.hoverBackground': '#646464b3',
-    'scrollbarSlider.activeBackground': '#bfbfbf66',
-    'editorBracketMatch.background': '#0064001a',
-    'editorBracketMatch.border': '#888888',
-    'editorWidget.background': '#252526',
-    'editorWidget.border': '#454545',
-    'editorSuggestWidget.background': '#252526',
-    'editorSuggestWidget.border': '#454545',
-    'editorSuggestWidget.foreground': '#D4D4D4',
-    'editorSuggestWidget.highlightForeground': '#18A3FF',
-    'editorSuggestWidget.selectedBackground': '#062F4A',
-  },
-};
 
 export function CodeEditor({
   className,
@@ -92,12 +64,12 @@ export function CodeEditor({
   retainedModelPaths,
   showLanguageBadge = true,
   showToolbar = true,
-  themeDefinition = DEFAULT_CODE_EDITOR_THEME_DEFINITION,
-  themeId = DEFAULT_CODE_EDITOR_THEME_ID,
+  themeDefinition = BIRDCODER_EDITOR_THEME,
+  themeId = BIRDCODER_EDITOR_THEME_ID,
   value,
 }: CodeEditorProps) {
   const monaco = useMonaco();
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const ownedModelPathsRef = useRef(new Set<string>());
   const editorCommandTargetRef = useRef<object>({});
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -106,8 +78,9 @@ export function CodeEditor({
   const [showMinimap, setShowMinimap] = useState(defaultShowMinimap);
   const [copied, setCopied] = useState(false);
   const copyFeedbackTimeoutRef = useRef<number | null>(null);
-  const [mountedEditor, setMountedEditor] = useState<any | null>(null);
+  const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneCodeEditor | null>(null);
   const { addToast } = useToast();
+  const languageLabel = resolveBirdCoderEditorLanguageLabel(language);
 
   const clearCopyFeedbackTimeout = useCallback(() => {
     if (copyFeedbackTimeoutRef.current === null) {
@@ -118,13 +91,19 @@ export function CodeEditor({
     copyFeedbackTimeoutRef.current = null;
   }, []);
 
-  const handleEditorDidMount = (editor: any) => {
-    editorRef.current = editor;
-    setMountedEditor(editor);
-    if (editor.hasTextFocus?.()) {
+  const handleEditorDidMount: OnMount = (mountedEditorInstance) => {
+    editorRef.current = mountedEditorInstance;
+    setMountedEditor(mountedEditorInstance);
+    if (mountedEditorInstance.hasTextFocus()) {
       claimEditorCommandTarget(editorCommandTargetRef.current);
     }
   };
+
+  const configureMonaco = useCallback((monacoApi: Monaco) => {
+    configureBirdCoderMonacoLanguages(monacoApi);
+    configureBirdCoderMonacoTypeScriptDefaults(monacoApi);
+    applyBirdCoderMonacoTheme(monacoApi, themeId, themeDefinition);
+  }, [themeDefinition, themeId]);
 
   const handleFormat = async () => {
     const editor = editorRef.current;
@@ -196,9 +175,13 @@ export function CodeEditor({
         case 'delete':
           editor.trigger('keyboard', 'deleteLeft', null);
           break;
-        case 'selectAll':
-          editor.setSelection(editor.getModel().getFullModelRange());
+        case 'selectAll': {
+          const model = editor.getModel();
+          if (model) {
+            editor.setSelection(model.getFullModelRange());
+          }
           break;
+        }
         default:
           break;
       }
@@ -221,9 +204,20 @@ export function CodeEditor({
       return;
     }
 
-    configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
-    applyBirdCoderMonacoTheme(monaco as never, themeId, themeDefinition);
-  }, [monaco, themeDefinition, themeId]);
+    configureMonaco(monaco);
+  }, [configureMonaco, monaco]);
+
+  useEffect(() => {
+    if (!monaco || !mountedEditor) {
+      return;
+    }
+
+    synchronizeBirdCoderMonacoModelLanguage(
+      monaco,
+      mountedEditor.getModel(),
+      language,
+    );
+  }, [language, monaco, mountedEditor, path]);
 
   useEffect(() => {
     if (!monaco || !path) {
@@ -307,20 +301,21 @@ export function CodeEditor({
       )}
     >
       {showToolbar ? (
-        <div className="absolute right-6 top-4 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="absolute right-6 top-4 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
           {showLanguageBadge ? (
-            <div className="mr-1 flex h-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 px-2 font-mono text-xs text-gray-400 shadow-lg backdrop-blur-sm">
-              {language}
+            <div className="mr-1 flex h-7 items-center justify-center rounded-md border border-white/10 bg-[#161b22]/95 px-2 font-mono text-xs text-gray-300 shadow-lg backdrop-blur-sm">
+              {languageLabel}
             </div>
           ) : null}
           {!readOnly ? (
             <button
               className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 text-gray-400 shadow-lg transition-all hover:bg-white/10 hover:text-gray-200 backdrop-blur-sm"
               onClick={handleFormat}
+              aria-label="Format document"
               title="Format Document"
               type="button"
             >
-              <AlignLeft size={14} />
+              <AlignLeft aria-hidden="true" size={14} />
             </button>
           ) : null}
           <button
@@ -332,10 +327,11 @@ export function CodeEditor({
                 return nextState;
               });
             }}
+            aria-label="Toggle word wrap"
             title="Toggle Word Wrap"
             type="button"
           >
-            <WrapText size={14} />
+            <WrapText aria-hidden="true" size={14} />
           </button>
           <button
             className={`flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 shadow-lg transition-all backdrop-blur-sm ${showMinimap ? 'text-blue-400' : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
@@ -346,23 +342,26 @@ export function CodeEditor({
                 return nextState;
               });
             }}
+            aria-label="Toggle minimap"
             title="Toggle Minimap"
             type="button"
           >
-            <Map size={14} />
+            <Map aria-hidden="true" size={14} />
           </button>
           <button
             className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 text-gray-400 shadow-lg transition-all hover:bg-white/10 hover:text-gray-200 backdrop-blur-sm"
             onClick={handleCopy}
+            aria-label="Copy content"
             title="Copy Content"
             type="button"
           >
-            {copied ? <Check className="text-green-400" size={14} /> : <Copy size={14} />}
+            {copied ? <Check aria-hidden="true" className="text-green-400" size={14} /> : <Copy aria-hidden="true" size={14} />}
           </button>
         </div>
       ) : null}
 
       <Editor
+        beforeMount={configureMonaco}
         height="100%"
         language={language}
         loading={loadingComponent}
@@ -389,6 +388,7 @@ export function CodeEditor({
           smoothScrolling: true,
           formatOnPaste,
           formatOnType,
+          'semanticHighlighting.enabled': true,
           bracketPairColorization: { enabled: true },
           guides: { bracketPairs: true, indentation: true, highlightActiveIndentation: true },
           scrollbar: {
@@ -401,6 +401,16 @@ export function CodeEditor({
           foldingHighlight: true,
           showFoldingControls: 'mouseover',
           renderWhitespace: 'selection',
+          occurrencesHighlight: 'singleFile',
+          selectionHighlight: true,
+          links: true,
+          colorDecorators: true,
+          stickyScroll: { enabled: true, maxLineCount: 5 },
+          unicodeHighlight: {
+            ambiguousCharacters: false,
+            invisibleCharacters: true,
+            nonBasicASCII: false,
+          },
           suggest: {
             showIcons: true,
             showStatusBar: true,

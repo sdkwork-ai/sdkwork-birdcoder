@@ -328,7 +328,7 @@ fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, 
 }
 
 #[cfg(windows)]
-fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
+pub(crate) fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
 
     const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
@@ -337,7 +337,7 @@ fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
 }
 
 #[cfg(not(windows))]
-fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
+pub(crate) fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
     metadata.file_type().is_symlink()
 }
 

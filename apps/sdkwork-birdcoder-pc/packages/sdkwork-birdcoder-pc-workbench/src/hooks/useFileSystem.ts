@@ -493,6 +493,8 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   const selectedFileRef = useRef<string | null>(null);
   const editorStateByProjectIdRef = useRef<Map<string, EditorOpenFileState>>(new Map());
   const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const directoryLoadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
+  const directoryLoadGenerationRef = useRef(0);
   const mountRecoveryPromiseRef = useRef<Promise<IFileNode[]> | null>(null);
   const requestGuardRef = useRef(createFileSystemRequestGuardState(projectId));
   const previousProjectIdRef = useRef(normalizedProjectId);
@@ -1219,6 +1221,8 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     previousProjectIdRef.current = nextProjectId;
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
+    directoryLoadPromisesRef.current.clear();
+    directoryLoadGenerationRef.current += 1;
     requestGuardRef.current = resetFileSystemRequestGuardState(
       requestGuardRef.current,
       nextProjectId,
@@ -1622,37 +1626,54 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     commitEditorOpenFileState(closeEditorFile(readCurrentEditorOpenFileState(), path));
   }, [commitEditorOpenFileState, readCurrentEditorOpenFileState]);
 
-  const loadDirectory = useCallback(async (path: string) => {
+  const loadDirectory = useCallback((path: string): Promise<void> => {
     const requestProjectId = normalizedProjectId;
     const normalizedPath = path.trim();
     if (!requestProjectId || !normalizedPath) {
-      return;
+      return Promise.resolve();
     }
 
-    setLoadingDirectoryPaths((previousState) => ({
-      ...previousState,
-      [normalizedPath]: true,
-    }));
-    try {
-      const data = await fileSystemService.loadDirectory(requestProjectId, normalizedPath);
-      if (!isProjectActive(requestProjectId)) {
-        return;
+    const requestKey = `${requestProjectId}\u0000${normalizedPath}`;
+    const existingRequest = directoryLoadPromisesRef.current.get(requestKey);
+    if (existingRequest) return existingRequest;
+    const requestGeneration = directoryLoadGenerationRef.current;
+
+    const directoryLoadPromise = (async () => {
+      setLoadingDirectoryPaths((previousState) => ({
+        ...previousState,
+        [normalizedPath]: true,
+      }));
+      try {
+        const data = await fileSystemService.loadDirectory(requestProjectId, normalizedPath);
+        if (
+          directoryLoadGenerationRef.current !== requestGeneration
+          || !isProjectActive(requestProjectId)
+        ) return;
+        syncFilesAndSelection(data, readCurrentEditorOpenFileState());
+      } catch (error) {
+        console.error('Failed to load directory request.');
+        throw error;
       }
-
-      syncFilesAndSelection(data, readCurrentEditorOpenFileState());
-    } catch (error) {
-      console.error('Failed to load directory', error);
-    } finally {
-      setLoadingDirectoryPaths((previousState) => {
-        if (!previousState[normalizedPath]) {
-          return previousState;
-        }
-
-        const nextState = { ...previousState };
-        delete nextState[normalizedPath];
-        return nextState;
-      });
-    }
+    })();
+    directoryLoadPromisesRef.current.set(requestKey, directoryLoadPromise);
+    const completeDirectoryLoad = () => {
+      if (directoryLoadPromisesRef.current.get(requestKey) === directoryLoadPromise) {
+        directoryLoadPromisesRef.current.delete(requestKey);
+      }
+      if (
+        directoryLoadGenerationRef.current === requestGeneration
+        && isProjectActive(requestProjectId)
+      ) {
+        setLoadingDirectoryPaths((previousState) => {
+          if (!previousState[normalizedPath]) return previousState;
+          const nextState = { ...previousState };
+          delete nextState[normalizedPath];
+          return nextState;
+        });
+      }
+    };
+    void directoryLoadPromise.then(completeDirectoryLoad, completeDirectoryLoad);
+    return directoryLoadPromise;
   }, [
     fileSystemService,
     isProjectActive,
@@ -1725,7 +1746,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
         }),
       );
     } catch (error) {
-      console.error("Failed to create file", error);
+      console.error("Failed to create file request.");
       throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
@@ -1774,7 +1795,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
         }),
       );
     } catch (error) {
-      console.error("Failed to create folder", error);
+      console.error("Failed to create folder request.");
       throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
@@ -1816,7 +1837,8 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
         }),
       );
     } catch (error) {
-      console.error("Failed to delete file", error);
+      console.error("Failed to delete file request.");
+      throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
     }
@@ -1855,7 +1877,8 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
         }),
       );
     } catch (error) {
-      console.error("Failed to delete folder", error);
+      console.error("Failed to delete folder request.");
+      throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
     }
@@ -1895,7 +1918,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
         }),
       );
     } catch (error) {
-      console.error("Failed to rename node", error);
+      console.error("Failed to rename node request.");
       throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);

@@ -69,6 +69,14 @@ async fn local_store_list(
 }
 
 #[tauri::command]
+async fn local_plugin_catalog_discover(
+    provider_id: String,
+    roots: Vec<String>,
+) -> Result<host::LocalPluginCatalogSnapshot, String> {
+    host::local_plugin_catalog_discover(provider_id, roots).await
+}
+
+#[tauri::command]
 fn application_publish_discover(
     root_path: String,
 ) -> Result<host::ApplicationPublishDiscoverySnapshot, host::ApplicationPublishError> {
@@ -486,6 +494,7 @@ pub fn run() {
             project_device_mount_find,
             project_device_mount_provider_session_directory_identity,
             local_store_list,
+            local_plugin_catalog_discover,
             application_publish_discover,
             application_publish_preflight,
             application_publish_build_package,

@@ -9,7 +9,6 @@ import {
   Lightbulb,
   Loader2,
   PlugZap,
-  RefreshCw,
   Sparkles,
 } from 'lucide-react';
 import type {
@@ -22,7 +21,7 @@ export type ComposerCapabilityKind = 'plugin' | 'skill';
 export interface ComposerActionPanelProps {
   attachmentsDisabled: boolean;
   capabilities: ComposerProviderCapabilities;
-  error: Error | null;
+  error?: Error | null;
   isLoading: boolean;
   onClose: () => void;
   onOpenFiles: () => void;
@@ -71,10 +70,12 @@ function ActionRow({ description, disabled = false, icon, label, onClick }: Acti
 
 interface CapabilitySectionProps {
   emptyLabel: string;
+  errors?: string[];
   icon: ReactNode;
   items: ComposerProviderCapabilityItem[];
   kind: ComposerCapabilityKind;
   onSelect: ComposerActionPanelProps['onSelectCapability'];
+  onRetry: ComposerActionPanelProps['onRetry'];
   title: string;
 }
 
@@ -84,7 +85,9 @@ function CapabilitySection({
   items,
   kind,
   onSelect,
+  onRetry,
   title,
+  errors = [],
 }: CapabilitySectionProps) {
   const { t } = useTranslation();
 
@@ -146,6 +149,13 @@ function CapabilitySection({
           ))}
         </div>
       )}
+      {errors.length > 0 ? (
+        <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-amber-300/10 bg-amber-300/[0.05] px-2.5 py-2 text-[11px] text-amber-100/70" role="status">
+          <AlertCircle className="mt-0.5 shrink-0" size={13} />
+          <span className="min-w-0 flex-1">{errors.join(' ')}</span>
+          <button type="button" className="shrink-0 text-amber-100/80 underline-offset-2 hover:underline" onClick={onRetry}>{t('chat.retryProviderCapabilities')}</button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -224,35 +234,26 @@ export function ComposerActionPanel({
             <Loader2 className="animate-spin" size={14} />
             <span>{t('chat.loadingProviderCapabilities')}</span>
           </div>
-        ) : error ? (
-          <div className="mt-2 flex items-center gap-3 rounded-xl border border-red-400/10 bg-red-500/[0.06] px-3 py-3 text-xs text-red-200/80" role="alert">
-            <AlertCircle className="shrink-0" size={15} />
-            <span className="min-w-0 flex-1">{t('chat.providerCapabilitiesLoadFailed')}</span>
-            <button
-              type="button"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-zinc-300 transition-colors hover:bg-white/[0.1] hover:text-white"
-              onClick={onRetry}
-            >
-              <RefreshCw size={12} />
-              {t('chat.retryProviderCapabilities')}
-            </button>
-          </div>
         ) : (
           <>
             <CapabilitySection
               emptyLabel={t('chat.noProviderPlugins')}
+              errors={capabilities.errors.filter((item) => item.source === 'local' || item.message.toLowerCase().includes('plugin')).map((item) => item.message)}
               icon={<PlugZap size={13} />}
               items={capabilities.plugins}
               kind="plugin"
               onSelect={onSelectCapability}
+              onRetry={onRetry}
               title={t('chat.plugins')}
             />
             <CapabilitySection
               emptyLabel={t('chat.noProviderSkills')}
+              errors={capabilities.errors.filter((item) => item.source === 'remote' && item.message.toLowerCase().includes('skill')).map((item) => item.message)}
               icon={<Sparkles size={13} />}
               items={capabilities.skills}
               kind="skill"
               onSelect={onSelectCapability}
+              onRetry={onRetry}
               title={t('chat.skills')}
             />
           </>

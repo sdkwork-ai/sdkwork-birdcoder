@@ -1,19 +1,17 @@
-interface MonacoApi {
-  editor: {
-    defineTheme(themeId: string, definition: Record<string, unknown>): void;
-    setTheme(themeId: string): void;
-  };
-  languages: Record<string, unknown>;
-}
+import type { Monaco } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 
 interface MonacoLayoutTarget {
   layout(dimension?: { height: number; width: number }): void;
 }
 
 const configuredMonacoApis = new WeakSet<object>();
-const definedThemeIds = new Set<string>();
+const definedThemesByMonacoApi = new WeakMap<
+  object,
+  Map<string, editor.IStandaloneThemeData>
+>();
 
-export function configureBirdCoderMonacoTypeScriptDefaults(monaco: MonacoApi): void {
+export function configureBirdCoderMonacoTypeScriptDefaults(monaco: Monaco): void {
   const monacoObject = monaco as object;
   if (configuredMonacoApis.has(monacoObject)) {
     return;
@@ -21,7 +19,7 @@ export function configureBirdCoderMonacoTypeScriptDefaults(monaco: MonacoApi): v
 
   configuredMonacoApis.add(monacoObject);
 
-  const ts = (monaco.languages as { typescript?: any }).typescript;
+  const ts = monaco.languages.typescript;
   if (!ts?.typescriptDefaults) {
     return;
   }
@@ -46,16 +44,32 @@ export function configureBirdCoderMonacoTypeScriptDefaults(monaco: MonacoApi): v
 }
 
 export function applyBirdCoderMonacoTheme(
-  monaco: MonacoApi,
+  monaco: Monaco,
   themeId: string,
-  definition: Record<string, unknown>,
+  definition: editor.IStandaloneThemeData,
 ): void {
-  if (!definedThemeIds.has(themeId)) {
+  const monacoObject = monaco as object;
+  const definedThemes = definedThemesByMonacoApi.get(monacoObject) ?? new Map();
+  if (definedThemes.get(themeId) !== definition) {
     monaco.editor.defineTheme(themeId, definition);
-    definedThemeIds.add(themeId);
+    definedThemes.set(themeId, definition);
+    definedThemesByMonacoApi.set(monacoObject, definedThemes);
   }
 
   monaco.editor.setTheme(themeId);
+}
+
+export function synchronizeBirdCoderMonacoModelLanguage(
+  monaco: Monaco,
+  model: editor.ITextModel | null | undefined,
+  language: string,
+): void {
+  const normalizedLanguage = language.trim().toLowerCase() || 'plaintext';
+  if (!model || model.getLanguageId() === normalizedLanguage) {
+    return;
+  }
+
+  monaco.editor.setModelLanguage(model, normalizedLanguage);
 }
 
 export function observeBirdCoderMonacoLayout(

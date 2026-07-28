@@ -1,6 +1,7 @@
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 use tauri::AppHandle;
 use uuid::Uuid;
 
@@ -43,6 +44,7 @@ struct StoredProjectDeviceMountIdentity {
     owner_key: Option<String>,
     path: Option<String>,
     project_id: Option<String>,
+    root_locator: Option<String>,
     version: Option<u32>,
 }
 
@@ -444,6 +446,77 @@ pub async fn desktop_runtime_location_install_identity(
 #[tauri::command]
 pub fn desktop_runtime_location_create_root_locator() -> String {
     create_prefixed_uuid(DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX)
+}
+
+/// Resolves an opaque desktop root capability to its private native path.
+/// The native path never crosses the Tauri IPC boundary.
+pub(crate) fn resolve_desktop_runtime_location_root(
+    app: &AppHandle,
+    runtime_location_id: &str,
+) -> Result<PathBuf, String> {
+    let runtime_location_id = runtime_location_id.trim();
+    if !is_valid_prefixed_uuid(runtime_location_id, DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX) {
+        return Err("desktop runtime location is invalid".to_string());
+    }
+
+    let connection = open_device_state(app)
+        .map_err(|_| "desktop runtime location store is unavailable".to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT value
+            FROM device_state_entry
+            WHERE scope = ?1
+            ORDER BY updated_at DESC, key ASC
+            "#,
+        )
+        .map_err(|_| "desktop runtime location store is unavailable".to_string())?;
+    let rows = statement
+        .query_map(params![PROJECT_DEVICE_MOUNTS_SCOPE], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(|_| "desktop runtime location store is unavailable".to_string())?;
+
+    let mut matching_paths = BTreeSet::new();
+    let mut selected_path = None;
+    for row in rows {
+        let value = row.map_err(|_| "desktop runtime location store is unavailable".to_string())?;
+        let Ok(mount) = serde_json::from_str::<StoredProjectDeviceMountIdentity>(&value) else {
+            continue;
+        };
+        if mount.version != Some(1)
+            || mount.root_locator.as_deref().map(str::trim) != Some(runtime_location_id)
+        {
+            continue;
+        }
+        let Some(path) = mount
+            .path
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        else {
+            continue;
+        };
+        matching_paths.insert(normalize_project_device_mount_path_identity(path));
+        selected_path.get_or_insert_with(|| PathBuf::from(path));
+    }
+
+    if matching_paths.len() > 1 {
+        return Err("desktop runtime location is ambiguous".to_string());
+    }
+    let selected_path =
+        selected_path.ok_or_else(|| "desktop runtime location is unavailable".to_string())?;
+    let metadata = std::fs::symlink_metadata(&selected_path)
+        .map_err(|_| "desktop runtime location is unavailable".to_string())?;
+    if super::filesystem_commands::metadata_is_link_like(&metadata) || !metadata.is_dir() {
+        return Err("desktop runtime location is not a safe directory".to_string());
+    }
+    super::filesystem_commands::register_allowed_fs_root(selected_path.clone())?;
+    super::filesystem_commands::resolve_root_directory_path(
+        selected_path
+            .to_str()
+            .ok_or_else(|| "desktop runtime location path is invalid".to_string())?,
+    )
 }
 
 #[cfg(test)]

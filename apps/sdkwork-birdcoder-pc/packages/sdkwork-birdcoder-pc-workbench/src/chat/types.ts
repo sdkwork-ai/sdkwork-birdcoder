@@ -15,6 +15,8 @@ export type {
   AgentSessionItemViewKind,
   AgentSessionItemPresentationBlock,
   AgentSessionItemPresentationLayoutHints,
+  AgentSessionItemToolProtocolAdapterId,
+  AgentSessionItemToolProtocolEngineId,
   AgentSessionItemReasoningPresentationBlock,
   AgentSessionItemResourcesPresentationBlock,
   AgentSessionItemTaskProgressDisplayState,
@@ -31,6 +33,7 @@ export type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export {
+  AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE,
   buildAgentSessionItemPresentationSynchronizationSignature,
   estimateAgentSessionItemPresentationHeight,
   normalizeTaskProgressCounter,
@@ -42,6 +45,7 @@ export {
   normalizeAgentSessionItemToolCalls,
   composeAgentSessionTranscriptActivity,
   readTaskProgressCounter,
+  resolvePreferredAgentSessionItemToolProtocolAdapterId,
   resolveBirdCoderCodeEngineCommandInteractionState,
   resolveAgentTurnActivityPresentation,
   resolveAgentSessionItemPresentation,

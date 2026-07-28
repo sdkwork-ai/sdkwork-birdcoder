@@ -5,6 +5,7 @@ import { AssistantReplyMessageRenderer } from '../renderers/ReplyMessageRenderer
 import {
   CHAT_PROVIDER_PRESENTATION_PROFILES,
   resolveChatProviderPresentationProfile,
+  shouldShowChatProviderByline,
   type ChatProviderPresentationProfile,
 } from '../presentation/providerPresentationProfiles.ts';
 
@@ -18,20 +19,22 @@ function createEngineTaggedRenderer(profile: ChatProviderPresentationProfile) {
     const isAuthoredReply = props.view.source.role === 'assistant'
       || props.view.source.role === 'planner'
       || props.view.source.role === 'reviewer';
-    const showEngineLabel = props.context.layout === 'sidebar'
-      && isAuthoredReply
-      && props.view.blocks.some(
+    const showEngineLabel = shouldShowChatProviderByline(profile, {
+      hasAuthoredMarkdown: props.view.blocks.some(
         (block) => block.type === 'markdown'
           && !block.noticeKind
           && block.content.trim().length > 0,
-      );
+      ),
+      isAuthoredReply,
+      layout: props.context.layout,
+    });
 
     return (
       <div
         className="flex w-full min-w-0 max-w-full flex-col"
         data-chat-engine={profile.engineId}
         data-chat-engine-protocol={profile.protocolAdapterId}
-        data-chat-transcript-style={profile.transcriptStyle}
+        data-chat-transcript-style={profile.presentation.transcriptStyle}
       >
         {showEngineLabel ? (
           <div className="mb-1 text-[11px] font-medium text-gray-500" data-chat-engine-label="true">

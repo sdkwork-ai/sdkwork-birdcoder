@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { DiffEditor as MonacoDiffEditor, useMonaco } from '@monaco-editor/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DiffEditor as MonacoDiffEditor,
+  type DiffOnMount,
+  type Monaco,
+  useMonaco,
+} from '@monaco-editor/react';
+import type { editor, IDisposable } from 'monaco-editor';
 import { Loader2, WrapText, Columns, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
@@ -8,7 +14,14 @@ import {
   applyBirdCoderMonacoTheme,
   configureBirdCoderMonacoTypeScriptDefaults,
   observeBirdCoderMonacoLayout,
+  synchronizeBirdCoderMonacoModelLanguage,
 } from './monacoRuntime';
+import { configureBirdCoderMonacoLanguages } from './monacoLanguageSupport';
+import { resolveBirdCoderEditorLanguageLabel } from './editorLanguage';
+import {
+  BIRDCODER_EDITOR_THEME,
+  BIRDCODER_EDITOR_THEME_ID,
+} from './editorTheme';
 import {
   claimEditorCommandTarget,
   ownsEditorCommandTarget,
@@ -28,72 +41,31 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on');
   const [isSideBySide, setIsSideBySide] = useState(renderSideBySide);
   const { addToast } = useToast();
+  const languageLabel = resolveBirdCoderEditorLanguageLabel(language);
 
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<editor.IStandaloneDiffEditor | null>(null);
   const editorCommandTargetRef = useRef<object>({});
-  const focusedDiffEditorRef = useRef<any>(null);
-  const focusDisposablesRef = useRef<Array<{ dispose(): void }>>([]);
+  const focusedDiffEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const focusDisposablesRef = useRef<IDisposable[]>([]);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
-  const [mountedEditor, setMountedEditor] = useState<any | null>(null);
-  const diffEditorThemeDefinition = useMemo(
-    () => ({
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-        { token: 'keyword', foreground: '569CD6' },
-        { token: 'string', foreground: 'CE9178' },
-        { token: 'number', foreground: 'B5CEA8' },
-        { token: 'type', foreground: '4EC9B0' },
-        { token: 'function', foreground: 'DCDCAA' },
-        { token: 'variable', foreground: '9CDCFE' },
-      ],
-      colors: {
-        'editor.background': '#0e0e11',
-        'editor.foreground': '#D4D4D4',
-        'editorLineNumber.foreground': '#6e7681',
-        'editorLineNumber.activeForeground': '#cccccc',
-        'editor.selectionBackground': '#264F78',
-        'editor.inactiveSelectionBackground': '#3A3D41',
-        'editorCursor.foreground': '#AEAFAD',
-        'editorWhitespace.foreground': '#404040',
-        'editorIndentGuide.background': '#404040',
-        'editorIndentGuide.activeBackground': '#707070',
-        'editorLineHighlight.background': '#ffffff0a',
-        'editorLineHighlight.border': '#28282800',
-        'scrollbarSlider.background': '#79797933',
-        'scrollbarSlider.hoverBackground': '#646464b3',
-        'scrollbarSlider.activeBackground': '#bfbfbf66',
-        'editorBracketMatch.background': '#0064001a',
-        'editorBracketMatch.border': '#888888',
-        'diffEditor.insertedTextBackground': '#10b98120',
-        'diffEditor.removedTextBackground': '#ef444420',
-        'diffEditor.insertedLineBackground': '#10b98110',
-        'diffEditor.removedLineBackground': '#ef444410',
-        'diffEditor.diagonalFill': '#282828',
-      },
-    }),
-    [],
-  );
+  const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneDiffEditor | null>(null);
 
-  const handleEditorDidMount = (editor: any) => {
-    editorRef.current = editor;
-    setMountedEditor(editor);
-    const modifiedEditor = editor.getModifiedEditor?.();
-    const originalEditor = editor.getOriginalEditor?.();
+  const handleEditorDidMount: DiffOnMount = (mountedEditorInstance) => {
+    editorRef.current = mountedEditorInstance;
+    setMountedEditor(mountedEditorInstance);
+    const modifiedEditor = mountedEditorInstance.getModifiedEditor();
+    const originalEditor = mountedEditorInstance.getOriginalEditor();
     focusDisposablesRef.current.forEach((disposable) => disposable.dispose());
-    focusDisposablesRef.current = [modifiedEditor, originalEditor].flatMap((candidate) =>
-      candidate?.onDidFocusEditorText
-        ? [candidate.onDidFocusEditorText(() => {
-            focusedDiffEditorRef.current = candidate;
-            claimEditorCommandTarget(editorCommandTargetRef.current);
-          })]
-        : [],
+    focusDisposablesRef.current = [modifiedEditor, originalEditor].map((candidate) =>
+      candidate.onDidFocusEditorText(() => {
+        focusedDiffEditorRef.current = candidate;
+        claimEditorCommandTarget(editorCommandTargetRef.current);
+      }),
     );
-    const focusedEditor = modifiedEditor?.hasTextFocus?.()
+    const focusedEditor = modifiedEditor.hasTextFocus()
       ? modifiedEditor
-      : originalEditor?.hasTextFocus?.()
+      : originalEditor.hasTextFocus()
         ? originalEditor
         : null;
     if (focusedEditor) {
@@ -101,6 +73,16 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
       claimEditorCommandTarget(editorCommandTargetRef.current);
     }
   };
+
+  const configureMonaco = useCallback((monacoApi: Monaco) => {
+    configureBirdCoderMonacoLanguages(monacoApi);
+    configureBirdCoderMonacoTypeScriptDefaults(monacoApi);
+    applyBirdCoderMonacoTheme(
+      monacoApi,
+      BIRDCODER_EDITOR_THEME_ID,
+      BIRDCODER_EDITOR_THEME,
+    );
+  }, []);
 
   useEffect(() => {
     setIsSideBySide(renderSideBySide);
@@ -119,7 +101,11 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
         case 'copy': editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null); break;
         case 'paste': editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null); break;
         case 'delete': editor.trigger('keyboard', 'deleteLeft', null); break;
-        case 'selectAll': editor.setSelection(editor.getModel().getFullModelRange()); break;
+        case 'selectAll': {
+          const model = editor.getModel();
+          if (model) editor.setSelection(model.getFullModelRange());
+          break;
+        }
       }
     };
 
@@ -156,15 +142,29 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   };
 
   useEffect(() => {
-    if (monaco) {
-      configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
-      applyBirdCoderMonacoTheme(
-        monaco as never,
-        'vscode-dark-modern-diff',
-        diffEditorThemeDefinition,
-      );
+    if (!monaco) {
+      return;
     }
-  }, [diffEditorThemeDefinition, monaco]);
+
+    configureMonaco(monaco);
+  }, [configureMonaco, monaco]);
+
+  useEffect(() => {
+    if (!monaco || !mountedEditor) {
+      return;
+    }
+
+    synchronizeBirdCoderMonacoModelLanguage(
+      monaco,
+      mountedEditor.getOriginalEditor().getModel(),
+      language,
+    );
+    synchronizeBirdCoderMonacoModelLanguage(
+      monaco,
+      mountedEditor.getModifiedEditor().getModel(),
+      language,
+    );
+  }, [language, monaco, mountedEditor]);
 
   useEffect(() => {
     const container = editorContainerRef.current;
@@ -214,31 +214,36 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
     >
       {/* Floating Toolbar */}
       <div className="absolute top-4 right-6 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <div className="flex items-center justify-center px-2 h-7 bg-[#18181b]/90 text-xs text-gray-400 font-mono rounded-md shadow-lg border border-white/10 backdrop-blur-sm mr-1">
-          {language}
+        <div className="flex items-center justify-center px-2 h-7 bg-[#161b22]/95 text-xs text-gray-300 font-mono rounded-md shadow-lg border border-white/10 backdrop-blur-sm mr-1">
+          {languageLabel}
         </div>
         <button 
           onClick={toggleSideBySide}
+          aria-label={isSideBySide ? 'Switch to inline diff view' : 'Switch to side-by-side diff view'}
           className={`flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all ${isSideBySide ? 'text-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
           title={isSideBySide ? "Switch to Inline View" : "Switch to Side-by-Side View"}
+          type="button"
         >
-          {isSideBySide ? <Columns size={14} /> : <LayoutTemplate size={14} />}
+          {isSideBySide ? <Columns aria-hidden="true" size={14} /> : <LayoutTemplate aria-hidden="true" size={14} />}
         </button>
         <button 
           onClick={toggleWordWrap}
+          aria-label="Toggle word wrap"
           className={`flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all ${wordWrap === 'on' ? 'text-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
           title="Toggle Word Wrap"
+          type="button"
         >
-          <WrapText size={14} />
+          <WrapText aria-hidden="true" size={14} />
         </button>
       </div>
 
       <MonacoDiffEditor
+        beforeMount={configureMonaco}
         height="100%"
         language={language}
         original={original}
         modified={modified}
-        theme="vscode-dark-modern-diff"
+        theme={BIRDCODER_EDITOR_THEME_ID}
         loading={loadingComponent}
         onMount={handleEditorDidMount}
         options={{
@@ -272,6 +277,16 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
           foldingHighlight: true,
           showFoldingControls: 'mouseover',
           renderWhitespace: 'selection',
+          occurrencesHighlight: 'singleFile',
+          selectionHighlight: true,
+          links: true,
+          colorDecorators: true,
+          stickyScroll: { enabled: true, maxLineCount: 5 },
+          unicodeHighlight: {
+            ambiguousCharacters: false,
+            invisibleCharacters: true,
+            nonBasicASCII: false,
+          },
           diffWordWrap: wordWrap,
           enableSplitViewResizing: true,
         }}

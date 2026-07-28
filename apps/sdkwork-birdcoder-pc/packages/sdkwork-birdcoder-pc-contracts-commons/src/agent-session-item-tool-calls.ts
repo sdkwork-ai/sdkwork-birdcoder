@@ -30,6 +30,50 @@ export const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_IDS = [
 export type AgentSessionItemToolProtocolAdapterId =
   (typeof AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_IDS)[number];
 
+export const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE = {
+  'claude-code': 'claude.content-block',
+  codex: 'codex.item',
+  gemini: 'gemini.event',
+  opencode: 'opencode.part',
+} as const satisfies Readonly<Record<string, AgentSessionItemToolProtocolAdapterId>>;
+
+export type AgentSessionItemToolProtocolEngineId =
+  keyof typeof AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE;
+
+const AGENT_SESSION_ITEM_TOOL_COMPATIBLE_PROTOCOL_ADAPTER_IDS_BY_ENGINE = {
+  'claude-code': [AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE['claude-code']],
+  codex: [
+    AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.codex,
+    'openai.function',
+  ],
+  gemini: [AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.gemini],
+  opencode: [AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.opencode],
+} as const satisfies Readonly<
+  Record<AgentSessionItemToolProtocolEngineId, readonly AgentSessionItemToolProtocolAdapterId[]>
+>;
+
+export function resolvePreferredAgentSessionItemToolProtocolAdapterId(
+  engineId: string | undefined,
+): AgentSessionItemToolProtocolAdapterId | undefined {
+  const normalizedEngineId = engineId?.trim().toLowerCase() as
+    | AgentSessionItemToolProtocolEngineId
+    | undefined;
+  return normalizedEngineId
+    ? AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE[normalizedEngineId]
+    : undefined;
+}
+
+function resolveCompatibleAgentSessionItemToolProtocolAdapterIds(
+  engineId: string | undefined,
+): readonly AgentSessionItemToolProtocolAdapterId[] {
+  const normalizedEngineId = engineId?.trim().toLowerCase() as
+    | AgentSessionItemToolProtocolEngineId
+    | undefined;
+  return normalizedEngineId
+    ? AGENT_SESSION_ITEM_TOOL_COMPATIBLE_PROTOCOL_ADAPTER_IDS_BY_ENGINE[normalizedEngineId] ?? []
+    : [];
+}
+
 export interface NormalizeAgentSessionItemToolResultInput {
   content: string;
   id?: string;
@@ -322,7 +366,6 @@ function hasToolCancellationDetail(
 
 interface AgentSessionItemToolProtocolAdapter {
   id: AgentSessionItemToolProtocolAdapterId;
-  engineIds: readonly string[];
   adapt: (record: Record<string, unknown>) => Record<string, unknown> | null;
 }
 
@@ -1327,34 +1370,28 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
 const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS: readonly AgentSessionItemToolProtocolAdapter[] = [
   {
     id: 'opencode.part',
-    engineIds: ['opencode'],
     adapt: adaptOpenCodeToolRecord,
   },
   {
     id: 'codex.item',
-    engineIds: ['codex'],
     adapt: adaptCodexToolRecord,
   },
   {
     id: 'claude.content-block',
-    engineIds: ['claude-code'],
     adapt: adaptClaudeToolRecord,
   },
   {
     id: 'gemini.event',
-    engineIds: ['gemini'],
     adapt: adaptGeminiToolRecord,
   },
   {
     id: 'openai.function',
-    engineIds: ['codex'],
     adapt(record) {
       return readToolCallRecord(record.function) ? record : null;
     },
   },
   {
     id: 'canonical',
-    engineIds: [],
     adapt(record) {
       return record;
     },
@@ -1365,12 +1402,10 @@ function resolveCompatibleToolCallRecord(
   record: Record<string, unknown>,
   engineId?: string,
 ): Record<string, unknown> {
-  const normalizedEngineId = engineId?.trim().toLowerCase() ?? '';
-  const preferredAdapters = normalizedEngineId
-    ? AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS.filter((adapter) =>
-        adapter.engineIds.includes(normalizedEngineId),
-      )
-    : [];
+  const preferredAdapterIds = resolveCompatibleAgentSessionItemToolProtocolAdapterIds(engineId);
+  const preferredAdapters = AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS.filter((adapter) =>
+    preferredAdapterIds.includes(adapter.id),
+  );
   const remainingAdapters = AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS.filter(
     (adapter) => !preferredAdapters.includes(adapter),
   );

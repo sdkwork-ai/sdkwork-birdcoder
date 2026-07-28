@@ -1,5 +1,6 @@
 export * from './platform/openLocalFolder.ts';
 export * from './platform/tauriDesktopRuntimeLocationIdentity.ts';
+export * from './platform/localPluginCatalogRuntime.ts';
 export * from './services/defaultIdeServicesRuntime.ts';
 export * from './services/defaultIdeServices.ts';
 export * from './services/applicationPublishHost.ts';

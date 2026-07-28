@@ -27,12 +27,37 @@ declare module 'react-syntax-highlighter/dist/esm/languages/prism/bash' {
   export default language;
 }
 
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/c' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/cpp' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/csharp' {
+  const language: unknown;
+  export default language;
+}
+
 declare module 'react-syntax-highlighter/dist/esm/languages/prism/css' {
   const language: unknown;
   export default language;
 }
 
 declare module 'react-syntax-highlighter/dist/esm/languages/prism/diff' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/go' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/java' {
   const language: unknown;
   export default language;
 }
@@ -52,12 +77,27 @@ declare module 'react-syntax-highlighter/dist/esm/languages/prism/jsx' {
   export default language;
 }
 
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/kotlin' {
+  const language: unknown;
+  export default language;
+}
+
 declare module 'react-syntax-highlighter/dist/esm/languages/prism/markdown' {
   const language: unknown;
   export default language;
 }
 
 declare module 'react-syntax-highlighter/dist/esm/languages/prism/markup' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/php' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/powershell' {
   const language: unknown;
   export default language;
 }
@@ -72,7 +112,17 @@ declare module 'react-syntax-highlighter/dist/esm/languages/prism/rust' {
   export default language;
 }
 
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/ruby' {
+  const language: unknown;
+  export default language;
+}
+
 declare module 'react-syntax-highlighter/dist/esm/languages/prism/sql' {
+  const language: unknown;
+  export default language;
+}
+
+declare module 'react-syntax-highlighter/dist/esm/languages/prism/swift' {
   const language: unknown;
   export default language;
 }

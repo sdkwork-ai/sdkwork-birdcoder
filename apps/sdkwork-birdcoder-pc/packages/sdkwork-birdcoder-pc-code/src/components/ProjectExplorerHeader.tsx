@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import { Check, Folder, FolderPlus, ListFilter, RefreshCw, Search, X } from 'lucide-react';
+import { Check, Folder, FolderPlus, ListFilter, RefreshCw, Search } from 'lucide-react';
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import type {
   ProjectExplorerOrganizeBy,
@@ -13,7 +13,6 @@ interface ProjectExplorerHeaderProps {
   selectedProjectId?: string | null;
   showFilterMenu: boolean;
   showSearch: boolean;
-  searchQuery: string;
   organizeBy: ProjectExplorerOrganizeBy;
   sortBy: ProjectExplorerSortBy;
   showArchived: boolean;
@@ -32,7 +31,6 @@ interface ProjectExplorerHeaderProps {
   selectedModelId: string;
   sessionsLabel: string;
   searchSessionsTitleLabel: string;
-  searchSessionsPlaceholder: string;
   newProjectLabel: string;
   openFolderLabel: string;
   organizeLabel: string;
@@ -57,9 +55,7 @@ interface ProjectExplorerHeaderProps {
   filterMenuRef: RefObject<HTMLDivElement | null>;
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
   onRefreshSelectedProject?: () => void;
-  onToggleSearch: () => void;
-  onSearchQueryChange?: (query: string) => void;
-  onClearSearch: () => void;
+  onToggleSearch: (trigger: HTMLButtonElement) => void;
   onCreateProject: () => void | Promise<void>;
   onOpenFolder?: () => void;
   onToggleFilterMenu: () => void;
@@ -81,7 +77,6 @@ export function ProjectExplorerHeader({
   selectedProjectId,
   showFilterMenu,
   showSearch,
-  searchQuery,
   organizeBy,
   sortBy,
   showArchived,
@@ -100,7 +95,6 @@ export function ProjectExplorerHeader({
   selectedModelId,
   sessionsLabel,
   searchSessionsTitleLabel,
-  searchSessionsPlaceholder,
   newProjectLabel,
   openFolderLabel,
   organizeLabel,
@@ -126,8 +120,6 @@ export function ProjectExplorerHeader({
   onCreateSession,
   onRefreshSelectedProject,
   onToggleSearch,
-  onSearchQueryChange,
-  onClearSearch,
   onCreateProject,
   onOpenFolder,
   onToggleFilterMenu,
@@ -233,13 +225,17 @@ export function ProjectExplorerHeader({
             )}
             <button
               type="button"
+              aria-expanded={showSearch}
+              aria-haspopup="dialog"
+              aria-label={searchSessionsTitleLabel}
               title={searchSessionsTitleLabel}
               className="text-inherit"
-              onClick={onToggleSearch}
+              onClick={(event) => onToggleSearch(event.currentTarget)}
             >
               <Search
                 size={14}
-                className={`cursor-pointer hover:text-white transition-colors ${showSearch || searchQuery ? 'text-white' : ''}`}
+                aria-hidden="true"
+                className={`cursor-pointer hover:text-white transition-colors ${showSearch ? 'text-white' : ''}`}
               />
             </button>
             <button
@@ -396,26 +392,6 @@ export function ProjectExplorerHeader({
             </div>
           )}
         </div>
-
-        {(showSearch || searchQuery) && (
-          <div className="px-2 mb-3 relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange?.(event.target.value)}
-              placeholder={searchSessionsPlaceholder}
-              className="birdcoder-session-search w-full text-white text-xs px-2 py-1.5 pr-6 rounded outline-none border border-white/10 focus:border-white/25"
-              autoFocus
-            />
-            {searchQuery && (
-              <X
-                size={12}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
-                onClick={onClearSearch}
-              />
-            )}
-          </div>
-        )}
 
       </div>
 

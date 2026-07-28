@@ -18,11 +18,20 @@ export interface ComposerProviderCapabilityItem {
   id: string;
   name: string;
   targetRef: string;
+  source?: 'remote' | 'local';
+  status?: 'enabled' | 'manifest-only' | 'unavailable';
+}
+
+export interface ComposerProviderCapabilityLoadError {
+  message: string;
+  source: 'remote' | 'local';
+  providerId?: string;
 }
 
 export interface ComposerProviderCapabilities {
   plugins: ComposerProviderCapabilityItem[];
   skills: ComposerProviderCapabilityItem[];
+  errors: ComposerProviderCapabilityLoadError[];
 }
 
 export interface ComposerProviderCapabilitiesOptions {

@@ -4,8 +4,9 @@ import fs from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { AgentSessionItemView } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts";
+import type { AgentSessionItemToolCallView, AgentSessionItemView } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts";
 import { resolveAgentSessionItemPresentation } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts";
+import { AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, resolvePreferredAgentSessionItemToolProtocolAdapterId } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts";
 import { ChatTranscriptAnchorRail } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ChatTranscriptAnchorRail.tsx";
 import { UniversalChatMarkdown } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx";
 import { resolveChatCodeFenceLanguage } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts";
@@ -14,6 +15,137 @@ import { resolveTurnFileChangesMessagePresentations } from "../apps/sdkwork-bird
 import { UserMessageAttachments } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/UserMessageAttachments.tsx";
 import { resolveUserMessageDisplay } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/userMessageDisplay.ts";
 import type { ChatMessageRenderContext } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/types.ts";
+import { ChatTurnActiveTail } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ChatTurnActiveTail.tsx";
+import { ContextToolCallGroup } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContextToolCallGroup.tsx";
+import { groupToolCallsForPresentation } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/toolCallPresentation.ts";
+import {
+  CHAT_PROVIDER_PRESENTATION_PROFILES,
+  OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+  resolveChatProviderPresentationProfile,
+} from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/providerPresentationProfiles.ts";
+
+assert.deepEqual(
+  CHAT_PROVIDER_PRESENTATION_PROFILES.map((profile) => profile.engineId),
+  ["codex", "claude-code", "opencode", "gemini"],
+  "Every supported coding provider must participate in the shared transcript contract.",
+);
+for (const profile of CHAT_PROVIDER_PRESENTATION_PROFILES) {
+  assert.strictEqual(
+    profile.presentation,
+    OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+    "Provider identity must not fork the shared transcript presentation policy.",
+  );
+  assert.equal(profile.presentation.transcriptStyle, "opencode-aligned");
+  assert.deepEqual(profile.presentation.activityPresentation, {
+    lifecycle: "inline",
+    reasoning: "summary-disclosure",
+    tools: "compact-disclosure",
+  });
+  assert.equal(
+    profile.protocolAdapterId,
+    resolvePreferredAgentSessionItemToolProtocolAdapterId(profile.engineId),
+    "UI provider profiles must consume the contracts-owned protocol mapping.",
+  );
+  const activeTailHtml = renderToStaticMarkup(
+    <ChatTurnActiveTail layout="main" providerProfile={profile} />,
+  );
+  assert.match(activeTailHtml, new RegExp(`data-chat-engine="${profile.engineId}"`, "u"));
+  assert.match(activeTailHtml, />Working</u);
+  assert.doesNotMatch(
+    activeTailHtml,
+    new RegExp(`${profile.surfaceLabel} is working`, "u"),
+    "Active turns must use one localized working state instead of provider-specific visual copy.",
+  );
+}
+assert.deepEqual(AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, {
+  "claude-code": "claude.content-block",
+  codex: "codex.item",
+  gemini: "gemini.event",
+  opencode: "opencode.part",
+});
+assert.equal(resolveChatProviderPresentationProfile(" CODEX ")?.engineId, "codex");
+assert.equal(resolveChatProviderPresentationProfile("unknown"), undefined);
+
+const localizedActiveTailHtml = renderToStaticMarkup(
+  <ChatTurnActiveTail
+    layout="main"
+    providerProfile={CHAT_PROVIDER_PRESENTATION_PROFILES[0]}
+    t={(key) => key === "chat.providerWorking" ? "\u6b63\u5728\u5904\u7406" : key}
+  />,
+);
+assert.match(localizedActiveTailHtml, />\u6b63\u5728\u5904\u7406</u);
+
+function createToolCall(
+  id: string,
+  name: string,
+  kind: AgentSessionItemToolCallView["kind"],
+): AgentSessionItemToolCallView {
+  return {
+    arguments: "{}",
+    id,
+    kind,
+    name,
+    status: "success",
+    type: "tool",
+  };
+}
+
+const groupedToolCalls = groupToolCallsForPresentation([
+  createToolCall("read-1", "Read", "file"),
+  createToolCall("grep-1", "grep_search", "search"),
+  createToolCall("edit-1", "replace", "file"),
+  createToolCall("list-1", "list_directory", "search"),
+  createToolCall("mcp-read-1", "read_file", "mcp"),
+]);
+assert.deepEqual(
+  groupedToolCalls.map((item) => item.type === "context"
+    ? { ids: item.calls.map((call) => call.id), type: item.type }
+    : { id: item.call.id, type: item.type }),
+  [
+    { ids: ["read-1", "grep-1"], type: "context" },
+    { id: "edit-1", type: "call" },
+    { ids: ["list-1"], type: "context" },
+    { id: "mcp-read-1", type: "call" },
+  ],
+  "Only consecutive provider-native read/search/list tools may share the OpenCode-aligned context group.",
+);
+const firstContextGroup = groupedToolCalls[0];
+assert.ok(firstContextGroup && firstContextGroup.type === "context");
+assert.deepEqual(firstContextGroup.summary, { list: 0, read: 1, search: 1 });
+const collapsedContextGroupHtml = renderToStaticMarkup(
+  <ContextToolCallGroup
+    compact={false}
+    copyMessageToClipboard={() => undefined}
+    disclosureScopeKey="session\u0001turn\u0001tool"
+    expandedDisclosureKeys={new Set()}
+    group={firstContextGroup}
+    isExpanded={false}
+    onToggle={() => undefined}
+    toggleDisclosure={() => undefined}
+  />,
+);
+assert.match(collapsedContextGroupHtml, /data-chat-context-tool-group="true"/u);
+assert.match(collapsedContextGroupHtml, /Gathered context/u);
+assert.match(collapsedContextGroupHtml, /1 read/u);
+assert.match(collapsedContextGroupHtml, /1 search/u);
+assert.doesNotMatch(collapsedContextGroupHtml, /data-chat-tool-kind=/u);
+const expandedContextGroupHtml = renderToStaticMarkup(
+  <ContextToolCallGroup
+    compact={false}
+    copyMessageToClipboard={() => undefined}
+    disclosureScopeKey="session\u0001turn\u0001tool"
+    expandedDisclosureKeys={new Set()}
+    group={firstContextGroup}
+    isExpanded
+    onToggle={() => undefined}
+    toggleDisclosure={() => undefined}
+  />,
+);
+assert.equal(
+  [...expandedContextGroupHtml.matchAll(/data-chat-tool-kind=/gu)].length,
+  2,
+  "Expanded context groups must reuse one full ToolCallCard per normalized provider call.",
+);
 
 const activitySummarySource = fs.readFileSync(
   new URL(

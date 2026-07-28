@@ -10,6 +10,7 @@ export interface ProjectExplorerProps {
   isLoadingMoreProjects?: boolean;
   isVisible?: boolean;
   projects: AgentProjectView[];
+  taskSearchProjects?: AgentProjectView[];
   selectedProjectId?: string | null;
   selectedAgentSessionId: string | null;
   onSelectProject?: (id: string | null) => void;

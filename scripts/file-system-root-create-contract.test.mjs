@@ -247,20 +247,20 @@ assert.match(
 
 assert.match(
   useFileSystemSource,
-  /console\.error\("Failed to create file", error\);\s*throw error;/,
-  'useFileSystem create-file failures must propagate to the FileExplorer feedback boundary.',
+  /console\.error\("Failed to create file request\."\);\s*throw error;/,
+  'useFileSystem create-file failures must be logged without raw host details and propagate to the FileExplorer feedback boundary.',
 );
 
 assert.match(
   useFileSystemSource,
-  /console\.error\("Failed to create folder", error\);\s*throw error;/,
-  'useFileSystem create-folder failures must propagate to the FileExplorer feedback boundary.',
+  /console\.error\("Failed to create folder request\."\);\s*throw error;/,
+  'useFileSystem create-folder failures must be logged without raw host details and propagate to the FileExplorer feedback boundary.',
 );
 
 assert.match(
   useFileSystemSource,
-  /console\.error\("Failed to rename node", error\);\s*throw error;/,
-  'useFileSystem rename failures must propagate to the FileExplorer feedback boundary.',
+  /console\.error\("Failed to rename node request\."\);\s*throw error;/,
+  'useFileSystem rename failures must be logged without raw host details and propagate to the FileExplorer feedback boundary.',
 );
 
 assert.match(

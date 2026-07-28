@@ -1271,6 +1271,7 @@ function CodePageComponent({
     projectRootPath: projectRoot?.virtualPath ?? '',
     fileTreeLoadError,
     filteredProjects,
+    projects,
     hasMoreProjects,
     hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
     isChatBusy,
