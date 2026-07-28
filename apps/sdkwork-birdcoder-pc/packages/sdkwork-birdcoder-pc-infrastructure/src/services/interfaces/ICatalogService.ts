@@ -12,7 +12,29 @@ export interface InstallSkillPackageOptions {
   projectId: string;
 }
 
+export interface ComposerProviderCapabilityItem {
+  description: string;
+  enabled: boolean;
+  id: string;
+  name: string;
+  targetRef: string;
+}
+
+export interface ComposerProviderCapabilities {
+  plugins: ComposerProviderCapabilityItem[];
+  skills: ComposerProviderCapabilityItem[];
+}
+
+export interface ComposerProviderCapabilitiesOptions {
+  agentId: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface ICatalogService {
+  getComposerProviderCapabilities(
+    options: ComposerProviderCapabilitiesOptions,
+  ): Promise<ComposerProviderCapabilities>;
   getSkillPackages(params?: SkillsSkillPackagesListParams): Promise<SkillPackagesPageData>;
   listInstallableArtifacts(
     packageId: string,

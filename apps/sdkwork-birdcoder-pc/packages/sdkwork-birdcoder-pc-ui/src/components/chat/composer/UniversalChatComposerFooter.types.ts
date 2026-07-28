@@ -2,7 +2,6 @@ import type { ChangeEvent, RefObject } from 'react';
 import type { ModelsPickerGroup } from '@sdkwork/models-pc-picker';
 
 export interface UniversalChatComposerFooterCommonProps {
-  attachmentMenuRef: RefObject<HTMLDivElement | null>;
   attachmentsDisabled: boolean;
   canQueueTypedMessage: boolean;
   canSubmitComposerMessage: boolean;
@@ -23,7 +22,6 @@ export interface UniversalChatComposerFooterCommonProps {
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onFolderUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onImageUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
-  onOpenPromptModal: () => void;
   onSelectModel: (pickerId: string) => void;
   onSend: () => void | Promise<void>;
   onToggleVoiceInput: () => void;

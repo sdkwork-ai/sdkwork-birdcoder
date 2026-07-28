@@ -39,6 +39,10 @@ import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
+import {
+  useComposerProviderCapabilities,
+  type ComposerProviderCapabilityItem,
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useComposerProviderCapabilities';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import {
   buildDriveMediaResourceContentBlock,
@@ -74,6 +78,10 @@ import {
   type UniversalChatNewSessionProviderOption,
 } from './UniversalChatNewSessionProviderSelector';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
+import {
+  ComposerActionPanel,
+  type ComposerCapabilityKind,
+} from './chat/composer/ComposerActionPanel.tsx';
 import { ComposerAttachmentTray } from './chat/composer/ComposerAttachmentTray.tsx';
 import {
   buildComposerSubmissionText,
@@ -693,6 +701,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     scrollTranscriptToBottom();
   }, [
     isActive,
+    isLive,
     isUserControllingScrollRef,
     paddingBottom,
     paddingTop,
@@ -1268,7 +1277,7 @@ export const UniversalChat = memo(function UniversalChat({
   const { addToast } = useToast();
   const { settings: appSettings } = useBirdcoderAppSettings();
   const { preferences } = useWorkbenchPreferences();
-  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const composerActionRegionRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -1306,6 +1315,16 @@ export const UniversalChat = memo(function UniversalChat({
   const currentEngine =
     findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
     getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
+  const {
+    capabilities: composerProviderCapabilities,
+    error: composerProviderCapabilitiesError,
+    isLoading: isLoadingComposerProviderCapabilities,
+    refresh: refreshComposerProviderCapabilities,
+  } = useComposerProviderCapabilities({
+    agentId: currentEngine.agentId,
+    isActive: isActive && showAttachmentMenu,
+    pageSize: 20,
+  });
   const currentModelId = activeComposerSelectionOverride
     ? normalizeWorkbenchCodeModelId(
         resolvedSelectedEngineId,
@@ -1342,6 +1361,24 @@ export const UniversalChat = memo(function UniversalChat({
     resolvedSelectedEngineId,
     currentModelId,
   );
+  const handleComposerCapabilitySelect = useCallback((
+    kind: ComposerCapabilityKind,
+    item: ComposerProviderCapabilityItem,
+  ) => {
+    const reference = item.targetRef.trim() || item.name.trim().replace(/\s+/gu, '-');
+    if (!reference) {
+      return;
+    }
+
+    const mention = `${kind === 'skill' ? '$' : '@'}${reference}`;
+    setInputValue((previousValue) => {
+      const separator = previousValue.length === 0 || /\s$/u.test(previousValue) ? '' : ' ';
+      return `${previousValue}${separator}${mention} `;
+    });
+    setShowAttachmentMenu(false);
+    addToast(t('chat.capabilityMentionInserted', { capability: item.name }), 'success');
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [addToast, setInputValue, t]);
   const newSessionProviderOptions = useMemo<UniversalChatNewSessionProviderOption[]>(
     () => availableEngines.map((engine) => {
       const modelId = resolveWorkbenchCodeEngineSelectedModelId(
@@ -3084,7 +3121,10 @@ export const UniversalChat = memo(function UniversalChat({
       if (!hasOpenFloatingMenu) {
         return;
       }
-      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
+      if (
+        composerActionRegionRef.current
+        && !composerActionRegionRef.current.contains(event.target as Node)
+      ) {
         setShowAttachmentMenu(false);
       }
     },
@@ -3434,10 +3474,39 @@ export const UniversalChat = memo(function UniversalChat({
             onSubmitUserQuestionAnswer={handleSubmitPendingUserQuestionAnswer}
             onSubmitApprovalDecision={handleSubmitPendingApprovalDecision}
           />
-          <UniversalChatComposerChrome
-            isFocused={isFocused}
-            onResize={handleComposerResize}
-          >
+          <div ref={composerActionRegionRef} className="w-full">
+            {showAttachmentMenu ? (
+              <ComposerActionPanel
+                attachmentsDisabled={attachmentsDisabled}
+                capabilities={composerProviderCapabilities}
+                error={composerProviderCapabilitiesError}
+                isLoading={isLoadingComposerProviderCapabilities}
+                onClose={() => setShowAttachmentMenu(false)}
+                onOpenFiles={() => {
+                  fileInputRef.current?.click();
+                  setShowAttachmentMenu(false);
+                }}
+                onOpenFolder={() => {
+                  folderInputRef.current?.click();
+                  setShowAttachmentMenu(false);
+                }}
+                onOpenImages={() => {
+                  imageInputRef.current?.click();
+                  setShowAttachmentMenu(false);
+                }}
+                onOpenPrompts={() => {
+                  setShowAttachmentMenu(false);
+                  setShowPromptModal(true);
+                }}
+                onRetry={refreshComposerProviderCapabilities}
+                onSelectCapability={handleComposerCapabilitySelect}
+                providerLabel={currentEngine.label}
+              />
+            ) : null}
+            <UniversalChatComposerChrome
+              isFocused={isFocused}
+              onResize={handleComposerResize}
+            >
             <div className="relative flex-1">
               {agentTurnInputQueue.length > 0 && (
                 <div className="relative mb-2">
@@ -3663,7 +3732,6 @@ export const UniversalChat = memo(function UniversalChat({
             />
             </div>
             <UniversalChatComposerFooter
-              attachmentMenuRef={attachmentMenuRef}
               attachmentsDisabled={attachmentsDisabled}
               canQueueTypedMessage={canQueueTypedMessage}
               canSubmitComposerMessage={canSubmitComposerMessage}
@@ -3685,7 +3753,6 @@ export const UniversalChat = memo(function UniversalChat({
               onFileUpload={handleFileUpload}
               onFolderUpload={handleFolderUpload}
               onImageUpload={handleImageUpload}
-              onOpenPromptModal={() => setShowPromptModal(true)}
               onSelectModel={handleComposerModelSelect}
               onSend={handleSend}
               onToggleVoiceInput={toggleVoiceInput}
@@ -3696,7 +3763,8 @@ export const UniversalChat = memo(function UniversalChat({
               showModelMenu={showModelMenu}
               showModelPicker={showComposerEngineSelector}
             />
-          </UniversalChatComposerChrome>
+            </UniversalChatComposerChrome>
+          </div>
         </div>
       </div>
 

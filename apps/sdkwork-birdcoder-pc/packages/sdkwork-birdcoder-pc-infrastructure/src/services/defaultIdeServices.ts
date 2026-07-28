@@ -26,6 +26,7 @@ export function createDefaultBirdCoderIdeServices(
     }),
     authService: runtime.authService,
     catalogService: new ApiBackedCatalogService({
+      agentsClient: runtime.agentsClient,
       skillsClient: runtime.skillsClient,
     }),
     documentService: runtime.documentService,

@@ -3,10 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowUp,
   Check,
-  FileUp,
-  FolderUp,
-  Image as ImageIcon,
-  Lightbulb,
   Loader2,
   Mic,
   Plus,
@@ -20,7 +16,6 @@ interface SharedComposerFooterProps extends EngineComposerFooterProps {
 }
 
 export function SharedComposerFooter({
-  attachmentMenuRef,
   attachmentsDisabled,
   canQueueTypedMessage,
   canSubmitComposerMessage,
@@ -42,7 +37,6 @@ export function SharedComposerFooter({
   onFileUpload,
   onFolderUpload,
   onImageUpload,
-  onOpenPromptModal,
   onSelectModel,
   onSend,
   onToggleVoiceInput,
@@ -54,7 +48,8 @@ export function SharedComposerFooter({
   showModelPicker,
 }: SharedComposerFooterProps) {
   const { t } = useTranslation();
-  const attachmentActionDisabled = disabled || attachmentsDisabled;
+  const attachmentActionDisabled = disabled;
+  const attachmentInputDisabled = disabled || attachmentsDisabled;
   const fallbackWorkbenchModel = useMemo(
     () => createFallbackModel(
       t('chat.modelCatalogFallback'),
@@ -78,6 +73,7 @@ export function SharedComposerFooter({
           size="icon"
           aria-expanded={isAttachmentMenuOpen}
           aria-haspopup="menu"
+          aria-controls={isAttachmentMenuOpen ? 'composer-action-panel' : undefined}
           aria-label={t('chat.addAttachment')}
           className={`h-7 w-7 rounded-lg transition-colors ${attachmentActionDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
           title={t('chat.addAttachment')}
@@ -91,48 +87,12 @@ export function SharedComposerFooter({
           <Plus aria-hidden="true" size={16} />
         </Button>
 
-        {isAttachmentMenuOpen && !attachmentActionDisabled ? (
-          <div
-            ref={attachmentMenuRef}
-            className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-lg bg-[#29292e] py-1.5 text-sm text-gray-300 shadow-[0_18px_52px_rgba(0,0,0,0.46)] animate-in fade-in zoom-in-95 duration-100"
-            role="menu"
-          >
-            <button
-              type="button"
-              className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
-              onClick={() => fileInputRef.current?.click()}
-              role="menuitem"
-            >
-              <FileUp aria-hidden="true" size={14} />
-              <span className="text-xs">{t('chat.uploadFile')}</span>
-            </button>
-            <button
-              type="button"
-              className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
-              onClick={() => folderInputRef.current?.click()}
-              role="menuitem"
-            >
-              <FolderUp aria-hidden="true" size={14} />
-              <span className="text-xs">{t('chat.uploadFolder')}</span>
-            </button>
-            <button
-              type="button"
-              className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
-              onClick={() => imageInputRef.current?.click()}
-              role="menuitem"
-            >
-              <ImageIcon aria-hidden="true" size={14} />
-              <span className="text-xs">{t('chat.uploadImage')}</span>
-            </button>
-          </div>
-        ) : null}
-
         <input
           type="file"
           ref={fileInputRef}
           aria-hidden="true"
           className="hidden"
-          disabled={attachmentActionDisabled}
+          disabled={attachmentInputDisabled}
           multiple
           onChange={onFileUpload}
           tabIndex={-1}
@@ -142,7 +102,7 @@ export function SharedComposerFooter({
           ref={folderInputRef}
           aria-hidden="true"
           className="hidden"
-          disabled={attachmentActionDisabled}
+          disabled={attachmentInputDisabled}
           onChange={onFolderUpload}
           tabIndex={-1}
           {...({ webkitdirectory: '', directory: '' } as InputHTMLAttributes<HTMLInputElement>)}
@@ -152,28 +112,12 @@ export function SharedComposerFooter({
           ref={imageInputRef}
           accept="image/*"
           aria-hidden="true"
-          disabled={attachmentActionDisabled}
+          disabled={attachmentInputDisabled}
           multiple
           className="hidden"
           onChange={onImageUpload}
           tabIndex={-1}
         />
-
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('chat.prompts')}
-          className={`h-7 w-7 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
-          title={t('chat.prompts')}
-          onClick={() => {
-            if (!disabled) {
-              onOpenPromptModal();
-            }
-          }}
-          disabled={disabled}
-        >
-          <Lightbulb size={16} />
-        </Button>
       </div>
 
       <div className="flex min-w-0 items-center gap-1.5">

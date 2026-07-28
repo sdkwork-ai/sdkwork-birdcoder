@@ -57,7 +57,10 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'authService':
         return runtime.authService;
       case 'catalogService':
-        return new ApiBackedCatalogService({ skillsClient: runtime.skillsClient });
+        return new ApiBackedCatalogService({
+          agentsClient: runtime.agentsClient,
+          skillsClient: runtime.skillsClient,
+        });
       case 'documentService':
         return runtime.documentService;
       case 'fileSystemService':

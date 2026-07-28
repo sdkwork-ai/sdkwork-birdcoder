@@ -76,7 +76,12 @@ export type {
   IAgentSessionService,
   SubmitAgentTurnInput,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentSessionService';
-export type { ICatalogService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
+export type {
+  ComposerProviderCapabilities,
+  ComposerProviderCapabilitiesOptions,
+  ComposerProviderCapabilityItem,
+  ICatalogService,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
 export type {
   DocumentListOptions,
   IDocumentService,

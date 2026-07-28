@@ -24,6 +24,7 @@ export * from './hooks/useWorkbenchAgentSessionCreationActions.ts';
 export * from './hooks/useWorkbenchChatSelection.ts';
 export * from './hooks/useWorkbenchPreferences.ts';
 export * from './hooks/useBirdcoderAppSettings.ts';
+export * from './hooks/useComposerProviderCapabilities.ts';
 export * from './context/IDEContext.ts';
 export * from './context/AuthContext.ts';
 export * from './contexts/ToastProvider.ts';
