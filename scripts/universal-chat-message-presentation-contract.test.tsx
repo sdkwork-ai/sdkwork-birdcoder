@@ -617,6 +617,27 @@ assert.equal(
   false,
 );
 
+const terminalLiveTurnPresentations = resolveTurnFileChangesMessagePresentations(
+  [
+    {
+      ...createMessage("terminal-live-assistant", "assistant", "The update is complete."),
+      turnId: "terminal-live-turn",
+    },
+    {
+      ...createMessage("terminal-live-activity", "tool", ""),
+      turnId: "terminal-live-turn",
+      fileChanges: [turnFileChanges[0]!],
+      lifecycleEvents: [{ id: "terminal-live-completed", kind: "completed" }],
+    },
+  ],
+  { deferLatestTurn: true },
+);
+assert.equal(
+  terminalLiveTurnPresentations[1]?.card?.messageId,
+  "terminal-live-assistant",
+  "An explicit terminal lifecycle must finalize the latest turn even while session state is stale.",
+);
+
 const fileChangesPresentation = completedTurnPresentations[2]?.card;
 assert.ok(fileChangesPresentation);
 const cardEnvironment = {

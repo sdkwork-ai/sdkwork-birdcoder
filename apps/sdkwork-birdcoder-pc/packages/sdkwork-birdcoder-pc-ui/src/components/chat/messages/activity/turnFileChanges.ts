@@ -19,6 +19,13 @@ export interface ResolveTurnFileChangesMessagePresentationsOptions {
   deferLatestTurn?: boolean;
 }
 
+const TERMINAL_FILE_SUMMARY_LIFECYCLE_KINDS = new Set([
+  "cancelled",
+  "completed",
+  "failed",
+  "stopped",
+]);
+
 function resolveTurnScopeKeys(
   messages: readonly AgentSessionItemView[],
 ): string[] {
@@ -55,9 +62,19 @@ function isAuthoredTurnReply(message: AgentSessionItemView): boolean {
   );
 }
 
+function hasTerminalLifecycleEvent(
+  messages: readonly AgentSessionItemView[],
+  messageIndexes: readonly number[],
+): boolean {
+  return messageIndexes.some((messageIndex) => messages[messageIndex]?.lifecycleEvents?.some(
+    (event) => TERMINAL_FILE_SUMMARY_LIFECYCLE_KINDS.has(event.kind),
+  ));
+}
+
 /**
  * Assigns one aggregate file card after the terminal visible item in each authored turn.
- * File activity remains inline while the latest turn is still running.
+ * File activity remains inline while the latest turn is still running, unless
+ * its provider lifecycle has already emitted an explicit terminal event.
  */
 export function resolveTurnFileChangesMessagePresentations(
   messages: readonly AgentSessionItemView[],
@@ -82,7 +99,11 @@ export function resolveTurnFileChangesMessagePresentations(
 
   const latestScopeKey = scopeKeys.at(-1) ?? "";
   for (const [scopeKey, messageIndexes] of messageIndexesByScopeKey) {
-    if (options.deferLatestTurn && scopeKey === latestScopeKey) {
+    if (
+      options.deferLatestTurn
+      && scopeKey === latestScopeKey
+      && !hasTerminalLifecycleEvent(messages, messageIndexes)
+    ) {
       continue;
     }
 
