@@ -346,6 +346,15 @@ if (!driveUploadService.includes('client.uploader')) {
 if (!driveUploadService.includes("source: 'drive'")) {
   fail('birdcoderDriveUpload must emit Drive-backed MediaResource payloads');
 }
+if (!driveUploadService.includes('drive://spaces/${encodeURIComponent(driveSpaceId)}/nodes/${encodeURIComponent(nodeId)}')) {
+  fail('birdcoderDriveUpload must emit canonical Drive Space and Node URIs');
+}
+if (!driveUploadService.includes("retention: { mode: 'long_term' }")) {
+  fail('birdcoderDriveUpload must retain submitted Agent attachments as durable Drive resources');
+}
+if (/buildDriveMediaResourceContentBlock[\s\S]*previewUrl/u.test(driveUploadService)) {
+  fail('persisted Drive media content blocks must not contain temporary preview grants');
+}
 if (!driveUploadService.includes('client.drive.downloadGrants.create')) {
   fail('birdcoderDriveUpload must resolve attachment previews through Drive download grants');
 }
@@ -358,6 +367,19 @@ const universalChat = read(
 );
 if (!universalChat.includes('uploadBirdCoderChatAttachmentToDrive')) {
   fail('UniversalChat must upload composer attachments through Drive');
+}
+if (!universalChat.includes('driveSpaceId: driveUpload.driveSpaceId')) {
+  fail('UniversalChat must retain the stable Drive Space identity for Agent driveRefs');
+}
+if (!universalChat.includes('resolveDriveAttachmentPreviewUrl: resolveBirdCoderChatAttachmentPreviewUrl')) {
+  fail('UniversalChat must resolve temporary image grants only in the render environment');
+}
+
+const useProjects = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts',
+);
+if (!/submitTurn\(agentSessionId,[\s\S]*driveRefs: \[\.\.\.options\.driveRefs\]/u.test(useProjects)) {
+  fail('Agent Turn submission must forward composer Drive references to the Agents SDK');
 }
 
 const h5ChatPage = read('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat/src/screens/ChatPage.tsx');

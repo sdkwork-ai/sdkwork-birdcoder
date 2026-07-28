@@ -1,5 +1,7 @@
 import type {
+  AgentInteractionKind,
   AgentInteractionRecord,
+  AgentInteractionStatus,
   AgentResourceUserStateRecord,
   AgentSessionCheckpointRecord,
   AgentSessionItemRecord,
@@ -23,6 +25,11 @@ export interface AgentSessionPageRequest {
   pageSize?: number;
   projectId?: string;
   sort?: 'sequence' | '-sequence';
+}
+
+export interface AgentInteractionPageRequest extends AgentSessionPageRequest {
+  kind?: AgentInteractionKind;
+  status?: AgentInteractionStatus;
 }
 
 export interface AgentSessionListPageRequest {
@@ -164,7 +171,7 @@ export interface IAgentSessionService {
   ): Promise<AgentTurnCompletion>;
   listInteractions(
     sessionId: string,
-    request?: AgentSessionPageRequest,
+    request?: AgentInteractionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentInteractionRecord>>;
   getInteraction(

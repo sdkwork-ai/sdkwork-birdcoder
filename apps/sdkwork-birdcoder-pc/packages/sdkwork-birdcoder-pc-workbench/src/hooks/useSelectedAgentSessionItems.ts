@@ -39,6 +39,10 @@ function normalize(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }
 
+function canRefreshSelectedSessionInBackground(): boolean {
+  return document.visibilityState !== 'hidden' && navigator.onLine !== false;
+}
+
 export function useSelectedAgentSessionItems({
   agentSessionService,
   isActive = true,
@@ -92,7 +96,14 @@ export function useSelectedAgentSessionItems({
       return undefined;
     }
     const interval = window.setInterval(
-      () => setPollRevision((revision) => revision + 1),
+      () => {
+        if (
+          activeRequestKeyRef.current === null
+          && canRefreshSelectedSessionInBackground()
+        ) {
+          setPollRevision((revision) => revision + 1);
+        }
+      },
       isExecuting ? EXECUTING_REFRESH_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS,
     );
     return () => window.clearInterval(interval);
@@ -103,7 +114,10 @@ export function useSelectedAgentSessionItems({
       return undefined;
     }
     const refreshOnResume = () => {
-      if (document.visibilityState !== 'hidden') {
+      if (
+        activeRequestKeyRef.current === null
+        && canRefreshSelectedSessionInBackground()
+      ) {
         setPollRevision((revision) => revision + 1);
       }
     };
@@ -119,6 +133,9 @@ export function useSelectedAgentSessionItems({
 
   useEffect(() => {
     if (!isActive || !normalizedSessionId || activeRequestKeyRef.current === requestKey) {
+      if (!isActive || !normalizedSessionId) {
+        setIsLoading(false);
+      }
       return undefined;
     }
     activeRequestKeyRef.current = requestKey;
@@ -172,7 +189,13 @@ export function useSelectedAgentSessionItems({
           ?.agentSessions
           .find((candidateSession) => candidateSession.id === result.agentSessionId);
         const committedAgentSession = currentAgentSession
-          ? mergeRefreshedAgentSessionIntoCurrent(currentAgentSession, result.agentSession)
+          ? mergeRefreshedAgentSessionIntoCurrent(
+              currentAgentSession,
+              result.agentSession,
+              {
+                replaceLoadedAuthorityWindow: result.replaceLoadedAuthorityWindow,
+              },
+            )
           : result.agentSession;
         upsertProjectIntoProjectsStore(project, userScope);
         upsertAgentSessionIntoProjectsStore(
@@ -180,6 +203,11 @@ export function useSelectedAgentSessionItems({
           committedAgentSession,
           project.workspaceId,
           userScope,
+          {
+            itemMergeMode: result.replaceLoadedAuthorityWindow
+              ? 'authority-window-reset'
+              : 'latest',
+          },
         );
       })
       .catch((error: unknown) => {

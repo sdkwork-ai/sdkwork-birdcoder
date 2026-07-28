@@ -1,4 +1,10 @@
-import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  MAX_FILE_CHANGE_PATH_CHARACTERS,
+  MAX_FILE_CHANGE_TEXT_CHARACTERS,
+  MAX_FILE_CHANGE_TOTAL_TEXT_CHARACTERS,
+  type FileChange,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -20,7 +26,10 @@ function readRecord(value: unknown): UnknownRecord | null {
 }
 
 function readNonEmptyString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
+  if (typeof value !== 'string' || value.length > MAX_FILE_CHANGE_PATH_CHARACTERS) {
+    return '';
+  }
+  return value.trim();
 }
 
 function readFirstString(record: UnknownRecord, keys: readonly string[]): string {
@@ -69,7 +78,9 @@ function normalizeProtocolType(value: unknown): string {
 
 function toCollectionCandidates(value: unknown): FileChangeCandidate[] {
   if (Array.isArray(value)) {
-    return value.map((candidate) => ({ value: candidate }));
+    return value
+      .slice(0, MAX_AGENT_SESSION_FILE_CHANGES)
+      .map((candidate) => ({ value: candidate }));
   }
 
   const record = readRecord(value);
@@ -79,7 +90,17 @@ function toCollectionCandidates(value: unknown): FileChangeCandidate[] {
   if (readFirstString(record, ['path', 'file', 'filePath', 'file_path'])) {
     return [{ value: record }];
   }
-  return Object.entries(record).map(([pathHint, candidate]) => ({ pathHint, value: candidate }));
+  const candidates: FileChangeCandidate[] = [];
+  for (const pathHint in record) {
+    if (!Object.hasOwn(record, pathHint)) {
+      continue;
+    }
+    candidates.push({ pathHint, value: record[pathHint] });
+    if (candidates.length >= MAX_AGENT_SESSION_FILE_CHANGES) {
+      break;
+    }
+  }
+  return candidates;
 }
 
 function resolveFirstCollection(
@@ -136,7 +157,7 @@ function resolveGeminiCandidates(payload: UnknownRecord): readonly FileChangeCan
     for (const key of ['resultDisplay', 'returnDisplay'] as const) {
       const candidate = readRecord(record[key]);
       if (candidate && (
-        readNonEmptyString(candidate.fileDiff)
+        (typeof candidate.fileDiff === 'string' && candidate.fileDiff.length > 0)
         || normalizeProtocolType(candidate.type) === 'diff'
       )) {
         return [{ value: candidate }];
@@ -274,34 +295,70 @@ function buildStructuredPatch(value: unknown): string | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  const hunks = value.flatMap((candidate) => {
-    const hunk = readRecord(candidate);
+  const parts: string[] = [];
+  let characterCount = 0;
+  let lineCount = 0;
+  const maxHunks = Math.min(value.length, MAX_AGENT_SESSION_FILE_CHANGES * 2);
+  for (let index = 0; index < maxHunks; index += 1) {
+    const hunk = readRecord(value[index]);
     if (!hunk || !Array.isArray(hunk.lines)) {
-      return [];
+      continue;
     }
-    const lines = hunk.lines.filter((line): line is string => typeof line === 'string');
     const oldStart = readFirstFiniteNumber([hunk], ['oldStart', 'old_start']) ?? 0;
     const oldLines = readFirstFiniteNumber([hunk], ['oldLines', 'old_lines']) ?? 0;
     const newStart = readFirstFiniteNumber([hunk], ['newStart', 'new_start']) ?? 0;
     const newLines = readFirstFiniteNumber([hunk], ['newLines', 'new_lines']) ?? 0;
-    return [`@@ -${oldStart},${oldLines} +${newStart},${newLines} @@\n${lines.join('\n')}`];
-  });
-  return hunks.length > 0 ? hunks.join('\n') : undefined;
+    const header = `@@ -${oldStart},${oldLines} +${newStart},${newLines} @@`;
+    const separatorLength = parts.length > 0 ? 1 : 0;
+    if (characterCount + separatorLength + header.length > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
+      return undefined;
+    }
+    if (separatorLength > 0) {
+      parts.push('\n');
+      characterCount += 1;
+    }
+    parts.push(header);
+    characterCount += header.length;
+
+    for (const line of hunk.lines) {
+      if (typeof line !== 'string') {
+        continue;
+      }
+      lineCount += 1;
+      if (
+        lineCount > 100_000
+        || characterCount + line.length + 1 > MAX_FILE_CHANGE_TEXT_CHARACTERS
+      ) {
+        return undefined;
+      }
+      parts.push('\n', line);
+      characterCount += line.length + 1;
+    }
+  }
+  return parts.length > 0 ? parts.join('') : undefined;
 }
 
 function countUnifiedDiffLineImpact(diff: string): { additions: number; deletions: number } | null {
-  const normalized = diff.replace(/\r\n?/gu, '\n');
-  if (!normalized.includes('@@') && !normalized.includes('diff --git')) {
+  if (!diff.includes('@@') && !diff.includes('diff --git')) {
     return null;
   }
   let additions = 0;
   let deletions = 0;
-  for (const line of normalized.split('\n')) {
-    if (line.startsWith('+') && !line.startsWith('+++')) {
+  let lineStart = 0;
+  while (lineStart < diff.length) {
+    const firstCharacter = diff.charCodeAt(lineStart);
+    const secondCharacter = diff.charCodeAt(lineStart + 1);
+    const thirdCharacter = diff.charCodeAt(lineStart + 2);
+    if (firstCharacter === 43 && !(secondCharacter === 43 && thirdCharacter === 43)) {
       additions += 1;
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
+    } else if (firstCharacter === 45 && !(secondCharacter === 45 && thirdCharacter === 45)) {
       deletions += 1;
     }
+    const lineFeedIndex = diff.indexOf('\n', lineStart);
+    if (lineFeedIndex < 0) {
+      break;
+    }
+    lineStart = lineFeedIndex + 1;
   }
   return { additions, deletions };
 }
@@ -310,22 +367,65 @@ function countContentLines(content: string): number {
   if (!content) {
     return 0;
   }
-  const normalized = content.replace(/\r\n?/gu, '\n');
-  const lineCount = normalized.split('\n').length;
-  return normalized.endsWith('\n') ? lineCount - 1 : lineCount;
+  let lineCount = 1;
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content.charCodeAt(index);
+    if (character === 13) {
+      lineCount += 1;
+      if (content.charCodeAt(index + 1) === 10) {
+        index += 1;
+      }
+    } else if (character === 10) {
+      lineCount += 1;
+    }
+  }
+  const finalCharacter = content.charCodeAt(content.length - 1);
+  return finalCharacter === 10 || finalCharacter === 13 ? lineCount - 1 : lineCount;
+}
+
+function retainBoundedFileChangeContent(value: string | undefined): string | undefined {
+  return value !== undefined && value.length <= MAX_FILE_CHANGE_TEXT_CHARACTERS
+    ? value
+    : undefined;
 }
 
 function applyClaudeEditResult(record: UnknownRecord, originalContent: string): string | undefined {
-  const oldString = readFirstContent(record, ['oldString', 'old_string']);
-  const newString = readFirstContent(record, ['newString', 'new_string']);
+  const oldString = retainBoundedFileChangeContent(
+    readFirstContent(record, ['oldString', 'old_string']),
+  );
+  const newString = retainBoundedFileChangeContent(
+    readFirstContent(record, ['newString', 'new_string']),
+  );
   if (oldString === undefined || newString === undefined || !oldString) {
     return undefined;
   }
   if (record.replaceAll === true || record.replace_all === true) {
+    let occurrenceCount = 0;
+    let searchIndex = 0;
+    while (searchIndex <= originalContent.length - oldString.length) {
+      const occurrenceIndex = originalContent.indexOf(oldString, searchIndex);
+      if (occurrenceIndex < 0) {
+        break;
+      }
+      occurrenceCount += 1;
+      if (occurrenceCount > 10_000) {
+        return undefined;
+      }
+      searchIndex = occurrenceIndex + oldString.length;
+    }
+    const resultLength = originalContent.length
+      + occurrenceCount * (newString.length - oldString.length);
+    if (!Number.isSafeInteger(resultLength) || resultLength > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
+      return undefined;
+    }
     return originalContent.split(oldString).join(newString);
   }
   const replacementIndex = originalContent.indexOf(oldString);
   if (replacementIndex < 0) {
+    return undefined;
+  }
+  const resultLength = originalContent.length - oldString.length + newString.length;
+  if (resultLength > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
     return undefined;
   }
   return `${originalContent.slice(0, replacementIndex)}${newString}${originalContent.slice(
@@ -347,7 +447,7 @@ function normalizeFileChange(candidate: FileChangeCandidate): FileChange | null 
   const path = movePath
     || readFirstString(record, ['path', 'file', 'filePath', 'file_path'])
     || readFirstString(gitDiff ?? {}, ['filename', 'fileName', 'file_path'])
-    || candidate.pathHint?.trim()
+    || readNonEmptyString(candidate.pathHint)
     || '';
   if (!path) {
     return null;
@@ -355,10 +455,9 @@ function normalizeFileChange(candidate: FileChangeCandidate): FileChange | null 
 
   const updateStatus = resolveUpdateStatus(record, gitDiff);
   const structuredPatch = buildStructuredPatch(record.structuredPatch ?? record.structured_patch);
-  let diff = readFirstContent(gitDiff ?? {}, ['patch', 'diff'])
-    ?? readFirstContent(record, ['diff', 'patch', 'fileDiff', 'unifiedDiff', 'unified_diff'])
-    ?? structuredPatch;
-  let content = readFirstContent(record, [
+  const rawDiff = readFirstContent(gitDiff ?? {}, ['patch', 'diff'])
+    ?? readFirstContent(record, ['diff', 'patch', 'fileDiff', 'unifiedDiff', 'unified_diff']);
+  const rawContent = readFirstContent(record, [
     'content',
     'after',
     'afterText',
@@ -367,7 +466,7 @@ function normalizeFileChange(candidate: FileChangeCandidate): FileChange | null 
     'newContent',
     'new_content',
   ]);
-  let originalContent = readFirstContent(record, [
+  const rawOriginalContent = readFirstContent(record, [
     'originalContent',
     'original_content',
     'originalFile',
@@ -379,29 +478,40 @@ function normalizeFileChange(candidate: FileChangeCandidate): FileChange | null 
     'oldContent',
     'old_content',
   ]);
+  const hasOversizedPayload = [rawDiff, rawContent, rawOriginalContent].some(
+    (value) => value !== undefined && value.length > MAX_FILE_CHANGE_TEXT_CHARACTERS,
+  );
+  let diff = retainBoundedFileChangeContent(rawDiff) ?? structuredPatch;
+  let content = retainBoundedFileChangeContent(rawContent);
+  let originalContent = retainBoundedFileChangeContent(rawOriginalContent);
 
-  if (content === undefined && originalContent !== undefined) {
+  if (!hasOversizedPayload && content === undefined && originalContent !== undefined) {
     content = applyClaudeEditResult(record, originalContent);
   }
   const isCodexContentPayload = kind !== null
     && (updateStatus === 'A' || updateStatus === 'D')
     && diff !== undefined
     && countUnifiedDiffLineImpact(diff) === null;
-  if (isCodexContentPayload && updateStatus === 'A' && content === undefined) {
+  if (!hasOversizedPayload && isCodexContentPayload && updateStatus === 'A' && content === undefined) {
     content = diff;
     originalContent = '';
     diff = undefined;
-  } else if (isCodexContentPayload && updateStatus === 'D' && originalContent === undefined) {
+  } else if (!hasOversizedPayload && isCodexContentPayload && updateStatus === 'D' && originalContent === undefined) {
     originalContent = diff;
     content = '';
     diff = undefined;
   }
-  if (updateStatus === 'D' && originalContent === undefined && content !== undefined) {
+  if (!hasOversizedPayload && updateStatus === 'D' && originalContent === undefined && content !== undefined) {
     originalContent = content;
     content = '';
   }
-  if (updateStatus === 'A' && originalContent === undefined) {
+  if (!hasOversizedPayload && updateStatus === 'A' && originalContent === undefined) {
     originalContent = '';
+  }
+  if (hasOversizedPayload) {
+    diff = undefined;
+    content = undefined;
+    originalContent = undefined;
   }
 
   const explicitAdditions = readFirstFiniteNumber(
@@ -422,15 +532,18 @@ function normalizeFileChange(candidate: FileChangeCandidate): FileChange | null 
       ? { additions: 0, deletions: countContentLines(originalContent) }
       : null;
   const lineImpact = explicitLineImpact ?? diffLineImpact ?? contentLineImpact;
-  const lineImpactKnown = record.lineImpactKnown ?? record.line_impact_known;
+  const retainedLineImpact = hasOversizedPayload ? null : lineImpact;
+  const lineImpactKnown = hasOversizedPayload
+    ? false
+    : record.lineImpactKnown ?? record.line_impact_known;
 
   return {
     path,
-    additions: lineImpact?.additions ?? 0,
-    deletions: lineImpact?.deletions ?? 0,
+    additions: retainedLineImpact?.additions ?? 0,
+    deletions: retainedLineImpact?.deletions ?? 0,
     lineImpactKnown: typeof lineImpactKnown === 'boolean'
       ? lineImpactKnown
-      : lineImpact !== null,
+      : retainedLineImpact !== null,
     ...(updateStatus ? { updateStatus } : {}),
     ...(diff !== undefined ? { diff } : {}),
     ...(content !== undefined ? { content } : {}),
@@ -449,10 +562,35 @@ export function resolveAgentSessionFileChanges(value: unknown): FileChange[] | u
     if (candidates.length === 0) {
       continue;
     }
-    const fileChanges = candidates.flatMap((candidate) => {
+    const fileChanges: FileChange[] = [];
+    let retainedTextCharacters = 0;
+    for (const candidate of candidates.slice(0, MAX_AGENT_SESSION_FILE_CHANGES)) {
       const fileChange = normalizeFileChange(candidate);
-      return fileChange ? [fileChange] : [];
-    });
+      if (!fileChange) {
+        continue;
+      }
+      const fileChangeTextCharacters = (
+        (fileChange.diff?.length ?? 0)
+        + (fileChange.content?.length ?? 0)
+        + (fileChange.originalContent?.length ?? 0)
+      );
+      if (
+        fileChangeTextCharacters > 0
+        && retainedTextCharacters + fileChangeTextCharacters
+          > MAX_FILE_CHANGE_TOTAL_TEXT_CHARACTERS
+      ) {
+        fileChanges.push({
+          path: fileChange.path,
+          additions: 0,
+          deletions: 0,
+          lineImpactKnown: false,
+          ...(fileChange.updateStatus ? { updateStatus: fileChange.updateStatus } : {}),
+        });
+        continue;
+      }
+      retainedTextCharacters += fileChangeTextCharacters;
+      fileChanges.push(fileChange);
+    }
     if (fileChanges.length > 0) {
       return fileChanges;
     }

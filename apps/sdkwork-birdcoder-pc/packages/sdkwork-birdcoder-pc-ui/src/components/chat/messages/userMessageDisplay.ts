@@ -7,6 +7,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 const DRIVE_MEDIA_MARKER_PATTERN = /^[\t ]*\[DRIVE_MEDIA:(\{[^\r\n]*\})\][\t ]*(?:\r?\n|$)/gmu;
+const MAX_USER_MESSAGE_RESOURCE_LOCATION_CHARACTERS = 32 * 1024;
 
 interface MarkdownSyntaxNode {
   alt?: unknown;
@@ -34,15 +35,17 @@ interface DriveMediaEnvelope {
 }
 
 export interface UserMessageImageAttachment {
+  driveNodeId?: string;
   id: string;
-  source: string;
+  source?: string;
   title: string;
 }
 
 export interface UserMessageAudioAttachment {
+  driveNodeId?: string;
   id: string;
   mimeType?: string;
-  source: string;
+  source?: string;
   title: string;
 }
 
@@ -65,7 +68,10 @@ export interface UserMessageDisplay {
 }
 
 function readNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
+  if (
+    typeof value !== 'string'
+    || value.length > MAX_USER_MESSAGE_RESOURCE_LOCATION_CHARACTERS
+  ) {
     return undefined;
   }
   const normalizedValue = value.trim();
@@ -85,7 +91,13 @@ function resolveSafeExternalUrl(...values: unknown[]): string | undefined {
 function resolveOpenableFilePath(resource: AgentSessionItemResourceView): string | undefined {
   for (const value of [resource.path, resource.origin?.path]) {
     const path = value?.trim();
-    if (path && !/^(?:data|blob|https?):/iu.test(path)) {
+    const isWindowsPath = Boolean(path && /^[a-z]:[\\/]/iu.test(path));
+    const hasUriScheme = Boolean(path && /^[a-z][a-z0-9+.-]*:/iu.test(path));
+    if (
+      path
+      && path.length <= MAX_USER_MESSAGE_RESOURCE_LOCATION_CHARACTERS
+      && (isWindowsPath || !hasUriScheme)
+    ) {
       return path;
     }
   }
@@ -95,7 +107,9 @@ function resolveOpenableFilePath(resource: AgentSessionItemResourceView): string
 function resolveDriveNodeId(...values: unknown[]): string | undefined {
   for (const value of values) {
     const uri = readNonEmptyString(value);
-    const nodeMatch = uri ? /^drive:\/\/nodes\/([^/?#]+)/iu.exec(uri) : null;
+    const nodeMatch = uri
+      ? /^drive:\/(?:\/spaces\/[^/?#]+)?\/nodes\/([^/?#]+)/iu.exec(uri)
+      : null;
     if (!nodeMatch?.[1]) {
       continue;
     }
@@ -173,10 +187,12 @@ function applySourceRanges(content: string, ranges: readonly SourceRange[]): str
 }
 
 function extractDriveMediaAttachments(content: string): {
+  audios: UserMessageAudioAttachment[];
   content: string;
   files: UserMessageFileAttachment[];
   images: UserMessageImageAttachment[];
 } {
+  const audios: UserMessageAudioAttachment[] = [];
   const files: UserMessageFileAttachment[] = [];
   const images: UserMessageImageAttachment[] = [];
   const ranges: SourceRange[] = [];
@@ -205,8 +221,23 @@ function extractDriveMediaAttachments(content: string): {
       ranges.push(payloadRange);
     }
 
-    if (kind === 'image' && previewUrl) {
-      images.push({ id, source: previewUrl, title });
+    if (kind === 'image' && (previewUrl || driveNodeId)) {
+      images.push({
+        id,
+        title,
+        ...(driveNodeId ? { driveNodeId } : {}),
+        ...(previewUrl ? { source: previewUrl } : {}),
+      });
+      continue;
+    }
+    if (kind === 'audio' && (previewUrl || driveNodeId)) {
+      audios.push({
+        id,
+        title,
+        ...(driveNodeId ? { driveNodeId } : {}),
+        ...(mimeType ? { mimeType } : {}),
+        ...(previewUrl ? { source: previewUrl } : {}),
+      });
       continue;
     }
     files.push({
@@ -220,6 +251,7 @@ function extractDriveMediaAttachments(content: string): {
   }
 
   return {
+    audios,
     content: applySourceRanges(content, ranges),
     files,
     images,
@@ -280,6 +312,7 @@ function appendStructuredResource(
   images: UserMessageImageAttachment[],
 ): void {
   const title = resolveResourceTitle(resource);
+  const driveNodeId = resolveDriveNodeId(resource.uri, resource.origin?.uri);
   const imageSource = resource.kind === 'image'
     ? resolveAgentSessionItemMediaSource(
         resource.mediaSource ?? resource.uri ?? resource.origin?.uri,
@@ -291,6 +324,10 @@ function appendStructuredResource(
     images.push({ id: resource.id, source: imageSource, title });
     return;
   }
+  if (resource.kind === 'image' && driveNodeId) {
+    images.push({ id: resource.id, driveNodeId, title });
+    return;
+  }
   const audioSource = resource.kind === 'audio'
     ? resolveAgentSessionItemMediaSource(
         resource.mediaSource ?? resource.uri ?? resource.origin?.uri,
@@ -298,17 +335,17 @@ function appendStructuredResource(
         resource.mimeType,
       )
     : undefined;
-  if (audioSource) {
+  if (audioSource || (resource.kind === 'audio' && driveNodeId)) {
     audios.push({
       id: resource.id,
-      source: audioSource,
       title,
+      ...(audioSource ? { source: audioSource } : {}),
+      ...(driveNodeId ? { driveNodeId } : {}),
       ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
     });
     return;
   }
   const path = resolveOpenableFilePath(resource);
-  const driveNodeId = resolveDriveNodeId(resource.uri, resource.origin?.uri);
   const externalUrl = resolveSafeExternalUrl(resource.uri, resource.origin?.uri);
   files.push({
     id: resource.id,
@@ -399,6 +436,7 @@ export function resolveUserMessageDisplay(view: AgentSessionItemPresentation): U
 
     const driveMedia = extractDriveMediaAttachments(block.content);
     const markdownImages = extractMarkdownImageAttachments(driveMedia.content);
+    audioAttachments.push(...driveMedia.audios);
     fileAttachments.push(...driveMedia.files);
     imageAttachments.push(...driveMedia.images, ...markdownImages.images);
     if (markdownImages.content.trim()) {
@@ -409,12 +447,12 @@ export function resolveUserMessageDisplay(view: AgentSessionItemPresentation): U
   return {
     audioAttachments: deduplicateAttachments(
       audioAttachments,
-      (attachment) => attachment.source,
+      (attachment) => attachment.source ?? attachment.driveNodeId ?? attachment.id,
     ),
     fileAttachments: deduplicateFileAttachments(fileAttachments),
     imageAttachments: deduplicateAttachments(
       imageAttachments,
-      (attachment) => attachment.source,
+      (attachment) => attachment.source ?? attachment.driveNodeId ?? attachment.id,
     ),
     supplementaryBlocks,
     textBlocks,

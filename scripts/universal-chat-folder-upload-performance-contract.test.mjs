@@ -82,7 +82,7 @@ assert.match(
 
 assert.match(
   source,
-  /const uploadComposerAttachment = useCallback\(async[\s\S]*uploadBirdCoderChatAttachmentToDrive\(\{[\s\S]*profile: resolveChatAttachmentUploadProfile\(attachment\.file\),[\s\S]*signal: controller\.signal,[\s\S]*buildDriveMediaResourceContentBlock\(/s,
+  /const uploadComposerAttachment = useCallback\(async[\s\S]*signal: AbortSignal[\s\S]*uploadBirdCoderChatAttachmentToDrive\(\{[\s\S]*resourceId: normalizedSessionId \|\| normalizedTranscriptScopeKey,[\s\S]*profile: resolveChatAttachmentUploadProfile\(attachment\.file\),[\s\S]*signal,[\s\S]*buildDriveMediaResourceContentBlock\(/s,
   'UniversalChat should upload every attachment through Drive with the canonical profile and an abortable request.',
 );
 

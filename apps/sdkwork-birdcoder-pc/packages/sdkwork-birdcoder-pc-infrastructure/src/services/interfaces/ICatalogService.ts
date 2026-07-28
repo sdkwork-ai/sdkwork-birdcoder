@@ -38,6 +38,7 @@ export interface ComposerProviderCapabilitiesOptions {
   agentId: string;
   page?: number;
   pageSize?: number;
+  signal?: AbortSignal;
 }
 
 export interface ICatalogService {

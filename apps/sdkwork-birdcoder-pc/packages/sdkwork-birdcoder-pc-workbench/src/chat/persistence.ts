@@ -8,6 +8,9 @@ import { createLazyDefaultIdeServices } from '../context/lazyDefaultIdeServices.
 const DEFAULT_PROMPT_HISTORY_LIMIT = 100;
 const DEFAULT_CHAT_HISTORY_LIMIT = 50;
 const MAX_PRESENTATION_SESSION_COUNT = 32;
+const MAX_PRESENTATION_HISTORY_ENTRY_CHARACTERS = 16_384;
+const MAX_PRESENTATION_HISTORY_SESSION_CHARACTERS = 262_144;
+const MAX_PRESENTATION_HISTORY_TOTAL_CHARACTERS = 4 * 1_048_576;
 
 export interface PromptEntryRecord {
   text: string;
@@ -53,6 +56,23 @@ function writeSessionPromptHistory(
     }
     sessionPromptHistoryMemory.delete(oldestSessionId);
   }
+  let totalCharacters = [...sessionPromptHistoryMemory.values()]
+    .reduce((total, sessionEntries) => total + sessionEntries.reduce(
+      (sessionTotal, entry) => sessionTotal + entry.text.length,
+      0,
+    ), 0);
+  while (
+    totalCharacters > MAX_PRESENTATION_HISTORY_TOTAL_CHARACTERS
+    && sessionPromptHistoryMemory.size > 0
+  ) {
+    const oldestSessionId = sessionPromptHistoryMemory.keys().next().value as string | undefined;
+    if (!oldestSessionId) {
+      break;
+    }
+    const removedEntries = sessionPromptHistoryMemory.get(oldestSessionId) ?? [];
+    totalCharacters -= removedEntries.reduce((total, entry) => total + entry.text.length, 0);
+    sessionPromptHistoryMemory.delete(oldestSessionId);
+  }
   return normalizedEntries.map((entry) => ({ ...entry }));
 }
 
@@ -60,9 +80,11 @@ export function setPromptServiceOverrideForTests(promptService: IPromptService |
   promptServiceOverrideForTests = promptService;
 }
 
-export function resetChatPresentationMemoryForTests(): void {
+export function clearChatPresentationMemory(): void {
   sessionPromptHistoryMemory.clear();
 }
+
+export const resetChatPresentationMemoryForTests = clearChatPresentationMemory;
 
 export function normalizePromptEntryRecords(
   value: unknown,
@@ -72,20 +94,36 @@ export function normalizePromptEntryRecords(
     return [];
   }
 
-  return value
-    .filter(
-      (entry): entry is PromptEntryRecord =>
-        typeof entry === 'object'
-        && entry !== null
-        && typeof (entry as PromptEntryRecord).text === 'string'
-        && typeof (entry as PromptEntryRecord).timestamp === 'number',
-    )
-    .map((entry) => ({
-      text: entry.text.trim(),
-      timestamp: entry.timestamp,
-    }))
-    .filter((entry) => entry.text.length > 0 && Number.isFinite(entry.timestamp))
-    .slice(0, Math.max(limit, 0));
+  const normalizedLimit = Math.max(Math.trunc(limit), 0);
+  const normalizedEntries: PromptEntryRecord[] = [];
+  let totalCharacters = 0;
+  for (const entry of value) {
+    if (
+      normalizedEntries.length >= normalizedLimit
+      || typeof entry !== 'object'
+      || entry === null
+      || typeof (entry as PromptEntryRecord).text !== 'string'
+      || typeof (entry as PromptEntryRecord).timestamp !== 'number'
+    ) {
+      continue;
+    }
+    const normalizedEntry = {
+      text: (entry as PromptEntryRecord).text.trim(),
+      timestamp: (entry as PromptEntryRecord).timestamp,
+    };
+    if (
+      !normalizedEntry.text
+      || normalizedEntry.text.length > MAX_PRESENTATION_HISTORY_ENTRY_CHARACTERS
+      || !Number.isFinite(normalizedEntry.timestamp)
+      || totalCharacters + normalizedEntry.text.length
+        > MAX_PRESENTATION_HISTORY_SESSION_CHARACTERS
+    ) {
+      continue;
+    }
+    normalizedEntries.push(normalizedEntry);
+    totalCharacters += normalizedEntry.text.length;
+  }
+  return normalizedEntries;
 }
 
 export function mergePromptEntryRecord(
@@ -95,7 +133,10 @@ export function mergePromptEntryRecord(
   limit = DEFAULT_PROMPT_HISTORY_LIMIT,
 ): PromptEntryRecord[] {
   const normalizedText = text.trim();
-  if (!normalizedText) {
+  if (
+    !normalizedText
+    || normalizedText.length > MAX_PRESENTATION_HISTORY_ENTRY_CHARACTERS
+  ) {
     return normalizePromptEntryRecords(entries, limit);
   }
 

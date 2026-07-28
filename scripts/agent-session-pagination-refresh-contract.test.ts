@@ -618,6 +618,121 @@ assert.equal(missingRecoveredItems.status, 'not-found');
 assert.equal(missingRecoveredItems.projectId, 'project.pagination');
 
 const refreshedAgentSession = refreshedItems.agentSession!;
+
+const staleHeadSession = {
+  ...refreshedAgentSession,
+  itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+  items: [
+    {
+      ...refreshedAgentSession.items[0]!,
+      id: 'item.head.1',
+      metadata: { agentItemSequence: '1' },
+    },
+    {
+      ...refreshedAgentSession.items[1]!,
+      id: 'item.head.2',
+      metadata: { agentItemSequence: '2' },
+    },
+  ],
+};
+const headReconciliationRequests: number[] = [];
+const headReconciliationService = {
+  async getSession() {
+    return {
+      sessionId: staleHeadSession.id,
+      agentId: 'agent.birdcoder',
+      projectId: staleHeadSession.projectId,
+      status: 'active',
+      title: staleHeadSession.title,
+      version: '8',
+      lastItemSequence: '8',
+      lastItemAt: '2026-07-24T00:00:08.000Z',
+      createdAt: staleHeadSession.createdAt,
+      updatedAt: '2026-07-24T00:00:08.000Z',
+    };
+  },
+  async listSessionItems(
+    sessionId: string,
+    request?: AgentSessionPageRequest,
+  ) {
+    const page = request?.page ?? 1;
+    headReconciliationRequests.push(page);
+    const pageItems = page === 1
+      ? [8, 7, 6]
+      : page === 2
+        ? [5, 4, 2]
+        : [];
+    return {
+      items: pageItems.map((sequence) => ({
+        sessionId,
+        itemId: `item.head.${sequence}`,
+        kind: sequence % 2 === 0 ? 'assistant_output' : 'user_input',
+        status: 'completed',
+        sequence: String(sequence),
+        content: `head ${sequence}`,
+        contentType: 'text/plain',
+        createdAt: `2026-07-24T00:00:0${sequence}.000Z`,
+      })),
+      pageInfo: {
+        mode: 'offset' as const,
+        page,
+        pageSize: 20,
+        hasMore: page === 1,
+      },
+    };
+  },
+  async listRuntimeBindings() {
+    return buildEmptyRuntimeBindingsPage();
+  },
+  async getSessionUserStates(sessionIds: readonly string[]) {
+    return buildSessionUserStates(sessionIds);
+  },
+} as unknown as IAgentSessionService;
+const reconciledHead = await refreshAgentSessionItems({
+  agentSessionService: headReconciliationService,
+  agentSessionId: staleHeadSession.id,
+  resolvedLocation: {
+    agentSession: staleHeadSession,
+    project: buildProject(),
+  },
+});
+assert.deepEqual(headReconciliationRequests, [1, 2]);
+assert.deepEqual(
+  reconciledHead.agentSession?.items.map((item) => item.id),
+  [
+    'item.head.1',
+    'item.head.2',
+    'item.head.4',
+    'item.head.5',
+    'item.head.6',
+    'item.head.7',
+    'item.head.8',
+  ],
+  'latest-page refresh must bridge every page until it overlaps the loaded transcript window',
+);
+assert.equal(
+  reconciledHead.agentSession?.itemPageInfo?.hasMore,
+  true,
+  'new head pages must reopen history pagination when offset drift creates deeper pages',
+);
+
+const unchangedFullyLoadedHead = await refreshAgentSessionItems({
+  agentSessionService: headReconciliationService,
+  agentSessionId: staleHeadSession.id,
+  resolvedLocation: {
+    agentSession: {
+      ...reconciledHead.agentSession!,
+      itemPageInfo: { hasMore: false, page: 2, pageSize: 20 },
+    },
+    project: buildProject(),
+  },
+});
+assert.equal(
+  unchangedFullyLoadedHead.agentSession?.itemPageInfo?.hasMore,
+  false,
+  'an unchanged head must not reopen history after the terminal page was already loaded',
+);
+
 const optimisticItem = {
   id: 'item.pagination.optimistic',
   sessionId: refreshedAgentSession.id,
@@ -626,6 +741,115 @@ const optimisticItem = {
   createdAt: '2026-07-24T00:00:03.000Z',
   timestamp: Date.parse('2026-07-24T00:00:03.000Z'),
 } as const;
+
+const resetOptimisticItem = {
+  ...optimisticItem,
+  id: 'item.head.optimistic',
+  metadata: { transient: true },
+} as const;
+const boundedHeadSession = {
+  ...staleHeadSession,
+  items: [...staleHeadSession.items, resetOptimisticItem],
+} as unknown as AgentSessionView;
+const boundedHeadRequests: number[] = [];
+const boundedHeadService = {
+  async getSession() {
+    return {
+      sessionId: boundedHeadSession.id,
+      agentId: 'agent.birdcoder',
+      projectId: boundedHeadSession.projectId,
+      status: 'active',
+      title: boundedHeadSession.title,
+      version: '200',
+      lastItemSequence: '200',
+      lastItemAt: '2026-07-24T00:03:20.000Z',
+      createdAt: boundedHeadSession.createdAt,
+      updatedAt: '2026-07-24T00:03:20.000Z',
+    };
+  },
+  async listSessionItems(
+    sessionId: string,
+    request?: AgentSessionPageRequest,
+  ) {
+    const page = request?.page ?? 1;
+    boundedHeadRequests.push(page);
+    const sequences = Array.from(
+      { length: 20 },
+      (_, index) => 200 - ((page - 1) * 20) - index,
+    );
+    return {
+      items: sequences.map((sequence) => ({
+        sessionId,
+        itemId: `item.bounded-head.${sequence}`,
+        kind: sequence % 2 === 0 ? 'assistant_output' : 'user_input',
+        status: 'completed',
+        sequence: String(sequence),
+        content: `bounded head ${sequence}`,
+        contentType: 'text/plain',
+        createdAt: new Date(Date.UTC(2026, 6, 24, 0, 0, sequence)).toISOString(),
+      })),
+      pageInfo: {
+        mode: 'offset' as const,
+        page,
+        pageSize: 20,
+        hasMore: true,
+      },
+    };
+  },
+  async listRuntimeBindings() {
+    return buildEmptyRuntimeBindingsPage();
+  },
+  async getSessionUserStates(sessionIds: readonly string[]) {
+    return buildSessionUserStates(sessionIds);
+  },
+} as unknown as IAgentSessionService;
+const resetBoundedHead = await refreshAgentSessionItems({
+  agentSessionService: boundedHeadService,
+  agentSessionId: boundedHeadSession.id,
+  resolvedLocation: {
+    agentSession: boundedHeadSession,
+    project: buildProject(),
+  },
+});
+assert.deepEqual(
+  boundedHeadRequests,
+  [1, 2, 3, 4, 5],
+  'head reconciliation must remain bounded when the loaded window is too stale to overlap',
+);
+assert.equal(resetBoundedHead.agentSession?.itemPageInfo?.page, 5);
+assert.equal(resetBoundedHead.replaceLoadedAuthorityWindow, true);
+assert.equal(resetBoundedHead.agentSession?.items.length, 101);
+assert.equal(
+  resetBoundedHead.agentSession?.items.some((item) => item.id === 'item.head.1'),
+  false,
+  'a stale authority tail must not be joined to a disconnected head window',
+);
+assert.equal(resetBoundedHead.agentSession?.items[0]?.id, 'item.bounded-head.101');
+assert.equal(
+  resetBoundedHead.agentSession?.items.at(-1)?.id,
+  resetOptimisticItem.id,
+  'a disconnected-window reset must retain optimistic work at the newest edge',
+);
+
+const transientOnlySession = {
+  ...refreshedAgentSession,
+  itemPageInfo: undefined,
+  items: [resetOptimisticItem],
+};
+const hydratedTransientOnlySession = await refreshAgentSessionItems({
+  agentSessionService: itemRefreshService,
+  agentSessionId: transientOnlySession.id,
+  resolvedLocation: {
+    agentSession: transientOnlySession,
+    project: buildProject(),
+  },
+});
+assert.deepEqual(
+  hydratedTransientOnlySession.agentSession?.items.map((item) => item.id),
+  ['item.pagination.1', 'item.pagination.2', resetOptimisticItem.id],
+  'initial authority hydration must keep a transient-only local tail at the newest edge',
+);
+
 let earlierItemRequest: AgentSessionPageRequest | undefined;
 const earlierItemsService = {
   async listSessionItems(
@@ -695,6 +919,56 @@ assert.deepEqual(
     'item.pagination.optimistic',
   ],
   'an older page must prepend chronologically, deduplicate overlap, and preserve optimistic items',
+);
+
+const duplicateHistoryRequests: number[] = [];
+const duplicateHistoryService = {
+  async listSessionItems(
+    sessionId: string,
+    request?: AgentSessionPageRequest,
+  ) {
+    const page = request?.page ?? 1;
+    duplicateHistoryRequests.push(page);
+    const pageItems = page === 3 ? [2, 1] : page === 4 ? [0] : [];
+    return {
+      items: pageItems.map((sequence) => ({
+        sessionId,
+        itemId: page === 4
+          ? 'item.pagination.offset-older'
+          : `item.pagination.${sequence}`,
+        kind: sequence % 2 === 0 ? 'assistant_output' : 'user_input',
+        status: 'completed',
+        sequence: String(sequence),
+        content: `history ${sequence}`,
+        contentType: 'text/plain',
+        createdAt: `2026-07-23T23:59:5${sequence}.000Z`,
+      })),
+      pageInfo: {
+        mode: 'offset' as const,
+        page,
+        pageSize: 20,
+        hasMore: page === 3,
+      },
+    };
+  },
+} as unknown as IAgentSessionService;
+const duplicateHistoryResult = await loadEarlierAgentSessionItems({
+  agentSession: {
+    ...loadedEarlierItems.agentSession,
+    itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+  },
+  agentSessionService: duplicateHistoryService,
+});
+assert.deepEqual(
+  duplicateHistoryRequests,
+  [3, 4],
+  'history loading must skip pages containing only overlap after offset drift',
+);
+assert.equal(duplicateHistoryResult.loadedItemCount, 1);
+assert.equal(duplicateHistoryResult.agentSession.itemPageInfo?.page, 4);
+assert.equal(
+  duplicateHistoryResult.agentSession.items[0]?.id,
+  'item.pagination.offset-older',
 );
 
 const storeUserScope = 'pagination-contract-user';

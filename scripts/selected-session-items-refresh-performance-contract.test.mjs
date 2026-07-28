@@ -53,8 +53,13 @@ assert.match(
 );
 assert.match(
   hookSource,
-  /if \(document\.visibilityState !== 'hidden'\) \{\s*setPollRevision\(\(revision\) => revision \+ 1\);/s,
-  'Desktop resume reconciliation must advance the canonical Session Item refresh identity.',
+  /activeRequestKeyRef\.current === null\s*&& canRefreshSelectedSessionInBackground\(\)[\s\S]*setPollRevision\(\(revision\) => revision \+ 1\);/s,
+  'Desktop resume reconciliation must advance the canonical Session Item refresh identity only when no authority read is active.',
+);
+assert.match(
+  hookSource,
+  /function canRefreshSelectedSessionInBackground\(\): boolean \{\s*return document\.visibilityState !== 'hidden' && navigator\.onLine !== false;\s*\}/s,
+  'Background reconciliation must pause while the desktop is hidden or offline.',
 );
 assert.match(
   hookSource,

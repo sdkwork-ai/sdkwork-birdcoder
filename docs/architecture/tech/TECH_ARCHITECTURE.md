@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-27
+Updated: 2026-07-28
 Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
@@ -220,6 +220,41 @@ rightmost runtime icon; Studio does not render time beneath the title. Global
 views form the complete currently loaded inventory, then filter,
 globally sort, and finally render or virtualize. Background synchronization
 never replaces an explicit Session selection.
+
+### Provider-Neutral Transcript And Attachments
+
+Codex, Claude Code, OpenCode, and Gemini payloads enter provider adapters and
+then one shared Session Item presentation model. React renderers do not read
+provider transport DTOs. Turn grouping prefers the canonical `turnId`; fallback
+grouping is rendering-only and stays in memory.
+
+```text
+File/Image/Audio
+  -> Drive App SDK uploader
+  -> driveSpaceId + driveNodeId + canonical Drive URI
+  -> Agents App SDK Turn driveRefs
+  -> canonical Session Item resources
+  -> render-time temporary Drive grant
+```
+
+Composer `File` objects, object URLs, progress, AbortControllers, and signed
+download URLs are transient. Immediate and queued Turn dispatch both preserve
+the ordered `driveRefs`; no signed URL is written into Session text or local
+device state. Four feature-level upload slots bound simultaneous files while
+the Drive SDK owns chunk concurrency.
+
+Provider projections retain at most 32 Session Item resources and 256 file
+changes. File-change paths, individual text fields, total retained text,
+Restore parsing, and full Diff rendering have shared defensive budgets.
+Oversized snapshots are omitted rather than truncated into restorable data.
+Transcript synchronization hashes message content into a fixed-size signature
+so streaming updates do not retain a second full message copy.
+
+Full Diff review uses a provider-neutral responsive layout resolver. The normal
+three-pane layout remains at readable widths; constrained layouts collapse the
+file explorer before enforcing a 320-pixel chat column, and critically narrow
+layouts hide the chat surface while keeping it mounted so Composer state is
+preserved until the Diff closes.
 
 #### Launch Blockers
 

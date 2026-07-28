@@ -36,6 +36,7 @@ import {
   isAgentSessionViewExecuting,
   type FileChange,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { UniversalChatComposerSubmission } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 import { useTranslation } from 'react-i18next';
 import {
   createCodeChatEmptyStates,
@@ -98,6 +99,7 @@ function CodePageComponent({
   workspaceId,
   projectId,
   initialAgentSessionId,
+  onRequestProjectCreation,
   onProjectChange,
   onAgentSessionChange,
 }: CodePageProps) {
@@ -644,28 +646,10 @@ function CodePageComponent({
     requestDeleteProject(projectId);
   }, [requestDeleteProject]);
 
-  const handleNewProject = useCallback(async () => {
-    try {
-      const importedProject = await selectFolderAndImportProject('New Project');
-      if (!importedProject) {
-        return undefined;
-      }
-
-      activateImportedProject(importedProject.projectId);
-      await synchronizeImportedProject(importedProject.projectId, true);
-      addToast(`Project created successfully: ${importedProject.projectName}`, 'success');
-      return importedProject.projectId;
-    } catch (error) {
-      console.error("Failed to create project", error);
-      addToast('Failed to create project', 'error');
-      return undefined;
-    }
-  }, [
-    activateImportedProject,
-    addToast,
-    selectFolderAndImportProject,
-    synchronizeImportedProject,
-  ]);
+  const handleNewProject = useCallback(
+    () => onRequestProjectCreation(),
+    [onRequestProjectCreation],
+  );
 
   const handleOpenFolder = useCallback(async () => {
     try {
@@ -963,6 +947,7 @@ function CodePageComponent({
       engineId?: string | null;
       modelId?: string | null;
     },
+    submission?: UniversalChatComposerSubmission,
   ) => {
     const trimmedContent = text?.trim() ?? '';
     if (!trimmedContent) {
@@ -1014,6 +999,9 @@ function CodePageComponent({
         bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
+        submission?.driveRefs?.length
+          ? { driveRefs: submission.driveRefs }
+          : undefined,
       );
       if (
         sentMessage?.sessionId &&

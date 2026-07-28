@@ -37,6 +37,9 @@ framework implementation.
   reasoning, bounded details, and lightweight file-change summaries.
 - Unknown Session Item kinds and incomplete provider states remain visible in a
   safe generic presentation instead of being discarded or shown as success.
+- User text, images, audio, files, and folder-selected text files submit through
+  one composer flow. Drive-backed inputs use Agents `driveRefs`; temporary
+  signed URLs are render-only and never become transcript content.
 
 ## Non-Goals
 
@@ -63,12 +66,18 @@ framework implementation.
    impact, review, undo, and expansion behavior.
 7. Lifecycle, interaction, task, resource, Markdown, attachment, copy, edit,
    delete, regenerate, and virtualization behavior remains functional.
-8. Opening or switching to a populated Session positions the transcript at
-   the latest message after progressive rendering and row measurement settle.
+8. Opening or switching to a populated Session reconciles a bounded contiguous
+   newest authority window and positions the transcript at the latest message
+   after progressive rendering and row measurement settle. A stale tail that
+   cannot overlap within five 20-item pages is replaced rather than joined
+   across a silent gap; unconfirmed transient items remain at the newest edge.
 9. New or streaming content follows the viewport only while the user remains
    near the bottom; reading older content is never interrupted by autoscroll.
 10. Reaching the transcript top automatically reveals the next local window or
-    requests exactly one earlier server page while history remains available.
+    starts one cancellable, deduplicated history operation while history remains
+    available. That operation may skip at most ten duplicate-only or
+    filter-only offset pages to obtain a genuinely older visible item and must
+    persist its advanced page metadata even when no visible item is added.
 11. Revealing or prepending history preserves the current reading anchor and
     does not jump the viewport to the newly inserted first message.
 12. Leaving the sticky-bottom threshold exposes a keyboard-operable return-to-
@@ -78,6 +87,19 @@ framework implementation.
    1440x900 and 900x800 and produces reviewable visual evidence.
 14. Focused transcript contracts, PC typecheck, lint, architecture checks, and
    production build pass.
+15. Immediate and busy-state queued Turns preserve the same ordered Drive
+    references, and image/audio resources obtain temporary playback or preview
+    URLs only when rendered.
+16. Attachment uploads, provider resource arrays, file-change collections,
+    before/after snapshots, unified-diff rows, and Restore inputs enforce tested
+    concurrency and memory bounds.
+17. Full Diff review keeps the adjacent transcript at least 320 pixels wide by
+    collapsing the file explorer first; critically narrow workspaces dedicate
+    the visible surface to the Diff without discarding the mounted chat draft.
+18. Canonical transcript deduplication and ordered-window reconciliation use
+    indexed linear passes, preserve exact-ID updates and concurrent latest
+    items, isolate provisional suppression by Session, and pass the 10,000-item
+    performance contract without allocating a set for every unique key.
 
 ## Non-Functional Requirements
 
@@ -85,8 +107,8 @@ framework implementation.
 | --- | --- |
 | Cohesion | Protocol normalization, presentation policy, and React rendering remain separate focused modules. |
 | Extensibility | A future provider adds a profile and adapter without modifying shared render branches. |
-| Performance | Existing progressive loading, server pagination, virtualization, bounded previews, and lazy Markdown rendering remain intact; each top threshold crossing loads at most one page. |
-| Reliability | Missing provider fields degrade to neutral generic labels and never invent completion; scroll anchoring survives local-window and server-page prepends. |
+| Performance | Existing progressive loading, server pagination, virtualization, bounded previews, lazy Markdown rendering, four-slot attachment upload scheduling, and bounded file-change parsing remain intact; head reconciliation is capped at five pages, one history operation at ten pages, and loaded-window deduplication/ordered reconciliation at indexed `O(n + m)` time with operation-scoped `O(n + m)` temporary memory. |
+| Reliability | Missing provider fields degrade to neutral generic labels and never invent completion; scroll anchoring survives local-window and server-page prepends; authority windows never merge across an unproven gap and pagination metadata never regresses under concurrent commits. |
 | Accessibility | Disclosures, status, actions, and the active-turn tail remain keyboard and screen-reader operable. |
 | Security | Provider payloads are rendered only through normalized, bounded, sanitized presentation paths. |
 
@@ -106,6 +128,14 @@ node scripts/chat-message-view-contract.test.ts
 node scripts/chat-message-tool-calls-contract.test.ts
 node scripts/chat-message-reasoning-contract.test.ts
 node scripts/universal-chat-message-presentation-contract.test.tsx
+node scripts/run-local-tsx.mjs scripts/universal-chat-composer-attachment-contract.test.tsx
+node scripts/run-local-tsx.mjs scripts/agent-turn-input-queue-contract.test.ts
+node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts
+node scripts/run-local-tsx.mjs scripts/agent-session-item-merge-performance-contract.test.ts
+node scripts/run-local-tsx.mjs scripts/file-change-restore-contract.test.ts
+node scripts/run-local-tsx.mjs scripts/agent-session-pagination-refresh-contract.test.ts
+node scripts/transcript-top-load-contract.test.mjs
+node scripts/drive-standard-contract.test.mjs
 pnpm --dir apps/sdkwork-birdcoder-pc typecheck
 pnpm --dir apps/sdkwork-birdcoder-pc lint
 pnpm --dir apps/sdkwork-birdcoder-pc test:e2e -- message-presentation.spec.ts

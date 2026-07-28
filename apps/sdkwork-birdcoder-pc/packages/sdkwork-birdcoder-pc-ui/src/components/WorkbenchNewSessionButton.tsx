@@ -90,6 +90,7 @@ function WorkbenchNewSessionButtonComponent({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const variantStyle = getVariantStyle(variant);
+  const isCompactStudio = variant === 'studio' && compact;
   const { availableEngines, preferredSelection } = useMemo(
     () =>
       resolveWorkbenchNewSessionEngineCatalog(
@@ -163,9 +164,13 @@ function WorkbenchNewSessionButtonComponent({
     variant === 'studio'
       ? `${variantStyle.primaryButton} ${
           disabled
-            ? 'cursor-not-allowed text-blue-400/40'
-            : 'text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
-        }`
+            ? isCompactStudio
+              ? 'cursor-not-allowed text-gray-500'
+              : 'cursor-not-allowed text-blue-400/40'
+            : isCompactStudio
+              ? 'text-gray-200 hover:bg-white/[0.04] hover:text-white'
+              : 'text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
+        } ${isCompactStudio ? '!h-7 !gap-1.5 !px-2.5 !py-0' : ''}`
       : `${variantStyle.primaryButton} ${
           disabled
             ? 'cursor-not-allowed text-gray-500'
@@ -177,9 +182,13 @@ function WorkbenchNewSessionButtonComponent({
     variant === 'studio'
       ? `${variantStyle.secondaryButton} ${
           disabled
-            ? 'cursor-not-allowed border-blue-500/20 text-blue-400/40'
-            : 'border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
-        }`
+            ? isCompactStudio
+              ? 'cursor-not-allowed border-white/[0.05] text-gray-600'
+              : 'cursor-not-allowed border-blue-500/20 text-blue-400/40'
+            : isCompactStudio
+              ? 'border-white/[0.07] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200'
+              : 'border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
+        } ${isCompactStudio ? '!h-7 !px-1.5' : ''}`
       : `${variantStyle.secondaryButton} ${
           disabled
             ? variant === 'sidebar'
@@ -192,10 +201,18 @@ function WorkbenchNewSessionButtonComponent({
   const wrapperClassName =
     variant === 'sidebar'
       ? `${variantStyle.wrapper} ${disabled ? 'text-gray-600' : 'bg-transparent text-gray-300'}`
-      : variantStyle.wrapper;
+      : isCompactStudio
+        ? `${variantStyle.wrapper} !rounded-md !border-0 !bg-white/[0.07]`
+        : variantStyle.wrapper;
+  const menuClassName = isCompactStudio
+    ? `${variantStyle.menu} !bottom-auto !left-auto !right-0 !top-full !mb-0 !mt-1.5 !w-64`
+    : variantStyle.menu;
 
   return (
-    <div ref={menuRef} className={`${variantStyle.container} shrink-0 whitespace-nowrap`}>
+    <div
+      ref={menuRef}
+      className={`${variantStyle.container} ${isCompactStudio ? '!flex-none' : ''} shrink-0 whitespace-nowrap`}
+    >
       <div className={wrapperClassName}>
         <button
           type="button"
@@ -231,7 +248,7 @@ function WorkbenchNewSessionButtonComponent({
       {isOpen && !disabled ? (
         <div
           aria-label={resolvedMenuLabel}
-          className={variantStyle.menu}
+          className={menuClassName}
           role="menu"
         >
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">

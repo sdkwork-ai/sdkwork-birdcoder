@@ -12,6 +12,7 @@ import {
   type SessionRuntimeStatusLabels,
   WorkbenchNewSessionButton,
   type UniversalChatComposerSelection,
+  type UniversalChatComposerSubmission,
 } from '@sdkwork/birdcoder-pc-ui';
 import {
   ResizeHandle,
@@ -29,13 +30,13 @@ import {
 import {
   Check,
   ChevronDown,
-  ChevronRight,
   Folder,
   FolderOpen,
   Loader2,
   Plus,
   RefreshCw,
   Search,
+  X,
   Zap,
 } from 'lucide-react';
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -44,8 +45,8 @@ import { StudioSessionMenuRow } from './StudioSessionMenuRow';
 
 const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
-const STUDIO_MENU_PROJECT_ROW_HEIGHT = 46;
-const STUDIO_MENU_SESSION_ROW_HEIGHT = 52;
+const STUDIO_MENU_PROJECT_ROW_HEIGHT = 40;
+const STUDIO_MENU_SESSION_ROW_HEIGHT = 44;
 const STUDIO_MENU_WINDOWED_LIST_THRESHOLD = 20;
 const EMPTY_STUDIO_PROJECTS: AgentProjectView[] = [];
 const EMPTY_STUDIO_AGENT_SESSIONS: AgentProjectView['agentSessions'] = [];
@@ -126,6 +127,7 @@ interface StudioChatSidebarProps {
   onSendMessage: (
     text?: string,
     composerSelection?: UniversalChatComposerSelection,
+    submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     interactionId: string,
@@ -145,7 +147,6 @@ interface StudioChatSidebarProps {
     hasMore?: boolean;
     loadedCount?: number;
   } | void;
-  onOpenFolder: () => Promise<void>;
   onCreateAgentSession: (
     projectId: string,
     engineId?: string,
@@ -179,26 +180,24 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
 }: StudioProjectMenuRowProps) {
   return (
     <button
+      type="button"
       onClick={() => onSelectProject(project.projectId)}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${
+      className={`group flex h-9 w-full items-center justify-between rounded-md px-2.5 text-sm transition-colors ${
         isMenuSelected
-          ? 'bg-white/5 text-gray-100 shadow-sm'
-          : 'text-gray-400 hover:bg-white/5/60 hover:text-gray-200'
+          ? 'bg-white/[0.065] text-gray-100'
+          : 'text-gray-400 hover:bg-white/[0.045] hover:text-gray-200'
       }`}
-      style={buildStudioSidebarSurfaceStyle('42px')}
+      style={buildStudioSidebarSurfaceStyle('36px')}
     >
-      <div className="flex items-center gap-2.5 truncate">
+      <div className="flex min-w-0 items-center gap-2.5">
         {isMenuSelected ? (
-          <FolderOpen size={14} className="text-blue-400 shrink-0" />
+          <FolderOpen size={14} className="shrink-0 text-blue-300" />
         ) : (
-          <Folder size={14} className="text-gray-500 group-hover:text-gray-400 shrink-0" />
+          <Folder size={14} className="shrink-0 text-gray-600 group-hover:text-gray-400" />
         )}
         <span className="truncate font-medium">{project.name}</span>
       </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {isActualSelected && <Check size={14} className="text-gray-500" />}
-        {isMenuSelected && <ChevronRight size={14} className="text-gray-500" />}
-      </div>
+      {isActualSelected ? <Check size={13} className="shrink-0 text-blue-300" /> : null}
     </button>
   );
 });
@@ -238,7 +237,6 @@ function areStudioChatSidebarPropsEqual(
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
-    left.onOpenFolder === right.onOpenFolder &&
     left.onCreateAgentSession === right.onCreateAgentSession &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
     left.onRefreshAgentSessionItems === right.onRefreshAgentSessionItems &&
@@ -285,7 +283,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onCreateProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
-  onOpenFolder,
   onCreateAgentSession,
   onRefreshProjectSessions,
   onRefreshAgentSessionItems,
@@ -294,9 +291,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onOpenFile,
   onOpenUrl,
   onViewChanges,
-  onEditMessage,
-  onDeleteMessage,
-  onRegenerateMessage,
   onRestoreMessage,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
@@ -472,8 +466,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
     return visibleMenuProjects[0]?.projectId ?? menuActiveProjectId;
   }, [menuActiveProjectId, showProjectMenu, visibleMenuProjects]);
-  const menuSelectedSessionId =
-    currentProjectId === effectiveMenuProjectId ? selectedAgentSessionId : '';
   const menuProject = showProjectMenu ? projectsById.get(effectiveMenuProjectId) ?? null : null;
   const menuProjectSessions = useMemo(() => {
     if (!showProjectMenu || !menuProject) {
@@ -705,22 +697,25 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         style={{ maxWidth: '52vw', width }}
       >
         <div
-          className="border-b border-white/10 px-4 py-2.5 shrink-0 bg-[#0e0e11]"
+          className="flex h-11 shrink-0 items-center border-b border-white/[0.07] bg-[#0e0e11] px-3"
           data-studio-chat-header="true"
         >
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
             <div className="relative min-w-0 flex-1" ref={projectMenuRef}>
               <button
+                type="button"
                 onClick={handleToggleProjectMenu}
                 data-studio-session-menu-trigger="true"
-                className="flex max-w-full items-center gap-2 px-2 py-1.5 -ml-2 rounded-lg hover:bg-white/5 transition-all text-gray-200 font-medium group whitespace-nowrap overflow-hidden"
+                aria-expanded={showProjectMenu}
+                aria-haspopup="dialog"
+                className="group -ml-1.5 flex h-8 max-w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-1.5 font-medium text-gray-200 transition-colors hover:bg-white/[0.055]"
               >
                 <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                  <span className="truncate text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
+                  <span className="truncate text-sm font-semibold text-gray-200 transition-colors group-hover:text-white">
                     {currentProject?.name || '-'}
                   </span>
-                  <span className="text-gray-600 text-xs">/</span>
-                  <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors truncate max-w-[240px]">
+                  <span className="text-xs text-gray-700">/</span>
+                  <span className="max-w-[240px] truncate text-sm text-gray-500 transition-colors group-hover:text-gray-300">
                     {currentAgentSessionTitle || '-'}
                   </span>
                 </div>
@@ -731,233 +726,248 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
               </button>
 
               {showProjectMenu && (
-                <div
-                  className="absolute top-full left-0 mt-2 w-[600px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200"
+                <section
+                  role="dialog"
+                  aria-label={t('studio.projectSessionSwitcher')}
+                  className="absolute left-0 top-full z-50 mt-1.5 flex w-[min(680px,calc(100vw-72px))] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#18191d] shadow-[0_20px_64px_rgba(0,0,0,0.58)] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150"
                   data-studio-session-menu="true"
+                  style={{ height: 'min(440px, calc(100vh - 112px))' }}
                 >
-                  <div className="p-3 border-b border-white/10 bg-[#0e0e11]/50 backdrop-blur-sm">
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-2.5 text-gray-500" />
-                      <input
-                        type="text"
-                        value={projectSearchQuery}
-                        onChange={(event) => onProjectSearchQueryChange(event.target.value)}
-                        placeholder={t('studio.searchProjects')}
-                        className="w-full bg-[#0e0e11] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex h-[360px]">
-                  <div
-                    ref={projectMenuProjectsRef}
-                    className="w-[40%] border-r border-white/10 overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/30"
+                  <header
+                    className="flex h-11 shrink-0 items-center gap-2 px-3"
+                    data-studio-session-menu-header="true"
                   >
-                    <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                      {t('studio.projects')}
-                    </div>
-                    {visibleMenuProjects.length > 0 ? (
-                      <>
-                        {shouldWindowMenuProjects ? (
-                          <div style={{ height: menuProjectsWindowedRange.paddingTop }} />
+                    <Search size={14} className="shrink-0 text-gray-600" aria-hidden="true" />
+                    <input
+                      type="search"
+                      autoFocus
+                      value={projectSearchQuery}
+                      onChange={(event) => onProjectSearchQueryChange(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          setShowProjectMenu(false);
+                        }
+                      }}
+                      placeholder={t('studio.searchProjects')}
+                      aria-label={t('studio.searchProjects')}
+                      className="h-full min-w-0 flex-1 bg-transparent text-xs text-gray-200 outline-none placeholder:text-gray-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowProjectMenu(false)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
+                      aria-label={t('studio.closeProjectSessionSwitcher')}
+                      title={t('studio.closeProjectSessionSwitcher')}
+                    >
+                      <X size={14} />
+                    </button>
+                  </header>
+
+                  <div className="grid min-h-0 flex-1 grid-cols-[minmax(170px,36%)_minmax(0,1fr)]">
+                    <aside
+                      className="flex min-h-0 flex-col border-r border-white/[0.07] bg-[#15161a]"
+                      data-studio-projects-pane="true"
+                    >
+                      <div
+                        className="flex h-10 shrink-0 items-center justify-between gap-2 px-3"
+                        data-studio-projects-header="true"
+                      >
+                        <h3 className="truncate text-[11px] font-medium text-gray-400">
+                          {t('studio.projects')}
+                        </h3>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void onCreateProject();
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
+                            aria-label={t('studio.newProject')}
+                            title={t('studio.newProject')}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        ref={projectMenuProjectsRef}
+                        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2"
+                      >
+                        {visibleMenuProjects.length > 0 ? (
+                          <>
+                            {shouldWindowMenuProjects ? (
+                              <div style={{ height: menuProjectsWindowedRange.paddingTop }} />
+                            ) : null}
+                            {renderedMenuProjects.map((project, projectIndex) => (
+                              <div
+                                key={project.projectId}
+                                className={
+                                  projectIndex === renderedMenuProjects.length - 1 ? '' : 'pb-1'
+                                }
+                              >
+                                <StudioProjectMenuRow
+                                  project={project}
+                                  isMenuSelected={effectiveMenuProjectId === project.projectId}
+                                  isActualSelected={currentProjectId === project.projectId}
+                                  onSelectProject={handleSelectMenuProject}
+                                />
+                              </div>
+                            ))}
+                            {shouldWindowMenuProjects ? (
+                              <div style={{ height: menuProjectsWindowedRange.paddingBottom }} />
+                            ) : null}
+                          </>
+                        ) : (
+                          <div className="flex h-28 items-center justify-center px-3 text-center text-xs text-gray-600">
+                            {t('studio.noProjectsFound')}
+                          </div>
+                        )}
+                        {hasMoreProjects ? (
+                          <button
+                            type="button"
+                            className="mt-1 flex h-8 w-full items-center justify-center gap-2 rounded-md text-[11px] text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={isLoadingMoreProjects}
+                            onClick={() => {
+                              void handleLoadMoreProjects();
+                            }}
+                          >
+                            {isLoadingMoreProjects ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <ChevronDown size={12} />
+                            )}
+                            <span>
+                              {isLoadingMoreProjects
+                                ? t('studio.loadingMoreProjects')
+                                : t('studio.loadMoreProjects')}
+                            </span>
+                          </button>
                         ) : null}
-                        {renderedMenuProjects.map((project, projectIndex) => (
+                      </div>
+                    </aside>
+
+                    <main
+                      className="flex min-h-0 min-w-0 flex-col bg-[#18191d]"
+                      data-studio-sessions-pane="true"
+                    >
+                      <div
+                        className="flex h-10 shrink-0 items-center justify-between gap-2 px-3"
+                        data-studio-sessions-header="true"
+                      >
+                        <h3 className="truncate text-[11px] font-medium text-gray-400">
+                          {t('studio.sessions')}
+                        </h3>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!hasEffectiveMenuProject) {
+                                return;
+                              }
+                              void onRefreshProjectSessions(effectiveMenuProjectId);
+                            }}
+                            disabled={
+                              !hasEffectiveMenuProject ||
+                              refreshingProjectId === effectiveMenuProjectId
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label={t('studio.refreshSessions')}
+                            title={t('studio.refreshSessions')}
+                          >
+                            <RefreshCw
+                              size={13}
+                              className={
+                                refreshingProjectId === effectiveMenuProjectId ? 'animate-spin' : ''
+                              }
+                            />
+                          </button>
+                          <WorkbenchNewSessionButton
+                            buttonLabel={t('studio.newSession')}
+                            compact
+                            currentSessionEngineId={currentAgentSession?.engineId}
+                            currentSessionModelId={currentAgentSession?.modelId}
+                            disabled={!hasEffectiveMenuProject}
+                            disabledTitle={t('studio.pleaseSelectProject')}
+                            menuLabel={t('studio.newSessionOptions')}
+                            selectedEngineId={selectedEngineId}
+                            selectedModelId={selectedModelId}
+                            variant="studio"
+                            onCreateSession={(engineId, modelId) => {
+                              void handleCreateProjectAgentSession(engineId, modelId);
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        ref={projectMenuSessionsRef}
+                        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2"
+                      >
+                        {shouldWindowMenuSessions ? (
+                          <div style={{ height: menuSessionsWindowedRange.paddingTop }} />
+                        ) : null}
+                        {renderedMenuSessions.map((session, sessionIndex) => (
                           <div
-                            key={project.projectId}
+                            key={session.id}
                             className={
-                              projectIndex === renderedMenuProjects.length - 1 ? '' : 'pb-1'
+                              sessionIndex === renderedMenuSessions.length - 1 ? '' : 'pb-1'
                             }
                           >
-                            <StudioProjectMenuRow
-                              project={project}
-                              isMenuSelected={effectiveMenuProjectId === project.projectId}
-                              isActualSelected={currentProjectId === project.projectId}
-                              onSelectProject={handleSelectMenuProject}
+                            <StudioSessionMenuRow
+                              projectId={effectiveMenuProjectId}
+                              relativeTimeNow={relativeTimeNow}
+                              runtimeStatusLabels={sessionRuntimeStatusLabels}
+                              session={session}
+                              isSelected={
+                                currentProjectId === effectiveMenuProjectId &&
+                                selectedAgentSessionId === session.id
+                              }
+                              onSelectAgentSession={handleSelectMenuAgentSession}
                             />
                           </div>
                         ))}
-                        {shouldWindowMenuProjects ? (
-                          <div style={{ height: menuProjectsWindowedRange.paddingBottom }} />
+                        {shouldWindowMenuSessions ? (
+                          <div style={{ height: menuSessionsWindowedRange.paddingBottom }} />
                         ) : null}
-                      </>
-                    ) : (
-                      <div className="py-8 text-center text-gray-500 text-xs">
-                        {t('studio.noProjectsFound')}
-                      </div>
-                    )}
-                    {hasMoreProjects ? (
-                      <button
-                        type="button"
-                        className="mx-1 mt-1 inline-flex w-[calc(100%-0.5rem)] items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:border-white/15 hover:bg-white/5 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={isLoadingMoreProjects}
-                        onClick={() => {
-                          void handleLoadMoreProjects();
-                        }}
-                      >
-                        {isLoadingMoreProjects ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <ChevronDown size={13} />
+                        {menuProject &&
+                        menuProject.agentSessionPageInfo !== undefined &&
+                        renderedMenuSessions.length === 0 &&
+                        !isLoadingMoreSessions ? (
+                          <div className="flex h-28 items-center justify-center px-3 text-center text-xs text-gray-600">
+                            {t('app.noSessions')}
+                          </div>
+                        ) : null}
+                        {canShowMoreSessions && (
+                          <button
+                            type="button"
+                            className="mt-1 flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-300 disabled:cursor-wait disabled:opacity-60"
+                            disabled={isLoadingMoreSessions}
+                            aria-busy={isLoadingMoreSessions}
+                            onClick={() => {
+                              void handleLoadMoreMenuProjectSessions(
+                                effectiveMenuProjectId,
+                                visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
+                              );
+                            }}
+                          >
+                            {isLoadingMoreSessions ? (
+                              <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                            ) : null}
+                            {isLoadingMoreSessions
+                              ? t('studio.loadingMoreSessions')
+                              : t('studio.showMoreSessions')}
+                          </button>
                         )}
-                        <span>
-                          {isLoadingMoreProjects
-                            ? t('studio.loadingMoreProjects')
-                            : t('studio.loadMoreProjects')}
-                        </span>
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div
-                    ref={projectMenuSessionsRef}
-                    className="w-[60%] overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/10"
-                  >
-                    <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                      {t('studio.sessions')}
-                    </div>
-                    {shouldWindowMenuSessions ? (
-                      <div style={{ height: menuSessionsWindowedRange.paddingTop }} />
-                    ) : null}
-                    {renderedMenuSessions.map((session, sessionIndex) => (
-                      <div
-                        key={session.id}
-                        className={
-                          sessionIndex === renderedMenuSessions.length - 1 ? '' : 'pb-1'
-                        }
-                      >
-                        <StudioSessionMenuRow
-                          projectId={effectiveMenuProjectId}
-                          relativeTimeNow={relativeTimeNow}
-                          runtimeStatusLabels={sessionRuntimeStatusLabels}
-                          session={session}
-                          isSelected={
-                            currentProjectId === effectiveMenuProjectId &&
-                            selectedAgentSessionId === session.id
-                          }
-                          onSelectAgentSession={handleSelectMenuAgentSession}
-                        />
                       </div>
-                    ))}
-                    {shouldWindowMenuSessions ? (
-                      <div style={{ height: menuSessionsWindowedRange.paddingBottom }} />
-                    ) : null}
-                    {menuProject &&
-                    menuProject.agentSessionPageInfo !== undefined &&
-                    renderedMenuSessions.length === 0 &&
-                    !isLoadingMoreSessions ? (
-                      <div className="px-3 py-8 text-center text-xs italic text-gray-500">
-                        {t('app.noSessions')}
-                      </div>
-                    ) : null}
-                    {canShowMoreSessions && (
-                      <button
-                        type="button"
-                        className="mx-3 mt-1 inline-flex items-center justify-start gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-all hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
-                        disabled={isLoadingMoreSessions}
-                        aria-busy={isLoadingMoreSessions}
-                        onClick={() => {
-                          void handleLoadMoreMenuProjectSessions(
-                            effectiveMenuProjectId,
-                            visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
-                          );
-                        }}
-                      >
-                        {isLoadingMoreSessions ? (
-                          <Loader2 size={12} className="animate-spin" aria-hidden="true" />
-                        ) : null}
-                        {isLoadingMoreSessions
-                          ? t('studio.loadingMoreSessions')
-                          : t('studio.showMoreSessions')}
-                      </button>
-                    )}
+                    </main>
                   </div>
-                </div>
-
-                <div className="flex border-t border-white/10 bg-[#0e0e11]/80 backdrop-blur-sm">
-                  <div className="w-[40%] p-2 border-r border-white/10 grid grid-cols-3 gap-1">
-                    <button
-                      onClick={() => {
-                        void onCreateProject();
-                      }}
-                      className="flex items-center justify-center gap-2 flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium"
-                      title={t('studio.newProject')}
-                    >
-                      <Plus size={12} />
-                      {t('studio.new')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        void onOpenFolder();
-                      }}
-                      className="flex items-center justify-center gap-2 flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium"
-                      title={t('studio.openFolder')}
-                    >
-                      <Folder size={12} />
-                      {t('studio.open')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!hasEffectiveMenuProject) {
-                          return;
-                        }
-                        void onRefreshProjectSessions(effectiveMenuProjectId);
-                      }}
-                      disabled={!hasEffectiveMenuProject || refreshingProjectId === effectiveMenuProjectId}
-                      className="flex items-center justify-center gap-2 flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                      title={t('studio.refreshSessions')}
-                    >
-                      <RefreshCw
-                        size={12}
-                        className={refreshingProjectId === effectiveMenuProjectId ? 'animate-spin' : ''}
-                      />
-                      {t('studio.refreshSessions')}
-                    </button>
-                  </div>
-                  <div className="w-[60%] p-2 flex gap-1">
-                    <WorkbenchNewSessionButton
-                      buttonLabel={t('studio.newSession')}
-                      currentSessionEngineId={currentAgentSession?.engineId}
-                      currentSessionModelId={currentAgentSession?.modelId}
-                      disabled={!hasEffectiveMenuProject}
-                      disabledTitle={t('studio.pleaseSelectProject')}
-                      selectedEngineId={selectedEngineId}
-                      selectedModelId={selectedModelId}
-                      variant="studio"
-                      onCreateSession={(engineId, modelId) => {
-                        void handleCreateProjectAgentSession(engineId, modelId);
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (!menuSelectedSessionId) {
-                          return;
-                        }
-                        void onRefreshAgentSessionItems(menuSelectedSessionId);
-                      }}
-                      disabled={
-                        !menuSelectedSessionId ||
-                        refreshingAgentSessionId === menuSelectedSessionId
-                      }
-                      className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        size={12}
-                        className={
-                          refreshingAgentSessionId === menuSelectedSessionId
-                            ? 'animate-spin'
-                            : ''
-                        }
-                      />
-                      {t('studio.refreshMessages')}
-                    </button>
-                  </div>
-                </div>
-                </div>
+                </section>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="flex items-center gap-2 px-1.5 py-1 text-xs text-gray-300">
-                <span className="max-w-[160px] truncate">{headerEngineSummary}</span>
+            <div className="flex min-w-0 shrink items-center gap-2">
+              <div className="flex min-w-0 items-center px-1 text-xs text-gray-400">
+                <span className="max-w-[140px] truncate">{headerEngineSummary}</span>
               </div>
               <button
                 type="button"
@@ -1013,9 +1023,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             onOpenFile={onOpenFile}
             onOpenUrl={onOpenUrl}
             onViewChanges={onViewChanges}
-            onEditMessage={onEditMessage}
-            onDeleteMessage={onDeleteMessage}
-            onRegenerateMessage={onRegenerateMessage}
             onRestore={onRestoreMessage}
             disabled={disabled}
             emptyState={

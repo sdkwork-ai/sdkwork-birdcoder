@@ -1,4 +1,5 @@
 import type { FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { MAX_FILE_CHANGE_TEXT_CHARACTERS } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildChatContentPreview,
   buildChatLinePreview,
@@ -163,9 +164,12 @@ export function buildFileChangeDiffPreview(fileChange: FileChange): ActivityDiff
   ) {
     return buildFileChangeContentPreview(fileChange);
   }
-  const diffContent = typeof fileChange.diff === 'string' ? fileChange.diff.trim() : '';
-  if (!diffContent) {
+  const diffContent = typeof fileChange.diff === 'string' ? fileChange.diff : '';
+  if (!diffContent || !/\S/u.test(diffContent)) {
     return buildFileChangeContentPreview(fileChange);
+  }
+  if (diffContent.length > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
+    return { isFallback: false, isTruncated: true, lines: [] };
   }
 
   const diffPreview = buildChatLinePreview(diffContent, {
@@ -186,28 +190,33 @@ export function resolveActivityFileChangeKey(fileChange: FileChange, index: numb
 export function countDiffLineImpacts(
   diff: string | undefined,
 ): ActivityFileChangeLineImpact | null {
-  if (!diff?.trim()) {
+  if (
+    !diff
+    || diff.length > MAX_FILE_CHANGE_TEXT_CHARACTERS
+    || !/\S/u.test(diff)
+  ) {
     return null;
   }
 
   let additions = 0;
   let deletions = 0;
-  const normalizedDiff = diff.replace(/\r\n?/gu, '\n');
   let lineStart = 0;
-  while (lineStart <= normalizedDiff.length) {
-    const lineEnd = normalizedDiff.indexOf('\n', lineStart);
-    const line = normalizedDiff.slice(
-      lineStart,
-      lineEnd === -1 ? normalizedDiff.length : lineEnd,
-    );
-    if (line.startsWith('+++') || line.startsWith('---')) {
+  while (lineStart <= diff.length) {
+    const firstCharacter = diff.charCodeAt(lineStart);
+    const secondCharacter = diff.charCodeAt(lineStart + 1);
+    const thirdCharacter = diff.charCodeAt(lineStart + 2);
+    if (
+      (firstCharacter === 43 && secondCharacter === 43 && thirdCharacter === 43)
+      || (firstCharacter === 45 && secondCharacter === 45 && thirdCharacter === 45)
+    ) {
       // Diff metadata does not contribute to the line impact.
-    } else if (line.startsWith('+')) {
+    } else if (firstCharacter === 43) {
       additions += 1;
-    } else if (line.startsWith('-')) {
+    } else if (firstCharacter === 45) {
       deletions += 1;
     }
-    if (lineEnd === -1) {
+    const lineEnd = diff.indexOf('\n', lineStart);
+    if (lineEnd < 0) {
       break;
     }
     lineStart = lineEnd + 1;

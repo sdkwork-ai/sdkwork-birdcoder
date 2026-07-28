@@ -50,8 +50,14 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /t\('studio\.refreshMessages'\)/,
-  'Studio sidebar must expose a refresh messages action in the session UI.',
+  /const refreshActionKey =[\s\S]*?'studio\.refreshMessages'/s,
+  'Studio sidebar must expose refresh messages through the single context-aware header action.',
+);
+
+assert.doesNotMatch(
+  sidebarSource,
+  /menuSelectedSessionId/,
+  'Studio project and Session switcher should not duplicate the header refresh-messages action.',
 );
 
 assert.match(

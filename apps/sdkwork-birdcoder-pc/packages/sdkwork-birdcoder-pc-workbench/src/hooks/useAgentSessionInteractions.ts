@@ -68,6 +68,33 @@ const INITIAL_STATE: AgentSessionPendingInteractionState = {
   isLoading: false,
 };
 const INTERACTION_CLAIM_LEASE_SECONDS = 60;
+const PENDING_INTERACTION_PAGE_SIZE = 200;
+const PENDING_INTERACTION_MAX_PAGES = 5;
+export const MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS = 2_048;
+export const MAX_AGENT_INTERACTION_ANSWER_CHARACTERS = 65_536;
+export const MAX_AGENT_INTERACTION_OPTION_VALUE_CHARACTERS = 256;
+
+function normalizeBoundedInteractionInput(
+  value: string | null | undefined,
+  label: string,
+  maxCharacters: number,
+): string | undefined {
+  if (value !== null && value !== undefined && value.length > maxCharacters) {
+    throw new RangeError(`${label} must be ${maxCharacters} characters or fewer.`);
+  }
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized.length > maxCharacters) {
+    throw new RangeError(`${label} must be ${maxCharacters} characters or fewer.`);
+  }
+  return normalized;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
 
 function compareInteractions(
   left: AgentInteractionRecord,
@@ -123,8 +150,9 @@ export async function loadAgentSessionPendingInteractions(
   service: IAgentSessionService,
   sessionId: string,
   expectedProjectId?: string | null,
+  signal?: AbortSignal,
 ): Promise<AgentSessionPendingInteractions> {
-  const session = await service.getSession(sessionId);
+  const session = await service.getSession(sessionId, { signal });
   const normalizedExpectedProjectId = expectedProjectId?.trim();
   if (
     normalizedExpectedProjectId
@@ -135,11 +163,44 @@ export async function loadAgentSessionPendingInteractions(
     );
   }
 
-  const interactionPage = await service.listInteractions(sessionId, {
-    page: 1,
-    pageSize: 50,
-  });
-  return mapAgentSessionPendingInteractions(interactionPage.items);
+  const pendingInteractions: AgentInteractionRecord[] = [];
+  const interactionIds = new Set<string>();
+  for (let page = 1; page <= PENDING_INTERACTION_MAX_PAGES; page += 1) {
+    signal?.throwIfAborted();
+    const interactionPage = await service.listInteractions(sessionId, {
+      page,
+      pageSize: PENDING_INTERACTION_PAGE_SIZE,
+      status: 'pending',
+    }, { signal });
+    if (
+      interactionPage.pageInfo.mode !== 'offset'
+      || typeof interactionPage.pageInfo.hasMore !== 'boolean'
+      || (interactionPage.pageInfo.page ?? page) !== page
+      || (interactionPage.pageInfo.pageSize ?? PENDING_INTERACTION_PAGE_SIZE)
+        !== PENDING_INTERACTION_PAGE_SIZE
+      || interactionPage.items.length > PENDING_INTERACTION_PAGE_SIZE
+    ) {
+      throw new Error('Agents pending Interaction pagination metadata is inconsistent.');
+    }
+    for (const interaction of interactionPage.items) {
+      if (interaction.sessionId !== sessionId || interaction.status !== 'pending') {
+        throw new Error('Agents pending Interaction page returned an unexpected resource.');
+      }
+      if (interactionIds.has(interaction.interactionId)) {
+        throw new Error(
+          `Agents pending Interaction page returned duplicate ${interaction.interactionId}.`,
+        );
+      }
+      interactionIds.add(interaction.interactionId);
+      pendingInteractions.push(interaction);
+    }
+    if (!interactionPage.pageInfo.hasMore) {
+      return mapAgentSessionPendingInteractions(pendingInteractions);
+    }
+  }
+  throw new Error(
+    `Agents Session has more than ${PENDING_INTERACTION_PAGE_SIZE * PENDING_INTERACTION_MAX_PAGES} pending Interactions.`,
+  );
 }
 
 async function claimInteraction(
@@ -166,6 +227,7 @@ export function useAgentSessionPendingInteractions(
   const [state, setState] = useState<AgentSessionPendingInteractionState>(INITIAL_STATE);
   const latestRequestIdRef = useRef(0);
   const latestScopeKeyRef = useRef<string | null>(null);
+  const refreshAbortControllerRef = useRef<AbortController | null>(null);
   const normalizedScopeKey = sessionId
     ? scopeKey?.trim() || sessionId
     : null;
@@ -173,6 +235,11 @@ export function useAgentSessionPendingInteractions(
   const refreshPendingInteractions = useCallback(async () => {
     const requestId = latestRequestIdRef.current + 1;
     latestRequestIdRef.current = requestId;
+    refreshAbortControllerRef.current?.abort(new DOMException(
+      'Agents pending Interaction refresh was superseded.',
+      'AbortError',
+    ));
+    refreshAbortControllerRef.current = null;
     if (!sessionId) {
       latestScopeKeyRef.current = null;
       setState(INITIAL_STATE);
@@ -185,23 +252,33 @@ export function useAgentSessionPendingInteractions(
       ...(didSwitchScope ? EMPTY_PENDING_INTERACTIONS : current),
       isLoading: true,
     }));
+    const controller = new AbortController();
+    refreshAbortControllerRef.current = controller;
 
     try {
       const pending = await loadAgentSessionPendingInteractions(
         agentSessionService,
         sessionId,
         expectedProjectId,
+        controller.signal,
       );
       if (latestRequestIdRef.current === requestId) {
         setState({ ...pending, isLoading: false });
       }
       return pending;
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return EMPTY_PENDING_INTERACTIONS;
+      }
       if (latestRequestIdRef.current === requestId) {
         setState((current) => ({ ...current, isLoading: false }));
       }
       console.error('Failed to load agent session interactions', error);
       return EMPTY_PENDING_INTERACTIONS;
+    } finally {
+      if (refreshAbortControllerRef.current === controller) {
+        refreshAbortControllerRef.current = null;
+      }
     }
   }, [agentSessionService, expectedProjectId, normalizedScopeKey, sessionId]);
 
@@ -233,6 +310,11 @@ export function useAgentSessionPendingInteractions(
     if (!sessionId) {
       throw new Error('An agent session is required to approve an interaction.');
     }
+    const reason = normalizeBoundedInteractionInput(
+      input.reason,
+      'Agent Interaction approval reason',
+      MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS,
+    );
     const { claimOwner, interaction } = await resolveInteractionAndClaimOwner(interactionId);
     if (interaction.kind !== 'approval') {
       throw new Error(`Agent interaction ${interactionId} is not an approval.`);
@@ -251,7 +333,7 @@ export function useAgentSessionPendingInteractions(
         claimToken: claim.claimToken,
         expectedVersion: claim.interaction.version,
         fencingToken: claim.fencingToken,
-        reason: input.reason?.trim() || (
+        reason: reason || (
           input.decision === 'blocked' ? 'Blocked by user' : undefined
         ),
         requestedAt: new Date().toISOString(),
@@ -269,9 +351,30 @@ export function useAgentSessionPendingInteractions(
     if (!sessionId) {
       throw new Error('An agent session is required to answer an interaction.');
     }
+    const submittedAnswer = normalizeBoundedInteractionInput(
+      input.answer,
+      'Agent Interaction answer',
+      MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
+    );
+    const optionLabel = normalizeBoundedInteractionInput(
+      input.optionLabel,
+      'Agent Interaction option label',
+      MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
+    );
+    const optionValue = normalizeBoundedInteractionInput(
+      input.optionValue,
+      'Agent Interaction selected option value',
+      MAX_AGENT_INTERACTION_OPTION_VALUE_CHARACTERS,
+    );
     const { claimOwner, interaction } = await resolveInteractionAndClaimOwner(interactionId);
     if (interaction.kind !== 'user_question') {
       throw new Error(`Agent interaction ${interactionId} is not a user question.`);
+    }
+    if (
+      optionValue
+      && !interaction.options.some((option) => option.value.trim() === optionValue)
+    ) {
+      throw new Error(`Agent interaction ${interactionId} does not contain the selected option.`);
     }
     const claim = await claimInteraction(
       agentSessionService,
@@ -279,7 +382,7 @@ export function useAgentSessionPendingInteractions(
       interaction,
       claimOwner,
     );
-    const answer = input.answer?.trim() || input.optionLabel?.trim() || '';
+    const answer = submittedAnswer || optionLabel || '';
     const result = await agentSessionService.answerInteraction(
       sessionId,
       interaction.interactionId,
@@ -290,7 +393,7 @@ export function useAgentSessionPendingInteractions(
         fencingToken: claim.fencingToken,
         rejected: input.rejected === true,
         requestedAt: new Date().toISOString(),
-        selectedOptionValue: input.optionValue?.trim() || undefined,
+        selectedOptionValue: optionValue,
       },
     );
     void invalidateActiveWorkspaceSessionInboxSynchronizations();
@@ -301,6 +404,15 @@ export function useAgentSessionPendingInteractions(
   useEffect(() => {
     void refreshPendingInteractions();
   }, [refreshPendingInteractions, refreshToken]);
+
+  useEffect(() => () => {
+    latestRequestIdRef.current += 1;
+    refreshAbortControllerRef.current?.abort(new DOMException(
+      'Agents pending Interaction scope was disposed.',
+      'AbortError',
+    ));
+    refreshAbortControllerRef.current = null;
+  }, [normalizedScopeKey]);
 
   const visibleState = sessionId && latestScopeKeyRef.current === normalizedScopeKey
     ? state

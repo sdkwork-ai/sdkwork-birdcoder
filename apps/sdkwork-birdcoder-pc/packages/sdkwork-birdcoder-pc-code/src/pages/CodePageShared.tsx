@@ -9,6 +9,7 @@ export interface CodePageProps {
   workspaceId: string;
   projectId?: string;
   initialAgentSessionId?: string;
+  onRequestProjectCreation: () => Promise<string | undefined>;
   onProjectChange?: (projectId: string) => void;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
 }

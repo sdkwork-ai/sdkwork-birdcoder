@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, CircleHelp, Loader2, ShieldAlert, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type {
-  AgentApprovalDecisionInput,
-  AgentQuestionAnswerInput,
-  AgentSessionPendingApproval,
-  AgentSessionPendingQuestion,
-  AgentSessionPendingQuestionOption,
-  AgentSessionPendingQuestionPrompt,
+import {
+  MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
+  MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS,
+  type AgentApprovalDecisionInput,
+  type AgentQuestionAnswerInput,
+  type AgentSessionPendingApproval,
+  type AgentSessionPendingQuestion,
+  type AgentSessionPendingQuestionOption,
+  type AgentSessionPendingQuestionPrompt,
 } from '@sdkwork/birdcoder-pc-workbench';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 
@@ -231,6 +233,7 @@ export function UniversalChatPendingInteractions({
               <textarea
                 value={answerDrafts[pendingQuestion.interactionId] ?? ''}
                 onChange={(event) => handleAnswerDraftChange(pendingQuestion.interactionId, event.target.value)}
+                maxLength={MAX_AGENT_INTERACTION_ANSWER_CHARACTERS}
                 placeholder={t('chat.pendingQuestionAnswerPlaceholder')}
                 className="min-h-[38px] flex-1 resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-amber-300/40"
                 rows={1}
@@ -293,6 +296,7 @@ export function UniversalChatPendingInteractions({
             <textarea
               value={approvalReasons[pendingApproval.interactionId] ?? ''}
               onChange={(event) => handleApprovalReasonChange(pendingApproval.interactionId, event.target.value)}
+              maxLength={MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS}
               placeholder={t('chat.pendingApprovalReasonPlaceholder')}
               className="min-h-[38px] w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-sky-300/40"
               rows={1}

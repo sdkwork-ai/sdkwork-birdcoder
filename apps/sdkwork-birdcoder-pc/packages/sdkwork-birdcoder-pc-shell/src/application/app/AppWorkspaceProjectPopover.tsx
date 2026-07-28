@@ -1,4 +1,4 @@
-import { memo, type FormEvent, type MouseEvent, type RefObject } from 'react';
+import { memo, type MouseEvent, type RefObject } from 'react';
 import {
   Archive,
   Boxes,
@@ -42,12 +42,9 @@ interface AppWorkspaceProjectPopoverProps {
   isLoadingMoreWorkspaces: boolean;
   isProjectCreationPending: boolean;
   isProjectsLoading: boolean;
-  isWorkspaceCreating: boolean;
   isWorkspacesLoading: boolean;
-  newWorkspaceName: string;
   onArchiveProject: (projectId: string) => void | Promise<void>;
   onArchiveWorkspace: (workspace: AgentWorkspaceView) => void;
-  onCancelWorkspaceCreation: () => void;
   onClosePopover: () => void;
   onCommitProjectRename: (projectId: string, nextName: string) => void | Promise<void>;
   onCommitWorkspaceRename: (workspace: AgentWorkspaceView, name: string) => void;
@@ -60,20 +57,18 @@ interface AppWorkspaceProjectPopoverProps {
     requestedEngineId?: string,
     requestedModelId?: string,
   ) => void | Promise<void>;
-  onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onDeleteWorkspace: (workspace: AgentWorkspaceView) => void;
   onFinishProjectRename: () => void;
   onFinishWorkspaceRename: () => void;
   onLoadMoreProjects: () => Promise<unknown>;
   onLoadMoreWorkspaces: () => Promise<unknown>;
-  onNewWorkspaceNameChange: (value: string) => void;
   onOpenProjectInExplorer: (projectId: string, projectName?: string) => void;
   onProjectRenameValueChange: (value: string) => void;
   onRefreshProjects: () => Promise<unknown>;
   onRefreshWorkspaces: () => Promise<unknown>;
   onSelectProject: (projectId: string) => void;
   onSelectWorkspace: (workspaceId: string) => void;
-  onRequestProjectCreation: () => void;
+  onRequestProjectCreation: () => Promise<string | undefined>;
   onStartProjectRename: (projectId: string, currentName: string) => void;
   onStartWorkspaceCreation: () => void;
   onStartWorkspaceRename: (workspace: AgentWorkspaceView) => void;
@@ -112,24 +107,19 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   isLoadingMoreWorkspaces,
   isProjectCreationPending,
   isProjectsLoading,
-  isWorkspaceCreating,
   isWorkspacesLoading,
-  newWorkspaceName,
   onArchiveProject,
   onArchiveWorkspace,
-  onCancelWorkspaceCreation,
   onClosePopover,
   onCommitProjectRename,
   onCommitWorkspaceRename,
   onConfirmDeleteProject,
   onCreateProjectSession,
-  onCreateWorkspace,
   onDeleteWorkspace,
   onFinishProjectRename,
   onFinishWorkspaceRename,
   onLoadMoreProjects,
   onLoadMoreWorkspaces,
-  onNewWorkspaceNameChange,
   onOpenProjectInExplorer,
   onProjectRenameValueChange,
   onRefreshProjects,
@@ -180,23 +170,23 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
         aria-label={t('app.workspaceProjectSwitcher')}
         aria-expanded={showPopover}
         aria-haspopup="dialog"
-        className={`group flex h-8 min-w-0 max-w-[520px] items-center gap-2 rounded-xl border px-2.5 text-xs shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
+        className={`group flex h-7 min-w-0 max-w-[520px] items-center gap-1.5 rounded-md px-2 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 ${
           showPopover
-            ? 'border-blue-400/30 bg-blue-500/10 text-white shadow-blue-950/30'
-            : 'border-white/[0.08] bg-white/[0.035] text-gray-300 hover:border-white/15 hover:bg-white/[0.07] hover:text-white'
+            ? 'bg-white/[0.09] text-white'
+            : 'text-gray-400 hover:bg-white/[0.06] hover:text-gray-200'
         }`}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-blue-500/25 to-indigo-500/15 text-blue-300 ring-1 ring-inset ring-blue-400/20">
-          <Boxes size={12} />
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500 transition-colors group-hover:text-gray-300">
+          <Boxes size={12} strokeWidth={1.8} />
         </span>
-        <span className="max-w-[160px] truncate font-semibold">{selectedWorkspaceName}</span>
-        <span className="text-gray-600" aria-hidden="true">/</span>
-        <FolderGit2 size={12} className="shrink-0 text-gray-500 group-hover:text-gray-300" />
-        <span className={`max-w-[220px] truncate font-medium ${activeProjectName ? '' : 'text-gray-500'}`}>
+        <span className="max-w-[150px] truncate font-medium">{selectedWorkspaceName}</span>
+        <span className="text-gray-700" aria-hidden="true">/</span>
+        <FolderGit2 size={11} strokeWidth={1.8} className="shrink-0 text-gray-600 group-hover:text-gray-400" />
+        <span className={`max-w-[210px] truncate ${activeProjectName ? '' : 'text-gray-600'}`}>
           {selectedProjectName}
         </span>
         <ChevronDown
-          size={13}
+          size={12}
           className={`shrink-0 text-gray-500 transition-transform duration-200 ${showPopover ? 'rotate-180' : ''}`}
         />
       </button>
@@ -213,33 +203,28 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
           data-no-drag="true"
           role="dialog"
           aria-label={t('app.workspaceProjectSwitcher')}
-          className="fixed left-1/2 top-12 z-50 flex w-[min(780px,calc(100vw-24px))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#15161a]/98 shadow-[0_28px_80px_rgba(0,0,0,0.62)] ring-1 ring-black/30 backdrop-blur-xl animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150"
-          style={{ height: 'min(580px, calc(100vh - 64px))' }}
+          className="fixed left-1/2 top-11 z-50 flex w-[min(760px,calc(100vw-24px))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#18191d] shadow-[0_20px_64px_rgba(0,0,0,0.58)] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150"
+          style={{ height: 'min(560px, calc(100vh - 56px))' }}
         >
-          <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-gradient-to-r from-blue-500/[0.07] via-transparent to-indigo-500/[0.05] px-4">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold tracking-tight text-white">
-                {t('app.workspaceProjectSwitcher')}
-              </h2>
-              <p className="mt-0.5 truncate text-[11px] text-gray-500">
-                {t('app.workspaceProjectsHint')}
-              </p>
-            </div>
+          <header className="flex h-11 shrink-0 items-center justify-between px-3.5">
+            <h2 className="truncate text-xs font-semibold text-gray-100">
+              {t('app.workspaceProjectSwitcher')}
+            </h2>
             <button
               type="button"
               onClick={onClosePopover}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
               aria-label={t('app.closeSwitcher')}
               title={t('app.closeSwitcher')}
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           </header>
 
           <div className="grid min-h-0 flex-1 grid-cols-[clamp(168px,32vw,238px)_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-black/15">
-              <div className="flex h-12 shrink-0 items-center justify-between px-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
+            <aside className="flex min-h-0 flex-col border-r border-white/[0.07] bg-[#15161a]">
+              <div className="flex h-10 shrink-0 items-center justify-between px-3">
+                <span className="text-[11px] font-medium text-gray-400">
                   {t('app.workspaces')}
                 </span>
                 <div className="flex items-center gap-1">
@@ -413,61 +398,19 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                 ) : null}
               </div>
 
-              {isWorkspaceCreating ? (
-                <form onSubmit={onCreateWorkspace} className="shrink-0 border-t border-white/[0.08] p-2.5">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={newWorkspaceName}
-                    onChange={(event) => onNewWorkspaceNameChange(event.target.value)}
-                    placeholder={t('app.workspaceNamePlaceholder')}
-                    className="h-8 w-full rounded-lg border border-white/10 bg-black/30 px-2.5 text-xs text-white outline-none placeholder:text-gray-600 focus:border-blue-400/40"
-                  />
-                  <div className="mt-2 flex justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={onCancelWorkspaceCreation}
-                      className="h-7 rounded-md px-2.5 text-[11px] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200"
-                    >
-                      {t('app.cancel')}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!newWorkspaceName.trim()}
-                      className="h-7 rounded-md bg-blue-500 px-3 text-[11px] font-semibold text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {t('app.create')}
-                    </button>
-                  </div>
-                </form>
-              ) : null}
             </aside>
 
-            <main className="flex min-h-0 min-w-0 flex-col bg-[#17181c]">
-              <div className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/[0.07] px-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-semibold text-white">
-                      {selectedWorkspace?.name ?? t('app.projects')}
-                    </h3>
-                    {selectedWorkspace?.isDefault ? (
-                      <span className="rounded-full border border-blue-400/15 bg-blue-500/[0.08] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-300">
-                        {t('app.defaultWorkspace')}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    {selectedWorkspace
-                      ? t('app.projectCount', { count: projects.length })
-                      : t('app.selectWorkspaceHint')}
-                  </p>
-                </div>
+            <main className="flex min-h-0 min-w-0 flex-col bg-[#18191d]">
+              <div className="flex h-10 shrink-0 items-center justify-between gap-3 px-3">
+                <h3 className="truncate text-[11px] font-medium text-gray-400">
+                  {t('app.projects')}
+                </h3>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => void onRefreshProjects().catch(() => undefined)}
                     disabled={!selectedWorkspace || isProjectsLoading}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200 disabled:opacity-35"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200 disabled:opacity-35"
                     aria-label={t('app.refreshProjects')}
                     title={t('app.refreshProjects')}
                   >
@@ -477,9 +420,9 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                     type="button"
                     onClick={onRequestProjectCreation}
                     disabled={!canCreateProject}
-                    className="flex h-8 items-center gap-2 rounded-lg bg-blue-500 px-3 text-[11px] font-semibold text-white shadow-sm shadow-blue-950/30 transition-colors hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-7 items-center gap-1.5 rounded-md bg-white/[0.07] px-2.5 text-[11px] font-medium text-gray-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {isProjectCreationPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                    {isProjectCreationPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                     {t('app.newProject')}
                   </button>
                 </div>

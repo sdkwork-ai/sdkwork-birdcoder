@@ -7,7 +7,10 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench';
 import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
-import type { UniversalChatComposerSelection } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
+import type {
+  UniversalChatComposerSelection,
+  UniversalChatComposerSubmission,
+} from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 
 export interface CodeEditorWorkspacePanelProps {
   isActive: boolean;
@@ -55,6 +58,7 @@ export interface CodeEditorWorkspacePanelProps {
   onSendMessage: (
     text?: string,
     composerSelection?: UniversalChatComposerSelection,
+    submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     interactionId: string,
@@ -99,6 +103,7 @@ export interface EditorChatProps {
   onSendMessage: (
     text?: string,
     composerSelection?: UniversalChatComposerSelection,
+    submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     interactionId: string,

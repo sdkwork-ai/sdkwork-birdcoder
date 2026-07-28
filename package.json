@@ -161,7 +161,7 @@
     "test:agents-catalog-sdk-contract": "node scripts/run-local-tsx.mjs scripts/agents-catalog-sdk-contract.test.ts",
     "test:agent-session-runtime-identity-contract": "node scripts/run-local-tsx.mjs scripts/agent-session-runtime-identity-contract.test.ts",
     "test:multiwindow-contract": "node scripts/multiwindow-package-contract.test.mjs && node scripts/multiwindow-shell-navigation-contract.test.mjs && node scripts/multiwindow-page-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/multiwindow-runtime-contract.test.ts && node scripts/multiwindow-layout-state-serialization-performance-contract.test.mjs && node scripts/multiwindow-layout-state-persistence-performance-contract.test.mjs",
-    "test:agent-session-item-view-contract": "node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts",
+    "test:agent-session-item-view-contract": "node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts && node scripts/run-local-tsx.mjs scripts/agent-session-item-merge-performance-contract.test.ts",
     "test:agent-turn-input-queue-contract": "node --experimental-strip-types scripts/agent-turn-input-queue-contract.test.ts",
     "test:agent-turn-input-recovery-contract": "node --experimental-strip-types scripts/agent-turn-input-recovery-contract.test.ts",
     "test:agent-session-item-semantic-boundary-contract": "node scripts/agent-session-item-semantic-boundary-contract.test.mjs",

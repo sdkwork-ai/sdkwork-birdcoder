@@ -34,6 +34,10 @@ const codeEditorWorkspacePanelTypesSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts'),
   'utf8',
 );
+const codeEditorWorkspacePanelSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx'),
+  'utf8',
+);
 const studioPageSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx'),
   'utf8',
@@ -42,6 +46,29 @@ const studioChatSidebarSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx'),
   'utf8',
 );
+function readDeferredUniversalChatInvocation(source) {
+  const startIndex = source.indexOf('<DeferredUniversalChat');
+  const endIndex = source.indexOf('/>', startIndex);
+  return startIndex >= 0 && endIndex > startIndex
+    ? source.slice(startIndex, endIndex + 2)
+    : '';
+}
+const codeDeferredUniversalChatInvocation = readDeferredUniversalChatInvocation(
+  codeEditorWorkspacePanelSource,
+);
+const studioDeferredUniversalChatInvocation = readDeferredUniversalChatInvocation(
+  studioChatSidebarSource,
+);
+const mainChatPropsStartIndex = codePageSurfacePropsSource.indexOf('const mainChatProps');
+const mainChatPropsEndIndex = codePageSurfacePropsSource.indexOf(
+  'const workspaceProps',
+  mainChatPropsStartIndex,
+);
+const codeMainChatPropsSource = (
+  mainChatPropsStartIndex >= 0 && mainChatPropsEndIndex > mainChatPropsStartIndex
+)
+  ? codePageSurfacePropsSource.slice(mainChatPropsStartIndex, mainChatPropsEndIndex)
+  : '';
 
 assert.match(
   universalChatSource,
@@ -107,6 +134,11 @@ assert.match(
   userMessageRendererSource,
   /environment\.beginEditingMessage\?\.\(message\.id, message\.content\)/,
   'Transcript edit buttons must start UniversalChat edit mode with the actual message content.',
+);
+assert.match(
+  universalChatSource,
+  /beginEditingMessage: !disabled && onEditMessage \? beginEditingMessage : undefined,[\s\S]*onDeleteMessage: disabled \? undefined : onDeleteMessage,[\s\S]*onRegenerateMessage: disabled \? undefined : onRegenerateMessage,[\s\S]*onRestore: disabled \? undefined : onRestore,/u,
+  'Transcript mutation affordances must only exist when the consumer supplies the capability and the chat is enabled.',
 );
 
 assert.match(
@@ -203,6 +235,26 @@ assert.match(
   studioChatSidebarSource,
   /onEditMessage: \(messageId: string, content: string\) => void \| Promise<void>;/,
   'StudioChatSidebar props must forward authoritative edit content into UniversalChat.',
+);
+
+assert.doesNotMatch(
+  codeDeferredUniversalChatInvocation,
+  /on(?:Edit|Delete|Regenerate)Message=/u,
+  'Code must not advertise unsupported mutations for immutable Agent Session Items.',
+);
+assert.ok(
+  codeMainChatPropsSource.length > 0,
+  'The Code main chat props initializer must remain discoverable by this contract.',
+);
+assert.doesNotMatch(
+  codeMainChatPropsSource,
+  /on(?:Edit|Delete|Regenerate)Message/u,
+  'The Code main AI chat must not smuggle unsupported Agent Session Item mutations through spread props.',
+);
+assert.doesNotMatch(
+  studioDeferredUniversalChatInvocation,
+  /on(?:Edit|Delete|Regenerate)Message=/u,
+  'Studio must not advertise unsupported mutations for immutable Agent Session Items.',
 );
 
 console.log('universal chat message edit contract passed.');

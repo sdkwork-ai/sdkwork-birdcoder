@@ -42,6 +42,15 @@ const studioPageSource = readSource(
   'pages',
   'StudioPage.tsx',
 );
+const studioPageSharedSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-studio',
+  'src',
+  'pages',
+  'StudioPage.shared.ts',
+);
 
 assert.ok(
   studioChatSidebarSource.includes('showEngineHeader={false}'),
@@ -108,7 +117,7 @@ assert.ok(
 
 assert.ok(
   studioChatSidebarSource.includes(
-    '<div className="flex items-center gap-2 px-1.5 py-1 text-xs text-gray-300">',
+    '<div className="flex min-w-0 items-center px-1 text-xs text-gray-400">',
   ),
   'Studio chat sidebar should render the code engine as a borderless read-only label.',
 );
@@ -139,14 +148,14 @@ assert.doesNotMatch(
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'className="flex max-w-full items-center gap-2 px-2 py-1.5 -ml-2 rounded-lg hover:bg-white/5 transition-all text-gray-200 font-medium group whitespace-nowrap overflow-hidden"',
+    'className="group -ml-1.5 flex h-8 max-w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-1.5 font-medium text-gray-200 transition-colors hover:bg-white/[0.055]"',
   ),
   'Studio chat sidebar project selector button should enforce a single-row header layout.',
 );
 
 assert.ok(
   studioChatSidebarSource.includes(
-    '<span className="truncate text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">',
+    '<span className="truncate text-sm font-semibold text-gray-200 transition-colors group-hover:text-white">',
   ),
   'Studio chat sidebar project name should truncate instead of wrapping.',
 );
@@ -156,6 +165,72 @@ assert.ok(
     '<div className="flex min-w-0 items-center gap-1.5 overflow-hidden">',
   ),
   'Studio chat sidebar title row should clip overflowing text instead of wrapping to a second line.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /data-studio-chat-header="true"[\s\S]*?className="flex h-11 shrink-0 items-center gap-2 px-3"[\s\S]*?data-studio-session-menu-header="true"/s,
+  'Studio should use compact 44px headers for both the chat surface and the project-session switcher.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /className="flex h-10 shrink-0 items-center justify-between gap-2 px-3"\s*data-studio-projects-header="true"[\s\S]*?className="flex h-10 shrink-0 items-center justify-between gap-2 px-3"\s*data-studio-sessions-header="true"/s,
+  'Studio project and Session panes should use flat 40px tool headers.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /<WorkbenchNewSessionButton[\s\S]*?compact[\s\S]*?variant="studio"/s,
+  'Studio should render the shared new-Session control in compact header mode.',
+);
+
+assert.doesNotMatch(
+  studioChatSidebarSource,
+  /className="flex border-t border-white\/10 bg-\[#0e0e11\]\/80 backdrop-blur-sm"/,
+  'Studio should not restore the old duplicated bottom command bar.',
+);
+
+assert.equal(
+  (studioChatSidebarSource.match(/aria-label=\{t\('studio\.newProject'\)\}/g) ?? []).length,
+  1,
+  'Studio project tools must expose exactly one accessible New Project button.',
+);
+
+assert.doesNotMatch(
+  studioChatSidebarSource,
+  /studio\.openFolder|onOpenFolder/u,
+  'Studio project tools must not retain a second Open Folder creation entry.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /data-studio-projects-header="true"[\s\S]*?onClick=\{\(\) => \{\s*void onCreateProject\(\);\s*\}\}[\s\S]*?<Plus size=\{13\} \/>/s,
+  'The single Studio project add action must invoke the injected creation command.',
+);
+
+assert.ok(
+  studioPageSharedSource.includes(
+    'onRequestProjectCreation: () => Promise<string | undefined>;',
+  ),
+  'StudioPage must depend on a narrow asynchronous project creation command.',
+);
+
+assert.ok(
+  studioPageSource.includes('const createdProjectId = await onRequestProjectCreation();'),
+  'Studio interactive creation flows must wait for the shared dialog result.',
+);
+
+assert.match(
+  studioPageSource,
+  /const activateCreatedProjectSelection = useCallback\(\(createdProjectId: string\) => \{[\s\S]*?setMenuActiveProjectId\(createdProjectId\);[\s\S]*?setSessionId\(''\);[\s\S]*?setSelectedSessionProjectId\(createdProjectId\);/s,
+  'Studio must replace the old Session selection after the shell creates and selects a project.',
+);
+
+assert.doesNotMatch(
+  studioPageSource,
+  /selectFolderAndImportProject|importSelectedProjectDirectory/u,
+  'Studio new-project flows must not own a parallel directory import implementation.',
 );
 
 assert.match(

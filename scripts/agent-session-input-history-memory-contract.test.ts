@@ -97,6 +97,34 @@ try {
     'chat input recall must apply its presentation limit without changing domain persistence.',
   );
 
+  await saveSessionPromptHistoryEntry('x'.repeat(16_385), 'oversized-session');
+  assert.deepEqual(
+    await listSessionPromptHistory('oversized-session'),
+    [],
+    'presentation recall must not retain one entry above its bounded memory contract.',
+  );
+
+  resetChatPresentationMemoryForTests();
+  for (let sessionIndex = 0; sessionIndex < 17; sessionIndex += 1) {
+    for (let entryIndex = 0; entryIndex < 16; entryIndex += 1) {
+      const entryPrefix = `session-${sessionIndex}-entry-${entryIndex}-`;
+      await saveSessionPromptHistoryEntry(
+        entryPrefix.padEnd(16_000, 'x'),
+        `bounded-session-${sessionIndex}`,
+      );
+    }
+  }
+  assert.deepEqual(
+    await listSessionPromptHistory('bounded-session-0'),
+    [],
+    'presentation recall must evict the oldest Session scope when the global character budget is reached.',
+  );
+  assert.equal(
+    (await listSessionPromptHistory('bounded-session-16')).length,
+    16,
+    'global memory pruning must preserve the newest Session recall scope.',
+  );
+
   resetChatPresentationMemoryForTests();
   assert.deepEqual(
     await listSessionPromptHistory('session-a'),

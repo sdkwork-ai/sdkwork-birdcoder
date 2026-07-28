@@ -53,6 +53,12 @@ assert.match(
 );
 
 assert.match(
+  agentSessionCreationSource,
+  /MAX_WORKBENCH_TURN_CONTEXT_FILE_CONTENT_CHARACTERS = 65_536[\s\S]*content: normalizedCurrentFileContent\.slice\([\s\S]*contentTruncated: true/u,
+  'Workbench turn context must bound retained current-file snapshots and disclose truncation.',
+);
+
+assert.match(
   `${codePageSource}\n${studioPageSource}`,
   /buildWorkbenchAgentSessionTurnContext\(/,
   'CodePage and StudioPage must reuse buildWorkbenchAgentSessionTurnContext instead of rebuilding turn context objects inline.',

@@ -44,6 +44,7 @@ interface AppMainBodyProps {
   runtimeLocationId?: string;
   onActiveTabChange: (tab: AppTab) => void;
   onRequireAuth: (targetTab: AppTab) => void;
+  onRequestProjectCreation: () => Promise<string | undefined>;
   onProjectChange: (projectId: string) => void;
   onAgentSessionChange: (agentSessionId: string, projectId?: string) => void;
 }
@@ -81,6 +82,7 @@ export const AppMainBody = React.memo(function AppMainBody({
   runtimeLocationId,
   onActiveTabChange,
   onRequireAuth,
+  onRequestProjectCreation,
   onProjectChange,
   onAgentSessionChange,
 }: AppMainBodyProps) {
@@ -158,6 +160,7 @@ export const AppMainBody = React.memo(function AppMainBody({
                   workspaceId={workspaceId}
                   projectId={projectId}
                   initialAgentSessionId={agentSessionId}
+                  onRequestProjectCreation={onRequestProjectCreation}
                   onProjectChange={onProjectChange}
                   onAgentSessionChange={onAgentSessionChange}
                 />
@@ -175,6 +178,7 @@ export const AppMainBody = React.memo(function AppMainBody({
                   workspaceId={workspaceId}
                   projectId={projectId}
                   initialAgentSessionId={agentSessionId}
+                  onRequestProjectCreation={onRequestProjectCreation}
                   onProjectChange={onProjectChange}
                   onAgentSessionChange={onAgentSessionChange}
                 />

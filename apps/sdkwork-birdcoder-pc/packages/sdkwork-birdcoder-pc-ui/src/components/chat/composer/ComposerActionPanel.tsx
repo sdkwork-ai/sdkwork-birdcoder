@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -176,6 +176,31 @@ export function ComposerActionPanel({
 }: ComposerActionPanelProps) {
   const { t } = useTranslation();
 
+  useEffect(() => {
+    const previouslyFocusedElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    let shouldRestoreFocus = false;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      shouldRestoreFocus = true;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      if (shouldRestoreFocus && previouslyFocusedElement?.isConnected) {
+        window.requestAnimationFrame(() => previouslyFocusedElement.focus());
+      }
+    };
+  }, [onClose]);
+
   return (
     <div
       aria-label={t('chat.composerActions')}
@@ -183,12 +208,6 @@ export function ComposerActionPanel({
       data-composer-action-panel="true"
       data-testid="composer-action-panel"
       id="composer-action-panel"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation();
-          onClose();
-        }
-      }}
       role="menu"
     >
       <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">

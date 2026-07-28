@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  MAX_FILE_CHANGE_TEXT_CHARACTERS,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/file-change.ts';
 
 const restoreModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/fileChangeRestore.ts',
@@ -20,8 +24,13 @@ const turnFileChangesCardPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/TurnFileChangesCard.tsx',
   import.meta.url,
 );
+const diffViewerPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileChangeDiffViewer.tsx',
+  import.meta.url,
+);
 
 const restoreModule = await import(`${restoreModulePath.href}?t=${Date.now()}`);
+const diffViewerModule = await import(`${diffViewerPath.href}?t=${Date.now()}`);
 const codePageSource = await import('node:fs/promises').then((fs) => fs.readFile(codePagePath, 'utf8'));
 const studioPageSource = await import('node:fs/promises').then((fs) => fs.readFile(studioPagePath, 'utf8'));
 const universalChatSource = await import('node:fs/promises').then((fs) => fs.readFile(universalChatPath, 'utf8'));
@@ -34,6 +43,7 @@ const {
   hasRestorableFileChanges,
   reverseUnifiedFileChangeDiff,
 } = restoreModule;
+const { readBoundedUnifiedDiffLines } = diffViewerModule;
 
 const safeRestorePlan = buildFileChangeRestorePlan([
   {
@@ -101,6 +111,47 @@ assert.equal(
   reverseUnifiedFileChangeDiff('content no longer matches\n', reversePatchDiff),
   null,
   'reverse patch restore must reject stale file content instead of overwriting it.',
+);
+
+const oversizedFileChangeText = 'x'.repeat(MAX_FILE_CHANGE_TEXT_CHARACTERS + 1);
+assert.deepEqual(
+  buildFileChangeRestorePlan([{
+    path: 'src/oversized.ts',
+    additions: 0,
+    deletions: 0,
+    originalContent: oversizedFileChangeText,
+  }]),
+  { fileChanges: [], operations: [], restorable: false },
+  'Restore planning must reject oversized snapshots before cloning or parsing them.',
+);
+assert.equal(
+  reverseUnifiedFileChangeDiff(oversizedFileChangeText, reversePatchDiff),
+  null,
+  'Reverse patch restore must not normalize and split an oversized current file in memory.',
+);
+assert.equal(
+  buildFileChangeRestorePlan(Array.from(
+    { length: MAX_AGENT_SESSION_FILE_CHANGES + 1 },
+    (_, index) => ({
+      path: `src/file-${index}.ts`,
+      additions: 0,
+      deletions: 0,
+      originalContent: '',
+    }),
+  )).restorable,
+  false,
+  'Restore planning must reject unbounded file-change collections.',
+);
+
+const denseDiffPreview = readBoundedUnifiedDiffLines(
+  Array.from({ length: 20_001 }, () => '+').join('\n'),
+);
+assert.equal(denseDiffPreview.lines.length, 20_000);
+assert.equal(denseDiffPreview.truncated, true);
+assert.deepEqual(
+  readBoundedUnifiedDiffLines(oversizedFileChangeText),
+  { lines: [], truncated: true },
+  'The full diff view must refuse oversized text before allocating per-line React elements.',
 );
 
 assert.match(

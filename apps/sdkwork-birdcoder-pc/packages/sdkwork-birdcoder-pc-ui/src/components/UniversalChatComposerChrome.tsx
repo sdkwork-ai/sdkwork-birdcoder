@@ -18,7 +18,7 @@ export const UniversalChatComposerChrome = memo(function UniversalChatComposerCh
   onResize,
 }: UniversalChatComposerChromeProps) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} data-chat-composer-chrome="true">
       {onResize ? (
         <div
           className="group/composer-resize absolute inset-x-4 top-0 z-20 h-3 -translate-y-1/2"

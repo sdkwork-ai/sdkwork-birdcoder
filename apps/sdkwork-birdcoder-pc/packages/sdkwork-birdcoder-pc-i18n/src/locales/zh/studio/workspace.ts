@@ -3,6 +3,8 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('studio/workspace', {
   studio: {
     searchProjects: '\u641c\u7d22\u9879\u76ee\u6216\u4f1a\u8bdd...',
+    projectSessionSwitcher: '\u9879\u76ee\u4e0e\u4f1a\u8bdd',
+    closeProjectSessionSwitcher: '\u5173\u95ed\u9879\u76ee\u4e0e\u4f1a\u8bdd',
     projects: '\u9879\u76ee',
     noProjectsFound: '\u672a\u627e\u5230\u9879\u76ee',
     loadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee',
@@ -11,6 +13,7 @@ export default defineLocaleModule('studio/workspace', {
     sessions: '\u4f1a\u8bdd',
     newProject: '\u65b0\u5efa\u9879\u76ee',
     newSession: '\u65b0\u5efa\u4f1a\u8bdd',
+    newSessionOptions: '\u65b0\u5efa\u4f1a\u8bdd\u9009\u9879',
     openFolder: '\u6253\u5f00\u6587\u4ef6\u5939',
     new: '\u65b0\u5efa',
     open: '\u6253\u5f00',

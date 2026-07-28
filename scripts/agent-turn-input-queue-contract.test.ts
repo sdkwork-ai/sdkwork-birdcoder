@@ -3,21 +3,38 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import {
+  clearWorkbenchAgentTurnInputQueueMemory,
   clearWorkbenchQueuedAgentTurnInputs,
   canFlushWorkbenchQueuedAgentTurnInputs,
   createWorkbenchAgentTurnInputQueueFlushGateState,
   dequeueWorkbenchQueuedAgentTurnInput,
   enqueueWorkbenchQueuedAgentTurnInput,
   markWorkbenchQueuedAgentTurnDispatchStarted,
+  MAX_QUEUED_AGENT_TURN_INPUT_SCOPES,
+  MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE,
   observeWorkbenchQueuedAgentTurnBusyState,
   peekWorkbenchQueuedAgentTurnInputs,
   restoreWorkbenchQueuedAgentTurnInputsToFront,
   settleWorkbenchQueuedAgentTurnDispatch,
   setWorkbenchQueuedAgentTurnInputs,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts';
+import {
+  clearWorkbenchChatInputDraftMemory,
+  MAX_AGENT_TURN_INPUT_CHARACTERS,
+  peekWorkbenchChatInputDraft,
+  setWorkbenchChatInputDraft,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/draftStore.ts';
 
 const universalChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
+  'utf8',
+);
+const pendingInteractionsSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx'),
+  'utf8',
+);
+const authContextSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts'),
   'utf8',
 );
 
@@ -197,6 +214,18 @@ enqueueWorkbenchQueuedAgentTurnInput(
   {
     attachmentContent: ' \n\n[DRIVE_MEDIA:{"id":"design"}]\n ',
     attachmentNames: [' design.png ', 'notes.txt', 'design.png'],
+    driveRefs: [
+      {
+        driveNodeId: ' drive-node-design ',
+        driveSpaceId: ' drive-space-design ',
+        resourceRole: 'image',
+      },
+      {
+        driveNodeId: 'drive-node-design',
+        driveSpaceId: 'drive-space-design',
+        resourceRole: 'image',
+      },
+    ],
     displayText: ' Review this ',
   },
 );
@@ -211,6 +240,11 @@ assert.deepEqual(
     composerSelection: { engineId: 'codex', modelId: 'gpt-5' },
     attachmentContent: '[DRIVE_MEDIA:{"id":"design"}]',
     attachmentNames: ['design.png', 'notes.txt'],
+    driveRefs: [{
+      driveNodeId: 'drive-node-design',
+      driveSpaceId: 'drive-space-design',
+      resourceRole: 'image',
+    }],
     displayText: 'Review this',
   },
   'queued attachment turns must preserve a clean display value separately from their full submission payload.',
@@ -223,6 +257,159 @@ assert.deepEqual(
   peekWorkbenchQueuedAgentTurnInputs('project-a/session-attachments')[0],
   queuedAttachmentTurnInput,
   'attachment presentation and payload metadata must survive dequeue and failed-dispatch restoration.',
+);
+
+clearWorkbenchQueuedAgentTurnInputs('project-a/session-drive-refs');
+enqueueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-drive-refs',
+  'Review the uploaded design',
+  undefined,
+  {
+    driveRefs: [
+      {
+        driveNodeId: ' node-design ',
+        driveSpaceId: ' space-project ',
+        resourceRole: 'image',
+      },
+      {
+        driveNodeId: 'node-design',
+        driveSpaceId: 'space-project',
+        resourceRole: 'image',
+      },
+    ],
+  },
+);
+assert.deepEqual(
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-drive-refs')[0]?.driveRefs,
+  [{
+    driveNodeId: 'node-design',
+    driveSpaceId: 'space-project',
+    resourceRole: 'image',
+  }],
+  'queued attachment submission must preserve normalized, deduplicated Drive references.',
+);
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-too-many-drive-refs',
+    'Review many files',
+    undefined,
+    {
+      driveRefs: Array.from({ length: 65 }, (_, index) => ({
+        driveNodeId: `node-${index}`,
+        driveSpaceId: 'space-project',
+        resourceRole: 'attachment' as const,
+      })),
+    },
+  ),
+  /at most 64 Drive references/u,
+  'queued attachment submission must enforce the authoritative Drive reference count.',
+);
+
+clearWorkbenchAgentTurnInputQueueMemory();
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-oversized',
+    'x'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS + 1),
+  ),
+  /1048576 characters or fewer/u,
+  'a queued turn must reject payloads above the authoritative Agent Turn limit.',
+);
+
+for (let index = 0; index < MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE; index += 1) {
+  enqueueWorkbenchQueuedAgentTurnInput('project-a/session-count-bound', `message-${index}`);
+}
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-count-bound',
+    'one-too-many',
+  ),
+  /at most 32 messages/u,
+  'a session queue must reject entries beyond its bounded FIFO capacity.',
+);
+
+clearWorkbenchAgentTurnInputQueueMemory();
+const maximumQueuedTurnText = 'x'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS);
+for (let index = 0; index < 4; index += 1) {
+  enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-content-bound',
+    maximumQueuedTurnText,
+  );
+}
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-content-bound',
+    'exceeds-retained-budget',
+  ),
+  /in-memory content budget/u,
+  'a session queue must account for all retained payload text instead of only its item count.',
+);
+
+clearWorkbenchAgentTurnInputQueueMemory();
+for (let scopeIndex = 0; scopeIndex < 4; scopeIndex += 1) {
+  for (let inputIndex = 0; inputIndex < 4; inputIndex += 1) {
+    enqueueWorkbenchQueuedAgentTurnInput(
+      `project-a/session-global-content-${scopeIndex}`,
+      maximumQueuedTurnText,
+    );
+  }
+}
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    'project-a/session-global-content-overflow',
+    'exceeds-global-budget',
+  ),
+  /global in-memory content budget/u,
+  'queued messages must enforce a global retained-character budget across session scopes.',
+);
+
+clearWorkbenchAgentTurnInputQueueMemory();
+for (let index = 0; index < MAX_QUEUED_AGENT_TURN_INPUT_SCOPES; index += 1) {
+  enqueueWorkbenchQueuedAgentTurnInput(`project-a/session-scope-${index}`, 'queued');
+}
+assert.throws(
+  () => enqueueWorkbenchQueuedAgentTurnInput(
+    `project-a/session-scope-${MAX_QUEUED_AGENT_TURN_INPUT_SCOPES}`,
+    'one-scope-too-many',
+  ),
+  /at most 32 session scopes/u,
+  'queued messages must not accumulate across an unbounded number of abandoned sessions.',
+);
+
+clearWorkbenchAgentTurnInputQueueMemory();
+assert.deepEqual(
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-scope-0'),
+  [],
+  'global queue clearing must release every authenticated session scope.',
+);
+enqueueWorkbenchQueuedAgentTurnInput('project-a/session-after-clear', 'usable');
+assert.deepEqual(
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-after-clear').map((input) => input.text),
+  ['usable'],
+  'queue storage must remain usable after an authenticated-memory clear.',
+);
+
+clearWorkbenchChatInputDraftMemory();
+for (let index = 0; index < 5; index += 1) {
+  setWorkbenchChatInputDraft(
+    `project-a/draft-session-${index}`,
+    `${index}${'d'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS - 1)}`,
+  );
+}
+assert.equal(
+  peekWorkbenchChatInputDraft('project-a/draft-session-0'),
+  '',
+  'draft memory must evict the oldest inactive scope when its global character budget is reached.',
+);
+assert.equal(
+  peekWorkbenchChatInputDraft('project-a/draft-session-4').length,
+  MAX_AGENT_TURN_INPUT_CHARACTERS,
+  'draft memory pruning must preserve the newest active-session candidate.',
+);
+clearWorkbenchChatInputDraftMemory();
+assert.equal(
+  peekWorkbenchChatInputDraft('project-a/draft-session-4'),
+  '',
+  'authenticated-memory clearing must release every retained draft.',
 );
 
 let flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
@@ -455,6 +642,52 @@ assert.match(
   universalChatSource,
   /catch \(error\) \{[\s\S]*restoreQueuedTurnInputsToFront\(\[submittedAgentTurnInput\]\);[\s\S]*t\('chat\.sendMessageFailed'\)/,
   'Queued auto-flush failure recovery must restore the dispatched queued turn input to the front of the queue.',
+);
+
+assert.match(
+  universalChatSource,
+  /maxLength=\{hasPendingUserQuestionReplyTarget[\s\S]*MAX_AGENT_INTERACTION_ANSWER_CHARACTERS[\s\S]*MAX_AGENT_TURN_INPUT_CHARACTERS\}/u,
+  'the shared composer must apply the narrower Interaction answer limit while replying to a question.',
+);
+assert.match(
+  universalChatHandleSendSource,
+  /currentSubmission\.length > MAX_AGENT_TURN_INPUT_CHARACTERS[\s\S]*chat\.messageTooLong/u,
+  'the composer must reject combined text and attachment payloads above the Agent Turn limit.',
+);
+assert.match(
+  universalChatHandleSendSource,
+  /try \{[\s\S]*enqueueQueuedTurnInput\([\s\S]*catch \(error\)[\s\S]*chat\.messageQueueFull/u,
+  'queue memory-budget failures must become visible feedback instead of unhandled event errors.',
+);
+assert.match(
+  universalChatHandleSendSource,
+  /driveRefs = readyAttachments\.flatMap[\s\S]*driveRefs\.length > 0 \? \{ driveRefs \} : undefined/u,
+  'direct attachment turns must submit canonical Drive references separately from display content.',
+);
+assert.match(
+  universalChatSource,
+  /submittedAgentTurnInput\.driveRefs\?\.length[\s\S]*\{ driveRefs: submittedAgentTurnInput\.driveRefs \}/u,
+  'queued attachment turns must retain their Drive references through deferred dispatch.',
+);
+assert.match(
+  pendingInteractionsSource,
+  /maxLength=\{MAX_AGENT_INTERACTION_ANSWER_CHARACTERS\}/u,
+  'pending Interaction answer drafts must be bounded in component state.',
+);
+assert.match(
+  pendingInteractionsSource,
+  /maxLength=\{MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS\}/u,
+  'pending approval reason drafts must be bounded in component state.',
+);
+assert.match(
+  authContextSource,
+  /function clearAuthenticatedConversationMemory\(\): void \{[\s\S]*clearWorkbenchAgentTurnInputQueueMemory\(\);[\s\S]*clearWorkbenchChatInputDraftMemory\(\);[\s\S]*clearChatPresentationMemory\(\);[\s\S]*\}/u,
+  'authenticated conversation queues, drafts, and recall must share one local-memory cleanup boundary.',
+);
+assert.match(
+  authContextSource,
+  /const logout = useCallback\(async \(\) => \{[\s\S]*try \{[\s\S]*await authService\.logout\(\);[\s\S]*\} finally \{[\s\S]*clearAuthenticatedConversationMemory\(\);/u,
+  'logout must clear user-scoped conversation memory even when the remote logout request fails.',
 );
 
 console.log('agent turn input queue contract passed.');

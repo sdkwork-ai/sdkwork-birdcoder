@@ -33,6 +33,7 @@ export interface ChatMessageEnvironment {
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
   onOpenDriveAttachment?: (nodeId: string, title: string) => void;
+  resolveDriveAttachmentPreviewUrl?: (nodeId: string) => Promise<string | undefined>;
   onOpenFile?: (path: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (messageId: string, fileChanges?: readonly FileChange[]) => void;

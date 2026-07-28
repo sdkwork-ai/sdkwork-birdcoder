@@ -67,13 +67,13 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const activeRequestKeyRef = useRef\(''\);[\s\S]*if \(!isActive \|\| !normalizedSessionId \|\| activeRequestKeyRef\.current === requestKey\) \{[\s\S]*activeRequestKeyRef\.current = requestKey;/,
+  /const activeRequestKeyRef = useRef<string \| null>\(null\);[\s\S]*if \(!isActive \|\| !normalizedSessionId \|\| activeRequestKeyRef\.current === requestKey\) \{[\s\S]*activeRequestKeyRef\.current = requestKey;/,
   'useSelectedAgentSessionItems must expose one loading lifecycle per active request key and suppress duplicate refreshes.',
 );
 
 assert.match(
   hookSource,
-  /let disposed = false;\s*const controller = new AbortController\(\);\s*setIsLoading\(true\);[\s\S]*signal: controller\.signal,[\s\S]*\.finally\(\(\) => \{\s*if \(!disposed\) \{\s*setIsLoading\(false\);\s*\}\s*\}\);[\s\S]*return \(\) => \{\s*disposed = true;\s*controller\.abort\([\s\S]*\);\s*\};/,
+  /if \(!isActive \|\| !normalizedSessionId\) \{\s*setIsLoading\(false\);[\s\S]*let disposed = false;[\s\S]*const controller = new AbortController\(\);[\s\S]*setIsLoading\(true\);[\s\S]*signal: controller\.signal,[\s\S]*\.finally\(\(\) => \{[\s\S]*setIsLoading\(false\);[\s\S]*return \(\) => \{\s*disposed = true;[\s\S]*controller\.abort\([\s\S]*\);\s*\};/,
   'useSelectedAgentSessionItems must set loading before authority refresh, pass an abort signal, clear active loading when the request settles, and cancel stale requests.',
 );
 
@@ -89,10 +89,10 @@ assert.match(
   'useSelectedAgentSessionItems must return the selected session hydration state.',
 );
 
-assert.match(
+assert.doesNotMatch(
   hookSource,
-  /selectedAgentSession\?\.items\.length \?\? 0,[\s\S]*selectedAgentSession\?\.items\.length,/,
-  'useSelectedAgentSessionItems refresh identity must observe canonical Agent Session Items rather than a parallel message collection.',
+  /const requestKey = useMemo\([\s\S]*selectedAgentSession\?\.items\.length[\s\S]*\);/,
+  'loading older canonical Session Items must not create a second latest-page loading lifecycle.',
 );
 
 assert.match(

@@ -73,6 +73,7 @@ export { DeferredUniversalChat } from './components/DeferredUniversalChat';
 export type {
   ChatSkill,
   UniversalChatComposerSelection,
+  UniversalChatComposerSubmission,
   UniversalChatProps,
 } from './components/UniversalChat';
 

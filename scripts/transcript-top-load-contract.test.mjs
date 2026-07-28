@@ -105,8 +105,8 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /remoteHistory\?\.hasMoreMessages,[\s\S]*remoteHistory\?\.isLoadingMessages,[\s\S]*remoteTopLoadRearmVersion,/s,
-  'Progressive transcript pagination must recheck the top threshold when the parent loading gate becomes idle after a user rearm request.',
+  /!pendingTopLoadAfterRemoteRequestRef\.current[\s\S]*pendingTopLoadAfterRemoteRequestRef\.current = false;[\s\S]*setRemoteTopLoadRearmVersion\(\(version\) => version \+ 1\);[\s\S]*remoteHistory\?\.isLoadingMessages,\s*transcriptIdentity/s,
+  'Progressive transcript pagination must recheck the top threshold only when an explicit pending intent survives until both remote loading gates become idle.',
 );
 
 assert.match(

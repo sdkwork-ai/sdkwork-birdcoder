@@ -14,8 +14,13 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const project =[\s\S]*?await projectService\.getProjectById\(result\.projectId\);\s*if \(disposed\) \{\s*return;\s*\}[\s\S]*?peekProjectsStore\(storeScopeKey\)[\s\S]*?mergeRefreshedAgentSessionIntoCurrent\(currentAgentSession, result\.agentSession\)[\s\S]*?upsertAgentSessionIntoProjectsStore\(/s,
+  /const project =[\s\S]*?await projectService\.getProjectById\(result\.projectId\);\s*if \(disposed\) \{\s*return;\s*\}[\s\S]*?peekProjectsStore\(storeScopeKey\)[\s\S]*?mergeRefreshedAgentSessionIntoCurrent\(\s*currentAgentSession,\s*result\.agentSession,[\s\S]*?\)[\s\S]*?upsertAgentSessionIntoProjectsStore\(/s,
   'Selected-session hydration must re-check disposal after awaiting project resolution so stale async completions cannot write an abandoned session back into the projects store.',
+);
+assert.match(
+  hookSource,
+  /itemMergeMode: result\.replaceLoadedAuthorityWindow\s*\? 'authority-window-reset'\s*: 'latest'/s,
+  'A disconnected latest window must reach the Store as an authority reset instead of a union merge.',
 );
 
 assert.doesNotMatch(

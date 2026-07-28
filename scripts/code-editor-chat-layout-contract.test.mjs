@@ -171,6 +171,12 @@ assert.match(
 
 assert.match(
   codeEditorChatLayoutSource,
+  /export const CODE_EDITOR_MIN_READABLE_CHAT_WIDTH = 320;/,
+  'Full-diff layout must preserve a readable lower bound for the adjacent conversation.',
+);
+
+assert.match(
+  codeEditorChatLayoutSource,
   /export function resolveCodeEditorResponsiveChatWidth\(/,
   'Editor-mode chat layout must define a reusable responsive width resolver.',
 );
@@ -185,6 +191,18 @@ assert.match(
   codeEditorChatLayoutSource,
   /return Math\.min\(normalizedRequestedWidth, Math\.min\(MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH, availableChatWidth\)\);/,
   'Editor-mode chat layout must shrink the chat column before it can exceed the workspace width.',
+);
+
+assert.match(
+  codeEditorChatLayoutSource,
+  /export function resolveCodeEditorDiffResponsiveLayout\([\s\S]*mode: 'diff-focused'[\s\S]*showFileExplorer: false/,
+  'Full-diff layout must collapse the explorer before allowing the conversation to become unreadable.',
+);
+
+assert.match(
+  codeEditorChatLayoutSource,
+  /if \(safeChatWidth === 0\) \{[\s\S]*mode: 'diff-only'[\s\S]*showChatPanel: false[\s\S]*showFileExplorer: false/,
+  'Full-diff layout must dedicate a critically narrow workspace to the diff while retaining a reversible close path.',
 );
 
 assert.match(
@@ -255,7 +273,7 @@ assert.match(
 
 assert.match(
   codePageSurfaceSource,
-  /<div ref=\{editorWorkspaceHostRef\} className="flex-1 min-h-0 flex flex-col overflow-hidden">/,
+  /<div ref=\{editorWorkspaceHostRef\} className="relative flex-1 min-h-0 flex flex-col overflow-hidden">/,
   'CodePageSurface must attach a measured host container around the editor workspace.',
 );
 
@@ -279,8 +297,20 @@ assert.match(
 
 assert.match(
   editorWorkspacePanelSource,
-  /<div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-\[#0e0e11\]" style=\{\{ width: chatWidth \}\}>/,
-  'CodeEditorWorkspacePanel must clamp the sidebar chat container within the available workspace width.',
+  /data-code-editor-diff-layout=\{diffLayout\.mode\}/,
+  'CodeEditorWorkspacePanel must expose the resolved full-diff layout mode for stable verification.',
+);
+
+assert.match(
+  editorWorkspacePanelSource,
+  /data-code-editor-file-explorer-panel="true"[\s\S]*isActive=\{isActive && diffLayout\.showFileExplorer\}/,
+  'CodeEditorWorkspacePanel must pause explorer work while the full diff owns a constrained workspace.',
+);
+
+assert.match(
+  editorWorkspacePanelSource,
+  /data-code-editor-chat-panel="true"[\s\S]*style=\{\{ width: diffLayout\.chatWidth \}\}/,
+  'CodeEditorWorkspacePanel must apply the resolved readable chat width instead of the constrained raw width.',
 );
 
 assert.match(

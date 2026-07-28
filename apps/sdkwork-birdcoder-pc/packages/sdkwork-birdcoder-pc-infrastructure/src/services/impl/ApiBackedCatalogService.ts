@@ -137,7 +137,9 @@ export class ApiBackedCatalogService implements ICatalogService {
     agentId,
     page,
     pageSize,
+    signal,
   }: ComposerProviderCapabilitiesOptions): Promise<ComposerProviderCapabilities> {
+    signal?.throwIfAborted();
     const normalizedAgentId = agentId.trim();
     if (!normalizedAgentId) {
       return { plugins: [], skills: [], errors: [] };
@@ -149,17 +151,18 @@ export class ApiBackedCatalogService implements ICatalogService {
       this.agentsClient.ai.agents.mcpServers.list({
         page: boundedPage,
         pageSize: boundedPageSize,
-      }),
+      }, { signal }),
       this.agentsClient.ai.agents.compositionSlots.list(normalizedAgentId, {
         page: boundedPage,
         pageSize: boundedPageSize,
-      }),
+      }, { signal }),
       this.skillsClient.skills.skillPackages.list({
         page: boundedPage,
         pageSize: boundedPageSize,
-      }),
+      }, { signal }),
       this.localPluginRuntime.discover(resolveLocalPluginProviderId(normalizedAgentId)),
     ]);
+    signal?.throwIfAborted();
     const errors = [] as ComposerProviderCapabilities['errors'];
     const mcpPage = mcpResult.status === 'fulfilled' ? mcpResult.value : null;
     const slotPage = slotResult.status === 'fulfilled' ? slotResult.value : null;

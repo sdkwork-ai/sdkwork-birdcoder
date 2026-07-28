@@ -427,11 +427,16 @@ test('Codex user input preserves text, images, and files in one message', async 
   });
   await expect(codexUserText).toHaveCount(1);
   await expect(codexUserText).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit message', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete message', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Regenerate response', exact: true })).toHaveCount(0);
   await expect(codexUserImage).toHaveCount(1);
   await expect(codexUserImage).toBeVisible();
   await expect(codexUserFile).toHaveCount(1);
   await expect(codexUserFile).toBeVisible();
   await expect(transcript.getByText('"type":"input_image"', { exact: false })).toHaveCount(0);
+  await expect(transcript.getByText('Files mentioned by the user', { exact: false })).toHaveCount(0);
+  await expect(transcript.getByText('<image', { exact: false })).toHaveCount(0);
   await expect.poll(() => codexUserImage.locator('img').evaluate((image) => (
     image instanceof HTMLImageElement ? image.naturalWidth : 0
   ))).toBeGreaterThan(0);
@@ -448,10 +453,44 @@ test('Codex user input preserves text, images, and files in one message', async 
   await codexUserImage.click();
   const codexImagePreview = page.locator('[data-chat-image-preview-dialog="true"]');
   await expect(codexImagePreview).toBeVisible();
-  await expect(codexImagePreview.getByRole('img', { name: 'Image' })).toBeVisible();
+  await expect(codexImagePreview.getByRole('img', { name: 'codex-screenshot.png' })).toBeVisible();
   await codexImagePreview.getByRole('button', { name: 'Close image preview' }).click();
   await expect(codexImagePreview).toHaveCount(0);
   await captureVisualEvidenceScreenshot(page, 'message-presentation-codex-input-900x800');
+
+  const composerChrome = page.locator('[data-chat-composer-chrome="true"]').filter({
+    has: page.locator('[data-composer-engine="codex"]'),
+  });
+  const addAttachmentButton = composerChrome.locator('button[aria-haspopup="menu"]');
+  await expect(composerChrome).toBeVisible();
+  await expect(addAttachmentButton).toBeVisible();
+  await addAttachmentButton.click();
+  const composerActionPanel = page.locator('[data-composer-action-panel="true"]');
+  await expect(composerActionPanel).toBeVisible();
+  const composerGeometry = await composerChrome.evaluate((composer) => {
+    const panel = document.querySelector<HTMLElement>('[data-composer-action-panel="true"]');
+    if (!panel) {
+      return null;
+    }
+    const composerRect = composer.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      composerLeft: composerRect.left,
+      composerTop: composerRect.top,
+      composerWidth: composerRect.width,
+      panelBottom: panelRect.bottom,
+      panelLeft: panelRect.left,
+      panelWidth: panelRect.width,
+    };
+  });
+  expect(composerGeometry).not.toBeNull();
+  expect(Math.abs(composerGeometry!.panelLeft - composerGeometry!.composerLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(composerGeometry!.panelWidth - composerGeometry!.composerWidth)).toBeLessThanOrEqual(1);
+  expect(composerGeometry!.panelBottom).toBeLessThanOrEqual(composerGeometry!.composerTop);
+  await captureVisualEvidenceScreenshot(page, 'composer-action-panel-codex-900x800');
+  await page.keyboard.press('Escape');
+  await expect(composerActionPanel).toHaveCount(0);
+  await expect(addAttachmentButton).toBeFocused();
 
   expect(pageErrors).toEqual([]);
   expect(consoleErrors.filter((entry) => (
@@ -568,6 +607,33 @@ test('Provider lifecycle protocols share one structured expandable presentation'
       messageSurface?.getAttribute('data-chat-engine-protocol'),
     ];
   })).toEqual(['codex', 'codex.item']);
+
+  await codexFileCard.getByRole('button', { name: 'Open full diff: src/index.ts' }).click();
+  const editorWorkspace = page.locator('[data-code-editor-workspace="true"]');
+  const fullDiff = page.getByRole('region', { name: 'File changes: src/index.ts' });
+  const editorChatPanel = page.locator('[data-code-editor-chat-panel="true"]');
+  await expect(fullDiff).toBeVisible();
+  await expect(editorWorkspace).toHaveAttribute('data-code-editor-diff-layout', 'diff-focused');
+  await expect(page.locator('[data-code-editor-file-explorer-panel="true"]')).toBeHidden();
+  await expect(editorChatPanel).toBeVisible();
+  await expect.poll(async () => {
+    const [diffBox, chatBox] = await Promise.all([
+      fullDiff.boundingBox(),
+      editorChatPanel.boundingBox(),
+    ]);
+    return {
+      chatIsReadable: (chatBox?.width ?? 0) >= 320,
+      diffIsReadable: (diffBox?.width ?? 0) >= 360,
+      viewportOverflow: await page.evaluate(() => (
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )),
+    };
+  }).toEqual({ chatIsReadable: true, diffIsReadable: true, viewportOverflow: 0 });
+  await captureVisualEvidenceScreenshot(page, 'message-file-diff-codex-1200x820');
+  await page.getByRole('button', { name: 'Close file changes', exact: true }).click();
+  await expect(fullDiff).toHaveCount(0);
+  await page.getByRole('button', { name: 'AI Mode', exact: true }).click();
+  await expect(transcript).toBeVisible();
 
   await selectSessionByTitle(page, 'Gemini failure triage');
   const geminiBlocked = transcript.locator('[data-chat-lifecycle-event="blocked"]');

@@ -86,6 +86,7 @@ import {
 import { AppShellDialogs } from './AppShellDialogs.tsx';
 import { AppWorkspaceProjectPopover } from './AppWorkspaceProjectPopover.tsx';
 import { CreateProjectDialog } from './CreateProjectDialog.tsx';
+import { CreateWorkspaceDialog } from './CreateWorkspaceDialog.tsx';
 import {
   performNativeWindowControlAction,
   useNativeWindowControlsBridge,
@@ -105,6 +106,10 @@ import {
   type DesktopWindowHandle,
 } from './workbenchRecoveryPersistence.ts';
 
+interface PendingProjectCreationRequest {
+  promise: Promise<string | undefined>;
+  resolve: (projectId: string | undefined) => void;
+}
 
 export function AppContent() {
   const { t } = useTranslation();
@@ -264,11 +269,13 @@ export function AppContent() {
   const [renameProjectValue, setRenameProjectValue] = useState('');
   const [projectToRemove, setProjectToRemove] = useState<string | null>(null);
   const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
+  const [isWorkspaceCreationPending, setIsWorkspaceCreationPending] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [renamingWorkspaceId, setRenamingWorkspaceId] = useState<string | null>(null);
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
   const [workspaceActionsMenuId, setWorkspaceActionsMenuId] = useState<string | null>(null);
+  const pendingProjectCreationRequestRef = useRef<PendingProjectCreationRequest | null>(null);
   const [projectMountRecoveryNotice, setProjectMountRecoveryNotice] =
     useState<ProjectMountRecoveryEventPayload | null>(null);
   const [projectMountRecoveryStartedAt, setProjectMountRecoveryStartedAt] = useState<number | null>(
@@ -348,17 +355,37 @@ export function AppContent() {
     setRenamingProjectId(null);
     setRenameProjectValue('');
     setProjectActionsMenuId(null);
-    setIsCreatingWorkspace(false);
-    setNewWorkspaceName('');
     setRenamingWorkspaceId(null);
     setWorkspaceRenameValue('');
     setWorkspaceActionsMenuId(null);
+  }, []);
+
+  const settleProjectCreationRequest = useCallback((projectId?: string) => {
+    const pendingRequest = pendingProjectCreationRequestRef.current;
+    if (!pendingRequest) {
+      return;
+    }
+
+    pendingProjectCreationRequestRef.current = null;
+    pendingRequest.resolve(projectId);
   }, []);
 
   const closeCreateProjectDialog = useCallback(() => {
     setShowCreateProjectDialog(false);
     setNewProjectName('');
     setNewProjectSourceFolder(null);
+    settleProjectCreationRequest();
+  }, [settleProjectCreationRequest]);
+
+  useEffect(() => () => {
+    const pendingRequest = pendingProjectCreationRequestRef.current;
+    pendingProjectCreationRequestRef.current = null;
+    pendingRequest?.resolve(undefined);
+  }, []);
+
+  const closeCreateWorkspaceDialog = useCallback(() => {
+    setShowCreateWorkspaceDialog(false);
+    setNewWorkspaceName('');
   }, []);
 
   const resolvedProjectId = selectedWorkspaceId
@@ -862,7 +889,6 @@ export function AppContent() {
   const hasOpenHeaderSelectionSurface =
     showWorkspaceProjectPopover ||
     projectActionsMenuId !== null ||
-    isCreatingWorkspace ||
     workspaceActionsMenuId !== null ||
     renamingWorkspaceId !== null;
 
@@ -913,13 +939,16 @@ export function AppContent() {
 
   const handleWorkspaceProjectPopoverClickOutside = useCallback(
     (event: MouseEvent) => {
+      if (showCreateWorkspaceDialog) {
+        return;
+      }
       const target = event.target as Node;
       const isInsidePopover = workspaceProjectPopoverRef.current?.contains(target) ?? false;
       if (!isInsidePopover) {
         closeWorkspaceProjectPopover();
       }
     },
-    [closeWorkspaceProjectPopover],
+    [closeWorkspaceProjectPopover, showCreateWorkspaceDialog],
   );
 
   useEffect(() => {
@@ -936,13 +965,13 @@ export function AppContent() {
       return;
     }
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !showCreateWorkspaceDialog) {
         closeWorkspaceProjectPopover();
       }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [closeWorkspaceProjectPopover, hasOpenHeaderSelectionSurface]);
+  }, [closeWorkspaceProjectPopover, hasOpenHeaderSelectionSurface, showCreateWorkspaceDialog]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1106,11 +1135,13 @@ export function AppContent() {
         });
         activateImportedProject(importedProject.projectId);
         await hydrateImportedProjectSelection(importedProject.projectId);
+        settleProjectCreationRequest(importedProject.projectId);
         closeCreateProjectDialog();
         addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
       } else {
         const project = await createProject(normalizedProjectName);
         activateImportedProject(project.projectId);
+        settleProjectCreationRequest(project.projectId);
         closeCreateProjectDialog();
         addToast(t('app.projectCreated'), 'success');
       }
@@ -1140,6 +1171,7 @@ export function AppContent() {
     newProjectSourceFolder,
     projectRuntimeLocationService,
     selectedWorkspaceId,
+    settleProjectCreationRequest,
     t,
   ]);
 
@@ -2082,13 +2114,10 @@ export function AppContent() {
     setWorkspaceActionsMenuId(null);
   }, [selectWorkspace, selectedWorkspaceId]);
   const handleStartCreatingWorkspace = useCallback(() => {
-    setIsCreatingWorkspace(true);
+    setNewWorkspaceName('');
     setWorkspaceActionsMenuId(null);
     setRenamingWorkspaceId(null);
-  }, []);
-  const handleCancelCreatingWorkspace = useCallback(() => {
-    setIsCreatingWorkspace(false);
-    setNewWorkspaceName('');
+    setShowCreateWorkspaceDialog(true);
   }, []);
   const handleCreateWorkspace = useCallback(async (event: React.FormEvent) => {
     event.preventDefault();
@@ -2096,27 +2125,45 @@ export function AppContent() {
     if (!name) {
       return;
     }
+    setIsWorkspaceCreationPending(true);
     try {
-      await createWorkspace(name);
-      setIsCreatingWorkspace(false);
+      let createdWorkspace: AgentWorkspaceView;
+      try {
+        createdWorkspace = await createWorkspace(name);
+      } catch (error) {
+        console.error('Failed to create Workspace', error);
+        addToast(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : t('app.failedToCreateWorkspace'),
+          'error',
+        );
+        return;
+      }
+
+      try {
+        await refreshWorkspaces();
+      } catch (error) {
+        console.error('Failed to refresh Workspaces after creation', error);
+        addToast(t('app.failedToLoadWorkspaces'), 'error');
+      }
+
+      selectWorkspace(createdWorkspace.workspaceId);
+      setShowCreateWorkspaceDialog(false);
       setNewWorkspaceName('');
       setActiveProjectId('');
       clearActiveAgentSessionSelection();
       addToast(t('app.workspaceCreated'), 'success');
-    } catch (error) {
-      console.error('Failed to create Workspace', error);
-      addToast(
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : t('app.failedToCreateWorkspace'),
-        'error',
-      );
+    } finally {
+      setIsWorkspaceCreationPending(false);
     }
   }, [
     addToast,
     clearActiveAgentSessionSelection,
     createWorkspace,
     newWorkspaceName,
+    refreshWorkspaces,
+    selectWorkspace,
     t,
   ]);
   const handleStartWorkspaceRename = useCallback((workspace: AgentWorkspaceView) => {
@@ -2219,11 +2266,27 @@ export function AppContent() {
   const handleToggleProjectActionsMenu = useCallback((projectId: string) => {
     setProjectActionsMenuId((currentValue) => (currentValue === projectId ? null : projectId));
   }, []);
-  const handleOpenCreateProjectDialog = useCallback(() => {
+  const handleOpenCreateProjectDialog = useCallback((): Promise<string | undefined> => {
     closeWorkspaceProjectPopover();
+
+    const pendingRequest = pendingProjectCreationRequestRef.current;
+    if (pendingRequest) {
+      return pendingRequest.promise;
+    }
+
     setNewProjectName('');
     setNewProjectSourceFolder(null);
     setShowCreateProjectDialog(true);
+
+    let resolveRequest: PendingProjectCreationRequest['resolve'] = () => undefined;
+    const promise = new Promise<string | undefined>((resolve) => {
+      resolveRequest = resolve;
+    });
+    pendingProjectCreationRequestRef.current = {
+      promise,
+      resolve: resolveRequest,
+    };
+    return promise;
   }, [closeWorkspaceProjectPopover]);
   const handleClearProjectSourceFolder = useCallback(() => {
     setNewProjectSourceFolder(null);
@@ -2254,24 +2317,19 @@ export function AppContent() {
               isLoadingMoreWorkspaces={isWorkspacesLoadingMore}
               isProjectCreationPending={isProjectCreationPending}
               isProjectsLoading={isProjectsLoading}
-              isWorkspaceCreating={isCreatingWorkspace}
               isWorkspacesLoading={isWorkspacesLoading}
-              newWorkspaceName={newWorkspaceName}
               onArchiveProject={handleArchiveProject}
               onArchiveWorkspace={handleArchiveWorkspace}
-              onCancelWorkspaceCreation={handleCancelCreatingWorkspace}
               onClosePopover={closeWorkspaceProjectPopover}
               onCommitProjectRename={handleRenameProject}
               onCommitWorkspaceRename={handleRenameWorkspace}
               onConfirmDeleteProject={confirmRemoveProject}
               onCreateProjectSession={handleCreateProjectSession}
-              onCreateWorkspace={handleCreateWorkspace}
               onDeleteWorkspace={handleDeleteWorkspace}
               onFinishProjectRename={handleFinishProjectRename}
               onFinishWorkspaceRename={handleFinishWorkspaceRename}
               onLoadMoreProjects={handleLoadMoreProjects}
               onLoadMoreWorkspaces={handleLoadMoreWorkspaces}
-              onNewWorkspaceNameChange={setNewWorkspaceName}
               onOpenProjectInExplorer={handleOpenProjectInExplorer}
               onProjectRenameValueChange={setRenameProjectValue}
               onRefreshProjects={refreshProjects}
@@ -2346,6 +2404,7 @@ export function AppContent() {
         runtimeLocationId={effectiveAgentSessionRuntimeLocationId}
         onActiveTabChange={handleActiveTabChange}
         onRequireAuth={openAuthenticationSurface}
+        onRequestProjectCreation={handleOpenCreateProjectDialog}
         onProjectChange={handleActiveProjectChange}
         onAgentSessionChange={handleActiveAgentSessionChange}
       />
@@ -2361,6 +2420,15 @@ export function AppContent() {
         onSubmit={handleCreateProject}
         projectName={newProjectName}
         sourceFolderName={newProjectSourceFolderName}
+      />
+
+      <CreateWorkspaceDialog
+        isCreating={isWorkspaceCreationPending}
+        isOpen={showCreateWorkspaceDialog}
+        onClose={closeCreateWorkspaceDialog}
+        onNameChange={setNewWorkspaceName}
+        onSubmit={handleCreateWorkspace}
+        workspaceName={newWorkspaceName}
       />
 
       <AppShellDialogs

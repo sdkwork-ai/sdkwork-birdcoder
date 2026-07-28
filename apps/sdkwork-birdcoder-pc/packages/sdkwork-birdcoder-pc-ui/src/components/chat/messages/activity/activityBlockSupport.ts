@@ -1,4 +1,8 @@
 import type { AgentSessionCommandView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import {
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  MAX_FILE_CHANGE_PATH_CHARACTERS,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { ActivityFileChange } from '../messageActivity.ts';
 
 export function filterCommandExecutions(
@@ -18,13 +22,16 @@ export function normalizeActivityFileChanges(
   fileChanges: readonly unknown[] | undefined,
 ): ActivityFileChange[] {
   return (fileChanges ?? [])
+    .slice(0, MAX_AGENT_SESSION_FILE_CHANGES)
     .filter((fileChange): fileChange is ActivityFileChange => {
       if (typeof fileChange !== 'object' || fileChange === null) {
         return false;
       }
 
       const path = (fileChange as ActivityFileChange).path;
-      return typeof path === 'string' && path.trim().length > 0;
+      return typeof path === 'string'
+        && path.length <= MAX_FILE_CHANGE_PATH_CHARACTERS
+        && path.trim().length > 0;
     })
     .map((fileChange) => ({
       ...fileChange,

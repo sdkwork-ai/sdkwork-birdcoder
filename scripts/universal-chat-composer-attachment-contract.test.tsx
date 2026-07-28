@@ -14,6 +14,10 @@ import {
   resolveComposerAttachmentSignature,
   type ComposerAttachmentDraft,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/composerAttachmentDraft.ts';
+import {
+  ComposerAttachmentUploadScheduler,
+  MAX_CONCURRENT_COMPOSER_ATTACHMENT_UPLOADS,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/composerAttachmentUploadScheduler.ts';
 
 const textFile = new File(['const answer = 42;'], 'answer.ts', {
   lastModified: 1,
@@ -57,6 +61,40 @@ assert.equal(
   '[DRIVE_MEDIA:{"id":"answer"}]',
   'A ready attachment must be sendable without placeholder textarea text.',
 );
+
+const uploadScheduler = new ComposerAttachmentUploadScheduler();
+const startedUploads: string[] = [];
+const releaseUploads = new Map<string, () => void>();
+for (let index = 0; index < MAX_CONCURRENT_COMPOSER_ATTACHMENT_UPLOADS + 2; index += 1) {
+  const id = `attachment-${index}`;
+  uploadScheduler.enqueue({
+    id,
+    run: (signal) => new Promise<void>((resolve) => {
+      startedUploads.push(id);
+      const release = () => resolve();
+      releaseUploads.set(id, release);
+      signal.addEventListener('abort', release, { once: true });
+    }),
+  });
+}
+await Promise.resolve();
+await Promise.resolve();
+assert.equal(uploadScheduler.activeCount, MAX_CONCURRENT_COMPOSER_ATTACHMENT_UPLOADS);
+assert.equal(uploadScheduler.pendingCount, 2);
+assert.deepEqual(
+  startedUploads,
+  ['attachment-0', 'attachment-1', 'attachment-2', 'attachment-3'],
+  'The composer must cap independent Drive uploads without reordering pending files.',
+);
+uploadScheduler.cancel('attachment-4');
+releaseUploads.get('attachment-0')?.();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(startedUploads.includes('attachment-4'), false);
+assert.equal(startedUploads.includes('attachment-5'), true);
+uploadScheduler.clear();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(uploadScheduler.activeCount, 0);
+assert.equal(uploadScheduler.pendingCount, 0);
 
 const i18n = createInstance();
 await i18n.use(initReactI18next).init({
@@ -109,6 +147,10 @@ const sharedFooterSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/SharedComposerFooter.tsx'),
   'utf8',
 );
+const composerActionPanelSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/ComposerActionPanel.tsx'),
+  'utf8',
+);
 
 assert.match(
   universalChatSource,
@@ -122,8 +164,13 @@ assert.match(
 );
 assert.match(
   universalChatSource,
-  /uploadBirdCoderChatAttachmentToDrive\(\{[\s\S]*signal: controller\.signal/u,
+  /uploadBirdCoderChatAttachmentToDrive\(\{[\s\S]*signal,/u,
   'Attachment removal and scope changes must be able to abort in-flight Drive uploads.',
+);
+assert.match(
+  universalChatSource,
+  /scheduleComposerAttachmentUpload\(attachment\)/u,
+  'Every composer attachment source and retry path must use the bounded upload scheduler.',
 );
 assert.match(
   universalChatSource,
@@ -134,6 +181,11 @@ assert.match(
   universalChatSource,
   /composerAttachmentScopeRef\.current = normalizedTranscriptScopeKey;[\s\S]*clearComposerAttachments\(\);/u,
   'Transient attachment drafts must be cleared when the visible Session scope changes.',
+);
+assert.match(
+  universalChatSource,
+  /const handleCloseComposerActionPanel = useCallback\(\(\) => \{[\s\S]*setShowAttachmentMenu\(false\);[\s\S]*\}, \[\]\);[\s\S]*<ComposerActionPanel[\s\S]*onClose=\{handleCloseComposerActionPanel\}/u,
+  'The action panel must receive a stable close callback so parent updates do not churn its document listener.',
 );
 assert.match(
   sharedFooterSource,
@@ -149,6 +201,21 @@ assert.match(
   sharedFooterSource,
   /aria-label=\{t\('chat\.addAttachment'\)\}/u,
   'The plus control must expose an accessible attachment action name.',
+);
+assert.match(
+  composerActionPanelSource,
+  /useEffect\(\(\) => \{[\s\S]*document\.addEventListener\('keydown', handleKeyDown, true\);[\s\S]*document\.removeEventListener\('keydown', handleKeyDown, true\);[\s\S]*\}, \[onClose\]\);/u,
+  'The action panel must close from Escape regardless of focus and must release its document listener on unmount.',
+);
+assert.match(
+  composerActionPanelSource,
+  /if \(event\.key !== 'Escape'\)[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);[\s\S]*onClose\(\);/u,
+  'The action panel must consume Escape before closing so the keystroke cannot trigger an underlying surface.',
+);
+assert.match(
+  composerActionPanelSource,
+  /shouldRestoreFocus && previouslyFocusedElement\?\.isConnected[\s\S]*window\.requestAnimationFrame\(\(\) => previouslyFocusedElement\.focus\(\)\);/u,
+  'Escape dismissal must restore focus to the control that opened the action panel.',
 );
 
 console.log('universal chat composer attachment contract passed.');

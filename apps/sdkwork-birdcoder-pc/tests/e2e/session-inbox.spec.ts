@@ -383,6 +383,24 @@ test('direct Studio startup mounts the full surface and renders Session activity
   await studioSurface.locator('[data-studio-session-menu-trigger="true"]').click();
   const sessionMenu = studioSurface.locator('[data-studio-session-menu="true"]');
   await expect(sessionMenu).toBeVisible();
+  await expect(sessionMenu).toHaveAttribute('role', 'dialog');
+  await expect(sessionMenu.locator('[data-studio-session-menu-header="true"]')).toHaveCSS(
+    'height',
+    '44px',
+  );
+  await expect(sessionMenu.locator('[data-studio-projects-header="true"]')).toHaveCSS(
+    'height',
+    '40px',
+  );
+  await expect(sessionMenu.locator('[data-studio-sessions-header="true"]')).toHaveCSS(
+    'height',
+    '40px',
+  );
+  await expect(sessionMenu.getByRole('button', { name: 'New Project' })).toHaveCount(1);
+  await expect(sessionMenu.getByRole('button', { name: 'Open Folder' })).toHaveCount(0);
+  await expect(sessionMenu.getByRole('button', { name: 'Refresh Sessions' })).toBeVisible();
+  await expect(sessionMenu.getByRole('button', { name: 'New Session', exact: true })).toBeVisible();
+  await expect(sessionMenu.getByRole('button', { name: 'Refresh Messages' })).toHaveCount(0);
 
   const expectedRuntimeStates = [
     ['e2e-claude-session', 'streaming', 'busy', true],
@@ -462,4 +480,54 @@ test('direct Studio startup mounts the full surface and renders Session activity
   expect(pageErrors.filter((message) => (
     !message.includes("The document is sandboxed and lacks the 'allow-same-origin' flag")
   ))).toEqual([]);
+});
+
+test('Studio keeps its project switcher open while shared project creation refreshes the list', async ({
+  page,
+  request,
+}, testInfo) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_440, height: 900 });
+  await page.goto('/?tab=studio&projectId=project.e2e-1&sessionId=e2e-claude-session');
+
+  const studioSurface = page.locator('[data-studio-surface="true"]');
+  await expect(studioSurface).toBeVisible({ timeout: 60_000 });
+  await studioSurface.locator('[data-studio-session-menu-trigger="true"]').click();
+
+  const sessionMenu = studioSurface.locator('[data-studio-session-menu="true"]');
+  const newProjectButton = sessionMenu.getByRole('button', { name: 'New Project' });
+  await expect(sessionMenu).toBeVisible();
+  await expect(newProjectButton).toHaveCount(1);
+  await expect(sessionMenu.getByRole('button', { name: 'Open Folder' })).toHaveCount(0);
+  await newProjectButton.click();
+
+  const createProjectDialog = page.getByRole('dialog', { name: 'Create project' });
+  await expect(createProjectDialog).toBeVisible();
+  await expect(sessionMenu).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath('studio-shared-create-dialog.png'),
+    fullPage: true,
+  });
+  await createProjectDialog.getByRole('textbox', { name: 'Project name' })
+    .fill('Studio Shared Project');
+
+  const projectCreateResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/app/v3/api/ai/projects'
+  ));
+  await createProjectDialog.getByRole('button', {
+    exact: true,
+    name: 'Create project',
+  }).click();
+  expect((await projectCreateResponse).ok()).toBe(true);
+
+  await expect(createProjectDialog).toHaveCount(0);
+  await expect(sessionMenu).toBeVisible();
+  await expect(sessionMenu.getByText('Studio Shared Project', { exact: true })).toBeVisible();
+  await expect(studioSurface.locator('[data-studio-chat-header="true"]'))
+    .toContainText('Studio Shared Project');
+  await page.screenshot({
+    path: testInfo.outputPath('studio-project-list-refreshed.png'),
+    fullPage: true,
+  });
 });

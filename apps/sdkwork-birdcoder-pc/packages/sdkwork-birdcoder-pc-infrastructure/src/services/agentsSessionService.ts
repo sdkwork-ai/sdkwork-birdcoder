@@ -15,6 +15,7 @@ import { uuid } from '@sdkwork/utils/id';
 import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
 
 import type {
+  AgentInteractionPageRequest,
   AgentProjectSessionPageRequest,
   AgentScopedSessionPageRequest,
   AgentSessionActivityPageRequest,
@@ -30,13 +31,24 @@ import type {
 
 export const BIRDCODER_ASSISTANT_AGENT_ID = 'agent.birdcoder';
 const SESSION_USER_STATE_BATCH_SIZE = 100;
+const SESSION_USER_STATE_MAX_IDS = 1_000;
+const SESSION_USER_STATE_MAX_CONCURRENCY = 4;
+const SESSION_AGENT_ID_CACHE_MAX_ENTRIES = 2_048;
 const SESSION_ACTIVITY_CURSOR_MAX_LENGTH = 2_048;
 const SESSION_ACTIVITY_DEFAULT_PAGE_SIZE = 20;
 const SESSION_ACTIVITY_MAX_PAGE_SIZE = 200;
 const TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS = 300;
 const TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS = 2_000;
+const TURN_RECOVERY_DISCOVERY_MAX_ATTEMPTS = 5;
 const TURN_RECOVERY_ITEM_PAGE_SIZE = 200;
 const TURN_RECOVERY_MAX_ITEM_PAGES = 10;
+const AGENT_TURN_MAX_CONTENT_CHARACTERS = 1_048_576;
+const AGENT_TURN_MAX_CONTENT_TYPE_CHARACTERS = 64;
+const AGENT_TURN_MAX_DRIVE_REFS = 64;
+const AGENT_TURN_MAX_IDENTITY_CHARACTERS = 128;
+const AGENT_INTERACTION_MAX_REASON_CHARACTERS = 2_048;
+const AGENT_INTERACTION_MAX_ANSWER_CHARACTERS = 65_536;
+const AGENT_INTERACTION_MAX_OPTION_VALUE_CHARACTERS = 256;
 
 export interface BirdCoderAgentSessionServiceOptions {
   agentId?: string;
@@ -152,6 +164,50 @@ function normalizeOptionalRuntimeBindingValue(value: string | null | undefined):
   return value?.trim() ?? '';
 }
 
+function normalizeOptionalBoundedValue(
+  value: string | null | undefined,
+  label: string,
+  maxLength: number,
+): string | undefined {
+  if (value !== null && value !== undefined && value.length > maxLength) {
+    throw new Error(`${label} must be ${maxLength} characters or fewer.`);
+  }
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized.length > maxLength) {
+    throw new Error(`${label} must be ${maxLength} characters or fewer.`);
+  }
+  return normalized;
+}
+
+function normalizeAgentTurnDriveRefs(
+  driveRefs: SubmitAgentTurnInput['driveRefs'],
+): SubmitAgentTurnInput['driveRefs'] {
+  if (!driveRefs) {
+    return undefined;
+  }
+  if (driveRefs.length > AGENT_TURN_MAX_DRIVE_REFS) {
+    throw new Error(`Agent turns support at most ${AGENT_TURN_MAX_DRIVE_REFS} Drive references.`);
+  }
+  return driveRefs.map((driveRef) => {
+    if (
+      !driveRef.driveSpaceId.trim()
+      || driveRef.driveSpaceId.length > AGENT_TURN_MAX_IDENTITY_CHARACTERS
+      || !driveRef.driveNodeId.trim()
+      || driveRef.driveNodeId.length > AGENT_TURN_MAX_IDENTITY_CHARACTERS
+    ) {
+      throw new Error('Agent turn Drive references require bounded Space and Node identities.');
+    }
+    return {
+      ...driveRef,
+      driveNodeId: driveRef.driveNodeId.trim(),
+      driveSpaceId: driveRef.driveSpaceId.trim(),
+    };
+  });
+}
+
 function assertCreatedSessionIdentity(
   session: { agentId: string; projectId?: string | null; sessionId: string },
   expectedAgentId: string,
@@ -242,6 +298,24 @@ function assertAgentTurnCompletionIdentity(
   }
   if (completion.items.some((item) => item.sessionId !== expectedSessionId)) {
     throw new Error('Agents turn completion contains an item from another session.');
+  }
+  if (completion.items.some(
+    (item) => (item.content?.length ?? 0) > AGENT_TURN_MAX_CONTENT_CHARACTERS,
+  )) {
+    throw new Error('Agents turn completion contains an oversized Session Item.');
+  }
+}
+
+function assertInteractionIdentity(
+  interaction: { interactionId: string; sessionId: string },
+  expectedSessionId: string,
+  expectedInteractionId?: string,
+): void {
+  if (
+    interaction.sessionId !== expectedSessionId
+    || (expectedInteractionId && interaction.interactionId !== expectedInteractionId)
+  ) {
+    throw new Error('Agents Interaction identity does not match the requested Session.');
   }
 }
 
@@ -492,6 +566,15 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
           lastRecoveryError = error;
         }
       }
+      if (
+        !didFindTurn
+        && attempt + 1 >= Math.min(
+          this.turnRecoveryMaxAttempts,
+          TURN_RECOVERY_DISCOVERY_MAX_ATTEMPTS,
+        )
+      ) {
+        break;
+      }
       if (attempt + 1 < this.turnRecoveryMaxAttempts) {
         await waitForTurnRecovery(this.turnRecoveryPollIntervalMs, options.signal);
       }
@@ -517,7 +600,19 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   }
 
   private rememberSession(session: { agentId: string; sessionId: string }): void {
-    this.sessionAgentIds.set(session.sessionId, resolveAgentId(session.agentId));
+    const sessionId = session.sessionId.trim();
+    if (!sessionId) {
+      throw new Error('Agents Session identity is required.');
+    }
+    this.sessionAgentIds.delete(sessionId);
+    this.sessionAgentIds.set(sessionId, resolveAgentId(session.agentId));
+    while (this.sessionAgentIds.size > SESSION_AGENT_ID_CACHE_MAX_ENTRIES) {
+      const oldestSessionId = this.sessionAgentIds.keys().next().value;
+      if (typeof oldestSessionId !== 'string') {
+        break;
+      }
+      this.sessionAgentIds.delete(oldestSessionId);
+    }
   }
 
   private rememberSessions(sessions: readonly { agentId: string; sessionId: string }[]): void {
@@ -527,7 +622,13 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   }
 
   private resolveSessionAgentId(sessionId: string): string {
-    return this.sessionAgentIds.get(sessionId) ?? this.agentId;
+    const rememberedAgentId = this.sessionAgentIds.get(sessionId);
+    if (!rememberedAgentId) {
+      return this.agentId;
+    }
+    this.sessionAgentIds.delete(sessionId);
+    this.sessionAgentIds.set(sessionId, rememberedAgentId);
+    return rememberedAgentId;
   }
 
   async createSession(input: CreateAgentSessionInput) {
@@ -570,6 +671,8 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     const rememberedAgentId = this.sessionAgentIds.get(sessionId);
     const requestOptions = toApiRequestOptions(options);
     if (rememberedAgentId) {
+      this.sessionAgentIds.delete(sessionId);
+      this.sessionAgentIds.set(sessionId, rememberedAgentId);
       const response = await this.client.ai.agents.sessions.retrieve(
         rememberedAgentId,
         sessionId,
@@ -776,15 +879,40 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       );
     }
 
+    if (input.content.length > AGENT_TURN_MAX_CONTENT_CHARACTERS) {
+      throw new Error(
+        `Agent turn content must be ${AGENT_TURN_MAX_CONTENT_CHARACTERS} characters or fewer.`,
+      );
+    }
+    const driveRefs = normalizeAgentTurnDriveRefs(input.driveRefs);
     const idempotencyKey = uuid();
     const turnId = input.turnId?.trim() || `turn.${uuid()}`;
-    const clientRequestId = input.clientRequestId?.trim() || idempotencyKey;
+    const clientRequestId = normalizeOptionalBoundedValue(
+      input.clientRequestId,
+      'Agent turn client request ID',
+      AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+    ) ?? idempotencyKey;
+    const contentType = normalizeOptionalBoundedValue(
+      input.contentType,
+      'Agent turn content type',
+      AGENT_TURN_MAX_CONTENT_TYPE_CHARACTERS,
+    );
     const payload = {
       ...input,
       content: input.content.trim(),
+      contentType,
       clientRequestId,
-      requestedModelId: input.requestedModelId?.trim() || undefined,
-      runtimeBindingId: input.runtimeBindingId?.trim() || undefined,
+      driveRefs,
+      requestedModelId: normalizeOptionalBoundedValue(
+        input.requestedModelId,
+        'Agent requested model ID',
+        AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+      ),
+      runtimeBindingId: normalizeOptionalBoundedValue(
+        input.runtimeBindingId,
+        'Agent runtime binding ID',
+        AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+      ),
       turnId,
       turnMode: input.turnMode ?? 'interactive',
     };
@@ -849,12 +977,16 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
             !Number.isSafeInteger(event.index)
             || event.index !== expectedDeltaIndex
             || typeof event.delta !== 'string'
+            || event.delta.length === 0
           ) {
             throw new Error(
               `Agents turn stream delta ${expectedDeltaIndex} is missing or out of order.`,
             );
           }
           notifyAccepted();
+          if (content.length + event.delta.length > AGENT_TURN_MAX_CONTENT_CHARACTERS) {
+            throw new Error('Agents turn stream exceeded the maximum Session Item size.');
+          }
           content += event.delta;
           try {
             options.onDelta?.({ content, delta: event.delta, index: event.index });
@@ -930,15 +1062,33 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
 
   async listInteractions(
     sessionId: string,
-    request: AgentSessionPageRequest = {},
+    request: AgentInteractionPageRequest = {},
     options: AgentSessionReadOptions = {},
   ) {
     const response = await this.client.ai.agents.interactions.list(
       this.resolveSessionAgentId(sessionId),
       sessionId,
-      normalizePageRequest(request),
+      {
+        ...normalizePageRequest(request),
+        kind: request.kind,
+        status: request.status,
+      },
       toApiRequestOptions(options),
     );
+    const interactionIds = new Set<string>();
+    for (const interaction of response.items) {
+      assertInteractionIdentity(interaction, sessionId);
+      if (
+        (request.kind && interaction.kind !== request.kind)
+        || (request.status && interaction.status !== request.status)
+      ) {
+        throw new Error('Agents Interaction page returned a resource outside its filter.');
+      }
+      if (interactionIds.has(interaction.interactionId)) {
+        throw new Error(`Agents Interaction page contains duplicate ${interaction.interactionId}.`);
+      }
+      interactionIds.add(interaction.interactionId);
+    }
     return response;
   }
 
@@ -953,6 +1103,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       interactionId,
       toApiRequestOptions(options),
     );
+    assertInteractionIdentity(response, sessionId, interactionId);
     return response;
   }
 
@@ -967,6 +1118,14 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       interactionId,
       request,
     );
+    assertInteractionIdentity(response.interaction, sessionId, interactionId);
+    if (
+      !response.claimToken.trim()
+      || !response.fencingToken.trim()
+      || !Number.isFinite(Date.parse(response.claimExpiresAt))
+    ) {
+      throw new Error('Agents Interaction claim response is malformed.');
+    }
     return response;
   }
 
@@ -975,12 +1134,18 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     interactionId: string,
     request: Parameters<IAgentSessionService['approveInteraction']>[2],
   ) {
+    const reason = normalizeOptionalBoundedValue(
+      request.reason,
+      'Agent Interaction approval reason',
+      AGENT_INTERACTION_MAX_REASON_CHARACTERS,
+    );
     const response = await this.client.ai.agents.interactions.approve(
       this.resolveSessionAgentId(sessionId),
       sessionId,
       interactionId,
-      request,
+      { ...request, reason },
     );
+    assertInteractionIdentity(response, sessionId, interactionId);
     return response;
   }
 
@@ -989,12 +1154,24 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     interactionId: string,
     request: Parameters<IAgentSessionService['answerInteraction']>[2],
   ) {
+    if (request.answer.length > AGENT_INTERACTION_MAX_ANSWER_CHARACTERS) {
+      throw new Error(
+        `Agent Interaction answer must be ${AGENT_INTERACTION_MAX_ANSWER_CHARACTERS} characters or fewer.`,
+      );
+    }
+    const answer = request.answer.trim();
+    const selectedOptionValue = normalizeOptionalBoundedValue(
+      request.selectedOptionValue,
+      'Agent Interaction selected option value',
+      AGENT_INTERACTION_MAX_OPTION_VALUE_CHARACTERS,
+    );
     const response = await this.client.ai.agents.interactions.answer(
       this.resolveSessionAgentId(sessionId),
       sessionId,
       interactionId,
-      request,
+      { ...request, answer, selectedOptionValue },
     );
+    assertInteractionIdentity(response, sessionId, interactionId);
     return response;
   }
 
@@ -1076,6 +1253,11 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         continue;
       }
       normalizedSessionIds.add(sessionId);
+      if (normalizedSessionIds.size > SESSION_USER_STATE_MAX_IDS) {
+        throw new Error(
+          `Agents session user-state reads support at most ${SESSION_USER_STATE_MAX_IDS} Session ids.`,
+        );
+      }
       const agentId = this.resolveSessionAgentId(sessionId);
       const agentSessionIds = sessionIdsByAgent.get(agentId) ?? [];
       agentSessionIds.push(sessionId);
@@ -1092,17 +1274,33 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       }
       return agentBatches;
     });
-    const pages = await Promise.all(batches.map(async ({ agentId, sessionIds: batchSessionIds }) => {
-      const page = await this.client.ai.agents.sessionUserStates.list(agentId, {
-        page: 1,
-        pageSize: batchSessionIds.length,
-        includeHidden: true,
-        sessionIds: batchSessionIds.join(','),
-      }, toApiRequestOptions(options));
-      if (page.pageInfo.hasMore || page.items.length > batchSessionIds.length) {
-        throw new Error('Agents session user-state batch exceeded its requested bounds.');
+    const pages = new Array<{
+      batchSessionIds: string[];
+      page: Awaited<ReturnType<AgentsAppSdkClient['ai']['agents']['sessionUserStates']['list']>>;
+    }>(batches.length);
+    let nextBatchIndex = 0;
+    const workerCount = Math.min(SESSION_USER_STATE_MAX_CONCURRENCY, batches.length);
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+      while (nextBatchIndex < batches.length) {
+        const batchIndex = nextBatchIndex;
+        nextBatchIndex += 1;
+        const batch = batches[batchIndex];
+        if (!batch) {
+          continue;
+        }
+        const { agentId, sessionIds: batchSessionIds } = batch;
+        options.signal?.throwIfAborted();
+        const page = await this.client.ai.agents.sessionUserStates.list(agentId, {
+          page: 1,
+          pageSize: batchSessionIds.length,
+          includeHidden: true,
+          sessionIds: batchSessionIds.join(','),
+        }, toApiRequestOptions(options));
+        if (page.pageInfo.hasMore || page.items.length > batchSessionIds.length) {
+          throw new Error('Agents session user-state batch exceeded its requested bounds.');
+        }
+        pages[batchIndex] = { batchSessionIds, page };
       }
-      return { batchSessionIds, page };
     }));
 
     const statesBySessionId = new Map<string, AgentResourceUserStateRecord>();

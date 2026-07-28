@@ -1,4 +1,10 @@
-import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  MAX_FILE_CHANGE_PATH_CHARACTERS,
+  MAX_FILE_CHANGE_TEXT_CHARACTERS,
+  MAX_FILE_CHANGE_TOTAL_TEXT_CHARACTERS,
+  type FileChange,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface FileChangeWriteRestoreOperation {
   content: string;
@@ -27,6 +33,9 @@ function normalizeFileChangePath(value: string | undefined): string | null {
     return null;
   }
 
+  if (value.length > MAX_FILE_CHANGE_PATH_CHARACTERS) {
+    return null;
+  }
   const normalizedValue = value.trim();
   return normalizedValue.length > 0 ? normalizedValue : null;
 }
@@ -43,6 +52,18 @@ interface ReversePatch {
 }
 
 function parseReversePatch(diff: string): ReversePatch | null {
+  if (diff.length > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
+    return null;
+  }
+  let lineCount = 1;
+  for (let index = 0; index < diff.length; index += 1) {
+    if (diff.charCodeAt(index) === 10) {
+      lineCount += 1;
+      if (lineCount > 100_000) {
+        return null;
+      }
+    }
+  }
   const lines = diff.replace(/\r\n?/gu, '\n').split('\n');
   const hunks: ReversePatchHunk[] = [];
   let oldEndsWithNewline: boolean | undefined;
@@ -123,6 +144,9 @@ export function reverseUnifiedFileChangeDiff(
   currentContent: string,
   diff: string,
 ): string | null {
+  if (currentContent.length > MAX_FILE_CHANGE_TEXT_CHARACTERS) {
+    return null;
+  }
   const patch = parseReversePatch(diff);
   if (!patch) {
     return null;
@@ -158,17 +182,48 @@ export function reverseUnifiedFileChangeDiff(
 export function buildFileChangeRestorePlan(
   fileChanges?: readonly FileChange[] | null,
 ): FileChangeRestorePlan {
-  const normalizedFileChanges = Array.isArray(fileChanges)
-    ? fileChanges.map((change) => structuredClone(change))
-    : [];
-
-  if (normalizedFileChanges.length === 0) {
+  if (
+    !Array.isArray(fileChanges)
+    || fileChanges.length === 0
+    || fileChanges.length > MAX_AGENT_SESSION_FILE_CHANGES
+  ) {
     return {
-      fileChanges: normalizedFileChanges,
+      fileChanges: [],
       operations: [],
       restorable: false,
     };
   }
+
+  let retainedTextCharacters = 0;
+  for (const change of fileChanges) {
+    const normalizedPath = normalizeFileChangePath(change.path);
+    const textFields = [change.diff, change.content, change.originalContent];
+    if (
+      !normalizedPath
+      || textFields.some((value) => (
+        typeof value === 'string' && value.length > MAX_FILE_CHANGE_TEXT_CHARACTERS
+      ))
+    ) {
+      return {
+        fileChanges: [],
+        operations: [],
+        restorable: false,
+      };
+    }
+    retainedTextCharacters += textFields.reduce(
+      (total, value) => total + (typeof value === 'string' ? value.length : 0),
+      0,
+    );
+    if (retainedTextCharacters > MAX_FILE_CHANGE_TOTAL_TEXT_CHARACTERS) {
+      return {
+        fileChanges: [],
+        operations: [],
+        restorable: false,
+      };
+    }
+  }
+
+  const normalizedFileChanges = fileChanges.map((change) => structuredClone(change));
 
   const operations: FileChangeRestoreOperation[] = [];
 

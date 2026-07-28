@@ -93,6 +93,7 @@ export const CreateProjectDialog = memo(function CreateProjectDialog({
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm animate-in fade-in duration-150"
       role="presentation"
       onMouseDown={(event) => {
+        event.stopPropagation();
         if (event.target === event.currentTarget && !isBusy) {
           onClose();
         }

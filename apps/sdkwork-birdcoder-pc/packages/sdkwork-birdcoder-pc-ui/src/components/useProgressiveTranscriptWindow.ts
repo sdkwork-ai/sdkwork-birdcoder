@@ -107,6 +107,20 @@ export function useProgressiveTranscriptWindow(
     visibleTranscriptStartIndex,
   } = currentTranscriptWindowState;
 
+  useEffect(() => {
+    if (
+      !isActive
+      || remoteHistory?.isLoadingMessages
+      || remoteLoadRequestRef.current
+      || !pendingTopLoadAfterRemoteRequestRef.current
+    ) {
+      return;
+    }
+
+    pendingTopLoadAfterRemoteRequestRef.current = false;
+    setRemoteTopLoadRearmVersion((version) => version + 1);
+  }, [isActive, remoteHistory?.isLoadingMessages, transcriptIdentity]);
+
   const renderedMessages = useMemo(() => {
     if (visibleTranscriptStartIndex === 0) {
       return messages;
@@ -199,9 +213,12 @@ export function useProgressiveTranscriptWindow(
             && remoteLoadRequestRef.current === request
           ) {
             const shouldRearmTopLoad = pendingTopLoadAfterRemoteRequestRef.current;
-            pendingTopLoadAfterRemoteRequestRef.current = false;
             remoteLoadRequestRef.current = null;
-            if (shouldRearmTopLoad) {
+            if (
+              shouldRearmTopLoad
+              && !remoteHistoryRef.current?.isLoadingMessages
+            ) {
+              pendingTopLoadAfterRemoteRequestRef.current = false;
               setRemoteTopLoadRearmVersion((version) => version + 1);
             }
           }
@@ -368,7 +385,6 @@ export function useProgressiveTranscriptWindow(
     messages.length,
     messagesEndRef,
     remoteHistory?.hasMoreMessages,
-    remoteHistory?.isLoadingMessages,
     remoteTopLoadRearmVersion,
     transcriptIdentity,
     visibleTranscriptStartIndex,

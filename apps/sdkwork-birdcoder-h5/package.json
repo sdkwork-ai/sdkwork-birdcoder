@@ -39,7 +39,7 @@
     "build:capacitor-ios:full": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile standalone --runtime-target capacitor-ios && cap sync && cap copy ios",
     "build:capacitor-android": "cap sync && cap copy android && cap open android",
     "build:capacitor-android:full": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile standalone --runtime-target capacitor-android && cap sync && cap copy android",
-    "start:browser": "pnpm exec sdkwork-iam-renderer-dev-bootstrap --cwd . -- ../../scripts/run-vite-host.mjs serve --mode development",
+    "start:browser": "node ../../scripts/run-vite-host.mjs serve --mode development",
     "start:browser:check": "node ../../scripts/run-vite-host.mjs serve --mode test",
     "dev:browser": "pnpm dev:browser:standalone",
     "build:local": "tsc && node ../../scripts/run-vite-host.mjs build --mode development --environment development --deployment-profile standalone --runtime-target browser",

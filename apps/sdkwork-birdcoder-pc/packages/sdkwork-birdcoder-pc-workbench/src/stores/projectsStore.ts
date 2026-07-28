@@ -5,7 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areAgentSessionItemsEquivalent,
-  areAgentSessionItemsLogicallyMatched,
+  buildAgentSessionItemMatchIndex,
   buildAgentSessionViewSynchronizationVersion,
   compareWorkbenchLongIntegers,
   compareWorkbenchProjectsByActivity,
@@ -35,7 +35,10 @@ export interface ProjectsStore {
   snapshot: ProjectsStoreSnapshot;
 }
 
-export type AgentSessionItemMergeMode = 'latest' | 'ordered-window';
+export type AgentSessionItemMergeMode =
+  | 'authority-window-reset'
+  | 'latest'
+  | 'ordered-window';
 
 export interface AgentSessionStoreUpsertOptions {
   itemMergeMode?: AgentSessionItemMergeMode;
@@ -539,6 +542,37 @@ function resolveLaterLongInteger(
   return compareOptionalStoreVersion(incoming, existing) >= 0 ? incoming : existing;
 }
 
+function mergeMonotonicSessionItemPageInfo(
+  existing: AgentSessionView['itemPageInfo'],
+  incoming: AgentSessionView['itemPageInfo'],
+): AgentSessionView['itemPageInfo'] {
+  if (!existing || !incoming) {
+    return incoming ?? existing;
+  }
+  if (existing.page > incoming.page) {
+    return existing;
+  }
+  return incoming;
+}
+
+function isTransientAgentSessionItem(item: AgentSessionItemView): boolean {
+  return item.metadata?.transient === true;
+}
+
+function mergeResetAgentSessionItemWindow(
+  existingItems: readonly AgentSessionItemView[],
+  incomingItems: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  const mergedItems = mergeLatestAgentSessionItems(
+    existingItems.filter(isTransientAgentSessionItem),
+    incomingItems,
+  );
+  return [
+    ...mergedItems.filter((item) => !isTransientAgentSessionItem(item)),
+    ...mergedItems.filter(isTransientAgentSessionItem),
+  ];
+}
+
 export function mergeAgentSessionProjectionForStore(
   existing: AgentSessionView,
   incoming: AgentSessionView,
@@ -623,12 +657,17 @@ export function mergeAgentSessionProjectionForStore(
         : incoming.archived,
     unread,
     displayTime: retainExistingActivity ? existing.displayTime : incoming.displayTime,
-    itemPageInfo: incoming.itemPageInfo ?? existing.itemPageInfo,
-    items: incoming.items.length === 0
-      ? existing.items
-      : options.itemMergeMode === 'ordered-window'
-        ? mergeOrderedAgentSessionItemWindow(existing.items, incoming.items)
-        : mergeLatestAgentSessionItems(existing.items, incoming.items),
+    itemPageInfo: mergeMonotonicSessionItemPageInfo(
+      existing.itemPageInfo,
+      incoming.itemPageInfo,
+    ),
+    items: options.itemMergeMode === 'authority-window-reset'
+      ? mergeResetAgentSessionItemWindow(existing.items, incoming.items)
+      : incoming.items.length === 0
+        ? existing.items
+        : options.itemMergeMode === 'ordered-window'
+          ? mergeOrderedAgentSessionItemWindow(existing.items, incoming.items)
+          : mergeLatestAgentSessionItems(existing.items, incoming.items),
     sortTimestamp: String(Math.max(
       Number(existing.sortTimestamp) || 0,
       Number(incoming.sortTimestamp) || 0,
@@ -644,15 +683,14 @@ function mergeOrderedAgentSessionItemWindow(
     existingItems,
     orderedIncomingItems,
   );
-  const orderedItems = orderedIncomingItems.map((incomingItem) =>
-    latestMergedItems.find((candidate) =>
-      areAgentSessionItemsLogicallyMatched(candidate, incomingItem),
-    ) ?? incomingItem,
-  );
+  const latestItemMatchIndex = buildAgentSessionItemMatchIndex(latestMergedItems);
+  const incomingItemMatchIndex = buildAgentSessionItemMatchIndex(orderedIncomingItems);
+  const orderedItems = orderedIncomingItems.map((incomingItem) => {
+    const matchingIndex = latestItemMatchIndex.findMatchingIndex(incomingItem);
+    return matchingIndex >= 0 ? latestMergedItems[matchingIndex]! : incomingItem;
+  });
   const concurrentItems = latestMergedItems.filter((candidate) =>
-    !orderedIncomingItems.some((incomingItem) =>
-      areAgentSessionItemsLogicallyMatched(candidate, incomingItem),
-    ),
+    incomingItemMatchIndex.findMatchingIndex(candidate) < 0,
   );
   return deduplicateAgentSessionItemViews([...orderedItems, ...concurrentItems]);
 }
@@ -662,7 +700,8 @@ function cloneAgentSessionForStore(
   existingAgentSession?: AgentSessionView,
   options: CloneAgentSessionForStoreOptions = {},
 ): AgentSessionView {
-  const preserveEmptyItems = options.preserveEmptyItems ?? true;
+  const preserveEmptyItems = (options.preserveEmptyItems ?? true)
+    && options.itemMergeMode !== 'authority-window-reset';
   const projectScopedAgentSession = normalizeAgentSessionProjectScope(
     agentSession,
     options.projectId,

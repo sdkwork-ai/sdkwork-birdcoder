@@ -10,6 +10,9 @@ import React, {
 import type {
   User,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { clearWorkbenchAgentTurnInputQueueMemory } from '../chat/agentTurnInputQueueStore.ts';
+import { clearWorkbenchChatInputDraftMemory } from '../chat/draftStore.ts';
+import { clearChatPresentationMemory } from '../chat/persistence.ts';
 import { useIDEServices } from './IDEContext.ts';
 
 interface AuthContextType {
@@ -21,6 +24,12 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function clearAuthenticatedConversationMemory(): void {
+  clearWorkbenchAgentTurnInputQueueMemory();
+  clearWorkbenchChatInputDraftMemory();
+  clearChatPresentationMemory();
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { authService } = useIDEServices();
@@ -35,6 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (!(await authService.hasStoredSession())) {
         if (authMutationVersionRef.current === refreshAuthMutationVersion) {
+          clearAuthenticatedConversationMemory();
           setUser(null);
         }
         return null;
@@ -87,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!isMounted || authMutationVersionRef.current !== currentAuthMutationVersion) {
             return;
           }
+          clearAuthenticatedConversationMemory();
           setUser(null);
           return;
         }
@@ -147,6 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
       }
     } finally {
+      clearAuthenticatedConversationMemory();
       if (authMutationVersionRef.current === authMutationVersion) {
         setIsLoading(false);
       }

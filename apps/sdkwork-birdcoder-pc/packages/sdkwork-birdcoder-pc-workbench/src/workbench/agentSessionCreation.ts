@@ -15,9 +15,12 @@ export interface WorkbenchAgentSessionTurnContext {
   currentFile?: {
     path: string;
     content?: string;
+    contentTruncated?: boolean;
     language?: string;
   };
 }
+
+const MAX_WORKBENCH_TURN_CONTEXT_FILE_CONTENT_CHARACTERS = 65_536;
 
 export interface CreateNewAgentSessionRequest {
   engineId?: string;
@@ -224,6 +227,7 @@ export function buildWorkbenchAgentSessionTurnContext({
 }): WorkbenchAgentSessionTurnContext {
   const normalizedCurrentFilePath = currentFilePath?.trim() ?? '';
   const normalizedCurrentFileLanguage = currentFileLanguage?.trim() ?? '';
+  const normalizedCurrentFileContent = currentFileContent ?? '';
 
   return {
     projectId,
@@ -231,7 +235,14 @@ export function buildWorkbenchAgentSessionTurnContext({
     ...(normalizedCurrentFilePath
       ? {
           currentFile: {
-            content: currentFileContent ?? '',
+            content: normalizedCurrentFileContent.slice(
+              0,
+              MAX_WORKBENCH_TURN_CONTEXT_FILE_CONTENT_CHARACTERS,
+            ),
+            ...(normalizedCurrentFileContent.length
+              > MAX_WORKBENCH_TURN_CONTEXT_FILE_CONTENT_CHARACTERS
+              ? { contentTruncated: true }
+              : {}),
             language: normalizedCurrentFileLanguage,
             path: normalizedCurrentFilePath,
           },

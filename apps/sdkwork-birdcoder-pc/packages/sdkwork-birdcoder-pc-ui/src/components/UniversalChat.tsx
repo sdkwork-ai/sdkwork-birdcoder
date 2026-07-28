@@ -29,12 +29,17 @@ import {
 import {
   canFlushWorkbenchQueuedAgentTurnInputs,
   createWorkbenchAgentTurnInputQueueFlushGateState,
+  MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE,
   markWorkbenchQueuedAgentTurnDispatchStarted,
   observeWorkbenchQueuedAgentTurnBusyState,
   settleWorkbenchQueuedAgentTurnDispatch,
+  type WorkbenchAgentTurnDriveRef,
   useWorkbenchAgentTurnInputQueue,
 } from '@sdkwork/birdcoder-pc-workbench/chat/agentTurnInputQueueStore';
-import { useWorkbenchChatInputDraft } from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
+import {
+  MAX_AGENT_TURN_INPUT_CHARACTERS,
+  useWorkbenchChatInputDraft,
+} from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
@@ -56,6 +61,9 @@ import type {
   AgentSessionPendingApproval,
   AgentSessionPendingQuestion,
   WorkbenchQueuedAgentTurnInput,
+} from '@sdkwork/birdcoder-pc-workbench';
+import {
+  MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
 } from '@sdkwork/birdcoder-pc-workbench';
 import {
   resolveComposerInputAfterSendFailure,
@@ -94,10 +102,12 @@ import {
   buildComposerSubmissionText,
   createComposerAttachmentDraft,
   isComposerAttachmentTextFile,
+  resolveComposerAttachmentResourceRole,
   resolveComposerAttachmentSignature,
   revokeComposerAttachmentPreview,
   type ComposerAttachmentDraft,
 } from './chat/composer/composerAttachmentDraft.ts';
+import { ComposerAttachmentUploadScheduler } from './chat/composer/composerAttachmentUploadScheduler.ts';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
 import { ChatActivityLiveAnnouncer } from './chat/messages/activity/ChatActivityLiveAnnouncer.tsx';
@@ -182,6 +192,10 @@ export interface UniversalChatComposerSelection {
   modelId: string;
 }
 
+export interface UniversalChatComposerSubmission {
+  driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
+}
+
 const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
 const RESIZABLE_COMPOSER_MIN_HEIGHT = 48;
 const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
@@ -210,6 +224,7 @@ export interface UniversalChatProps {
   onSendMessage: (
     text?: string,
     composerSelection?: UniversalChatComposerSelection,
+    submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
   onSubmitApprovalDecision?: (
     interactionId: string,
@@ -331,6 +346,7 @@ interface UniversalChatTranscriptEnvironment {
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
   onOpenDriveAttachment?: (nodeId: string, title: string) => void;
+  resolveDriveAttachmentPreviewUrl?: (nodeId: string) => Promise<string | undefined>;
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
@@ -1177,7 +1193,10 @@ export const UniversalChat = memo(function UniversalChat({
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
   const composerAttachmentsRef = useRef<ComposerAttachmentDraft[]>([]);
   const composerAttachmentScopeRef = useRef('');
-  const attachmentUploadControllersRef = useRef(new Map<string, AbortController>());
+  const attachmentUploadSchedulerRef = useRef<ComposerAttachmentUploadScheduler | null>(null);
+  if (!attachmentUploadSchedulerRef.current) {
+    attachmentUploadSchedulerRef.current = new ComposerAttachmentUploadScheduler();
+  }
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptTab, setPromptTab] = useState<'history' | 'mine'>('history');
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
@@ -1428,6 +1447,9 @@ export const UniversalChat = memo(function UniversalChat({
     resolvedSelectedEngineId,
     currentModelId,
   );
+  const handleCloseComposerActionPanel = useCallback(() => {
+    setShowAttachmentMenu(false);
+  }, []);
   const handleComposerCapabilitySelect = useCallback((
     kind: ComposerCapabilityKind,
     item: ComposerProviderCapabilityItem,
@@ -1658,13 +1680,14 @@ export const UniversalChat = memo(function UniversalChat({
 
   transcriptEnvironmentRef.current = {
     addToast,
-    beginEditingMessage,
-    onDeleteMessage,
+    beginEditingMessage: !disabled && onEditMessage ? beginEditingMessage : undefined,
+    onDeleteMessage: disabled ? undefined : onDeleteMessage,
     onOpenDriveAttachment: openDriveAttachment,
+    resolveDriveAttachmentPreviewUrl: resolveBirdCoderChatAttachmentPreviewUrl,
     onOpenFile,
     onOpenUrl,
-    onRegenerateMessage,
-    onRestore,
+    onRegenerateMessage: disabled ? undefined : onRegenerateMessage,
+    onRestore: disabled ? undefined : onRestore,
     onViewChanges,
     skills,
     t,
@@ -2376,8 +2399,7 @@ export const UniversalChat = memo(function UniversalChat({
   }, [replaceComposerAttachments]);
 
   const clearComposerAttachments = useCallback(() => {
-    attachmentUploadControllersRef.current.forEach((controller) => controller.abort());
-    attachmentUploadControllersRef.current.clear();
+    attachmentUploadSchedulerRef.current?.clear();
     const currentAttachments = composerAttachmentsRef.current;
     currentAttachments.forEach(revokeComposerAttachmentPreview);
     if (currentAttachments.length === 0) {
@@ -2386,10 +2408,10 @@ export const UniversalChat = memo(function UniversalChat({
     replaceComposerAttachments([]);
   }, [replaceComposerAttachments]);
 
-  const uploadComposerAttachment = useCallback(async (attachment: ComposerAttachmentDraft) => {
-    attachmentUploadControllersRef.current.get(attachment.id)?.abort();
-    const controller = new AbortController();
-    attachmentUploadControllersRef.current.set(attachment.id, controller);
+  const uploadComposerAttachment = useCallback(async (
+    attachment: ComposerAttachmentDraft,
+    signal: AbortSignal,
+  ) => {
     updateComposerAttachment(attachment.id, (currentAttachment) => ({
       ...currentAttachment,
       contentBlock: undefined,
@@ -2399,9 +2421,9 @@ export const UniversalChat = memo(function UniversalChat({
     try {
       const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
         file: attachment.file,
-        sessionId: normalizedSessionId,
+        resourceId: normalizedSessionId || normalizedTranscriptScopeKey,
         profile: resolveChatAttachmentUploadProfile(attachment.file),
-        signal: controller.signal,
+        signal,
       });
       let fileContentBlock = '';
       let isTruncated = false;
@@ -2416,24 +2438,26 @@ export const UniversalChat = memo(function UniversalChat({
           isTruncated = fileContent.isTruncated;
         }
       }
-      if (controller.signal.aborted) {
+      if (signal.aborted) {
         return;
       }
 
-      const driveContentBlock = buildDriveMediaResourceContentBlock(
-        driveUpload.mediaResource,
-        driveUpload.previewUrl,
-      );
+      const driveContentBlock = buildDriveMediaResourceContentBlock(driveUpload.mediaResource);
       updateComposerAttachment(attachment.id, (currentAttachment) => ({
         ...currentAttachment,
         contentBlock: `${driveContentBlock}${fileContentBlock}`,
+        driveRef: {
+          driveNodeId: driveUpload.nodeId,
+          driveSpaceId: driveUpload.driveSpaceId,
+          resourceRole: resolveComposerAttachmentResourceRole(currentAttachment),
+        },
         status: 'ready',
       }));
       if (isTruncated) {
         addToast(t('chat.fileAttachedTruncated', { name: attachment.displayName }), 'info');
       }
     } catch (error) {
-      if (controller.signal.aborted || isAbortError(error)) {
+      if (signal.aborted || isAbortError(error)) {
         return;
       }
       console.error(`Failed to upload attachment ${attachment.displayName}`, error);
@@ -2441,12 +2465,23 @@ export const UniversalChat = memo(function UniversalChat({
         ...currentAttachment,
         status: 'failed',
       }));
-    } finally {
-      if (attachmentUploadControllersRef.current.get(attachment.id) === controller) {
-        attachmentUploadControllersRef.current.delete(attachment.id);
-      }
     }
-  }, [addToast, normalizedSessionId, t, updateComposerAttachment]);
+  }, [
+    addToast,
+    normalizedSessionId,
+    normalizedTranscriptScopeKey,
+    t,
+    updateComposerAttachment,
+  ]);
+
+  const scheduleComposerAttachmentUpload = useCallback((
+    attachment: ComposerAttachmentDraft,
+  ) => {
+    attachmentUploadSchedulerRef.current?.enqueue({
+      id: attachment.id,
+      run: (signal) => uploadComposerAttachment(attachment, signal),
+    });
+  }, [uploadComposerAttachment]);
 
   const addComposerFiles = useCallback((
     files: readonly File[],
@@ -2534,15 +2569,14 @@ export const UniversalChat = memo(function UniversalChat({
     replaceComposerAttachments([...currentAttachments, ...drafts]);
     setShowAttachmentMenu(false);
     drafts.forEach((attachment) => {
-      void uploadComposerAttachment(attachment);
+      scheduleComposerAttachmentUpload(attachment);
     });
     textareaRef.current?.focus();
     return drafts.length;
-  }, [addToast, replaceComposerAttachments, t, uploadComposerAttachment]);
+  }, [addToast, replaceComposerAttachments, scheduleComposerAttachmentUpload, t]);
 
   const removeComposerAttachment = useCallback((attachmentId: string) => {
-    attachmentUploadControllersRef.current.get(attachmentId)?.abort();
-    attachmentUploadControllersRef.current.delete(attachmentId);
+    attachmentUploadSchedulerRef.current?.cancel(attachmentId);
     const attachment = composerAttachmentsRef.current.find((item) => item.id === attachmentId);
     if (attachment) {
       revokeComposerAttachmentPreview(attachment);
@@ -2556,9 +2590,9 @@ export const UniversalChat = memo(function UniversalChat({
   const retryComposerAttachment = useCallback((attachmentId: string) => {
     const attachment = composerAttachmentsRef.current.find((item) => item.id === attachmentId);
     if (attachment?.status === 'failed') {
-      void uploadComposerAttachment(attachment);
+      scheduleComposerAttachmentUpload(attachment);
     }
-  }, [uploadComposerAttachment]);
+  }, [scheduleComposerAttachmentUpload]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     addComposerFiles(Array.from(event.target.files ?? []));
@@ -2622,8 +2656,7 @@ export const UniversalChat = memo(function UniversalChat({
   }, [clearComposerAttachments, normalizedTranscriptScopeKey]);
 
   useEffect(() => () => {
-    attachmentUploadControllersRef.current.forEach((controller) => controller.abort());
-    attachmentUploadControllersRef.current.clear();
+    attachmentUploadSchedulerRef.current?.clear();
     composerAttachmentsRef.current.forEach(revokeComposerAttachmentPreview);
     composerAttachmentsRef.current = [];
   }, []);
@@ -2832,6 +2865,7 @@ export const UniversalChat = memo(function UniversalChat({
     submittedTextSnapshot: string,
     queuedAgentTurnInputsSnapshot: readonly WorkbenchQueuedAgentTurnInput[] = [],
     submittedDisplayTextSnapshot: string = submittedTextSnapshot,
+    submission?: UniversalChatComposerSubmission,
   ): Promise<boolean> => {
     if (disabled) {
       return false;
@@ -2854,7 +2888,7 @@ export const UniversalChat = memo(function UniversalChat({
 
     try {
       try {
-        await Promise.resolve(onSendMessage(fullText, currentComposerSelection));
+        await Promise.resolve(onSendMessage(fullText, currentComposerSelection, submission));
       } catch (error) {
         setInputValue((previousInputValue) =>
           resolveComposerInputAfterSendFailure(submittedDisplayTextSnapshot, previousInputValue),
@@ -2930,6 +2964,9 @@ export const UniversalChat = memo(function UniversalChat({
           onSendMessage(
             fullText,
             submittedAgentTurnInput.composerSelection ?? currentComposerSelection,
+            submittedAgentTurnInput.driveRefs?.length
+              ? { driveRefs: submittedAgentTurnInput.driveRefs }
+              : undefined,
           ),
         );
       } catch (error) {
@@ -3053,6 +3090,10 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     if (hasPendingUserQuestionReplyTarget && currentInput) {
+      if (currentInput.length > MAX_AGENT_INTERACTION_ANSWER_CHARACTERS) {
+        addToast(t('chat.interactionAnswerTooLong'), 'error');
+        return;
+      }
       clearInputValue();
       const didSubmitAnswer = await submitPendingUserQuestionAnswerFromComposer(currentInput);
       if (!didSubmitAnswer) {
@@ -3085,19 +3126,38 @@ export const UniversalChat = memo(function UniversalChat({
       .map((attachment) => attachment.contentBlock)
       .join('');
     const attachmentNames = readyAttachments.map((attachment) => attachment.displayName);
+    const driveRefs = readyAttachments.flatMap((attachment) =>
+      attachment.driveRef ? [attachment.driveRef] : [],
+    );
     const currentSubmission = buildComposerSubmissionText(currentInput, readyAttachments);
     const queuePresentation = {
       attachmentContent,
       attachmentNames,
+      driveRefs,
       displayText: currentInput,
     };
+
+    if (currentSubmission.length > MAX_AGENT_TURN_INPUT_CHARACTERS) {
+      addToast(t('chat.messageTooLong'), 'error');
+      return;
+    }
 
     if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) {
       if (!currentSubmission) {
         return;
       }
+      if (agentTurnInputQueue.length >= MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
+        addToast(t('chat.messageQueueFull'), 'error');
+        return;
+      }
 
-      enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+      try {
+        enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+      } catch (error) {
+        console.error('Failed to retain queued Agent turn input', error);
+        addToast(t('chat.messageQueueFull'), 'error');
+        return;
+      }
       clearInputValue();
       clearComposerAttachments();
       addToast(t('chat.messageQueued'), 'success');
@@ -3118,7 +3178,17 @@ export const UniversalChat = memo(function UniversalChat({
       );
 
       if (currentSubmission) {
-        enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+        if (agentTurnInputQueue.length >= MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
+          addToast(t('chat.messageQueueFull'), 'error');
+          return;
+        }
+        try {
+          enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+        } catch (error) {
+          console.error('Failed to retain queued Agent turn input', error);
+          addToast(t('chat.messageQueueFull'), 'error');
+          return;
+        }
         clearInputValue();
         clearComposerAttachments();
         addToast(t('chat.messageQueued'), 'success');
@@ -3144,6 +3214,7 @@ export const UniversalChat = memo(function UniversalChat({
       currentSubmission,
       [],
       currentInput,
+      driveRefs.length > 0 ? { driveRefs } : undefined,
     );
     if (didDispatchMessage) {
       clearComposerAttachments();
@@ -3653,7 +3724,7 @@ export const UniversalChat = memo(function UniversalChat({
                 capabilities={composerProviderCapabilities}
                 error={composerProviderCapabilitiesError}
                 isLoading={isLoadingComposerProviderCapabilities}
-                onClose={() => setShowAttachmentMenu(false)}
+                onClose={handleCloseComposerActionPanel}
                 onOpenFiles={() => {
                   fileInputRef.current?.click();
                   setShowAttachmentMenu(false);
@@ -3732,6 +3803,7 @@ export const UniversalChat = memo(function UniversalChat({
                                   <textarea
                                     value={editingQueueText}
                                     onChange={(e) => setEditingQueueText(e.target.value)}
+                                    maxLength={MAX_AGENT_TURN_INPUT_CHARACTERS}
                                     className="w-full bg-black/20 border border-blue-500/30 rounded-md p-2 text-xs text-gray-200 outline-none focus:border-blue-500/50 resize-none custom-scrollbar"
                                     rows={3}
                                     autoFocus
@@ -3746,28 +3818,48 @@ export const UniversalChat = memo(function UniversalChat({
                                     <button 
                                       className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
                                       onClick={() => {
-                                        setAgentTurnInputQueue((previousQueue) => {
-                                          const currentQueuedAgentTurnInput = previousQueue[idx];
-                                          if (
-                                            idx < 0 ||
-                                            idx >= previousQueue.length ||
-                                            !currentQueuedAgentTurnInput ||
-                                            currentQueuedAgentTurnInput.displayText === editingQueueText
-                                          ) {
-                                            return previousQueue;
-                                          }
-                                          const nextQueue = [...previousQueue];
-                                          nextQueue[idx] = {
-                                            ...currentQueuedAgentTurnInput,
-                                            displayText: editingQueueText.trim() || undefined,
-                                            text: `${editingQueueText.trim()}${
-                                              currentQueuedAgentTurnInput.attachmentContent
-                                                ? `\n\n${currentQueuedAgentTurnInput.attachmentContent}`
-                                                : ''
-                                            }`.trim(),
-                                          };
-                                          return nextQueue;
-                                        });
+                                        const nextDisplayText = editingQueueText.trim();
+                                        const attachmentContent =
+                                          agentTurnInputQueue[idx]?.attachmentContent ?? '';
+                                        const nextQueuedText = `${nextDisplayText}${
+                                          attachmentContent ? `\n\n${attachmentContent}` : ''
+                                        }`.trim();
+                                        if (nextQueuedText.length > MAX_AGENT_TURN_INPUT_CHARACTERS) {
+                                          addToast(t('chat.messageTooLong'), 'error');
+                                          return;
+                                        }
+                                        try {
+                                          setAgentTurnInputQueue((previousQueue) => {
+                                            const currentIndex = previousQueue.findIndex(
+                                              (input) => input.id === queuedAgentTurnInput.id,
+                                            );
+                                            const currentQueuedAgentTurnInput =
+                                              previousQueue[currentIndex];
+                                            if (
+                                              currentIndex < 0
+                                              || !currentQueuedAgentTurnInput
+                                              || currentQueuedAgentTurnInput.displayText
+                                                === nextDisplayText
+                                            ) {
+                                              return previousQueue;
+                                            }
+                                            const nextQueue = [...previousQueue];
+                                            nextQueue[currentIndex] = {
+                                              ...currentQueuedAgentTurnInput,
+                                              displayText: nextDisplayText || undefined,
+                                              text: `${nextDisplayText}${
+                                                currentQueuedAgentTurnInput.attachmentContent
+                                                  ? `\n\n${currentQueuedAgentTurnInput.attachmentContent}`
+                                                  : ''
+                                              }`.trim(),
+                                            };
+                                            return nextQueue;
+                                          });
+                                        } catch (error) {
+                                          console.error('Failed to update queued Agent turn input', error);
+                                          addToast(t('chat.messageQueueFull'), 'error');
+                                          return;
+                                        }
                                         setEditingQueueIndex(-1);
                                       }}
                                     >
@@ -3888,6 +3980,9 @@ export const UniversalChat = memo(function UniversalChat({
                 ref={textareaRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              maxLength={hasPendingUserQuestionReplyTarget
+                ? MAX_AGENT_INTERACTION_ANSWER_CHARACTERS
+                : MAX_AGENT_TURN_INPUT_CHARACTERS}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               onCompositionStart={handleComposerCompositionStart}

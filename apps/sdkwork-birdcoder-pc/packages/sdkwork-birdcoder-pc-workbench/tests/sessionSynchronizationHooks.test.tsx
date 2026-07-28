@@ -10,6 +10,7 @@ import type {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useImportedProjectSessionSynchronization } from '../src/hooks/useImportedProjectSessionSynchronization.ts';
+import { useSelectedAgentSessionItems } from '../src/hooks/useSelectedAgentSessionItems.ts';
 import { useSessionRefreshActions } from '../src/hooks/useSessionRefreshActions.ts';
 import type { HydrateImportedProjectFromAuthorityResult } from '../src/workbench/importedProjectHydration.ts';
 
@@ -21,7 +22,11 @@ const mocks = vi.hoisted(() => ({
   },
   hydrateImportedProjectFromAuthority: vi.fn(),
   loadEarlierAgentSessionItems: vi.fn(),
+  mergeRefreshedAgentSessionIntoCurrent: vi.fn(
+    (current: AgentProjectView['agentSessions'][number]) => current,
+  ),
   mutateProjectsStoreByScopeKey: vi.fn(),
+  peekProjectsStore: vi.fn(),
   refreshAgentSessionItems: vi.fn(),
   synchronizeProjectSessions: vi.fn(),
   upsertAgentSessionIntoProjectsStore: vi.fn(),
@@ -36,6 +41,7 @@ vi.mock('../src/stores/projectsStore.ts', () => ({
   buildProjectsStoreScopeKey: (userScope: string, workspaceId: string) =>
     `${userScope}\u0001${workspaceId}`,
   mutateProjectsStoreByScopeKey: mocks.mutateProjectsStoreByScopeKey,
+  peekProjectsStore: mocks.peekProjectsStore,
   upsertAgentSessionIntoProjectsStore: mocks.upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore: mocks.upsertProjectIntoProjectsStore,
 }));
@@ -46,7 +52,13 @@ vi.mock('../src/workbench/importedProjectHydration.ts', () => ({
 
 vi.mock('../src/workbench/sessionRefresh.ts', () => ({
   applyProjectSessionActivityRefresh: mocks.applyProjectSessionActivityRefresh,
+  buildAgentSessionItemsRefreshScopeKey: (scope: {
+    agentSessionId: string;
+    identityScope: string;
+    projectId: string;
+  }) => [scope.identityScope, scope.projectId, scope.agentSessionId].join('\u0001'),
   loadEarlierAgentSessionItems: mocks.loadEarlierAgentSessionItems,
+  mergeRefreshedAgentSessionIntoCurrent: mocks.mergeRefreshedAgentSessionIntoCurrent,
   refreshAgentSessionItems: mocks.refreshAgentSessionItems,
 }));
 
@@ -295,6 +307,120 @@ describe('useSessionRefreshActions request lifecycle', () => {
     expect(restoreSelection).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith('Failed to refresh project sessions', refreshError);
     consoleError.mockRestore();
+  });
+});
+
+describe('useSelectedAgentSessionItems background refresh', () => {
+  it('does not supersede an active refresh on poll, focus, visibility, or online events', async () => {
+    vi.useFakeTimers();
+    try {
+      const deferred = createDeferred<{
+        agentSessionId: string;
+        itemCount: number;
+        projectId: string;
+        source: 'agents';
+        status: 'failed';
+      }>();
+      mocks.refreshAgentSessionItems.mockReturnValueOnce(deferred.promise);
+      const selectedProject = createProject('project-a');
+      const selectedAgentSession = {
+        id: 'session-a',
+        items: [],
+        projectId: selectedProject.projectId,
+        runtimeStatus: 'ready',
+        status: 'active',
+      } as unknown as AgentProjectView['agentSessions'][number];
+
+      const { result } = renderHook(() => useSelectedAgentSessionItems({
+        agentSessionService,
+        projectService,
+        selectedAgentSession,
+        selectedAgentSessionId: selectedAgentSession.id,
+        selectedProject,
+        selectionRefreshToken: 0,
+      }));
+
+      expect(result.current).toBe(true);
+      expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(1);
+      const requestSignal = mocks.refreshAgentSessionItems.mock.calls[0]?.[0].signal;
+      expect(requestSignal.aborted).toBe(false);
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+        window.dispatchEvent(new Event('focus'));
+        window.dispatchEvent(new Event('online'));
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(1);
+      expect(requestSignal.aborted).toBe(false);
+
+      await act(async () => {
+        deferred.resolve({
+          agentSessionId: selectedAgentSession.id,
+          itemCount: 0,
+          projectId: selectedProject.projectId,
+          source: 'agents',
+          status: 'failed',
+        });
+        await deferred.promise;
+      });
+      expect(result.current).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels the active refresh and clears loading when the selected surface is deactivated', async () => {
+    const deferred = createDeferred<{
+      agentSessionId: string;
+      itemCount: number;
+      projectId: string;
+      source: 'agents';
+      status: 'failed';
+    }>();
+    mocks.refreshAgentSessionItems.mockReturnValueOnce(deferred.promise);
+    const selectedProject = createProject('project-a');
+    const selectedAgentSession = {
+      id: 'session-a',
+      items: [],
+      projectId: selectedProject.projectId,
+      runtimeStatus: 'ready',
+      status: 'active',
+    } as unknown as AgentProjectView['agentSessions'][number];
+
+    const { result, rerender } = renderHook(
+      ({ isActive }: { isActive: boolean }) => useSelectedAgentSessionItems({
+        agentSessionService,
+        isActive,
+        projectService,
+        selectedAgentSession,
+        selectedAgentSessionId: selectedAgentSession.id,
+        selectedProject,
+        selectionRefreshToken: 0,
+      }),
+      { initialProps: { isActive: true } },
+    );
+
+    expect(result.current).toBe(true);
+    const requestSignal = mocks.refreshAgentSessionItems.mock.calls[0]?.[0].signal;
+
+    rerender({ isActive: false });
+
+    expect(requestSignal.aborted).toBe(true);
+    expect(result.current).toBe(false);
+
+    await act(async () => {
+      deferred.resolve({
+        agentSessionId: selectedAgentSession.id,
+        itemCount: 0,
+        projectId: selectedProject.projectId,
+        source: 'agents',
+        status: 'failed',
+      });
+      await deferred.promise;
+    });
+    expect(result.current).toBe(false);
   });
 });
 

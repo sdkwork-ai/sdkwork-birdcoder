@@ -9,10 +9,8 @@ import {
   getDefaultRunConfigurations,
   globalEventBus,
   isProjectMountReadyForSessionSynchronization,
-  importSelectedProjectDirectory,
   rebindSelectedProjectDirectory,
   selectProjectDirectory,
-  resolveLatestAgentSessionIdForProject,
   restoreWorkbenchAgentSessionItemFiles,
   type AgentApprovalDecisionInput,
   type AgentQuestionAnswerInput,
@@ -49,6 +47,7 @@ import {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import { resolveSafePreviewUrl } from '@sdkwork/birdcoder-pc-ui-shell';
+import type { UniversalChatComposerSubmission } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 import {
   type StudioAnalyzeReport,
   type StudioDeleteConfirmation,
@@ -74,6 +73,7 @@ function StudioPageComponent({
   workspaceId,
   projectId,
   initialAgentSessionId,
+  onRequestProjectCreation,
   onProjectChange,
   onAgentSessionChange,
 }: StudioPageProps) {
@@ -96,8 +96,6 @@ function StudioPageComponent({
     searchQuery: projectSearchQuery,
     setSearchQuery: setProjectSearchQuery,
     submitAgentTurnInput,
-    ensureProject,
-    importProject,
     createAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
@@ -273,6 +271,14 @@ function StudioPageComponent({
       noProjectSelected: t('studio.pleaseSelectProject'),
     },
   });
+  const activateCreatedProjectSelection = useCallback((createdProjectId: string) => {
+    notifyProjectChange(createdProjectId);
+    setMenuActiveProjectId(createdProjectId);
+    setSessionId('');
+    setSelectedSessionProjectId(createdProjectId);
+    pendingLocalAgentSessionSelectionKeyRef.current =
+      buildAgentSessionProjectScopedKey(createdProjectId, '');
+  }, [notifyProjectChange]);
   const createStudioAgentSessionInProject = useCallback(
     (projectId: string, engineId?: string, modelId?: string) =>
       createAgentSessionInProject(projectId, engineId, { modelId, source: 'studio' }),
@@ -444,20 +450,6 @@ function StudioPageComponent({
     setSelectedEngineId,
     setSelectedModelId,
   });
-  const activateImportedProject = useCallback((projectId: string) => {
-    const latestAgentSessionId = resolveLatestAgentSessionIdForProject(projects, projectId);
-    if (latestAgentSessionId) {
-      selectAgentSession(latestAgentSessionId, { projectId });
-      return;
-    }
-
-    notifyProjectChange(projectId);
-    setMenuActiveProjectId(projectId);
-    setSessionId('');
-    setSelectedSessionProjectId(projectId);
-    pendingLocalAgentSessionSelectionKeyRef.current =
-      buildAgentSessionProjectScopedKey(projectId, '');
-  }, [notifyProjectChange, projects, selectAgentSession]);
   const handleImportedProjectSessionsSynchronized = useCallback((result: {
     latestAgentSessionId: string | null;
     project: { projectId: string };
@@ -592,33 +584,6 @@ function StudioPageComponent({
   });
 
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
-
-  const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
-    const selection = await selectProjectDirectory({
-      pickSandboxDirectory: pickDirectory,
-      sandboxPickerTitle: t('app.selectServerDirectory'),
-    });
-    if (!selection) {
-      return null;
-    }
-
-    return importSelectedProjectDirectory({
-      bindLocalProjectRuntimeLocation: (projectId, source) =>
-        projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
-      ensureProject,
-      fallbackProjectName,
-      importPort: { importProject },
-      selection,
-      workspaceId,
-    });
-  }, [
-    ensureProject,
-    importProject,
-    pickDirectory,
-    projectRuntimeLocationService,
-    t,
-    workspaceId,
-  ]);
 
   useEffect(() => {
     if (
@@ -919,6 +884,7 @@ function StudioPageComponent({
       engineId?: string | null;
       modelId?: string | null;
     },
+    submission?: UniversalChatComposerSubmission,
   ) => {
     const trimmedContent = typeof text === 'string' ? text.trim() : '';
     if (!trimmedContent) {
@@ -947,13 +913,12 @@ function StudioPageComponent({
       requestedModelId: composerSelection?.modelId,
       resolveProjectId: async () => {
         if (projects.length === 0) {
-          const importedProject = await selectFolderAndImportProject(t('studio.newProject'));
-          if (!importedProject) {
+          const createdProjectId = await onRequestProjectCreation();
+          if (!createdProjectId) {
             return null;
           }
-          notifyProjectChange(importedProject.projectId);
-          setMenuActiveProjectId(importedProject.projectId);
-          return importedProject.projectId;
+          activateCreatedProjectSelection(createdProjectId);
+          return createdProjectId;
         }
 
         return projects[0]?.projectId;
@@ -977,6 +942,9 @@ function StudioPageComponent({
         bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
+        submission?.driveRefs?.length
+          ? { driveRefs: submission.driveRefs }
+          : undefined,
       );
       if (
         sentMessage?.sessionId &&
@@ -991,14 +959,14 @@ function StudioPageComponent({
   }, [
     buildWorkbenchAgentSessionTurnContext,
     ensureWorkbenchAgentSessionForTurnInput,
+    activateCreatedProjectSelection,
     createAgentSessionFromRequest,
     currentProjectId,
     fileContent,
     isChatBusy,
-    notifyProjectChange,
+    onRequestProjectCreation,
     projects,
     selectAgentSession,
-    selectFolderAndImportProject,
     selectedSession?.engineId,
     selectedSession?.modelId,
     selectedFile,
@@ -1064,47 +1032,11 @@ function StudioPageComponent({
   }, [selectAgentSession]);
 
   const handleCreateSidebarProject = useCallback(async () => {
-    try {
-      const newProject = await selectFolderAndImportProject(t('studio.newProject'));
-      if (!newProject) {
-        return;
-      }
-      activateImportedProject(newProject.projectId);
-      await synchronizeImportedProject(newProject.projectId, true);
-      addToast(t('studio.projectCreated'), 'success');
-    } catch (error) {
-      console.error('Failed to create project', error);
-      addToast(t('studio.failedToCreateProject'), 'error');
+    const createdProjectId = await onRequestProjectCreation();
+    if (createdProjectId) {
+      activateCreatedProjectSelection(createdProjectId);
     }
-  }, [
-    activateImportedProject,
-    addToast,
-    selectFolderAndImportProject,
-    synchronizeImportedProject,
-    t,
-  ]);
-
-  const handleOpenSidebarFolder = useCallback(async () => {
-    try {
-      const importedProject = await selectFolderAndImportProject(t('studio.localFolder'));
-      if (!importedProject) {
-        return;
-      }
-
-      activateImportedProject(importedProject.projectId);
-      await synchronizeImportedProject(importedProject.projectId, true);
-      addToast(t('studio.openedFolder', { name: importedProject.projectName }), 'success');
-    } catch (error) {
-      console.error('Failed to open folder', error);
-      addToast(t('studio.failedToOpenFolder'), 'error');
-    }
-  }, [
-    activateImportedProject,
-    addToast,
-    selectFolderAndImportProject,
-    synchronizeImportedProject,
-    t,
-  ]);
+  }, [activateCreatedProjectSelection, onRequestProjectCreation]);
 
   const handleRetryMountRecovery = useCallback(async () => {
     if (!currentProjectId) {
@@ -1332,7 +1264,6 @@ function StudioPageComponent({
         onCreateProject={handleCreateSidebarProject}
         onLoadMoreProjects={loadMoreProjects}
         onLoadMoreProjectSessions={loadMoreProjectSessions}
-        onOpenFolder={handleOpenSidebarFolder}
         onCreateAgentSession={createStudioAgentSessionInProject}
         onRefreshProjectSessions={handleRefreshProjectSessions}
         onRefreshAgentSessionItems={handleRefreshAgentSessionItems}

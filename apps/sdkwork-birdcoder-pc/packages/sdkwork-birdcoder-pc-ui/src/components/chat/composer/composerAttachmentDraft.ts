@@ -1,3 +1,5 @@
+import type { WorkbenchAgentTurnDriveRef } from '@sdkwork/birdcoder-pc-workbench/chat/agentTurnInputQueueStore';
+
 export type ComposerAttachmentKind = 'file' | 'image';
 
 export type ComposerAttachmentStatus = 'failed' | 'ready' | 'uploading';
@@ -5,6 +7,7 @@ export type ComposerAttachmentStatus = 'failed' | 'ready' | 'uploading';
 export interface ComposerAttachmentDraft {
   readonly contentBlock?: string;
   readonly displayName: string;
+  readonly driveRef?: WorkbenchAgentTurnDriveRef;
   readonly file: File;
   readonly id: string;
   readonly kind: ComposerAttachmentKind;
@@ -12,6 +15,18 @@ export interface ComposerAttachmentDraft {
   readonly previewUrl?: string;
   readonly sizeBytes: number;
   readonly status: ComposerAttachmentStatus;
+}
+
+export function resolveComposerAttachmentResourceRole(
+  attachment: Pick<ComposerAttachmentDraft, 'kind' | 'mimeType'>,
+): WorkbenchAgentTurnDriveRef['resourceRole'] {
+  if (attachment.kind === 'image') {
+    return 'image';
+  }
+  if (attachment.mimeType.trim().toLowerCase().startsWith('audio/')) {
+    return 'audio';
+  }
+  return 'attachment';
 }
 
 let composerAttachmentSequence = 0;

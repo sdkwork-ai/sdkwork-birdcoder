@@ -3,6 +3,8 @@ import { useCallback, useSyncExternalStore } from 'react';
 type ChatInputDraftListener = () => void;
 
 const MAX_CHAT_INPUT_DRAFT_ENTRIES = 200;
+const MAX_CHAT_INPUT_DRAFT_CHARACTERS_TOTAL = 4 * 1_048_576;
+export const MAX_AGENT_TURN_INPUT_CHARACTERS = 1_048_576;
 
 const chatInputDrafts = new Map<string, string>();
 const chatInputDraftListeners = new Map<string, Set<ChatInputDraftListener>>();
@@ -15,16 +17,26 @@ function getChatInputDraftSnapshot(key: string): string {
   return chatInputDrafts.get(key) ?? '';
 }
 
-function pruneChatInputDrafts(): void {
-  while (chatInputDrafts.size > MAX_CHAT_INPUT_DRAFT_ENTRIES) {
+function pruneChatInputDrafts(protectedKey: string): void {
+  let retainedCharacters = [...chatInputDrafts.values()].reduce(
+    (total, draft) => total + draft.length,
+    0,
+  );
+  while (
+    chatInputDrafts.size > MAX_CHAT_INPUT_DRAFT_ENTRIES
+    || retainedCharacters > MAX_CHAT_INPUT_DRAFT_CHARACTERS_TOTAL
+  ) {
     const oldestPrunableKey = Array.from(chatInputDrafts.keys())
-      .find((key) => !chatInputDraftListeners.has(key));
+      .find((key) => key !== protectedKey && !chatInputDraftListeners.has(key))
+      ?? Array.from(chatInputDrafts.keys()).find((key) => key !== protectedKey);
 
     if (!oldestPrunableKey) {
       return;
     }
 
+    retainedCharacters -= chatInputDrafts.get(oldestPrunableKey)?.length ?? 0;
     chatInputDrafts.delete(oldestPrunableKey);
+    emitChatInputDraftSnapshot(oldestPrunableKey);
   }
 }
 
@@ -85,10 +97,11 @@ export function setWorkbenchChatInputDraft(
   }
 
   const previousValue = getChatInputDraftSnapshot(normalizedKey);
-  const resolvedValue =
+  const resolvedValue = (
     typeof nextValue === 'function'
       ? nextValue(previousValue)
-      : nextValue;
+      : nextValue
+  ).slice(0, MAX_AGENT_TURN_INPUT_CHARACTERS);
 
   if (resolvedValue === previousValue) {
     return previousValue;
@@ -97,7 +110,7 @@ export function setWorkbenchChatInputDraft(
   if (resolvedValue) {
     chatInputDrafts.delete(normalizedKey);
     chatInputDrafts.set(normalizedKey, resolvedValue);
-    pruneChatInputDrafts();
+    pruneChatInputDrafts(normalizedKey);
   } else {
     chatInputDrafts.delete(normalizedKey);
   }
@@ -110,6 +123,14 @@ export function clearWorkbenchChatInputDraft(
   key: string | null | undefined,
 ): void {
   setWorkbenchChatInputDraft(key, '');
+}
+
+export function clearWorkbenchChatInputDraftMemory(): void {
+  const changedKeys = [...chatInputDrafts.keys()];
+  chatInputDrafts.clear();
+  for (const key of changedKeys) {
+    emitChatInputDraftSnapshot(key);
+  }
 }
 
 export function useWorkbenchChatInputDraft(

@@ -92,6 +92,23 @@ describe('Agent turn item reconciliation', () => {
     )).toEqual([firstCanonical, unmatchedTransient, secondCanonical]);
   });
 
+  it('does not suppress a transient item with a matching turn and role from another Session', () => {
+    const transientSessionA = item('item.session-a.pending', 'assistant', {
+      metadata: { transient: true },
+      sessionId: 'session.a',
+      turnId: 'turn.shared',
+    });
+    const authoritySessionB = item('item.session-b.authority', 'assistant', {
+      sessionId: 'session.b',
+      turnId: 'turn.shared',
+    });
+
+    expect(mergeLatestAgentSessionItems(
+      [transientSessionA],
+      [authoritySessionB],
+    )).toEqual([transientSessionA, authoritySessionB]);
+  });
+
   it('commits authority refreshes on top of stream deltas that arrived after the read started', () => {
     const current = session({
       runtimeStatus: 'streaming',
@@ -196,6 +213,61 @@ describe('Agent turn item reconciliation', () => {
     expect(merged.runtimeStatus).toBe('streaming');
     expect(merged.itemPageInfo).toEqual({ hasMore: true, page: 3, pageSize: 20 });
     expect(merged.items).toEqual(current.items);
+  });
+
+  it('does not regress a history page committed while a latest refresh was in flight', () => {
+    const current = session({
+      itemPageInfo: { hasMore: false, page: 3, pageSize: 20 },
+      items: [item('item.history', 'user')],
+    });
+    const delayedRefresh = session({
+      itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+      items: [item('item.latest', 'assistant')],
+    });
+
+    expect(
+      mergeRefreshedAgentSessionIntoCurrent(current, delayedRefresh).itemPageInfo,
+    ).toEqual({ hasMore: false, page: 3, pageSize: 20 });
+    expect(
+      mergeAgentSessionProjectionForStore(current, delayedRefresh).itemPageInfo,
+    ).toEqual({ hasMore: false, page: 3, pageSize: 20 });
+  });
+
+  it('does not restore a disconnected authority tail when the latest window resets', () => {
+    const current = session({
+      items: [
+        item('item.stale', 'user'),
+        item('item.concurrent', 'assistant', {
+          metadata: { transient: true },
+          turnId: 'turn.concurrent',
+        }),
+      ],
+    });
+    const refreshed = session({
+      items: [item('item.authority', 'user')],
+    });
+
+    expect(mergeRefreshedAgentSessionIntoCurrent(
+      current,
+      refreshed,
+      { replaceLoadedAuthorityWindow: true },
+    ).items.map((entry) => entry.id)).toEqual([
+      'item.authority',
+      'item.concurrent',
+    ]);
+    expect(mergeAgentSessionProjectionForStore(
+      current,
+      refreshed,
+      { itemMergeMode: 'authority-window-reset' },
+    ).items.map((entry) => entry.id)).toEqual([
+      'item.authority',
+      'item.concurrent',
+    ]);
+    expect(mergeAgentSessionProjectionForStore(
+      current,
+      session({ items: [] }),
+      { itemMergeMode: 'authority-window-reset' },
+    ).items.map((entry) => entry.id)).toEqual(['item.concurrent']);
   });
 
   it('preserves items appended while an older non-empty transcript refresh is committing', () => {

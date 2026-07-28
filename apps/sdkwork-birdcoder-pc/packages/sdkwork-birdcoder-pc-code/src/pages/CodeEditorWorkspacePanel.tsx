@@ -2,6 +2,7 @@ import { DeferredFileExplorer } from '@sdkwork/birdcoder-pc-ui/components/Deferr
 import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';
+import { resolveCodeEditorDiffResponsiveLayout } from './codeEditorChatLayout';
 import { areCodeEditorWorkspacePanelRenderInputsEqual } from './codeEditorWorkspacePanelEquality';
 import type {
   CodeEditorWorkspacePanelProps,
@@ -25,9 +26,6 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   selectedAgentSessionScopeKey,
   selectedEngineId,
   selectedModelId,
-  onDeleteMessage,
-  onEditMessage,
-  onRegenerateMessage,
   onOpenFile,
   onRestoreMessage,
   onSelectedEngineIdChange,
@@ -64,9 +62,6 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       layout="sidebar"
       onViewChanges={onViewChanges}
       onRestore={onRestoreMessage}
-      onEditMessage={onEditMessage}
-      onDeleteMessage={onDeleteMessage}
-      onRegenerateMessage={onRegenerateMessage}
       onOpenFile={onOpenFile}
       emptyState={chatEmptyState}
     />
@@ -143,30 +138,43 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onCreateRootFile,
   getLanguageFromPath,
 }: CodeEditorWorkspacePanelProps) {
+  const diffLayout = resolveCodeEditorDiffResponsiveLayout(Boolean(viewingDiff), chatWidth);
+
   return (
-    <div className={isActive ? 'flex flex-1 min-h-0 overflow-hidden' : 'hidden'}>
+    <div
+      className={isActive ? 'flex flex-1 min-h-0 overflow-hidden' : 'hidden'}
+      data-code-editor-diff-layout={diffLayout.mode}
+      data-code-editor-workspace="true"
+    >
       <div className="flex-1 flex h-full min-w-0 overflow-hidden">
-        <DeferredFileExplorer
-          files={files}
-          hasLoadError={fileTreeLoadError}
-          isActive={isActive}
-          isLoading={isFileTreeLoading}
-          width={explorerWidth}
-          loadingDirectoryPaths={loadingDirectoryPaths}
-          onExpandDirectory={onExpandDirectory}
-          onRetryLoad={onRetryFileTreeLoad}
-          projectId={currentProjectId}
-          projectRootPath={projectRootPath}
-          scopeKey={currentProjectId}
-          selectedFile={selectedFile || undefined}
-          onSelectFile={onSelectFile}
-          onCreateFile={onCreateFile}
-          onCreateFolder={onCreateFolder}
-          onDeleteFile={onDeleteFile}
-          onDeleteFolder={onDeleteFolder}
-          onRenameNode={onRenameNode}
-        />
-        <ResizeHandle direction="horizontal" onResize={onExplorerResize} />
+        <div
+          className={diffLayout.showFileExplorer ? 'flex h-full shrink-0 overflow-hidden' : 'hidden'}
+          data-code-editor-file-explorer-panel="true"
+        >
+          <DeferredFileExplorer
+            files={files}
+            hasLoadError={fileTreeLoadError}
+            isActive={isActive && diffLayout.showFileExplorer}
+            isLoading={isFileTreeLoading}
+            width={explorerWidth}
+            loadingDirectoryPaths={loadingDirectoryPaths}
+            onExpandDirectory={onExpandDirectory}
+            onRetryLoad={onRetryFileTreeLoad}
+            projectId={currentProjectId}
+            projectRootPath={projectRootPath}
+            scopeKey={currentProjectId}
+            selectedFile={selectedFile || undefined}
+            onSelectFile={onSelectFile}
+            onCreateFile={onCreateFile}
+            onCreateFolder={onCreateFolder}
+            onDeleteFile={onDeleteFile}
+            onDeleteFolder={onDeleteFolder}
+            onRenameNode={onRenameNode}
+          />
+        </div>
+        {diffLayout.showFileExplorer ? (
+          <ResizeHandle direction="horizontal" onResize={onExplorerResize} />
+        ) : null}
         <CodeEditorSurface
           currentProjectId={currentProjectId}
           fileCount={files.length}
@@ -181,8 +189,16 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
           onCreateRootFile={onCreateRootFile}
           getLanguageFromPath={getLanguageFromPath}
         />
-        <ResizeHandle direction="horizontal" onResize={onChatResize} />
-        <div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-[#0e0e11]" style={{ width: chatWidth }}>
+        {diffLayout.showChatPanel ? (
+          <ResizeHandle direction="horizontal" onResize={onChatResize} />
+        ) : null}
+        <div
+          className={diffLayout.showChatPanel
+            ? 'flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-[#0e0e11]'
+            : 'hidden'}
+          data-code-editor-chat-panel="true"
+          style={{ width: diffLayout.chatWidth }}
+        >
           <div className="min-h-0 flex-1">
             <CodeEditorWorkspaceChatPanel
               selectedAgentSessionId={selectedAgentSessionId}
@@ -194,7 +210,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               pendingApprovals={pendingApprovals}
               pendingUserQuestions={pendingUserQuestions}
               chatEmptyState={chatEmptyState}
-              isActive={isActive}
+              isActive={isActive && diffLayout.showChatPanel}
               isBusy={isBusy}
               isEngineBusy={isEngineBusy}
               showComposerEngineSelector={showComposerEngineSelector}

@@ -18,7 +18,7 @@ export {
   type AgentSessionItemResourceOriginView,
 } from './agent-session-view.ts';
 
-const MAX_SESSION_ITEM_RESOURCES = 32;
+export const MAX_AGENT_SESSION_ITEM_RESOURCES = 32;
 const MAX_RESOURCE_NAME_CHARACTERS = 256;
 const MAX_RESOURCE_LOCATION_CHARACTERS = 4_096;
 const MAX_RESOURCE_DESCRIPTION_CHARACTERS = 4_000;
@@ -172,7 +172,7 @@ export function normalizeAgentSessionItemResources(
   }
   const order: string[] = [];
   const resourcesById = new Map<string, AgentSessionItemResourceView>();
-  values.slice(0, MAX_SESSION_ITEM_RESOURCES).forEach((value, index) => {
+  values.slice(0, MAX_AGENT_SESSION_ITEM_RESOURCES).forEach((value, index) => {
     const resource = normalizeSessionItemResource(value, index);
     if (!resource) {
       return;

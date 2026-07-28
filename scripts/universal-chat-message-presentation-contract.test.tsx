@@ -267,6 +267,8 @@ const userAttachmentView = resolveAgentSessionItemPresentation({
     "```text",
     "This payload is model context and must not be visible in the message bubble.",
     "```",
+    "",
+    '[DRIVE_MEDIA:{"id":"drive-audio-marker","kind":"audio","fileName":"meeting.m4a","mimeType":"audio/mp4","uri":"drive://spaces/space-media/nodes/drive-audio-marker"}]',
   ].join("\n"),
   resources: [
     {
@@ -310,21 +312,38 @@ const userAttachmentView = resolveAgentSessionItemPresentation({
       mediaSource: "data:audio/wav;base64,UklGRg==",
       mimeType: "audio/wav",
     },
+    {
+      id: "drive-image",
+      kind: "image",
+      name: "drive-image.png",
+      uri: "drive://spaces/space-media/nodes/drive-image",
+      mimeType: "image/png",
+    },
+    {
+      id: "drive-audio",
+      kind: "audio",
+      name: "drive-audio.m4a",
+      uri: "drive://spaces/space-media/nodes/drive-audio",
+      mimeType: "audio/mp4",
+    },
   ],
   createdAt: "2026-07-27T00:00:00.000Z",
 });
 const userAttachmentDisplay = resolveUserMessageDisplay(userAttachmentView);
-assert.equal(userAttachmentDisplay.imageAttachments.length, 2);
+assert.equal(userAttachmentDisplay.imageAttachments.length, 3);
 assert.deepEqual(
   userAttachmentDisplay.audioAttachments.map((audio) => audio.title),
-  ["voice-note.wav"],
-  "Playable audio resources must remain structured user-message attachments.",
+  ["meeting.m4a", "voice-note.wav", "drive-audio.m4a"],
+  "Inline, Drive, and legacy playable audio resources must remain structured user-message attachments.",
 );
 assert.deepEqual(
   userAttachmentDisplay.imageAttachments.map((image) => image.title),
-  ["first screenshot", "second screenshot"],
+  ["first screenshot", "second screenshot", "drive-image.png"],
   "Markdown and structured image resources must preserve image order without duplicate previews.",
 );
+assert.equal(userAttachmentDisplay.imageAttachments[2]?.driveNodeId, "drive-image");
+assert.equal(userAttachmentDisplay.audioAttachments[0]?.driveNodeId, "drive-audio-marker");
+assert.equal(userAttachmentDisplay.audioAttachments[2]?.driveNodeId, "drive-audio");
 assert.deepEqual(
   userAttachmentDisplay.fileAttachments.map((file) => file.title),
   ["notes.txt", "fresh-notes.txt", "local.ts", "unavailable.png"],
@@ -368,11 +387,11 @@ const userAttachmentsHtml = renderToStaticMarkup(
 );
 assert.equal(
   [...userAttachmentsHtml.matchAll(/data-chat-user-audio="true"/gu)].length,
-  1,
+  3,
 );
 assert.equal(
   [...userAttachmentsHtml.matchAll(/data-chat-user-image="true"/gu)].length,
-  2,
+  3,
 );
 assert.equal(
   [...userAttachmentsHtml.matchAll(/data-chat-user-file-attachment="true"/gu)]

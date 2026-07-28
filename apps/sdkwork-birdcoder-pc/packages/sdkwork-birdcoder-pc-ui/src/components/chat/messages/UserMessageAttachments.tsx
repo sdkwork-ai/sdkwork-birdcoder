@@ -6,6 +6,7 @@ import {
   FileText,
   Image as ImageIcon,
   Link2,
+  Loader2,
   X,
 } from 'lucide-react';
 import type { ChatMessageRenderContext } from './types.ts';
@@ -32,6 +33,118 @@ interface UserMessageAttachmentsProps {
   images: readonly UserMessageImageAttachment[];
 }
 
+type ResolvedUserMessageImageAttachment = UserMessageImageAttachment & { source: string };
+
+function useResolvedDriveAttachmentSource({
+  driveNodeId,
+  resolvePreview,
+  source,
+}: {
+  driveNodeId?: string;
+  resolvePreview?: (nodeId: string) => Promise<string | undefined>;
+  source?: string;
+}): { resolutionFailed: boolean; resolvedSource?: string } {
+  const [resolvedSource, setResolvedSource] = useState(source);
+  const [resolutionFailed, setResolutionFailed] = useState(false);
+
+  useEffect(() => {
+    setResolvedSource(source);
+    setResolutionFailed(false);
+    if (source) {
+      return undefined;
+    }
+    if (!driveNodeId || !resolvePreview) {
+      setResolutionFailed(true);
+      return undefined;
+    }
+
+    let isCurrent = true;
+    void resolvePreview(driveNodeId).then((nextSource) => {
+      if (!isCurrent) {
+        return;
+      }
+      if (nextSource) {
+        setResolvedSource(nextSource);
+      } else {
+        setResolutionFailed(true);
+      }
+    }).catch(() => {
+      if (isCurrent) {
+        setResolutionFailed(true);
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [driveNodeId, resolvePreview, source]);
+
+  return { resolutionFailed, resolvedSource };
+}
+
+function UserMessageAudioItem({
+  audio,
+  context,
+}: {
+  audio: UserMessageAudioAttachment;
+  context: ChatMessageRenderContext;
+}) {
+  const { resolutionFailed, resolvedSource } = useResolvedDriveAttachmentSource({
+    driveNodeId: audio.driveNodeId,
+    resolvePreview: context.environment?.resolveDriveAttachmentPreviewUrl,
+    source: audio.source,
+  });
+  const canOpenDriveAttachment = Boolean(
+    audio.driveNodeId && context.environment?.onOpenDriveAttachment,
+  );
+  const previewFileLabel = context.environment?.t('chat.previewFile') ?? 'Preview file';
+
+  return (
+    <li
+      className="min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.035] p-2.5"
+      data-chat-user-audio="true"
+      data-chat-user-audio-resolved={resolvedSource ? 'true' : 'false'}
+    >
+      <span className="mb-2 flex min-w-0 items-center gap-2 text-[12px] font-medium leading-4 text-gray-200">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.055] text-gray-400">
+          <AudioLines size={14} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 truncate" title={audio.title}>{audio.title}</span>
+      </span>
+      {resolvedSource ? (
+        <audio
+          className="h-8 w-full min-w-0 [color-scheme:dark]"
+          controls
+          preload="metadata"
+          src={resolvedSource}
+          aria-label={audio.title}
+        />
+      ) : resolutionFailed ? (
+        <button
+          type="button"
+          className="flex h-8 w-full items-center justify-center gap-2 rounded-md bg-white/[0.045] text-xs text-gray-400 transition-colors enabled:hover:bg-white/[0.075] enabled:hover:text-gray-200 disabled:cursor-default"
+          disabled={!canOpenDriveAttachment}
+          aria-label={`${previewFileLabel}: ${audio.title}`}
+          onClick={() => {
+            if (audio.driveNodeId) {
+              context.environment?.onOpenDriveAttachment?.(audio.driveNodeId, audio.title);
+            }
+          }}
+        >
+          <ExternalLink size={13} aria-hidden="true" />
+          <span className="truncate">{audio.title}</span>
+        </button>
+      ) : (
+        <span
+          className="flex h-8 w-full items-center justify-center text-gray-500"
+          role="status"
+        >
+          <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+        </span>
+      )}
+    </li>
+  );
+}
+
 function UserMessageAudioList({
   audios,
   context,
@@ -50,25 +163,7 @@ function UserMessageAudioList({
       data-chat-user-audio-list="true"
     >
       {audios.map((audio) => (
-        <li
-          className="min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.035] p-2.5"
-          key={audio.id}
-          data-chat-user-audio="true"
-        >
-          <span className="mb-2 flex min-w-0 items-center gap-2 text-[12px] font-medium leading-4 text-gray-200">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.055] text-gray-400">
-              <AudioLines size={14} aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1 truncate" title={audio.title}>{audio.title}</span>
-          </span>
-          <audio
-            className="h-8 w-full min-w-0 [color-scheme:dark]"
-            controls
-            preload="metadata"
-            src={audio.source}
-            aria-label={audio.title}
-          />
-        </li>
+        <UserMessageAudioItem audio={audio} context={context} key={audio.id} />
       ))}
     </ul>
   );
@@ -80,7 +175,7 @@ function ImagePreviewDialog({
   closeLabel,
 }: {
   closeLabel: string;
-  image: UserMessageImageAttachment;
+  image: ResolvedUserMessageImageAttachment;
   onClose: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -145,6 +240,68 @@ function ImagePreviewDialog({
   );
 }
 
+function UserMessageImageButton({
+  context,
+  image,
+  isSingleImage,
+  onPreview,
+}: {
+  context: ChatMessageRenderContext;
+  image: UserMessageImageAttachment;
+  isSingleImage: boolean;
+  onPreview: (image: ResolvedUserMessageImageAttachment) => void;
+}) {
+  const previewLabel = context.environment?.t('chat.previewImage') ?? 'Preview image';
+  const resolvePreview = context.environment?.resolveDriveAttachmentPreviewUrl;
+  const { resolutionFailed: previewFailed, resolvedSource } =
+    useResolvedDriveAttachmentSource({
+      driveNodeId: image.driveNodeId,
+      resolvePreview,
+      source: image.source,
+    });
+  const canOpenDriveAttachment = Boolean(
+    image.driveNodeId && context.environment?.onOpenDriveAttachment,
+  );
+
+  return (
+    <li className={`min-w-0 ${isSingleImage ? 'aspect-[4/3]' : 'aspect-square'}`}>
+      <button
+        type="button"
+        className="group/image relative h-full w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-black/25 text-left transition-colors enabled:hover:border-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80 disabled:cursor-default"
+        title={`${previewLabel}: ${image.title}`}
+        aria-label={`${previewLabel}: ${image.title}`}
+        data-chat-user-image="true"
+        data-chat-user-image-resolved={resolvedSource ? 'true' : 'false'}
+        disabled={!resolvedSource && !canOpenDriveAttachment}
+        onClick={() => {
+          if (resolvedSource) {
+            onPreview({ ...image, source: resolvedSource });
+          } else if (image.driveNodeId) {
+            context.environment?.onOpenDriveAttachment?.(image.driveNodeId, image.title);
+          }
+        }}
+      >
+        {resolvedSource ? (
+          <img
+            src={resolvedSource}
+            alt=""
+            className="h-full w-full object-cover transition-transform duration-200 group-hover/image:scale-[1.015]"
+            loading="lazy"
+          />
+        ) : previewFailed ? (
+          <span className="flex h-full w-full items-center justify-center text-gray-500">
+            <ImageIcon aria-hidden="true" size={20} />
+          </span>
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-gray-500" role="status">
+            <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
+
 function UserMessageImageGrid({
   context,
   images,
@@ -152,13 +309,12 @@ function UserMessageImageGrid({
   context: ChatMessageRenderContext;
   images: readonly UserMessageImageAttachment[];
 }) {
-  const [previewImage, setPreviewImage] = useState<UserMessageImageAttachment | null>(null);
+  const [previewImage, setPreviewImage] = useState<ResolvedUserMessageImageAttachment | null>(null);
   const closePreview = useCallback(() => setPreviewImage(null), []);
   if (images.length === 0) {
     return null;
   }
   const imageGroupLabel = context.environment?.t('chat.messageImages') ?? 'Message images';
-  const previewLabel = context.environment?.t('chat.previewImage') ?? 'Preview image';
   const closeLabel = context.environment?.t('chat.closeImagePreview') ?? 'Close image preview';
   const isSingleImage = images.length === 1;
 
@@ -174,28 +330,13 @@ function UserMessageImageGrid({
         data-chat-user-image-grid="true"
       >
         {images.map((image) => (
-          <li
-            className={`min-w-0 ${
-              isSingleImage ? 'aspect-[4/3]' : 'aspect-square'
-            }`}
+          <UserMessageImageButton
+            context={context}
+            image={image}
+            isSingleImage={isSingleImage}
             key={image.id}
-          >
-            <button
-              type="button"
-              className="group/image relative h-full w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-black/25 text-left transition-colors hover:border-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80"
-              title={`${previewLabel}: ${image.title}`}
-              aria-label={`${previewLabel}: ${image.title}`}
-              data-chat-user-image="true"
-              onClick={() => setPreviewImage(image)}
-            >
-              <img
-                src={image.source}
-                alt=""
-                className="h-full w-full object-cover transition-transform duration-200 group-hover/image:scale-[1.015]"
-                loading="lazy"
-              />
-            </button>
-          </li>
+            onPreview={setPreviewImage}
+          />
         ))}
       </ul>
       {previewImage ? (

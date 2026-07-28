@@ -15,27 +15,22 @@ const CHAT_DOWNLOAD_GRANT_TTL_SECONDS = 3600;
 
 export interface BirdCoderChatDriveUploadOptions {
   file: File;
-  sessionId?: string;
+  resourceId?: string;
   profile: DriveUploaderProfile;
   signal?: AbortSignal;
 }
 
 export interface BirdCoderChatDriveUploadResult {
+  driveSpaceId: string;
   mediaResource: MediaResource;
   nodeId: string;
-  previewUrl?: string;
 }
 
-function resolveChatAppResourceId(sessionId?: string): string {
-  if (typeof sessionId === 'string' && !isBlank(sessionId)) {
-    return sessionId.trim();
+function resolveChatAppResourceId(resourceId?: string): string {
+  if (typeof resourceId === 'string' && !isBlank(resourceId)) {
+    return resourceId.trim();
   }
   return 'default';
-}
-
-function buildUploaderFingerprint(file: File): string {
-  const contentType = file.type.trim() || 'application/octet-stream';
-  return `name:${file.name}:size:${file.size}:type:${contentType}`;
 }
 
 function mapProfileToMediaKind(profile: DriveUploaderProfile): MediaResource['kind'] {
@@ -64,7 +59,11 @@ function readDownloadUrl(payload: unknown): string | undefined {
   if (typeof value !== 'string' || isBlank(value)) {
     return undefined;
   }
-  return value.trim();
+  const normalizedValue = value.trim();
+  return /^https?:\/\//iu.test(normalizedValue)
+    || (normalizedValue.startsWith('/') && !normalizedValue.startsWith('//'))
+    ? normalizedValue
+    : undefined;
 }
 
 function resolveUploaderMethod(
@@ -129,50 +128,40 @@ export async function uploadBirdCoderChatAttachmentToDrive(
   const uploadResult = await upload({
     file: options.file,
     appResourceType: BIRDCODER_CHAT_APP_RESOURCE_TYPE,
-    appResourceId: resolveChatAppResourceId(options.sessionId),
+    appResourceId: resolveChatAppResourceId(options.resourceId),
     scene: BIRDCODER_CHAT_UPLOAD_SCENE,
     source: BIRDCODER_CHAT_UPLOAD_SOURCE,
-    fileFingerprint: buildUploaderFingerprint(options.file),
     originalFileName: options.file.name,
     contentType: options.file.type.trim() || undefined,
+    retention: { mode: 'long_term' },
     signal: options.signal,
   });
 
+  const driveSpaceId = uploadResult.uploadItem.spaceId?.trim();
   const nodeId = uploadResult.uploadItem.nodeId;
+  if (!driveSpaceId || !nodeId) {
+    throw new Error('Drive upload did not return a stable Space and Node identity.');
+  }
   const mediaResource: MediaResource = {
     id: nodeId,
     kind: mapProfileToMediaKind(options.profile),
     source: 'drive',
-    uri: `drive://nodes/${nodeId}`,
+    uri: `drive://spaces/${encodeURIComponent(driveSpaceId)}/nodes/${encodeURIComponent(nodeId)}`,
     fileName: uploadResult.uploadItem.originalFileName,
     mimeType: uploadResult.uploadItem.contentType,
     sizeBytes: uploadResult.uploadItem.contentLength,
     checksumSha256: uploadResult.uploadItem.checksumSha256Hex,
   };
-  const previewUrl = mediaResource.kind === 'image'
-    ? await resolveChatAttachmentPreviewUrl(client, nodeId)
-    : undefined;
 
   return {
+    driveSpaceId,
     mediaResource,
     nodeId,
-    previewUrl,
   };
 }
 
-export function buildDriveMediaResourceContentBlock(
-  mediaResource: MediaResource,
-  previewUrl?: string,
-): string {
-  if (previewUrl && mediaResource.kind === 'image') {
-    const label = mediaResource.fileName?.trim() || 'image';
-    return `\n![${label}](${previewUrl})\n`;
-  }
-
-  const displayEnvelope = previewUrl
-    ? { ...mediaResource, previewUrl }
-    : mediaResource;
-  return `\n\n[DRIVE_MEDIA:${JSON.stringify(displayEnvelope)}]\n`;
+export function buildDriveMediaResourceContentBlock(mediaResource: MediaResource): string {
+  return `\n\n[DRIVE_MEDIA:${JSON.stringify(mediaResource)}]\n`;
 }
 
 export function resolveChatAttachmentUploadProfile(file: File): DriveUploaderProfile {

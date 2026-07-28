@@ -112,7 +112,7 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /const normalizedMessages = useMemo\(\s*\(\) => composeAgentSessionTranscriptActivity\(\s*resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\{ engineId: selectedEngineId \},\s*\),\s*\[messages, normalizedSessionId, selectedEngineId\],\s*\);/s,
+  /const transcriptEngineId = useMemo\([\s\S]*resolveChatProviderPresentationProfile\(resolvedSelectedEngineId\)[\s\S]*const normalizedMessages = useMemo\(\s*\(\) => composeAgentSessionTranscriptActivity\(\s*resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\{ engineId: transcriptEngineId \},\s*\),\s*\[messages, normalizedSessionId, transcriptEngineId\],\s*\);/s,
   'UniversalChat must compose session filtering with provider-neutral Agent Session activity in one memoized transcript boundary.',
 );
 

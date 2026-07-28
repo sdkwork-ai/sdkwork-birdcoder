@@ -568,46 +568,50 @@ const sessionItemsBySessionId = new Map([
           kind: 'user_input',
           status: 'completed',
           sequence: '42',
-          content: 'Inspect this Codex screenshot and the attached protocol notes.',
+          content: [
+            '# Files mentioned by the user:',
+            '',
+            '## codex-screenshot.png: C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png',
+            '',
+            '## codex-protocol-notes.md: E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md',
+            '',
+            '## My request for Codex:',
+            'Inspect this Codex screenshot and the attached protocol notes.',
+          ].join('\n'),
           contentType: 'text/plain',
-          providerId: 'provider.model.codex',
-          createdAt: '2026-01-01T00:00:42.000Z',
+          providerId: 'openai',
+          createdAt: '2026-01-01T00:00:42.004Z',
         };
       }
       if (sequence === 41) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-user-image-placeholder',
+          turnId: 'e2e-codex-multimodal-turn',
+          kind: 'artifact_reference',
+          status: 'completed',
+          sequence: '41',
+          content: '<image name=[Image #1] path="C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png">',
+          contentType: 'text/plain',
+          providerId: 'openai',
+          createdAt: '2026-01-01T00:00:42.003Z',
+        };
+      }
+      if (sequence === 40) {
         return {
           sessionId: 'e2e-codex-session',
           itemId: 'e2e-codex-user-image',
           turnId: 'e2e-codex-multimodal-turn',
           kind: 'artifact_reference',
           status: 'completed',
-          sequence: '41',
+          sequence: '40',
           content: JSON.stringify({
             type: 'input_image',
             image_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
           }),
           contentType: 'application/json',
-          providerId: 'provider.model.codex',
-          createdAt: '2026-01-01T00:00:42.000Z',
-        };
-      }
-      if (sequence === 40) {
-        return {
-          sessionId: 'e2e-codex-session',
-          itemId: 'e2e-codex-user-file',
-          turnId: 'e2e-codex-multimodal-turn',
-          kind: 'artifact_reference',
-          status: 'completed',
-          sequence: '40',
-          content: JSON.stringify({
-            type: 'file',
-            name: 'codex-protocol-notes.md',
-            path: 'E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md',
-            mime_type: 'text/markdown',
-          }),
-          contentType: 'application/json',
-          providerId: 'provider.model.codex',
-          createdAt: '2026-01-01T00:00:42.000Z',
+          providerId: null,
+          createdAt: '2026-01-01T00:00:42.002Z',
         };
       }
       return {

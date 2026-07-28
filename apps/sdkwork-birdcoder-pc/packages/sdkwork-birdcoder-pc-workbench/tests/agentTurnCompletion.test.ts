@@ -177,6 +177,11 @@ describe('Agent turn streaming completion contract', () => {
 
     await expect(service.submitTurn(sessionId, {
       content: ' hello ',
+      driveRefs: [{
+        driveNodeId: ' node-design ',
+        driveSpaceId: ' space-project ',
+        resourceRole: 'image',
+      }] as never,
       runtimeBindingId: ` ${runtimeBindingId} `,
       requestedModelId: ' codex-default ',
       turnMode: 'interactive',
@@ -194,6 +199,11 @@ describe('Agent turn streaming completion contract', () => {
       expect.objectContaining({
         clientRequestId: expect.any(String),
         content: 'hello',
+        driveRefs: [{
+          driveNodeId: 'node-design',
+          driveSpaceId: 'space-project',
+          resourceRole: 'image',
+        }],
         idempotencyKey: expect.any(String),
         payloadHash: expect.stringMatching(/^sha256:/u),
         requestedAt: expect.any(String),
@@ -300,6 +310,47 @@ describe('Agent turn streaming completion contract', () => {
     expect(stream).not.toHaveBeenCalled();
   });
 
+  it('rejects oversized turn input before opening the stream', async () => {
+    const { service, stream } = createService([completionEvent()]);
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'x'.repeat(1_048_577),
+      runtimeBindingId,
+    }, { agentId })).rejects.toThrow('1048576 characters or fewer');
+    expect(stream).not.toHaveBeenCalled();
+  });
+
+  it('rejects too many Drive references before opening the stream', async () => {
+    const { service, stream } = createService([completionEvent()]);
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'review the attachments',
+      driveRefs: Array.from({ length: 65 }, (_, index) => ({
+        driveNodeId: `node-${index}`,
+        driveSpaceId: 'space-test',
+      })) as never,
+      runtimeBindingId,
+    }, { agentId })).rejects.toThrow('at most 64 Drive references');
+    expect(stream).not.toHaveBeenCalled();
+  });
+
+  it('bounds cumulative stream content before retaining another oversized delta', async () => {
+    const { service } = createService([
+      { eventType: 'delta', index: 0, delta: 'a'.repeat(700_000) },
+      { eventType: 'delta', index: 1, delta: 'b'.repeat(400_000) },
+    ]);
+    const onDelta = vi.fn();
+
+    await expect(service.submitTurn(sessionId, {
+      content: 'stream a bounded answer',
+      runtimeBindingId,
+    }, { agentId, onDelta })).rejects.toThrow(
+      'stream exceeded the maximum Session Item size',
+    );
+    expect(onDelta).toHaveBeenCalledTimes(1);
+    expect(onDelta.mock.calls[0]?.[0].content).toHaveLength(700_000);
+  });
+
   it('rejects an Agent mismatch remembered from the canonical Session', async () => {
     const retrieve = vi.fn(async () => ({ agentId, sessionId }));
     const stream = vi.fn(async () => createEventStream([completionEvent()]));
@@ -335,6 +386,7 @@ describe('Agent turn streaming completion contract', () => {
 
   it.each([
     { events: [{ eventType: 'delta', index: 1, delta: 'late' }] },
+    { events: [{ eventType: 'delta', index: 0, delta: '' }] },
     { events: [
       { eventType: 'delta', index: 0, delta: 'first' },
       { eventType: 'delta', index: 0, delta: 'duplicate' },
@@ -480,7 +532,7 @@ describe('Agent turn streaming completion contract', () => {
         http: { post },
         ai: { agents: { turns: { retrieve, stream } } },
       } as never,
-      turnRecoveryMaxAttempts: 2,
+      turnRecoveryMaxAttempts: 10,
       turnRecoveryPollIntervalMs: 0,
     });
     const onAccepted = vi.fn();
@@ -490,7 +542,7 @@ describe('Agent turn streaming completion contract', () => {
       runtimeBindingId,
       turnId: 'turn.not-accepted',
     }, { agentId, onAccepted })).rejects.toThrow('Initial turn request failed.');
-    expect(retrieve).toHaveBeenCalledTimes(2);
+    expect(retrieve).toHaveBeenCalledTimes(5);
     expect(onAccepted).not.toHaveBeenCalled();
   });
 
@@ -540,5 +592,49 @@ describe('Agent turn streaming completion contract', () => {
       content: 'hello',
       runtimeBindingId,
     }, { agentId })).rejects.toThrow(/identity|another session|runtime binding/u);
+  });
+});
+
+describe('Agent session user-state resource bounds', () => {
+  it('rejects unbounded input and limits concurrent SDK batches', async () => {
+    let activeRequests = 0;
+    let maximumConcurrentRequests = 0;
+    const list = vi.fn(async (
+      _agentId: string,
+      request: { pageSize: number },
+    ) => {
+      activeRequests += 1;
+      maximumConcurrentRequests = Math.max(maximumConcurrentRequests, activeRequests);
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+      activeRequests -= 1;
+      return {
+        items: [],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset',
+          page: 1,
+          pageSize: request.pageSize,
+        },
+      };
+    });
+    const service = new BirdCoderAgentSessionService({
+      agentId,
+      client: {
+        ai: { agents: { sessionUserStates: { list } } },
+      } as never,
+    });
+
+    await expect(service.getSessionUserStates(
+      Array.from({ length: 1_001 }, (_, index) => `session-${index}`),
+    )).rejects.toThrow('at most 1000 Session ids');
+    expect(list).not.toHaveBeenCalled();
+
+    await expect(service.getSessionUserStates(
+      Array.from({ length: 500 }, (_, index) => `session-${index}`),
+    )).resolves.toEqual(new Map());
+    expect(list).toHaveBeenCalledTimes(5);
+    expect(maximumConcurrentRequests).toBe(4);
   });
 });

@@ -36,6 +36,8 @@ import {
 } from './workspaceSessionInboxSync.ts';
 
 const AGENT_SESSION_ITEM_PAGE_SIZE = 20;
+const AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT = 5;
+const AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT = 10;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
@@ -83,6 +85,7 @@ export interface RefreshAgentSessionItemsResult {
   agentSession?: AgentSessionView;
   itemCount: number;
   projectId: string;
+  replaceLoadedAuthorityWindow?: boolean;
   source: 'agents';
   status: 'failed' | 'not-found' | 'refreshed';
 }
@@ -212,6 +215,10 @@ function validateLoadedItemPageInfo(
 
 function normalizeSessionItemRecords(
   items: readonly AgentSessionItemRecord[],
+  providerIdentity?: Pick<
+    AgentSessionView,
+    'engineId' | 'providerBindingId' | 'providerId'
+  >,
 ): AgentSessionItemView[] {
   const sortedItems = items
     .slice()
@@ -220,7 +227,39 @@ function normalizeSessionItemRecords(
       const rightSequence = BigInt(right.sequence);
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
     });
-  return toAgentSessionTranscriptItemViews(sortedItems);
+  return toAgentSessionTranscriptItemViews(sortedItems, providerIdentity);
+}
+
+function isTransientSessionItem(item: AgentSessionItemView): boolean {
+  return item.metadata?.transient === true;
+}
+
+function buildAuthoritySessionItemIds(
+  items: readonly AgentSessionItemView[],
+): Set<string> {
+  return new Set(
+    items.flatMap((item) => {
+      const itemId = item.id.trim();
+      return itemId && !isTransientSessionItem(item) ? [itemId] : [];
+    }),
+  );
+}
+
+function retainTransientSessionItems(
+  items: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  return items.filter(isTransientSessionItem);
+}
+
+function mergeResetSessionItemWindow(
+  transientItems: readonly AgentSessionItemView[],
+  authorityItems: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  const mergedItems = mergeLatestAgentSessionItems(transientItems, authorityItems);
+  return [
+    ...mergedItems.filter((item) => !isTransientSessionItem(item)),
+    ...mergedItems.filter(isTransientSessionItem),
+  ];
 }
 
 function latestTimestamp(
@@ -262,6 +301,19 @@ function shouldRetainObservedRuntimeStatus(
   return current.runtimeStatus !== undefined && current.runtimeStatus !== 'ready';
 }
 
+function mergeMonotonicSessionItemPageInfo(
+  current: AgentSessionPageInfoView | undefined,
+  incoming: AgentSessionPageInfoView | undefined,
+): AgentSessionPageInfoView | undefined {
+  if (!current || !incoming) {
+    return incoming ?? current;
+  }
+  if (current.page > incoming.page) {
+    return current;
+  }
+  return incoming;
+}
+
 /**
  * Reconciles an authority refresh at commit time. The current Store value can
  * contain stream deltas that arrived after the read started, so it is the merge
@@ -270,6 +322,7 @@ function shouldRetainObservedRuntimeStatus(
 export function mergeRefreshedAgentSessionIntoCurrent(
   current: AgentSessionView,
   refreshed: AgentSessionView,
+  options: { replaceLoadedAuthorityWindow?: boolean } = {},
 ): AgentSessionView {
   if (current.id !== refreshed.id || current.projectId !== refreshed.projectId) {
     throw new Error('Refreshed Agents session does not match the current Store identity.');
@@ -305,8 +358,16 @@ export function mergeRefreshedAgentSessionIntoCurrent(
       current.transcriptUpdatedAt,
       refreshed.transcriptUpdatedAt,
     ),
-    itemPageInfo: refreshed.itemPageInfo ?? current.itemPageInfo,
-    items: mergeLatestAgentSessionItems(current.items, refreshed.items),
+    itemPageInfo: mergeMonotonicSessionItemPageInfo(
+      current.itemPageInfo,
+      refreshed.itemPageInfo,
+    ),
+    items: options.replaceLoadedAuthorityWindow
+      ? mergeResetSessionItemWindow(
+          retainTransientSessionItems(current.items),
+          refreshed.items,
+        )
+      : mergeLatestAgentSessionItems(current.items, refreshed.items),
   };
 }
 
@@ -454,9 +515,99 @@ async function loadSessionItemPage(
   if (page.items.length === 0 && pageInfo.hasMore) {
     throw new Error('Agents session item list returned an empty page with hasMore=true.');
   }
+  const itemIds = new Set<string>();
+  for (const item of page.items) {
+    const itemId = typeof item.itemId === 'string' ? item.itemId.trim() : '';
+    const itemSessionId = typeof item.sessionId === 'string' ? item.sessionId.trim() : '';
+    if (!itemId || itemSessionId !== sessionId) {
+      throw new Error('Agents session item list returned an invalid Session Item identity.');
+    }
+    if (itemIds.has(itemId)) {
+      throw new Error('Agents session item list returned a duplicate Session Item identity.');
+    }
+    itemIds.add(itemId);
+
+    const sequence = typeof item.sequence === 'string' ? item.sequence.trim() : '';
+    try {
+      BigInt(sequence);
+    } catch {
+      throw new Error('Agents session item list returned an invalid Session Item sequence.');
+    }
+  }
   return {
     items: page.items,
     pageInfo,
+  };
+}
+
+interface LatestSessionItemWindow {
+  itemPageInfo: AgentSessionPageInfoView;
+  items: AgentSessionItemRecord[];
+  replaceLoadedAuthorityWindow: boolean;
+}
+
+async function loadLatestSessionItemWindow(
+  service: IAgentSessionService,
+  sessionId: string,
+  existingItems: readonly AgentSessionItemView[],
+  signal: AbortSignal,
+): Promise<LatestSessionItemWindow> {
+  const authorityItemIds = buildAuthoritySessionItemIds(existingItems);
+  const firstPage = await loadSessionItemPage(service, sessionId, 1, signal);
+  if (authorityItemIds.size === 0 || !firstPage.pageInfo.hasMore) {
+    return {
+      itemPageInfo: firstPage.pageInfo,
+      items: firstPage.items,
+      replaceLoadedAuthorityWindow: existingItems.length > 0,
+    };
+  }
+
+  const pages = [firstPage];
+  let overlapsLoadedWindow = firstPage.items.some((item) => authorityItemIds.has(item.itemId));
+  while (
+    !overlapsLoadedWindow
+    && pages.at(-1)?.pageInfo.hasMore
+    && pages.length < AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT
+  ) {
+    signal.throwIfAborted();
+    const nextPage = await loadSessionItemPage(
+      service,
+      sessionId,
+      pages.length + 1,
+      signal,
+    );
+    pages.push(nextPage);
+    overlapsLoadedWindow = nextPage.items.some((item) => authorityItemIds.has(item.itemId));
+  }
+
+  return {
+    itemPageInfo: pages.at(-1)!.pageInfo,
+    items: pages.flatMap((page) => page.items),
+    // A stale window that cannot be joined within the request budget must be
+    // replaced. Retaining it would render a transcript with a silent gap.
+    replaceLoadedAuthorityWindow: !overlapsLoadedWindow,
+  };
+}
+
+function mergeLoadedSessionItemPageInfo(
+  existingPageInfo: AgentSessionPageInfoView | undefined,
+  refreshedPageInfo: AgentSessionPageInfoView,
+  hasUnseenAuthorityItems: boolean,
+): AgentSessionPageInfoView {
+  if (!existingPageInfo) {
+    return refreshedPageInfo;
+  }
+  const existing = validateLoadedItemPageInfo(
+    existingPageInfo,
+    'Loaded Agents session item list',
+  );
+  return {
+    hasMore: existing.hasMore || (
+      refreshedPageInfo.hasMore
+      && (existing.page === 1 || hasUnseenAuthorityItems)
+    ),
+    page: Math.max(existing.page, refreshedPageInfo.page),
+    pageSize: AGENT_SESSION_ITEM_PAGE_SIZE,
   };
 }
 
@@ -668,38 +819,53 @@ async function refreshAgentSessionItemsWithoutTimeout({
     };
   }
 
-  const itemPage = await loadSessionItemPage(
+  const existingAgentSession = resolvedLocation?.agentSession;
+  const latestItemWindow = await loadLatestSessionItemWindow(
     agentSessionService,
     normalizedSessionId,
-    1,
+    existingAgentSession?.items ?? [],
     signal ?? new AbortController().signal,
   );
   const refreshedAgentSession = await loadSessionView(
     agentSessionService,
     session,
     project,
-    itemPage.items,
-    itemPage.pageInfo,
+    latestItemWindow.items,
+    latestItemWindow.itemPageInfo,
     signal,
   );
-  const existingAgentSession = resolvedLocation?.agentSession;
-  const existingPageInfo = existingAgentSession?.itemPageInfo;
-  const itemPageInfo = existingPageInfo?.pageSize === AGENT_SESSION_ITEM_PAGE_SIZE
-    ? {
-        ...existingPageInfo,
-        hasMore: existingPageInfo.page > 1
-          ? existingPageInfo.hasMore
-          : itemPage.pageInfo.hasMore,
-      }
-    : itemPage.pageInfo;
+  const retainedExistingItems = existingAgentSession
+    ? latestItemWindow.replaceLoadedAuthorityWindow
+      ? retainTransientSessionItems(existingAgentSession.items)
+      : existingAgentSession.items
+    : [];
+  const existingAuthorityItemIds = buildAuthoritySessionItemIds(
+    existingAgentSession?.items ?? [],
+  );
+  const hasUnseenAuthorityItems = latestItemWindow.items.some((item) => {
+    const itemId = item.itemId.trim();
+    return itemId !== '' && !existingAuthorityItemIds.has(itemId);
+  });
+  const itemPageInfo = latestItemWindow.replaceLoadedAuthorityWindow
+    ? latestItemWindow.itemPageInfo
+    : mergeLoadedSessionItemPageInfo(
+        existingAgentSession?.itemPageInfo,
+        latestItemWindow.itemPageInfo,
+        hasUnseenAuthorityItems,
+      );
   const agentSession = existingAgentSession
     ? {
         ...refreshedAgentSession,
         itemPageInfo,
-        items: mergeLatestAgentSessionItems(
-          existingAgentSession.items,
-          refreshedAgentSession.items,
-        ),
+        items: latestItemWindow.replaceLoadedAuthorityWindow
+          ? mergeResetSessionItemWindow(
+              retainedExistingItems,
+              refreshedAgentSession.items,
+            )
+          : mergeLatestAgentSessionItems(
+              retainedExistingItems,
+              refreshedAgentSession.items,
+            ),
       }
     : refreshedAgentSession;
   return {
@@ -707,6 +873,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
     agentSession,
     itemCount: agentSession.items.length,
     projectId,
+    replaceLoadedAuthorityWindow: latestItemWindow.replaceLoadedAuthorityWindow,
     source: 'agents',
     status: 'refreshed',
   };
@@ -753,26 +920,47 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
     currentPageInfo,
     'Loaded Agents session item list',
   );
-  const requestedPage = validatedPageInfo.page + 1;
-  if (!Number.isSafeInteger(requestedPage)) {
-    throw new Error('Loaded Agents session item list cannot advance beyond the current page.');
-  }
+  const requestSignal = signal ?? new AbortController().signal;
+  let currentAgentSession = agentSession;
+  let loadedItemCount = 0;
+  for (
+    let requestCount = 0;
+    requestCount < AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT;
+    requestCount += 1
+  ) {
+    const loadedPageInfo = validateLoadedItemPageInfo(
+      currentAgentSession.itemPageInfo!,
+      'Loaded Agents session item list',
+    );
+    const requestedPage = loadedPageInfo.page + 1;
+    if (!Number.isSafeInteger(requestedPage)) {
+      throw new Error('Loaded Agents session item list cannot advance beyond the current page.');
+    }
 
-  const itemPage = await loadSessionItemPage(
-    agentSessionService,
-    normalizedSessionId,
-    requestedPage,
-    signal ?? new AbortController().signal,
-  );
-  const historicalItems = normalizeSessionItemRecords(itemPage.items);
-  const items = prependHistoricalSessionItems(agentSession.items, historicalItems);
-  return {
-    agentSession: {
-      ...agentSession,
+    const itemPage = await loadSessionItemPage(
+      agentSessionService,
+      normalizedSessionId,
+      requestedPage,
+      requestSignal,
+    );
+    const historicalItems = normalizeSessionItemRecords(itemPage.items, currentAgentSession);
+    const items = prependHistoricalSessionItems(currentAgentSession.items, historicalItems);
+    const addedItemCount = Math.max(0, items.length - currentAgentSession.items.length);
+    loadedItemCount += addedItemCount;
+    currentAgentSession = {
+      ...currentAgentSession,
       itemPageInfo: itemPage.pageInfo,
       items,
-    },
-    loadedItemCount: Math.max(0, items.length - agentSession.items.length),
+    };
+    if (addedItemCount > 0 || !itemPage.pageInfo.hasMore) {
+      break;
+    }
+    requestSignal.throwIfAborted();
+  }
+
+  return {
+    agentSession: currentAgentSession,
+    loadedItemCount,
     projectId,
     source: 'agents',
     status: 'loaded',

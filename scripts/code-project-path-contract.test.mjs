@@ -5,6 +5,18 @@ const codePagePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
+const codePageSharedPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageShared.tsx',
+  import.meta.url,
+);
+const appContentPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx',
+  import.meta.url,
+);
+const appMainBodyPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppMainBody.tsx',
+  import.meta.url,
+);
 const sidebarPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
   import.meta.url,
@@ -21,24 +33,22 @@ const codeServerDirectoryImportHookPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
   import.meta.url,
 );
-const codeEffectiveWorkspaceHookPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
-  import.meta.url,
-);
 const fileExplorerPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx',
   import.meta.url,
 );
 
 const codePageSource = fs.readFileSync(codePagePath, 'utf8');
+const codePageSharedSource = fs.readFileSync(codePageSharedPath, 'utf8');
+const appContentSource = fs.readFileSync(appContentPath, 'utf8');
+const appMainBodySource = fs.readFileSync(appMainBodyPath, 'utf8');
 const sidebarSource = fs.readFileSync(sidebarPath, 'utf8');
 const workspacePanelSource = fs.readFileSync(workspacePanelPath, 'utf8');
 const workspacePanelTypesSource = fs.readFileSync(workspacePanelTypesPath, 'utf8');
 const codeServerDirectoryImportHookSource = fs.readFileSync(codeServerDirectoryImportHookPath, 'utf8');
-const codeEffectiveWorkspaceHookSource = fs.readFileSync(codeEffectiveWorkspaceHookPath, 'utf8');
 const fileExplorerSource = fs.readFileSync(fileExplorerPath, 'utf8');
 const serverDirectoryImportStart = codeServerDirectoryImportHookSource.indexOf(
-  'const importedProject = await importSandboxDirectoryProject({',
+  'return importSelectedProjectDirectory({',
 );
 const serverDirectoryImportEnd =
   serverDirectoryImportStart >= 0
@@ -53,35 +63,80 @@ const serverDirectoryImportBlock =
     : '';
 
 assert.equal(
-  /const handleNewProject = (?:useCallback\()?async \(\) => \{/.test(codePageSource),
+  /const handleNewProject = useCallback\(\s*\(\) => onRequestProjectCreation\(\),\s*\[onRequestProjectCreation\],\s*\);/s.test(codePageSource),
   true,
-  'CodePage must keep a dedicated new-project handler.',
+  'CodePage must delegate every new-project entry to the shell-owned project creation request.',
 );
 
 assert.equal(
   codePageSource.includes("selectFolderAndImportProject('New Project')"),
-  true,
-  'New project creation must delegate server-directory selection and workspace binding to the dedicated import hook.',
+  false,
+  'CodePage must not bypass the shared Create Project dialog with a direct directory import.',
 );
 
 assert.equal(
-  codeServerDirectoryImportHookSource.includes('importSandboxDirectoryProject({'),
+  codePageSource.includes("selectFolderAndImportProject(t('app.serverDirectory'))"),
   true,
-  'New project creation must import the selected Drive sandbox directory into the project record.',
+  'The distinct Open Folder command must continue to use server-directory import.',
 );
 
 assert.equal(
-  codeEffectiveWorkspaceHookSource.includes('useWorkspaces({ isActive: isVisible })'),
+  codePageSharedSource.includes(
+    'onRequestProjectCreation: () => Promise<string | undefined>;',
+  ),
   true,
-  'CodePage must gate workspace resolution by visibility before a server-directory import resolves its target workspace.',
+  'CodePage must depend on a narrow asynchronous project creation command.',
+);
+
+assert.equal(
+  (appMainBodySource.match(/onRequestProjectCreation=\{onRequestProjectCreation\}/g) ?? []).length,
+  2,
+  'AppMainBody must inject the same project creation command into Code and Studio.',
+);
+
+assert.equal(
+  (appContentSource.match(/onRequestProjectCreation=\{handleOpenCreateProjectDialog\}/g) ?? []).length,
+  2,
+  'The Header popover and feature surfaces must share one shell-owned creation request.',
+);
+
+assert.equal(
+  appContentSource.includes('<CreateProjectDialog'),
+  true,
+  'The application shell must remain the sole Create Project dialog owner.',
+);
+
+assert.equal(
+  /CreateProjectDialog|birdcoder-pc-shell/u.test(codePageSource),
+  false,
+  'CodePage must not import the shell or its dialog implementation.',
+);
+
+assert.equal(
+  sidebarSource.includes('await handleCreateProjectFromHeader();'),
+  true,
+  'Code Project Explorer header and root context menu must share one new-project handler.',
+);
+
+assert.equal(
+  codeServerDirectoryImportHookSource.includes('importSelectedProjectDirectory({'),
+  true,
+  'Open Folder must import the selected Drive sandbox directory into the project record.',
+);
+
+assert.equal(
+  codePageSource.includes('useCodeServerDirectoryProjectImport({')
+    && codePageSource.includes('workspaceId,'),
+  true,
+  'CodePage must pass the shell-selected Workspace into the server-directory import boundary.',
 );
 
 assert.equal(
   codeServerDirectoryImportHookSource.includes(
-    'const targetWorkspaceId = await resolveTargetWorkspaceId();',
+    'workspaceId,',
   ),
   true,
-  'CodePage server-directory imports must resolve a concrete workspace id before creating a project.',
+  'CodePage server-directory imports must bind the selected Workspace id to the imported project.',
 );
 
 assert.equal(
@@ -133,9 +188,9 @@ assert.equal(
 );
 
 assert.equal(
-  fileExplorerSource.includes('Open in File Explorer'),
+  fileExplorerSource.includes("t('code.openInFileExplorer')"),
   true,
-  'File explorer context menus must expose an explicit "Open in File Explorer" action.',
+  'File explorer context menus must expose the localized Open in File Explorer action.',
 );
 
 assert.equal(

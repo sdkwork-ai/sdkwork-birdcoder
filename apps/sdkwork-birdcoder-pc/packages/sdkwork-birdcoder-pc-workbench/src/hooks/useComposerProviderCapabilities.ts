@@ -56,6 +56,7 @@ export function useComposerProviderCapabilities({
     }
 
     let isCurrent = true;
+    const controller = new AbortController();
     setCapabilities((previous) => previous);
     setError(null);
     setIsLoading(true);
@@ -65,6 +66,7 @@ export function useComposerProviderCapabilities({
         agentId: normalizedAgentId,
         page: 1,
         pageSize,
+        signal: controller.signal,
       })
       .then((nextCapabilities) => {
         if (isCurrent) {
@@ -72,7 +74,7 @@ export function useComposerProviderCapabilities({
         }
       })
       .catch((loadError: unknown) => {
-        if (isCurrent) {
+        if (isCurrent && !controller.signal.aborted) {
           setError(toError(loadError));
         }
       })
@@ -84,6 +86,7 @@ export function useComposerProviderCapabilities({
 
     return () => {
       isCurrent = false;
+      controller.abort(new Error('Composer provider capability request was superseded.'));
     };
   }, [catalogService, isActive, normalizedAgentId, pageSize, refreshVersion]);
 

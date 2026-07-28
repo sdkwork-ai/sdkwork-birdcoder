@@ -274,6 +274,11 @@ export function useSessionRefreshActions({
             result.agentSession,
             workspaceId,
             userScope,
+            {
+              itemMergeMode: result.replaceLoadedAuthorityWindow
+                ? 'authority-window-reset'
+                : 'latest',
+            },
           );
         }
       }

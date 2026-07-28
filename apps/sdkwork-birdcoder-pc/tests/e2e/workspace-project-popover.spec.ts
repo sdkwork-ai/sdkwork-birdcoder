@@ -1,12 +1,14 @@
-import { expect, test } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 
-test('Workspace and Project Popover opens the dedicated Create project dialog', async ({
-  page,
-  request,
-}, testInfo) => {
+async function installAuthenticatedSession(page: Page, request: APIRequestContext) {
   const sessionResponse = await request.post(
     `${mockApiBaseUrl}/app/v3/api/auth/sessions`,
     {
@@ -36,6 +38,13 @@ test('Workspace and Project Popover opens the dedicated Create project dialog', 
       storedAt: Math.floor(Date.now() / 1_000),
     }));
   }, sessionPayload.data);
+}
+
+test('Workspace and Project Popover opens the dedicated Create project dialog', async ({
+  page,
+  request,
+}, testInfo) => {
+  await installAuthenticatedSession(page, request);
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/#/app/code');
@@ -110,4 +119,78 @@ test('Workspace and Project Popover opens the dedicated Create project dialog', 
 
   await page.keyboard.press('Escape');
   await expect(createProjectDialog).toHaveCount(0);
+});
+
+test('Workspace and Project Popover opens the dedicated Create Workspace dialog', async ({
+  page,
+  request,
+}, testInfo) => {
+  await installAuthenticatedSession(page, request);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/#/app/code');
+
+  const trigger = page.getByRole('button', { name: 'Workspace and Projects' });
+  await expect(trigger).toBeVisible({ timeout: 60_000 });
+  await trigger.click();
+
+  const switcher = page.getByRole('dialog', { name: 'Workspace and Projects' });
+  await expect(switcher).toBeVisible();
+  await switcher.getByRole('button', { name: 'New Workspace' }).click();
+  await expect(switcher).toBeVisible();
+
+  const createWorkspaceDialog = page.getByRole('dialog', { name: 'Create Workspace' });
+  const workspaceNameInput = createWorkspaceDialog.getByRole('textbox', {
+    name: 'Workspace name',
+  });
+  const createWorkspaceButton = createWorkspaceDialog.getByRole('button', {
+    exact: true,
+    name: 'Create Workspace',
+  });
+  await expect(createWorkspaceDialog).toBeVisible();
+  await expect(workspaceNameInput).toBeFocused();
+  await expect(createWorkspaceButton).toBeDisabled();
+
+  await page.screenshot({
+    path: testInfo.outputPath('create-workspace-dialog-desktop.png'),
+    fullPage: true,
+  });
+
+  await workspaceNameInput.fill('Dialog Workspace');
+  const workspaceCreateResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/app/v3/api/ai/workspaces'
+  ));
+  const workspaceRefreshResponse = page.waitForResponse((response) => (
+    response.request().method() === 'GET'
+    && new URL(response.url()).pathname === '/app/v3/api/ai/workspaces'
+  ));
+  await createWorkspaceButton.click();
+  expect((await workspaceCreateResponse).ok()).toBe(true);
+  expect((await workspaceRefreshResponse).ok()).toBe(true);
+  await expect(createWorkspaceDialog).toHaveCount(0);
+  await expect(switcher).toBeVisible();
+  await expect(switcher.getByRole('button', { name: 'Dialog Workspace' })).toBeVisible();
+  await expect(trigger).toContainText('Dialog Workspace');
+
+  await page.setViewportSize({ width: 520, height: 640 });
+  await expect(switcher).toBeVisible();
+  await switcher.getByRole('button', { name: 'New Workspace' }).click();
+  await expect(createWorkspaceDialog).toBeVisible();
+
+  const dialogBox = await createWorkspaceDialog.boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? 0)).toBeLessThanOrEqual(520);
+  expect(dialogBox?.y).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.y ?? 0) + (dialogBox?.height ?? 0)).toBeLessThanOrEqual(640);
+
+  await page.screenshot({
+    path: testInfo.outputPath('create-workspace-dialog-narrow.png'),
+    fullPage: true,
+  });
+
+  await page.keyboard.press('Escape');
+  await expect(createWorkspaceDialog).toHaveCount(0);
+  await expect(switcher).toBeVisible();
 });

@@ -3,6 +3,7 @@ import { randomString, uuid } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
   AgentSessionItemView,
+  AgentSessionItemResourceView,
   AgentSessionView,
   AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -54,6 +55,7 @@ import {
   type AgentSessionUserStateUpdate,
 } from '../services/agentSessionUserStateUpdate.ts';
 import type { WorkbenchAgentSessionTurnContext } from '../workbench/agentSessionCreation.ts';
+import type { WorkbenchAgentTurnDriveRef } from '../chat/agentTurnInputQueueStore.ts';
 import { createBoundAgentSession } from '../workbench/agentSessionProvisioning.ts';
 import { createAgentTurnStreamPresentation } from '../workbench/agentTurnStreamPresentation.ts';
 import { useWorkspaceSessionInboxSynchronization } from './useWorkspaceSessionInboxSynchronization.ts';
@@ -147,6 +149,7 @@ interface ScoredProjectCandidate {
 
 type WorkbenchAgentTurnSubmissionContext = WorkbenchAgentSessionTurnContext;
 interface WorkbenchAgentTurnSubmissionOptions {
+  driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
   metadata?: Record<string, unknown>;
 }
 const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView[] = [];
@@ -457,6 +460,11 @@ function buildOptimisticAgentSessionItem(
   const createdAt = new Date().toISOString();
   const randomToken = randomString(8);
   const submissionMetadata = buildAgentTurnSubmissionMetadata(context, options);
+  const resources = options?.driveRefs?.map((driveRef): AgentSessionItemResourceView => ({
+    id: driveRef.driveNodeId,
+    kind: driveRef.resourceRole === 'attachment' ? 'file' : driveRef.resourceRole,
+    uri: `drive://spaces/${encodeURIComponent(driveRef.driveSpaceId)}/nodes/${encodeURIComponent(driveRef.driveNodeId)}`,
+  }));
   return {
     id: `${agentSessionId}:optimistic:${createdAt}:${randomToken}`,
     sessionId: agentSessionId,
@@ -468,6 +476,7 @@ function buildOptimisticAgentSessionItem(
       optimistic: true,
       transient: true,
     },
+    ...(resources?.length ? { resources } : {}),
     createdAt,
     timestamp: Date.parse(createdAt),
   };
@@ -1771,6 +1780,7 @@ export function useProjects(options?: UseProjectsOptions) {
       const completed = await agentSessionService.submitTurn(agentSessionId, {
         content,
         contentType: 'text/plain',
+        ...(options?.driveRefs?.length ? { driveRefs: [...options.driveRefs] } : {}),
         requestedModelId: selectedSession.modelId === 'auto'
           ? undefined
           : selectedSession.modelId,
@@ -1793,7 +1803,10 @@ export function useProjects(options?: UseProjectsOptions) {
         },
       });
       streamPresentation.close();
-      const submittedItems = toAgentSessionTranscriptItemViews(completed.items);
+      const submittedItems = toAgentSessionTranscriptItemViews(
+        completed.items,
+        selectedSession,
+      );
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {

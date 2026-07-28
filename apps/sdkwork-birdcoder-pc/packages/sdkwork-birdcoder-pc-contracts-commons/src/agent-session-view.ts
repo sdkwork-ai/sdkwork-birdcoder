@@ -484,7 +484,7 @@ function buildAgentSessionItemSynchronizationSignature(item: AgentSessionItemVie
   });
 }
 
-function buildAgentSessionItemLogicalKey(item: AgentSessionItemView): string {
+export function buildAgentSessionItemLogicalMatchKey(item: AgentSessionItemView): string {
   return stringifyBirdCoderApiJson([
     item.sessionId.trim(),
     item.turnId?.trim() ?? '',
@@ -517,7 +517,200 @@ export function areAgentSessionItemsLogicallyMatched(
   if (leftId && rightId) {
     return false;
   }
-  return buildAgentSessionItemLogicalKey(left) === buildAgentSessionItemLogicalKey(right);
+  return buildAgentSessionItemLogicalMatchKey(left) ===
+    buildAgentSessionItemLogicalMatchKey(right);
+}
+
+function buildAgentSessionItemIdentityMatchKey(
+  item: AgentSessionItemView,
+): string | null {
+  const itemId = item.id.trim();
+  return itemId
+    ? stringifyBirdCoderApiJson([item.sessionId.trim(), itemId])
+    : null;
+}
+
+type AgentSessionItemMatchIndexes = number | Set<number>;
+
+function addAgentSessionItemMatchIndexEntry(
+  indexesByKey: Map<string, AgentSessionItemMatchIndexes>,
+  key: string,
+  index: number,
+): void {
+  const existingIndexes = indexesByKey.get(key);
+  if (existingIndexes === undefined) {
+    indexesByKey.set(key, index);
+    return;
+  }
+  if (typeof existingIndexes === 'number') {
+    if (existingIndexes !== index) {
+      indexesByKey.set(key, new Set([existingIndexes, index]));
+    }
+    return;
+  }
+  existingIndexes.add(index);
+}
+
+function removeAgentSessionItemMatchIndexEntry(
+  indexesByKey: Map<string, AgentSessionItemMatchIndexes>,
+  key: string,
+  index: number,
+): void {
+  const existingIndexes = indexesByKey.get(key);
+  if (existingIndexes === undefined) {
+    return;
+  }
+  if (typeof existingIndexes === 'number') {
+    if (existingIndexes === index) {
+      indexesByKey.delete(key);
+    }
+    return;
+  }
+  existingIndexes.delete(index);
+  if (existingIndexes.size === 0) {
+    indexesByKey.delete(key);
+    return;
+  }
+  if (existingIndexes.size === 1) {
+    const remainingIndex = existingIndexes.values().next().value;
+    if (remainingIndex !== undefined) {
+      indexesByKey.set(key, remainingIndex);
+    }
+  }
+}
+
+function resolveFirstAgentSessionItemMatchIndex(
+  indexes: AgentSessionItemMatchIndexes | undefined,
+): number {
+  if (indexes === undefined) {
+    return -1;
+  }
+  if (typeof indexes === 'number') {
+    return indexes;
+  }
+  let firstIndex = Number.MAX_SAFE_INTEGER;
+  for (const index of indexes) {
+    firstIndex = Math.min(firstIndex, index);
+  }
+  return firstIndex;
+}
+
+export interface AgentSessionItemMatchIndex {
+  findMatchingIndex: (item: AgentSessionItemView) => number;
+}
+
+class MutableAgentSessionItemMatchIndex implements AgentSessionItemMatchIndex {
+  private readonly indexedItems: Array<AgentSessionItemView | undefined> = [];
+  private readonly identityIndexesByKey = new Map<
+    string,
+    AgentSessionItemMatchIndexes
+  >();
+  private logicalIndexesByKey: Map<
+    string,
+    AgentSessionItemMatchIndexes
+  > | null = null;
+  private readonly provisionalIndexesByLogicalKey = new Map<
+    string,
+    AgentSessionItemMatchIndexes
+  >();
+
+  append(index: number, item: AgentSessionItemView): void {
+    this.indexedItems[index] = item;
+    const identityKey = buildAgentSessionItemIdentityMatchKey(item);
+    if (identityKey) {
+      addAgentSessionItemMatchIndexEntry(this.identityIndexesByKey, identityKey, index);
+    } else {
+      addAgentSessionItemMatchIndexEntry(
+        this.provisionalIndexesByLogicalKey,
+        buildAgentSessionItemLogicalMatchKey(item),
+        index,
+      );
+    }
+    if (this.logicalIndexesByKey) {
+      addAgentSessionItemMatchIndexEntry(
+        this.logicalIndexesByKey,
+        buildAgentSessionItemLogicalMatchKey(item),
+        index,
+      );
+    }
+  }
+
+  findMatchingIndex(item: AgentSessionItemView): number {
+    const identityKey = buildAgentSessionItemIdentityMatchKey(item);
+    if (identityKey) {
+      const identityIndex = resolveFirstAgentSessionItemMatchIndex(
+        this.identityIndexesByKey.get(identityKey),
+      );
+      if (identityIndex >= 0) {
+        return identityIndex;
+      }
+      return resolveFirstAgentSessionItemMatchIndex(
+        this.provisionalIndexesByLogicalKey.get(
+          buildAgentSessionItemLogicalMatchKey(item),
+        ),
+      );
+    }
+    const logicalKey = buildAgentSessionItemLogicalMatchKey(item);
+    return resolveFirstAgentSessionItemMatchIndex(
+      this.resolveLogicalIndexes().get(logicalKey),
+    );
+  }
+
+  replace(
+    index: number,
+    previous: AgentSessionItemView,
+    next: AgentSessionItemView,
+  ): void {
+    const previousLogicalKey = buildAgentSessionItemLogicalMatchKey(previous);
+    if (this.logicalIndexesByKey) {
+      removeAgentSessionItemMatchIndexEntry(
+        this.logicalIndexesByKey,
+        previousLogicalKey,
+        index,
+      );
+    }
+    const previousIdentityKey = buildAgentSessionItemIdentityMatchKey(previous);
+    if (previousIdentityKey) {
+      removeAgentSessionItemMatchIndexEntry(
+        this.identityIndexesByKey,
+        previousIdentityKey,
+        index,
+      );
+    } else {
+      removeAgentSessionItemMatchIndexEntry(
+        this.provisionalIndexesByLogicalKey,
+        previousLogicalKey,
+        index,
+      );
+    }
+    this.append(index, next);
+  }
+
+  private resolveLogicalIndexes(): Map<string, AgentSessionItemMatchIndexes> {
+    if (this.logicalIndexesByKey) {
+      return this.logicalIndexesByKey;
+    }
+    const logicalIndexesByKey = new Map<string, AgentSessionItemMatchIndexes>();
+    this.indexedItems.forEach((item, index) => {
+      if (item) {
+        addAgentSessionItemMatchIndexEntry(
+          logicalIndexesByKey,
+          buildAgentSessionItemLogicalMatchKey(item),
+          index,
+        );
+      }
+    });
+    this.logicalIndexesByKey = logicalIndexesByKey;
+    return logicalIndexesByKey;
+  }
+}
+
+export function buildAgentSessionItemMatchIndex(
+  items: readonly AgentSessionItemView[],
+): AgentSessionItemMatchIndex {
+  const matchIndex = new MutableAgentSessionItemMatchIndex();
+  items.forEach((item, index) => matchIndex.append(index, item));
+  return matchIndex;
 }
 
 function mergeAgentSessionItemCollection<TItem extends { id?: string }>(
@@ -542,6 +735,7 @@ export function mergeAgentSessionItemViews(
   const merged: AgentSessionItemView = {
     ...existing,
     ...incoming,
+    id: incoming.id.trim() ? incoming.id : existing.id,
     commands: incoming.commands ?? existing.commands,
     fileChanges: incoming.fileChanges ?? existing.fileChanges,
     metadata: incoming.metadata ?? existing.metadata,
@@ -562,15 +756,20 @@ export function deduplicateAgentSessionItemViews(
 ): AgentSessionItemView[] {
   if (items.length < 2) return items as AgentSessionItemView[];
   const deduplicated: AgentSessionItemView[] = [];
+  const matchIndex = new MutableAgentSessionItemMatchIndex();
   for (const item of items) {
-    const matchIndex = deduplicated.findIndex((candidate) =>
-      areAgentSessionItemsLogicallyMatched(candidate, item),
-    );
-    if (matchIndex < 0) {
+    const matchingIndex = matchIndex.findMatchingIndex(item);
+    if (matchingIndex < 0) {
+      matchIndex.append(deduplicated.length, item);
       deduplicated.push(item);
       continue;
     }
-    deduplicated[matchIndex] = mergeAgentSessionItemViews(deduplicated[matchIndex]!, item);
+    const previousItem = deduplicated[matchingIndex]!;
+    const mergedItem = mergeAgentSessionItemViews(previousItem, item);
+    if (mergedItem !== previousItem) {
+      deduplicated[matchingIndex] = mergedItem;
+      matchIndex.replace(matchingIndex, previousItem, mergedItem);
+    }
   }
   return deduplicated.length === items.length && deduplicated.every((item, index) => item === items[index])
     ? items as AgentSessionItemView[]
@@ -579,7 +778,7 @@ export function deduplicateAgentSessionItemViews(
 
 function isSupersededTransientAgentSessionItem(
   existingItem: AgentSessionItemView,
-  latestItems: readonly AgentSessionItemView[],
+  latestTurnRoleKeys: ReadonlySet<string>,
 ): boolean {
   if (existingItem.metadata?.transient !== true) {
     return false;
@@ -588,18 +787,30 @@ function isSupersededTransientAgentSessionItem(
   if (!turnId) {
     return false;
   }
-  return latestItems.some((latestItem) =>
-    latestItem.turnId?.trim() === turnId
-    && latestItem.role === existingItem.role,
-  );
+  return latestTurnRoleKeys.has(stringifyBirdCoderApiJson([
+    existingItem.sessionId.trim(),
+    turnId,
+    existingItem.role,
+  ]));
 }
 
 export function mergeLatestAgentSessionItems(
   existingItems: readonly AgentSessionItemView[],
   latestItems: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
+  const latestTurnRoleKeys = new Set(
+    latestItems.flatMap((item) => {
+      const turnId = item.turnId?.trim() ?? '';
+      return turnId
+        ? [stringifyBirdCoderApiJson([item.sessionId.trim(), turnId, item.role])]
+        : [];
+    }),
+  );
   const retainedExistingItems = existingItems.filter(
-    (existingItem) => !isSupersededTransientAgentSessionItem(existingItem, latestItems),
+    (existingItem) => !isSupersededTransientAgentSessionItem(
+      existingItem,
+      latestTurnRoleKeys,
+    ),
   );
   return deduplicateAgentSessionItemViews([...retainedExistingItems, ...latestItems]);
 }

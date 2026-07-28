@@ -6,6 +6,7 @@ import {
   deduplicateAgentSessionItemViews,
   type AgentSessionItemView,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts';
+import { MAX_AGENT_SESSION_ITEM_RESOURCES } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-resources.ts';
 import { isAgentSessionItemVisibleInTranscript } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-transcript.ts';
 import { resolveAgentSessionItemPresentation } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 import {
@@ -13,6 +14,10 @@ import {
   resolveAgentTurnActivityPresentation,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts';
 import { normalizeAgentSessionItemToolCalls } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts';
+import {
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  MAX_FILE_CHANGE_TEXT_CHARACTERS,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/file-change.ts';
 import {
   toAgentSessionItemView,
   toAgentSessionTranscriptItemViews,
@@ -91,7 +96,7 @@ const codexUserTextItem: AgentSessionItemRecord = {
   kind: 'user_input',
   content: 'Inspect the attached screenshot and README.',
   contentType: 'text/plain',
-  providerId: 'provider.model.codex',
+  providerId: 'openai',
   sequence: '20',
   createdAt: codexUserMessageCreatedAt,
 };
@@ -104,9 +109,9 @@ const codexUserImageItem: AgentSessionItemRecord = {
     image_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
   }),
   contentType: 'application/json',
-  providerId: 'provider.model.codex',
+  providerId: null,
   sequence: '21',
-  createdAt: codexUserMessageCreatedAt,
+  createdAt: '2026-07-23T08:00:02.001Z',
 };
 const codexUserMentionItem: AgentSessionItemRecord = {
   ...canonicalItem,
@@ -118,15 +123,19 @@ const codexUserMentionItem: AgentSessionItemRecord = {
     path: 'E:\\workspace\\README.md',
   }),
   contentType: 'application/json',
-  providerId: 'provider.model.codex',
+  providerId: 'openai',
   sequence: '22',
-  createdAt: codexUserMessageCreatedAt,
+  createdAt: '2026-07-23T08:00:02.002Z',
 };
 const codexUserMessageViews = toAgentSessionTranscriptItemViews([
   codexUserImageItem,
   codexUserTextItem,
   codexUserMentionItem,
-]);
+], {
+  engineId: 'codex',
+  providerBindingId: 'codex',
+  providerId: 'openai',
+});
 assert.equal(
   codexUserMessageViews.length,
   1,
@@ -181,6 +190,195 @@ assert.equal(codexEnvelopeView.resources?.[0]?.path, 'E:\\workspace\\capture.png
 assert.equal(codexEnvelopeView.resources?.[1]?.mediaSource, 'data:audio/wav;base64,UklGRg==');
 assert.equal(codexEnvelopeView.resources?.[2]?.path, 'E:\\workspace\\note.mp3');
 
+const codexRolloutImagePath = 'C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png';
+const codexRolloutImageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB';
+const codexRolloutAnnotatedText = `
+# Files mentioned by the user:
+
+## codex-screenshot.png: ${codexRolloutImagePath}
+
+## codex-protocol-notes.md: E:\\workspace\\codex-protocol-notes.md
+
+## My request for Codex:
+Render the screenshot and keep this request as the only visible text.
+`;
+const codexRolloutResponseItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-rollout-response-item',
+  kind: 'user_input',
+  content: JSON.stringify({
+    type: 'response_item',
+    payload: {
+      type: 'message',
+      role: 'user',
+      content: [
+        { type: 'input_text', text: codexRolloutAnnotatedText },
+        {
+          type: 'input_text',
+          text: `<image name=[Image #1] path="${codexRolloutImagePath}">`,
+        },
+        { type: 'input_image', image_url: codexRolloutImageData },
+        { type: 'input_text', text: '</image>' },
+      ],
+    },
+  }),
+  contentType: 'application/json',
+  providerId: 'openai',
+  sequence: '24',
+};
+const codexRolloutResponseView = toAgentSessionItemView(codexRolloutResponseItem, {
+  engineId: 'codex',
+  providerBindingId: 'codex',
+  providerId: 'openai',
+});
+assert.equal(
+  codexRolloutResponseView.content,
+  'Render the screenshot and keep this request as the only visible text.',
+  'Codex transcript projection must strip generated file context and media tags.',
+);
+assert.equal(codexRolloutResponseView.resources?.length, 2);
+assert.deepEqual(
+  codexRolloutResponseView.resources?.map((resource) => ({
+    kind: resource.kind,
+    name: resource.name,
+    path: resource.path,
+  })),
+  [
+    {
+      kind: 'image',
+      name: 'codex-screenshot.png',
+      path: codexRolloutImagePath,
+    },
+    {
+      kind: 'file',
+      name: 'codex-protocol-notes.md',
+      path: 'E:\\workspace\\codex-protocol-notes.md',
+    },
+  ],
+  'Codex file annotations and image placeholders must project as structured resources.',
+);
+assert.equal(
+  codexRolloutResponseView.resources?.[0]?.mediaSource,
+  codexRolloutImageData,
+  'Codex local image metadata and encoded image data must coalesce into one preview.',
+);
+assert.doesNotMatch(codexRolloutResponseView.content, /Files mentioned|<\/?image>/u);
+
+const codexLossyAnnotatedTextView = toAgentSessionItemView({
+  ...codexRolloutResponseItem,
+  itemId: 'agent-item-codex-lossy-annotated-text',
+  content: codexRolloutAnnotatedText,
+  contentType: 'text/plain',
+}, {
+  engineId: 'codex',
+  providerId: 'openai',
+});
+assert.equal(codexLossyAnnotatedTextView.content, codexRolloutResponseView.content);
+assert.deepEqual(
+  codexLossyAnnotatedTextView.resources?.map((resource) => resource.kind),
+  ['image', 'file'],
+  'A lossy Codex text projection must still recover mentioned local files.',
+);
+
+const boundedCodexResourceView = toAgentSessionItemView({
+  ...codexEnvelopeItem,
+  itemId: 'agent-item-codex-bounded-resources',
+  content: JSON.stringify({
+    content: Array.from({ length: 300 }, (_, index) => ({
+      type: 'file',
+      name: `file-${index}.txt`,
+      path: `E:\\workspace\\file-${index}.txt`,
+    })),
+  }),
+});
+assert.equal(
+  boundedCodexResourceView.resources?.length,
+  MAX_AGENT_SESSION_ITEM_RESOURCES,
+  'Codex payloads must cap retained resources before quadratic coalescing and rendering.',
+);
+
+const unsafeCodexResourceView = toAgentSessionItemView({
+  ...codexEnvelopeItem,
+  itemId: 'agent-item-codex-unsafe-resource-schemes',
+  content: JSON.stringify({
+    content: [
+      { type: 'text', text: 'Keep the safe file only.' },
+      { type: 'file', name: 'unsafe.txt', path: 'javascript:alert(1)' },
+      { type: 'image', name: 'unsafe.png', url: 'javascript:alert(2)' },
+      { type: 'file', name: 'safe.txt', path: 'E:\\workspace\\safe.txt' },
+    ],
+  }),
+});
+assert.equal(unsafeCodexResourceView.content, 'Keep the safe file only.');
+assert.deepEqual(
+  unsafeCodexResourceView.resources?.map((resource) => resource.path),
+  ['E:\\workspace\\safe.txt'],
+  'Protocol resources with executable URI schemes must not become openable local file paths.',
+);
+
+const boundedMentionedFilesView = toAgentSessionItemView({
+  ...codexRolloutResponseItem,
+  itemId: 'agent-item-codex-bounded-mentioned-files',
+  content: [
+    '# Files mentioned by the user:',
+    '',
+    ...Array.from(
+      { length: 80 },
+      (_, index) => `## file-${index}.txt: E:\\workspace\\file-${index}.txt`,
+    ),
+    '',
+    '## My request for Codex:',
+    'Bound the file list.',
+  ].join('\n'),
+  contentType: 'text/plain',
+}, {
+  engineId: 'codex',
+  providerId: 'openai',
+});
+assert.equal(boundedMentionedFilesView.content, 'Bound the file list.');
+assert.equal(
+  boundedMentionedFilesView.resources?.length,
+  MAX_AGENT_SESSION_ITEM_RESOURCES,
+  'Text-only Codex file annotations must be parsed incrementally with a fixed resource bound.',
+);
+
+const codexLegacyEnvelopeItem: AgentSessionItemRecord = {
+  ...canonicalItem,
+  itemId: 'agent-item-codex-legacy-user-envelope',
+  kind: 'user_input',
+  content: JSON.stringify({
+    message: 'Preserve the legacy Codex user message.',
+    images: ['data:image/png;base64,aGVsbG8='],
+    local_images: ['E:\\workspace\\legacy.png'],
+    audio: ['data:audio/wav;base64,UklGRg=='],
+    local_audio: ['E:\\workspace\\legacy.wav'],
+  }),
+  contentType: 'application/json',
+  providerId: 'openai',
+  sequence: '25',
+};
+const codexLegacyEnvelopeView = toAgentSessionItemView(codexLegacyEnvelopeItem, {
+  engineId: 'openai-codex',
+  providerId: 'openai',
+});
+assert.equal(
+  codexLegacyEnvelopeView.content,
+  'Preserve the legacy Codex user message.',
+  'Codex legacy UserMessageEvent text must not leak as raw JSON.',
+);
+assert.deepEqual(
+  codexLegacyEnvelopeView.resources?.map((resource) => resource.kind),
+  ['image', 'image', 'audio', 'audio'],
+  'Codex legacy remote and local media fields must remain structured resources.',
+);
+assert.equal(
+  codexLegacyEnvelopeView.resources?.[0]?.mediaSource,
+  'data:image/png;base64,aGVsbG8=',
+);
+assert.equal(codexLegacyEnvelopeView.resources?.[1]?.path, 'E:\\workspace\\legacy.png');
+assert.equal(codexLegacyEnvelopeView.resources?.[2]?.mediaSource, 'data:audio/wav;base64,UklGRg==');
+assert.equal(codexLegacyEnvelopeView.resources?.[3]?.path, 'E:\\workspace\\legacy.wav');
+
 const unrelatedJsonUserItem: AgentSessionItemRecord = {
   ...canonicalItem,
   itemId: 'agent-item-openai-json-user',
@@ -193,6 +391,15 @@ assert.equal(
   toAgentSessionItemView(unrelatedJsonUserItem).content,
   unrelatedJsonUserItem.content,
   'Provider-native parsing must require explicit Codex provider evidence.',
+);
+assert.equal(
+  toAgentSessionItemView(unrelatedJsonUserItem, {
+    engineId: 'openai',
+    providerBindingId: 'openai',
+    providerId: 'openai',
+  }).content,
+  unrelatedJsonUserItem.content,
+  'OpenAI provider context alone must not activate the Codex protocol adapter.',
 );
 
 const renderedView = resolveAgentSessionItemPresentation(transientItemView, {
@@ -250,7 +457,7 @@ assert.deepEqual(reasoningItemView.resources, [{
   id: 'drive-node-plan',
   kind: 'file',
   name: 'Provider plan',
-  uri: 'drive://nodes/drive-node-plan',
+  uri: 'drive://spaces/drive-space-1/nodes/drive-node-plan',
 }]);
 assert.deepEqual(
   resolveAgentSessionItemPresentation(reasoningItemView).blocks.map((block) => block.type),
@@ -1038,6 +1245,50 @@ assert.deepEqual(
   'a canonical item may complete one matching provisional item without collapsing other rows.',
 );
 
+const exactIdContentUpdate = deduplicateAgentSessionItemViews([
+  {
+    ...completedUserItem,
+    id: 'agent-item-content-update',
+    content: 'Original authority content.',
+  },
+  {
+    ...unrelatedProvisionalAssistantItem,
+    id: '',
+    content: 'Initialize the logical index.',
+  },
+  {
+    ...completedUserItem,
+    id: 'agent-item-content-update',
+    content: 'Updated authority content.',
+  },
+  {
+    ...provisionalUserItem,
+    content: 'Original authority content.',
+  },
+  {
+    ...provisionalUserItem,
+    content: 'Updated authority content.',
+  },
+]);
+assert.deepEqual(
+  exactIdContentUpdate.map((item) => ({ id: item.id, content: item.content })),
+  [
+    {
+      id: 'agent-item-content-update',
+      content: 'Updated authority content.',
+    },
+    {
+      id: '',
+      content: 'Initialize the logical index.',
+    },
+    {
+      id: '',
+      content: 'Original authority content.',
+    },
+  ],
+  'exact-id updates must refresh logical indexes and provisional items must not erase a canonical id.',
+);
+
 const longMetadataItems = deduplicateAgentSessionItemViews([
   {
     ...provisionalUserItem,
@@ -1054,5 +1305,41 @@ assert.equal(
   2,
   'Session Item signatures must preserve Long-safe metadata without crashing synchronization.',
 );
+
+const boundedFileChangeCollectionView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-bounded-file-changes',
+  toolResult: {
+    changes: Array.from(
+      { length: MAX_AGENT_SESSION_FILE_CHANGES + 32 },
+      (_, index) => ({ path: `src/generated-${index}.ts`, status: 'modified' }),
+    ),
+  },
+});
+assert.equal(
+  boundedFileChangeCollectionView.fileChanges?.length,
+  MAX_AGENT_SESSION_FILE_CHANGES,
+  'Provider file-change arrays must be bounded before projection creates retained view models.',
+);
+
+const oversizedFileChangeView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-oversized-file-change',
+  toolResult: {
+    changes: [{
+      path: 'src/oversized.ts',
+      status: 'modified',
+      before: 'before',
+      after: 'x'.repeat(MAX_FILE_CHANGE_TEXT_CHARACTERS + 1),
+    }],
+  },
+});
+assert.deepEqual(oversizedFileChangeView.fileChanges, [{
+  path: 'src/oversized.ts',
+  additions: 0,
+  deletions: 0,
+  lineImpactKnown: false,
+  updateStatus: 'M',
+}], 'Oversized before/after content must be dropped atomically so it cannot be rendered or restored.');
 
 console.log('agent session item view contract passed.');

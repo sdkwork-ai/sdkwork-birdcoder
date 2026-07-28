@@ -25,8 +25,10 @@ import { resolveAgentSessionActivityRuntimeStatus } from '../workbench/agentSess
 import { mergeAgentSessionProjectionForStore } from '../stores/projectsStore.ts';
 import { resolveAgentSessionFileChanges } from './agentSessionFileChanges.ts';
 import {
+  coalesceCodexUserContentResources,
   resolveAgentSessionUserContent,
   type AgentSessionUserContentProjection,
+  type AgentSessionUserContentProviderIdentity,
 } from './agentSessionUserContent.ts';
 
 export type AgentSessionRecord = Awaited<
@@ -210,13 +212,17 @@ function resolveItemResources(
 ): AgentSessionItemResourceView[] | undefined {
   const driveRefs = Array.isArray(item.driveRefs) ? item.driveRefs : [];
   const driveResources = driveRefs
-    .filter((resource) => resource.status === 'active' && resource.driveNodeId.trim())
+    .filter((resource) =>
+      resource.status === 'active'
+      && resource.driveSpaceId.trim()
+      && resource.driveNodeId.trim(),
+    )
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((resource) => ({
       id: resource.driveNodeId,
       kind: resolveDriveResourceKind(resource.resourceRole),
-      uri: `drive://nodes/${encodeURIComponent(resource.driveNodeId)}`,
+      uri: `drive://spaces/${encodeURIComponent(resource.driveSpaceId)}/nodes/${encodeURIComponent(resource.driveNodeId)}`,
       ...(resource.altText?.trim() ? { name: resource.altText.trim() } : {}),
     }));
   const resources = normalizeAgentSessionItemResources([
@@ -409,9 +415,10 @@ function resolveSessionStatus(
 
 export function toAgentSessionItemView(
   item: AgentSessionItemRecord,
+  providerIdentity?: AgentSessionUserContentProviderIdentity,
 ): AgentSessionItemView {
   const noticeKind = resolveItemNoticeKind(item);
-  const userContent = resolveAgentSessionUserContent(item);
+  const userContent = resolveAgentSessionUserContent(item, providerIdentity);
   return {
     id: item.itemId,
     sessionId: item.sessionId,
@@ -442,24 +449,38 @@ export function toAgentSessionItemView(
   };
 }
 
-function isCodexUserContentCarrier(item: AgentSessionItemRecord): boolean {
-  return resolveAgentSessionUserContent(item) !== null;
+function isCodexUserContentCarrier(
+  item: AgentSessionItemRecord,
+  providerIdentity: AgentSessionUserContentProviderIdentity | undefined,
+): boolean {
+  return resolveAgentSessionUserContent(item, providerIdentity) !== null;
 }
 
 function hasSameCodexMessageIdentity(
   left: AgentSessionItemRecord,
   right: AgentSessionItemRecord,
 ): boolean {
-  return left.sessionId === right.sessionId
-    && left.createdAt === right.createdAt
-    && (left.turnId ?? undefined) === (right.turnId ?? undefined)
-    && left.providerId === right.providerId;
+  if (left.sessionId !== right.sessionId) {
+    return false;
+  }
+  const leftProviderId = left.providerId?.trim();
+  const rightProviderId = right.providerId?.trim();
+  if (leftProviderId && rightProviderId && leftProviderId !== rightProviderId) {
+    return false;
+  }
+  const leftTurnId = left.turnId?.trim();
+  const rightTurnId = right.turnId?.trim();
+  if (leftTurnId && rightTurnId) {
+    return leftTurnId === rightTurnId;
+  }
+  return left.createdAt === right.createdAt;
 }
 
 function mergeCodexUserContentGroup(
   items: readonly AgentSessionItemRecord[],
+  providerIdentity: AgentSessionUserContentProviderIdentity | undefined,
 ): AgentSessionItemView {
-  const views = items.map(toAgentSessionItemView);
+  const views = items.map((item) => toAgentSessionItemView(item, providerIdentity));
   const userIndex = items.findIndex((item) => item.kind === 'user_input');
   const targetIndex = userIndex >= 0 ? userIndex : 0;
   const target = views[targetIndex]!;
@@ -468,7 +489,9 @@ function mergeCodexUserContentGroup(
     .filter(Boolean)
     .join('\n');
   const resources = normalizeAgentSessionItemResources(
-    views.flatMap((view) => view.resources ?? []),
+    coalesceCodexUserContentResources(
+      views.flatMap((view) => view.resources ?? []),
+    ),
   );
   return {
     ...target,
@@ -484,12 +507,13 @@ function mergeCodexUserContentGroup(
 
 export function toAgentSessionTranscriptItemViews(
   items: readonly AgentSessionItemRecord[],
+  providerIdentity?: AgentSessionUserContentProviderIdentity,
 ): AgentSessionItemView[] {
   const transcriptItems: AgentSessionItemView[] = [];
   for (let index = 0; index < items.length;) {
     const item = items[index]!;
-    if (!isCodexUserContentCarrier(item)) {
-      const view = toAgentSessionItemView(item);
+    if (!isCodexUserContentCarrier(item, providerIdentity)) {
+      const view = toAgentSessionItemView(item, providerIdentity);
       if (isAgentSessionItemVisibleInTranscript(view)) {
         transcriptItems.push(view);
       }
@@ -500,12 +524,15 @@ export function toAgentSessionTranscriptItemViews(
     let groupEnd = index + 1;
     while (
       groupEnd < items.length
-      && isCodexUserContentCarrier(items[groupEnd]!)
+      && isCodexUserContentCarrier(items[groupEnd]!, providerIdentity)
       && hasSameCodexMessageIdentity(item, items[groupEnd]!)
     ) {
       groupEnd += 1;
     }
-    const view = mergeCodexUserContentGroup(items.slice(index, groupEnd));
+    const view = mergeCodexUserContentGroup(
+      items.slice(index, groupEnd),
+      providerIdentity,
+    );
     if (isAgentSessionItemVisibleInTranscript(view)) {
       transcriptItems.push(view);
     }
@@ -534,7 +561,7 @@ export function toAgentSessionView(
       const rightSequence = BigInt(right.sequence);
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
     });
-  const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems);
+  const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems, context);
   return {
     id: session.sessionId,
     agentId: session.agentId,

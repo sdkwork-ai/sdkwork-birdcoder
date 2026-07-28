@@ -56,6 +56,31 @@ assert.equal(activityBlock.commands.length, 1);
 const signature = buildAgentSessionItemPresentationSynchronizationSignature(activityView);
 assert.match(signature, /assistant\.activity/);
 
+const largePresentationContent = 'x'.repeat(256_000);
+const largePresentationSignature = buildAgentSessionItemPresentationSynchronizationSignature(
+  resolveAgentSessionItemPresentation({
+    ...userMessage,
+    content: largePresentationContent,
+    id: 'msg-user-large',
+  }),
+);
+const changedLargePresentationSignature = buildAgentSessionItemPresentationSynchronizationSignature(
+  resolveAgentSessionItemPresentation({
+    ...userMessage,
+    content: `${largePresentationContent.slice(0, -1)}y`,
+    id: 'msg-user-large',
+  }),
+);
+assert.ok(
+  largePresentationSignature.length < 1_000,
+  'Transcript synchronization signatures must not retain a second full copy of message content.',
+);
+assert.notEqual(
+  largePresentationSignature,
+  changedLargePresentationSignature,
+  'Equal-length streaming updates must still produce distinct synchronization signatures.',
+);
+
 const mixedFileActivityView = resolveAgentSessionItemPresentation({
   ...activityMessage,
   id: 'msg-assistant-mixed-file-tools',
