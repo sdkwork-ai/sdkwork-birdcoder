@@ -116,6 +116,20 @@ test('Conversation messages render rich content and expandable command evidence'
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   await expect(transcript.getByText('Review the message presentation:', { exact: true })).toBeVisible();
+  const activeTurnTail = transcript.locator('[data-chat-turn-active-tail="true"]');
+  await expect(activeTurnTail).toHaveCount(1);
+  await expect.poll(() => activeTurnTail.evaluate((element) => {
+    const transcriptRegion = element.closest('[role="region"]');
+    if (!transcriptRegion) {
+      return false;
+    }
+    const tailRect = element.getBoundingClientRect();
+    const transcriptRect = transcriptRegion.getBoundingClientRect();
+    return tailRect.left >= transcriptRect.left - 1
+      && tailRect.right <= transcriptRect.right + 1
+      && tailRect.top >= transcriptRect.top - 1
+      && tailRect.bottom <= transcriptRect.bottom + 1;
+  })).toBe(true);
   await expect(transcript).not.toContainText('INTERNAL_SYSTEM_INSTRUCTION_MUST_NOT_RENDER');
   const statusNotice = transcript.locator('[data-chat-system-notice="info"]');
   await expect(statusNotice).toHaveCount(1);
