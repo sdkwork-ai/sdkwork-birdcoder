@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const source = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx', import.meta.url),
   'utf8',
-);
+).replaceAll('\r\n', '\n');
 
 assert.match(
   source,
@@ -12,9 +12,11 @@ assert.match(
   'FileExplorer should centralize search filtering and search-state folder expansion in one cancellable task so large trees are not traversed from render.',
 );
 
+const fuzzyScoreSource = /function fuzzyScore\([\s\S]*?\n\}\n\nconst FILE_EXPLORER_CONTEXT_MENU_Z_INDEX/.exec(source)?.[0];
+assert.ok(fuzzyScoreSource, 'FileExplorer must define its fuzzy scoring hot path.');
 assert.doesNotMatch(
-  source,
-  /function fuzzyScore\([\s\S]*?\{[\s\S]*?while \([\s\S]*?\.toLowerCase\(\)/,
+  fuzzyScoreSource,
+  /\.toLowerCase\(\)/,
   'FileExplorer fuzzy scoring must normalize each candidate once instead of lowercasing characters repeatedly inside the hot comparison loop.',
 );
 

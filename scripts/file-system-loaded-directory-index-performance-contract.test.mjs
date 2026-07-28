@@ -17,6 +17,18 @@ const runtimeFileSystemServicePath = path.join(
 );
 
 const source = fs.readFileSync(runtimeFileSystemServicePath, 'utf8');
+const driveFileSystemServicePath = path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'impl',
+  'DriveSandboxProjectFileSystemService.ts',
+);
+const driveSource = fs.readFileSync(driveFileSystemServicePath, 'utf8');
 
 function readMethodBody(methodName) {
   const methodStart = source.indexOf(`private async ${methodName}(`);
@@ -80,6 +92,27 @@ assert.match(
   readMethodBody('loadTauriMountedDirectory'),
   /pruneRemovedLoadedDirectoryPaths\(\s*mountState,\s*listing\.directory\.path,\s*listing\.directory\.children \?\? \[\],\s*\);/u,
   'Desktop directory refreshes must prune removed loaded descendants before replacing children.',
+);
+
+assert.match(
+  driveSource,
+  /directChildPathsByDirectoryPath: Map<string, Set<string>>;/u,
+  'Drive-backed file trees must index direct children by directory path.',
+);
+const driveLoadStart = driveSource.indexOf('  private async loadRemoteDirectory(');
+const driveLoadEnd = driveSource.indexOf('\n  private async refreshRemoteDirectoryState(', driveLoadStart);
+assert.notEqual(driveLoadStart, -1, 'DriveSandboxProjectFileSystemService must load remote directories.');
+assert.notEqual(driveLoadEnd, -1, 'The remote directory loader must have a bounded method body.');
+const driveLoadBody = driveSource.slice(driveLoadStart, driveLoadEnd);
+assert.match(
+  driveLoadBody,
+  /directChildPathsByDirectoryPath\.get\(virtualPath\)/u,
+  'Drive directory refreshes must inspect the direct-child index for the current directory.',
+);
+assert.doesNotMatch(
+  driveLoadBody,
+  /entriesByVirtualPath\.(?:keys|entries)\(\)/u,
+  'Drive directory refreshes must not scan the complete project entry cache.',
 );
 
 console.log('file-system loaded directory index performance contract passed.');

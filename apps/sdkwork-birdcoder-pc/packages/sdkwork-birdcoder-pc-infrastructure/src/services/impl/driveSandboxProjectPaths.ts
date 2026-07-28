@@ -1,5 +1,10 @@
 import type { IFileNode } from '@sdkwork/birdcoder-pc-contracts-commons';
 
+const MAX_PORTABLE_FILE_NAME_UTF8_BYTES = 255;
+const WINDOWS_RESERVED_DEVICE_NAME_PATTERN =
+  /^(?:con|prn|aux|nul|com(?:[1-9]|\u00b9|\u00b2|\u00b3)|lpt(?:[1-9]|\u00b9|\u00b2|\u00b3))(?:\..*)?$/iu;
+const WINDOWS_INVALID_FILE_NAME_CHARACTER_PATTERN = /[<>:"|?*\u0000-\u001f]/u;
+
 export interface DriveSandboxProjectPathContext {
   readonly bindingLogicalPath: string;
   readonly virtualRootName: string;
@@ -97,6 +102,17 @@ export function splitVirtualMutationPath(
   const logicalParentPath = separatorIndex < 0 ? '' : logicalPath.slice(0, separatorIndex);
   if (!name || name === '.' || name === '..') {
     throw new Error('Project file name is invalid.');
+  }
+  if (
+    WINDOWS_INVALID_FILE_NAME_CHARACTER_PATTERN.test(name)
+    || name !== name.trim()
+    || name.endsWith('.')
+    || WINDOWS_RESERVED_DEVICE_NAME_PATTERN.test(name)
+  ) {
+    throw new Error('Project file name is not portable across supported hosts.');
+  }
+  if (new TextEncoder().encode(name).byteLength > MAX_PORTABLE_FILE_NAME_UTF8_BYTES) {
+    throw new Error('Project file name exceeds the supported portable length.');
   }
   const virtualParentSeparatorIndex = normalizedVirtualPath.lastIndexOf('/');
   const virtualParentPath = normalizedVirtualPath.slice(0, virtualParentSeparatorIndex);

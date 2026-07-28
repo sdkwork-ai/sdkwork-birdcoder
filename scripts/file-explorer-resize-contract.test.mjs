@@ -15,6 +15,7 @@ const codeEditorWorkspacePanelTypesSource = read('apps/sdkwork-birdcoder-pc/pack
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const codePageSurfacePropsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts');
 const studioCodeWorkspacePanelSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx');
+const studioMainContentSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioMainContent.tsx');
 const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
 
 assert.match(
@@ -49,7 +50,7 @@ assert.match(
 
 assert.match(
   codeEditorWorkspacePanelSource,
-  /<FileExplorer[\s\S]*width=\{explorerWidth\}/s,
+  /<(?:Deferred)?FileExplorer[\s\S]*width=\{explorerWidth\}/s,
   'CodeEditorWorkspacePanel must pass its explorer width into FileExplorer.',
 );
 
@@ -79,7 +80,7 @@ assert.match(
 
 assert.match(
   studioCodeWorkspacePanelSource,
-  /<FileExplorer[\s\S]*width=\{explorerWidth\}/s,
+  /<(?:Deferred)?FileExplorer[\s\S]*width=\{explorerWidth\}/s,
   'StudioCodeWorkspacePanel must pass its explorer width into FileExplorer.',
 );
 
@@ -91,14 +92,26 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /explorerWidth=\{codeExplorerWidth\}/,
-  'StudioPage must provide the current code explorer width to StudioCodeWorkspacePanel.',
+  /<StudioMainContent[\s\S]*model=\{\{[\s\S]*codeExplorerWidth,/s,
+  'StudioPage must provide the current code explorer width to StudioMainContent.',
+);
+
+assert.match(
+  studioMainContentSource,
+  /<StudioCodeWorkspacePanel[\s\S]*explorerWidth=\{codeExplorerWidth\}/s,
+  'StudioMainContent must forward the current code explorer width to StudioCodeWorkspacePanel.',
 );
 
 assert.match(
   studioPageSource,
-  /onExplorerResize=\{handleStudioCodeExplorerResize\}/,
-  'StudioPage must provide a dedicated explorer resize handler to StudioCodeWorkspacePanel.',
+  /<StudioMainContent[\s\S]*model=\{\{[\s\S]*handleStudioCodeExplorerResize,/s,
+  'StudioPage must provide a dedicated explorer resize handler to StudioMainContent.',
+);
+
+assert.match(
+  studioMainContentSource,
+  /<StudioCodeWorkspacePanel[\s\S]*onExplorerResize=\{handleStudioCodeExplorerResize\}/s,
+  'StudioMainContent must forward the dedicated explorer resize handler to StudioCodeWorkspacePanel.',
 );
 
 console.log('file explorer resize contract passed.');

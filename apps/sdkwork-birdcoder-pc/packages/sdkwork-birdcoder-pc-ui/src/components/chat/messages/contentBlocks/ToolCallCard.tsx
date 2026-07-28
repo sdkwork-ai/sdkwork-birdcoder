@@ -31,10 +31,12 @@ import {
   ToolResultBlocks,
 } from './ToolResultBlocks.tsx';
 import { ToolInputDetails } from './ToolInputDetails.tsx';
+import type { ContextToolCallCategory } from './toolCallPresentation.ts';
 
 interface ToolCallCardProps {
   call: AgentSessionItemToolCallView;
   compact: boolean;
+  contextCategory?: ContextToolCallCategory;
   copyMessageToClipboard: (content: string) => void;
   isExpanded: boolean;
   onToggle: () => void;
@@ -110,6 +112,18 @@ function resolveToolCallLabel(call: AgentSessionItemToolCallView, t?: ChatMessag
   } as const;
 
   return labels[call.kind ?? 'other'];
+}
+
+function resolveContextToolCallLabel(
+  category: ContextToolCallCategory,
+  t?: ChatMessageTranslate,
+): string {
+  const labels = {
+    list: t?.('chat.toolContextList') ?? 'List',
+    read: t?.('chat.toolContextRead') ?? 'Read',
+    search: t?.('chat.toolContextSearch') ?? 'Search',
+  } as const;
+  return labels[category];
 }
 
 function renderToolCallIcon(call: AgentSessionItemToolCallView, size: number) {
@@ -220,6 +234,7 @@ function formatToolCallDuration(durationMs: number | undefined): string {
 export const ToolCallCard = memo(function ToolCallCard({
   call,
   compact,
+  contextCategory,
   copyMessageToClipboard,
   isExpanded,
   onToggle,
@@ -250,13 +265,17 @@ export const ToolCallCard = memo(function ToolCallCard({
   const isOutputPending = call.status === 'pending'
     || call.status === 'running'
     || call.status === 'waiting';
-  const toolLabel = resolveToolCallLabel(call, t);
+  const toolLabel = contextCategory
+    ? resolveContextToolCallLabel(contextCategory, t)
+    : resolveToolCallLabel(call, t);
   const statusLabel = resolveToolCallStatusLabel(call, t);
   const durationLabel = formatToolCallDuration(call.durationMs);
   const displayName = call.serverName
     ? `${call.serverName} / ${call.name}`
     : call.name;
   const primaryDisplayName = taskTitle || displayName;
+  const rowDisplayName = contextCategory ? argumentSummary : primaryDisplayName;
+  const rowArgumentSummary = contextCategory ? '' : argumentSummary;
   const detailLabel = isExpanded
     ? t?.('chat.toolDetailsHide') ?? 'Hide tool details'
     : t?.('chat.toolDetailsShow') ?? 'Show tool details';
@@ -277,7 +296,7 @@ export const ToolCallCard = memo(function ToolCallCard({
         data-chat-tool-disclosure="true"
         className="flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         title={detailLabel}
-        aria-label={`${toolLabel}: ${primaryDisplayName}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
+        aria-label={`${toolLabel}${rowDisplayName ? `: ${rowDisplayName}` : ''}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
         aria-expanded={isExpanded}
         aria-controls={detailsId}
         onClick={onToggle}
@@ -286,12 +305,14 @@ export const ToolCallCard = memo(function ToolCallCard({
           {renderToolCallIcon(call, compact ? 12 : 13)}
         </span>
         <span className="shrink-0 text-[13px] font-medium text-gray-300">{toolLabel}</span>
-        <span className={`min-w-0 shrink truncate text-[13px] text-gray-500${taskTitle ? '' : ''}`}>
-          {primaryDisplayName}
-        </span>
-        {argumentSummary ? (
+        {rowDisplayName ? (
+          <span className="min-w-0 shrink truncate text-[13px] text-gray-500">
+            {rowDisplayName}
+          </span>
+        ) : null}
+        {rowArgumentSummary ? (
           <span className="min-w-0 flex-1 truncate text-[12px] text-gray-600 max-[760px]:hidden">
-            {argumentSummary}
+            {rowArgumentSummary}
           </span>
         ) : call.arguments.trim() ? (
           <span className="min-w-0 flex-1" aria-hidden="true" />

@@ -374,12 +374,28 @@ function resolveItemToolCalls(item: AgentSessionItemRecord): unknown[] | undefin
 }
 
 function readStructuredFileChange(value: unknown): FileChange | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  const record = readRecord(value);
+  if (!record) {
     return null;
   }
 
-  const record = value as Record<string, unknown>;
-  const path = typeof record.path === 'string' ? record.path.trim() : '';
+  const readFirstString = (keys: readonly string[]): string => {
+    for (const key of keys) {
+      if (typeof record[key] === 'string') {
+        return record[key].trim();
+      }
+    }
+    return '';
+  };
+  const readFirstContent = (keys: readonly string[]): string | undefined => {
+    for (const key of keys) {
+      if (typeof record[key] === 'string') {
+        return record[key];
+      }
+    }
+    return undefined;
+  };
+  const path = readFirstString(['path', 'file', 'filePath', 'file_path']);
   if (!path) {
     return null;
   }
@@ -389,49 +405,95 @@ function readStructuredFileChange(value: unknown): FileChange | null {
       ? Math.max(0, Math.floor(candidate))
       : 0
   );
-  const additions = readLineCount(record.additions);
-  const deletions = readLineCount(record.deletions);
-  const hasKnownLineImpact = typeof record.additions === 'number'
-    && Number.isFinite(record.additions)
-    && typeof record.deletions === 'number'
-    && Number.isFinite(record.deletions);
+  const additionsCandidate = record.additions
+    ?? record.linesAdded
+    ?? record.lines_added;
+  const deletionsCandidate = record.deletions
+    ?? record.linesDeleted
+    ?? record.lines_deleted;
+  const additions = readLineCount(additionsCandidate);
+  const deletions = readLineCount(deletionsCandidate);
+  const hasKnownLineImpact = typeof additionsCandidate === 'number'
+    && Number.isFinite(additionsCandidate)
+    && typeof deletionsCandidate === 'number'
+    && Number.isFinite(deletionsCandidate);
+  const lineImpactKnown = record.lineImpactKnown ?? record.line_impact_known;
+  const rawUpdateStatus = readFirstString(['updateStatus', 'update_status', 'status']);
+  const normalizedStatusByProviderValue: Readonly<Record<string, string>> = {
+    added: 'A',
+    created: 'A',
+    deleted: 'D',
+    modified: 'M',
+    moved: 'R',
+    renamed: 'R',
+  };
+  const updateStatus = normalizedStatusByProviderValue[rawUpdateStatus.toLowerCase()]
+    ?? rawUpdateStatus;
+  const diff = readFirstContent(['diff', 'patch', 'unifiedDiff', 'unified_diff']);
+  const content = readFirstContent([
+    'content',
+    'after',
+    'afterContent',
+    'after_content',
+    'newContent',
+    'new_content',
+  ]);
+  const originalContent = readFirstContent([
+    'originalContent',
+    'original_content',
+    'before',
+    'beforeContent',
+    'before_content',
+    'oldContent',
+    'old_content',
+  ]);
 
   return {
     path,
     additions,
     deletions,
-    lineImpactKnown: typeof record.lineImpactKnown === 'boolean'
-      ? record.lineImpactKnown
+    lineImpactKnown: typeof lineImpactKnown === 'boolean'
+      ? lineImpactKnown
       : hasKnownLineImpact,
-    ...(typeof record.updateStatus === 'string' ? { updateStatus: record.updateStatus } : {}),
-    ...(typeof record.diff === 'string' ? { diff: record.diff } : {}),
-    ...(typeof record.content === 'string' ? { content: record.content } : {}),
-    ...(typeof record.originalContent === 'string'
-      ? { originalContent: record.originalContent }
-      : {}),
+    ...(updateStatus ? { updateStatus } : {}),
+    ...(typeof diff === 'string' ? { diff } : {}),
+    ...(typeof content === 'string' ? { content } : {}),
+    ...(typeof originalContent === 'string' ? { originalContent } : {}),
   };
 }
 
 function resolveItemFileChanges(item: AgentSessionItemRecord): FileChange[] | undefined {
-  if (typeof item.toolResult !== 'object' || item.toolResult === null || Array.isArray(item.toolResult)) {
+  const toolResult = readRecord(item.toolResult);
+  if (!toolResult) {
     return undefined;
   }
 
-  const toolResult = item.toolResult as Record<string, unknown>;
-  const nestedData = typeof toolResult.data === 'object'
-    && toolResult.data !== null
-    && !Array.isArray(toolResult.data)
-    ? toolResult.data as Record<string, unknown>
-    : null;
+  const nestedData = readRecord(toolResult.data);
+  const nestedMessage = readRecord(toolResult.message) ?? readRecord(nestedData?.message);
+  const nestedSummary = readRecord(toolResult.summary)
+    ?? readRecord(nestedData?.summary)
+    ?? readRecord(nestedMessage?.summary);
   const candidate = toolResult.fileChanges
     ?? toolResult.file_changes
+    ?? toolResult.diffs
+    ?? toolResult.changes
     ?? nestedData?.fileChanges
-    ?? nestedData?.file_changes;
-  if (!Array.isArray(candidate)) {
+    ?? nestedData?.file_changes
+    ?? nestedData?.diffs
+    ?? nestedData?.changes
+    ?? nestedSummary?.diffs
+    ?? nestedSummary?.fileChanges
+    ?? nestedSummary?.file_changes;
+  const candidateValues = Array.isArray(candidate)
+    ? candidate
+    : readRecord(candidate)
+      ? Object.values(candidate)
+      : [];
+  if (candidateValues.length === 0) {
     return undefined;
   }
 
-  const fileChanges = candidate.flatMap((value) => {
+  const fileChanges = candidateValues.flatMap((value) => {
     const fileChange = readStructuredFileChange(value);
     return fileChange ? [fileChange] : [];
   });

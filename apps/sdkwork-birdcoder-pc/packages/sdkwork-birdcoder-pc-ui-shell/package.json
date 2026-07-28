@@ -9,6 +9,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./providerVisualIdentity": {
+      "import": "./src/components/providerVisualIdentity.ts",
+      "types": "./src/components/providerVisualIdentity.ts"
     }
   },
   "scripts": {

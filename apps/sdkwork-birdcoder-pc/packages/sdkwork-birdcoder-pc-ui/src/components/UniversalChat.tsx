@@ -1455,12 +1455,17 @@ export const UniversalChat = memo(function UniversalChat({
   const isComposerTurnBlocked = isBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
+  const transcriptEngineId = useMemo(
+    () => resolveChatProviderPresentationProfile(resolvedSelectedEngineId)?.engineId
+      ?? resolvedSelectedEngineId,
+    [resolvedSelectedEngineId],
+  );
   const normalizedMessages = useMemo(
     () => composeAgentSessionTranscriptActivity(
       resolveVisibleSessionMessages(messages, normalizedSessionId),
-      { engineId: selectedEngineId },
+      { engineId: transcriptEngineId },
     ),
-    [messages, normalizedSessionId, selectedEngineId],
+    [messages, normalizedSessionId, transcriptEngineId],
   );
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
@@ -3351,7 +3356,7 @@ export const UniversalChat = memo(function UniversalChat({
         }
       `}</style>
       <ChatActivityLiveAnnouncer
-        engineId={resolvedSelectedEngineId}
+        engineId={transcriptEngineId}
         isActive={isActive}
         isLive={isBusy || isEngineBusy}
         messages={normalizedMessages}
@@ -3399,7 +3404,7 @@ export const UniversalChat = memo(function UniversalChat({
         >
           <UniversalChatTranscript
             emptyState={emptyState}
-            engineId={resolvedSelectedEngineId}
+            engineId={transcriptEngineId}
             environmentSignature={transcriptEnvironmentSignature}
             environmentRef={transcriptEnvironmentRef}
             hasMoreRemoteMessages={hasMoreRemoteMessages}

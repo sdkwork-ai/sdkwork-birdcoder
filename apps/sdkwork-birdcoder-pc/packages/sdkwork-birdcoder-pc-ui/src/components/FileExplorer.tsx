@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useId, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useDeferredValue, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -913,14 +913,11 @@ export const FileExplorer = React.memo(function FileExplorer({
     };
   }, [handleClickOutside, hasOpenViewportMenu, isActive]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isActive || !hasOpenViewportMenu) {
       return;
     }
-    const animationFrameId = window.requestAnimationFrame(() => {
-      floatingMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-    });
-    return () => window.cancelAnimationFrame(animationFrameId);
+    floatingMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
   }, [hasOpenViewportMenu, isActive]);
 
   useEffect(() => {
@@ -996,6 +993,10 @@ export const FileExplorer = React.memo(function FileExplorer({
   }, []);
 
   const handleFloatingMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      closeFloatingMenus();
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       const returnFocusPath = floatingMenuReturnFocusPathRef.current;

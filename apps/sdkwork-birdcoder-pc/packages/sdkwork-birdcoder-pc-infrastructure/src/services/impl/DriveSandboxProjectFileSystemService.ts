@@ -37,6 +37,7 @@ import {
 
 const DIRECTORY_PAGE_SIZE = 200;
 const MAX_DIRECTORY_PAGES = 100;
+const MAX_DIRECTORY_ENTRIES = DIRECTORY_PAGE_SIZE * MAX_DIRECTORY_PAGES;
 const MAX_SEARCH_TREE_NODES = 20_000;
 const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
@@ -50,7 +51,8 @@ interface DriveSandboxProjectFileSystemServiceOptions {
 interface RemoteProjectState {
   readonly binding: ProjectDriveComposition;
   readonly context: DriveSandboxProjectPathContext;
-  readonly directoryRequestGenerations: Map<string, number>;
+  readonly directChildPathsByDirectoryPath: Map<string, Set<string>>;
+  readonly directoryRequestGenerations: Map<string, symbol>;
   readonly entriesByVirtualPath: Map<string, SandboxEntry>;
   tree: IFileNode[];
 }
@@ -86,12 +88,50 @@ function compareFileNodes(left: IFileNode, right: IFileNode): number {
   return left.name.localeCompare(right.name);
 }
 
+function assertRemoteEntryIdentity(
+  entry: SandboxEntry,
+  expected: {
+    readonly sandboxId: string;
+    readonly logicalPath: string;
+    readonly kind: SandboxEntry['kind'];
+    readonly id?: string;
+  },
+): void {
+  const separatorIndex = expected.logicalPath.lastIndexOf('/');
+  const expectedName = separatorIndex < 0
+    ? expected.logicalPath
+    : expected.logicalPath.slice(separatorIndex + 1);
+  if (
+    entry.sandboxId !== expected.sandboxId
+    || entry.logicalPath !== expected.logicalPath
+    || entry.name !== expectedName
+    || entry.kind !== expected.kind
+    || (expected.id !== undefined && entry.id !== expected.id)
+  ) {
+    throw new Error('Drive returned an inconsistent entry identity.');
+  }
+}
+
+function cacheRemoteEntry(
+  state: RemoteProjectState,
+  entry: SandboxEntry,
+): string {
+  const path = toVirtualProjectPath(state.context, entry.logicalPath);
+  state.entriesByVirtualPath.set(path, entry);
+  const separatorIndex = path.lastIndexOf('/');
+  const parentPath = path.slice(0, separatorIndex);
+  const directChildPaths = state.directChildPathsByDirectoryPath.get(parentPath)
+    ?? new Set<string>();
+  directChildPaths.add(path);
+  state.directChildPathsByDirectoryPath.set(parentPath, directChildPaths);
+  return path;
+}
+
 function entryToFileNode(
   state: RemoteProjectState,
   entry: SandboxEntry,
 ): IFileNode {
-  const path = toVirtualProjectPath(state.context, entry.logicalPath);
-  state.entriesByVirtualPath.set(path, entry);
+  const path = cacheRemoteEntry(state, entry);
   return {
     name: entry.name,
     path,
@@ -156,6 +196,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const state: RemoteProjectState = {
       binding,
       context: createDriveSandboxProjectPathContext(binding.logicalPath),
+      directChildPathsByDirectoryPath: new Map(),
       directoryRequestGenerations: new Map(),
       entriesByVirtualPath: new Map(),
       tree: [],
@@ -168,7 +209,10 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     state: RemoteProjectState,
     logicalPath: string,
   ): Promise<readonly SandboxEntry[]> {
-    const items: SandboxEntry[] = [];
+    const entriesByVirtualPath = new Map<string, SandboxEntry>();
+    const virtualPathByEntryId = new Map<string, string>();
+    const seenCursors = new Set<string>();
+    let receivedEntryCount = 0;
     let cursor: string | undefined;
     for (let page = 1; page <= MAX_DIRECTORY_PAGES; page += 1) {
       const result = await this.drivePort.listChildren({
@@ -177,9 +221,50 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         pageSize: DIRECTORY_PAGE_SIZE,
         ...(cursor ? { cursor } : {}),
       });
-      items.push(...result.items);
+      if (result.items.length > MAX_DIRECTORY_ENTRIES - receivedEntryCount) {
+        throw new Error('Server directory exceeds the supported bounded entry limit.');
+      }
+      receivedEntryCount += result.items.length;
+      for (const entry of result.items) {
+        if (entry.sandboxId !== state.binding.driveId) {
+          throw new Error('Drive returned an entry from an unexpected sandbox.');
+        }
+        const virtualPath = toVirtualProjectPath(state.context, entry.logicalPath);
+        const separatorIndex = entry.logicalPath.lastIndexOf('/');
+        const entryParentPath = separatorIndex < 0
+          ? ''
+          : entry.logicalPath.slice(0, separatorIndex);
+        const expectedName = separatorIndex < 0
+          ? entry.logicalPath
+          : entry.logicalPath.slice(separatorIndex + 1);
+        if (entryParentPath !== logicalPath || entry.name !== expectedName) {
+          throw new Error('Drive returned an entry outside the requested directory.');
+        }
+
+        const existingEntry = entriesByVirtualPath.get(virtualPath);
+        if (existingEntry) {
+          if (
+            existingEntry.id !== entry.id
+            || existingEntry.kind !== entry.kind
+            || existingEntry.name !== entry.name
+          ) {
+            throw new Error('Drive returned inconsistent directory entry identity.');
+          }
+          continue;
+        }
+        const existingPath = virtualPathByEntryId.get(entry.id);
+        if (existingPath && existingPath !== virtualPath) {
+          throw new Error('Drive returned inconsistent directory entry identity.');
+        }
+        entriesByVirtualPath.set(virtualPath, entry);
+        virtualPathByEntryId.set(entry.id, virtualPath);
+      }
       cursor = result.nextCursor;
-      if (!cursor) return items;
+      if (!cursor) return [...entriesByVirtualPath.values()];
+      if (seenCursors.has(cursor)) {
+        throw new Error('Drive returned an invalid directory pagination cursor.');
+      }
+      seenCursors.add(cursor);
     }
     throw new Error('Server directory exceeds the supported bounded page traversal limit.');
   }
@@ -187,7 +272,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   private async loadRemoteDirectory(
     state: RemoteProjectState,
     virtualPath: string,
-    requestGeneration: number,
+    requestGeneration: symbol,
   ): Promise<IFileNode | null> {
     const logicalPath = toSandboxLogicalPath(state.context, virtualPath);
     const entries = await this.collectDirectoryChildrenBounded(state, logicalPath);
@@ -204,31 +289,29 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         this.removeCachedEntryTree(state, childPath);
       }
     }
-    const descendantPrefix = `${virtualPath}/`;
-    for (const cachedPath of [...state.entriesByVirtualPath.keys()]) {
-      if (!cachedPath.startsWith(descendantPrefix)) continue;
-      const relativePath = cachedPath.slice(descendantPrefix.length);
-      const firstSeparatorIndex = relativePath.indexOf('/');
-      const directChildPath = firstSeparatorIndex < 0
-        ? cachedPath
-        : `${virtualPath}/${relativePath.slice(0, firstSeparatorIndex)}`;
-      const currentEntry = currentChildrenByPath.get(directChildPath);
-      const cachedDirectEntry = state.entriesByVirtualPath.get(directChildPath);
+    const previousChildPaths = [
+      ...(state.directChildPathsByDirectoryPath.get(virtualPath) ?? []),
+    ];
+    for (const previousChildPath of previousChildPaths) {
+      const currentEntry = currentChildrenByPath.get(previousChildPath);
+      const cachedDirectEntry = state.entriesByVirtualPath.get(previousChildPath);
       if (
         !currentEntry
+        || !cachedDirectEntry
+        || cachedDirectEntry.id !== currentEntry.id
         || (
-          firstSeparatorIndex >= 0
-          && (
-            currentEntry.kind === 'file'
-            || !cachedDirectEntry
-            || cachedDirectEntry.id !== currentEntry.id
-          )
+          currentEntry.kind === 'file'
+          && state.directChildPathsByDirectoryPath.has(previousChildPath)
         )
       ) {
-        state.entriesByVirtualPath.delete(cachedPath);
+        this.removeCachedEntryTree(state, previousChildPath);
       }
     }
     const children = entries.map((entry) => entryToFileNode(state, entry));
+    state.directChildPathsByDirectoryPath.set(
+      virtualPath,
+      new Set(children.map((child) => child.path)),
+    );
     return {
       name: virtualPath === state.context.virtualRootPath
         ? state.context.virtualRootName
@@ -265,10 +348,22 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   private advanceDirectoryRequestGeneration(
     state: RemoteProjectState,
     virtualPath: string,
-  ): number {
-    const nextGeneration = (state.directoryRequestGenerations.get(virtualPath) ?? 0) + 1;
+  ): symbol {
+    const nextGeneration = Symbol(virtualPath);
     state.directoryRequestGenerations.set(virtualPath, nextGeneration);
     return nextGeneration;
+  }
+
+  private invalidateDirectoryRequestTree(
+    state: RemoteProjectState,
+    virtualPath: string,
+  ): void {
+    const descendantPrefix = `${virtualPath}/`;
+    for (const requestPath of [...state.directoryRequestGenerations.keys()]) {
+      if (requestPath === virtualPath || requestPath.startsWith(descendantPrefix)) {
+        state.directoryRequestGenerations.delete(requestPath);
+      }
+    }
   }
 
   private async requireRemote<T>(
@@ -282,11 +377,23 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   private removeCachedEntryTree(state: RemoteProjectState, virtualPath: string): void {
-    const descendantPrefix = `${virtualPath}/`;
-    for (const cachedPath of [...state.entriesByVirtualPath.keys()]) {
-      if (cachedPath === virtualPath || cachedPath.startsWith(descendantPrefix)) {
-        state.entriesByVirtualPath.delete(cachedPath);
+    this.invalidateDirectoryRequestTree(state, virtualPath);
+    const separatorIndex = virtualPath.lastIndexOf('/');
+    const parentPath = virtualPath.slice(0, separatorIndex);
+    state.directChildPathsByDirectoryPath.get(parentPath)?.delete(virtualPath);
+
+    const pendingPaths = [virtualPath];
+    const visitedPaths = new Set<string>();
+    while (pendingPaths.length > 0) {
+      const currentPath = pendingPaths.pop()!;
+      if (visitedPaths.has(currentPath)) continue;
+      visitedPaths.add(currentPath);
+      const childPaths = state.directChildPathsByDirectoryPath.get(currentPath);
+      if (childPaths) {
+        pendingPaths.push(...childPaths);
       }
+      state.directChildPathsByDirectoryPath.delete(currentPath);
+      state.entriesByVirtualPath.delete(currentPath);
     }
   }
 
@@ -296,15 +403,34 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     newPath: string,
     movedEntry: SandboxEntry,
   ): void {
-    const descendantPrefix = `${oldPath}/`;
-    for (const [cachedPath, cachedEntry] of [...state.entriesByVirtualPath.entries()]) {
-      if (cachedPath !== oldPath && !cachedPath.startsWith(descendantPrefix)) continue;
-      state.entriesByVirtualPath.delete(cachedPath);
+    this.invalidateDirectoryRequestTree(state, oldPath);
+    this.invalidateDirectoryRequestTree(state, newPath);
+    const pendingPaths = [oldPath];
+    const visitedPaths = new Set<string>();
+    const cachedEntries: Array<readonly [string, SandboxEntry]> = [];
+    const loadedDirectoryChildren: Array<readonly [string, readonly string[]]> = [];
+    while (pendingPaths.length > 0) {
+      const currentPath = pendingPaths.pop()!;
+      if (visitedPaths.has(currentPath)) continue;
+      visitedPaths.add(currentPath);
+      const cachedEntry = state.entriesByVirtualPath.get(currentPath);
+      if (cachedEntry) cachedEntries.push([currentPath, cachedEntry]);
+      const childPaths = state.directChildPathsByDirectoryPath.get(currentPath);
+      if (childPaths) {
+        const children = [...childPaths];
+        loadedDirectoryChildren.push([currentPath, children]);
+        pendingPaths.push(...children);
+      }
+    }
+
+    this.removeCachedEntryTree(state, newPath);
+    this.removeCachedEntryTree(state, oldPath);
+    for (const [cachedPath, cachedEntry] of cachedEntries) {
       const relocatedPath = cachedPath === oldPath
         ? newPath
         : `${newPath}${cachedPath.slice(oldPath.length)}`;
-      state.entriesByVirtualPath.set(
-        relocatedPath,
+      cacheRemoteEntry(
+        state,
         cachedPath === oldPath
           ? movedEntry
           : {
@@ -313,7 +439,18 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
             },
       );
     }
-    state.entriesByVirtualPath.set(newPath, movedEntry);
+    for (const [directoryPath, childPaths] of loadedDirectoryChildren) {
+      const relocatedDirectoryPath = directoryPath === oldPath
+        ? newPath
+        : `${newPath}${directoryPath.slice(oldPath.length)}`;
+      state.directChildPathsByDirectoryPath.set(
+        relocatedDirectoryPath,
+        new Set(childPaths.map((childPath) => `${newPath}${childPath.slice(oldPath.length)}`)),
+      );
+    }
+    if (!state.entriesByVirtualPath.has(newPath)) {
+      cacheRemoteEntry(state, movedEntry);
+    }
   }
 
   private async resolveRemoteEntry(
@@ -329,7 +466,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const entries = await this.collectDirectoryChildrenBounded(state, parentPath);
     const entry = entries.find((candidate) => candidate.logicalPath === logicalPath);
     if (!entry) throw new Error('The requested project Drive entry no longer exists.');
-    state.entriesByVirtualPath.set(virtualPath, entry);
+    cacheRemoteEntry(state, entry);
     return entry;
   }
 
@@ -420,7 +557,16 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           logicalPath: entry.logicalPath,
           encoding: 'utf8',
         });
-        state.entriesByVirtualPath.set(path, result.entry);
+        assertRemoteEntryIdentity(result.entry, {
+          sandboxId: state.binding.driveId,
+          logicalPath: entry.logicalPath,
+          kind: 'file',
+          id: entry.id,
+        });
+        const entryPath = toVirtualProjectPath(state.context, entry.logicalPath);
+        if (state.entriesByVirtualPath.get(entryPath)?.id === entry.id) {
+          cacheRemoteEntry(state, result.entry);
+        }
         return result.content;
       },
     );
@@ -470,7 +616,16 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           content,
           encoding: 'utf8',
         });
-        state.entriesByVirtualPath.set(path, updated);
+        assertRemoteEntryIdentity(updated, {
+          sandboxId: state.binding.driveId,
+          logicalPath: entry.logicalPath,
+          kind: 'file',
+          id: entry.id,
+        });
+        const entryPath = toVirtualProjectPath(state.context, entry.logicalPath);
+        if (state.entriesByVirtualPath.get(entryPath)?.id === entry.id) {
+          cacheRemoteEntry(state, updated);
+        }
       },
     );
   }
@@ -487,6 +642,14 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           name: target.name,
           content: '',
           encoding: 'utf8',
+        });
+        this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+        assertRemoteEntryIdentity(entry, {
+          sandboxId: state.binding.driveId,
+          logicalPath: target.logicalParentPath
+            ? `${target.logicalParentPath}/${target.name}`
+            : target.name,
+          kind: 'file',
         });
         const node = entryToFileNode(state, entry);
         state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
@@ -505,6 +668,14 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           parentPath: target.logicalParentPath,
           name: target.name,
         });
+        this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+        assertRemoteEntryIdentity(entry, {
+          sandboxId: state.binding.driveId,
+          logicalPath: target.logicalParentPath
+            ? `${target.logicalParentPath}/${target.name}`
+            : target.name,
+          kind: 'directory',
+        });
         const node = entryToFileNode(state, entry);
         state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
       },
@@ -517,9 +688,10 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     recursive: boolean,
     expectedKind: SandboxEntry['kind'],
   ): Promise<void> {
-    const entry = await this.resolveKnownRemoteEntry(state, path);
-    if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
     const target = splitVirtualMutationPath(state.context, path);
+    const canonicalPath = `${target.virtualParentPath}/${target.name}`;
+    const entry = await this.resolveKnownRemoteEntry(state, canonicalPath);
+    if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
     this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
     await this.drivePort.deleteEntry({
       sandboxId: state.binding.driveId,
@@ -528,8 +700,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       revision: entry.revision,
       recursive,
     });
-    this.removeCachedEntryTree(state, path);
-    state.tree = removeNodeFromTree(state.tree, path);
+    this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+    this.removeCachedEntryTree(state, canonicalPath);
+    state.tree = removeNodeFromTree(state.tree, canonicalPath);
   }
 
   async deleteFile(projectId: string, path: string): Promise<void> {
@@ -553,6 +726,15 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         const entry = await this.resolveKnownRemoteEntry(state, oldPath);
         const currentTarget = splitVirtualMutationPath(state.context, oldPath);
         const target = splitVirtualMutationPath(state.context, newPath);
+        const canonicalOldPath = `${currentTarget.virtualParentPath}/${currentTarget.name}`;
+        const canonicalNewPath = `${target.virtualParentPath}/${target.name}`;
+        if (canonicalOldPath === canonicalNewPath) return;
+        if (
+          entry.kind === 'directory'
+          && canonicalNewPath.startsWith(`${canonicalOldPath}/`)
+        ) {
+          throw new Error('A project directory cannot be moved into itself.');
+        }
         this.advanceDirectoryRequestGeneration(state, currentTarget.virtualParentPath);
         if (target.virtualParentPath !== currentTarget.virtualParentPath) {
           this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
@@ -565,10 +747,22 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           destinationParentPath: target.logicalParentPath,
           destinationName: target.name,
         });
-        this.relocateCachedEntryTree(state, oldPath, newPath, moved);
+        this.advanceDirectoryRequestGeneration(state, currentTarget.virtualParentPath);
+        if (target.virtualParentPath !== currentTarget.virtualParentPath) {
+          this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+        }
+        assertRemoteEntryIdentity(moved, {
+          sandboxId: state.binding.driveId,
+          logicalPath: target.logicalParentPath
+            ? `${target.logicalParentPath}/${target.name}`
+            : target.name,
+          kind: entry.kind,
+          id: entry.id,
+        });
+        this.relocateCachedEntryTree(state, canonicalOldPath, canonicalNewPath, moved);
         state.tree = relocateNodeInTree(
           state.tree,
-          oldPath,
+          canonicalOldPath,
           target.virtualParentPath,
           entryToFileNode(state, moved),
         );

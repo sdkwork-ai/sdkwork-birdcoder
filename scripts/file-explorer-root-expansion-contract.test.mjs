@@ -29,7 +29,7 @@ assert.match(
 
 assert.match(
   fileExplorerSource,
-  /const rootCreationParentPath = useMemo\(\(\) => projectRootPath\.trim\(\), \[projectRootPath\]\);\s*const singleRootDirectoryPath = rootCreationParentPath;/s,
+  /const rootCreationParentPath = useMemo\(\(\) => projectRootPath\.trim\(\), \[projectRootPath\]\);\s*const fileExplorerScopeIdentity = `\$\{scopeKey\}\\u0000\$\{rootCreationParentPath\}`;\s*const singleRootDirectoryPath = rootCreationParentPath;/s,
   'FileExplorer must use the explicit virtual root for creation and expansion.',
 );
 

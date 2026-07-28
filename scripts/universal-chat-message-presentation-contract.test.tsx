@@ -64,6 +64,9 @@ assert.deepEqual(AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, {
   opencode: "opencode.part",
 });
 assert.equal(resolveChatProviderPresentationProfile(" CODEX ")?.engineId, "codex");
+assert.equal(resolveChatProviderPresentationProfile("gemini-cli")?.engineId, "gemini");
+assert.equal(resolveChatProviderPresentationProfile("open-code")?.engineId, "opencode");
+assert.equal(resolveChatProviderPresentationProfile("openai-codex")?.engineId, "codex");
 assert.equal(resolveChatProviderPresentationProfile("unknown"), undefined);
 
 const localizedActiveTailHtml = renderToStaticMarkup(
@@ -79,9 +82,10 @@ function createToolCall(
   id: string,
   name: string,
   kind: AgentSessionItemToolCallView["kind"],
+  argumentsText = "{}",
 ): AgentSessionItemToolCallView {
   return {
-    arguments: "{}",
+    arguments: argumentsText,
     id,
     kind,
     name,
@@ -91,8 +95,8 @@ function createToolCall(
 }
 
 const groupedToolCalls = groupToolCallsForPresentation([
-  createToolCall("read-1", "Read", "file"),
-  createToolCall("grep-1", "grep_search", "search"),
+  createToolCall("read-1", "Read", "file", '{"path":"src/App.tsx"}'),
+  createToolCall("grep-1", "grep_search", "search", '{"pattern":"ContextToolCallGroup"}'),
   createToolCall("edit-1", "replace", "file"),
   createToolCall("list-1", "list_directory", "search"),
   createToolCall("mcp-read-1", "read_file", "mcp"),
@@ -146,6 +150,9 @@ assert.equal(
   2,
   "Expanded context groups must reuse one full ToolCallCard per normalized provider call.",
 );
+assert.match(expandedContextGroupHtml, />Read<\/span><span[^>]*>path:/u);
+assert.match(expandedContextGroupHtml, />Search<\/span><span[^>]*>pattern:/u);
+assert.doesNotMatch(expandedContextGroupHtml, />File operation<\/span><span[^>]*>Read/u);
 
 const activitySummarySource = fs.readFileSync(
   new URL(

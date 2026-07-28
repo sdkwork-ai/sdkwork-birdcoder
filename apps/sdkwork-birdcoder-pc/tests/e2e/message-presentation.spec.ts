@@ -462,6 +462,11 @@ test('Provider lifecycle protocols share one structured expandable presentation'
   await expect(geminiCompacted.locator('[data-chat-lifecycle-details="true"]')).toContainText(
     '10000 -> 2200 tokens',
   );
+  await expect(
+    transcript.locator(
+      '[data-chat-engine="gemini"][data-chat-engine-protocol="gemini.event"][data-chat-transcript-style="opencode-aligned"]',
+    ),
+  ).not.toHaveCount(0);
 
   await page.setViewportSize({ width: 900, height: 800 });
   await expect.poll(() => transcript.evaluate((element) => (

@@ -8,7 +8,10 @@ import {
 } from 'lucide-react';
 import type { ChatMessageTranslate } from '../types.ts';
 import { ToolCallCard } from './ToolCallCard.tsx';
-import type { ContextToolCallPresentationGroup } from './toolCallPresentation.ts';
+import {
+  resolveContextToolCallCategory,
+  type ContextToolCallPresentationGroup,
+} from './toolCallPresentation.ts';
 
 export interface ContextToolCallGroupProps {
   compact: boolean;
@@ -136,6 +139,7 @@ export const ContextToolCallGroup = memo(function ContextToolCallGroup({
                 key={call.id}
                 call={call}
                 compact={compact}
+                contextCategory={resolveContextToolCallCategory(call)}
                 copyMessageToClipboard={copyMessageToClipboard}
                 isExpanded={expandedDisclosureKeys.has(disclosureKey)}
                 onToggle={() => toggleDisclosure(disclosureKey)}

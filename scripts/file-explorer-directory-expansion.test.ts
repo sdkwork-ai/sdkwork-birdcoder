@@ -100,7 +100,7 @@ const entry = (
   logicalPath: string,
   kind: SandboxEntry['kind'],
 ): SandboxEntry => ({
-  id: `entry:${logicalPath}`,
+  id: `entry:${logicalPath}:${revision}`,
   kind,
   logicalPath,
   name: logicalPath.split('/').at(-1)!,
@@ -124,6 +124,11 @@ const listChildren = (parentPath: string): SandboxEntry[] => {
   });
 };
 let nextListChildrenBarrier: ((parentPath: string) => Promise<void>) | null = null;
+let nextListChildrenTransform:
+  | ((items: readonly SandboxEntry[], parentPath: string) => readonly SandboxEntry[])
+  | null = null;
+let nextRepeatedListChildrenCursor: string | null = null;
+let nextCreateFileBarrier: (() => Promise<void>) | null = null;
 
 const drivePort: SandboxExplorerPort = {
   async listSandboxes() {
@@ -150,11 +155,21 @@ const drivePort: SandboxExplorerPort = {
     };
   },
   async listChildren(input) {
-    const items = listChildren(input.parentPath);
+    const listedItems = listChildren(input.parentPath);
+    const transform = nextListChildrenTransform;
+    nextListChildrenTransform = null;
+    const items = transform ? transform(listedItems, input.parentPath) : listedItems;
     const barrier = nextListChildrenBarrier;
     nextListChildrenBarrier = null;
     await barrier?.(input.parentPath);
-    return { items };
+    const repeatedCursor = nextRepeatedListChildrenCursor;
+    if (repeatedCursor && input.cursor === repeatedCursor) {
+      nextRepeatedListChildrenCursor = null;
+    }
+    return {
+      items,
+      ...(repeatedCursor ? { nextCursor: repeatedCursor } : {}),
+    };
   },
   async createDirectory(input) {
     const created = entry(`${input.parentPath}/${input.name}`, 'directory');
@@ -162,6 +177,9 @@ const drivePort: SandboxExplorerPort = {
     return created;
   },
   async createFile(input) {
+    const barrier = nextCreateFileBarrier;
+    nextCreateFileBarrier = null;
+    await barrier?.();
     const created = entry(`${input.parentPath}/${input.name}`, 'file');
     entries.set(created.logicalPath, created);
     return created;
@@ -176,10 +194,23 @@ const drivePort: SandboxExplorerPort = {
   },
   async moveEntry(input) {
     const current = entries.get(input.logicalPath)!;
-    entries.delete(input.logicalPath);
+    const destinationLogicalPath = `${input.destinationParentPath}/${input.destinationName}`;
+    const movedEntries = [...entries.entries()].filter(([logicalPath]) =>
+      logicalPath === input.logicalPath || logicalPath.startsWith(`${input.logicalPath}/`));
+    for (const [logicalPath] of movedEntries) {
+      entries.delete(logicalPath);
+    }
+    for (const [logicalPath, currentEntry] of movedEntries) {
+      if (logicalPath === input.logicalPath) continue;
+      const relocatedLogicalPath = `${destinationLogicalPath}${logicalPath.slice(input.logicalPath.length)}`;
+      entries.set(relocatedLogicalPath, {
+        ...currentEntry,
+        logicalPath: relocatedLogicalPath,
+      });
+    }
     const moved = {
       ...current,
-      logicalPath: `${input.destinationParentPath}/${input.destinationName}`,
+      logicalPath: destinationLogicalPath,
       name: input.destinationName,
       revision: `revision:${revision++}`,
     };
@@ -242,6 +273,15 @@ assert.deepEqual(
   ['index.ts'],
 );
 
+await service.createFile('project-1', '/birdcoder/src/canonical-delete.ts');
+await service.deleteFile('project-1', ' /birdcoder/src//canonical-delete.ts ');
+assert.equal(
+  (await service.getFiles('project-1'))[0]!.children![0]!.children!
+    .some((node) => node.name === 'canonical-delete.ts'),
+  false,
+  'Equivalent non-canonical paths must remove the canonical cache and tree entry.',
+);
+
 await service.renameNode(
   'project-1',
   '/birdcoder/src/index.ts',
@@ -282,7 +322,10 @@ assert.equal(
 const reloadedSourceTree = await service.loadDirectory('project-1', '/birdcoder/src');
 assert.equal(reloadedSourceTree[0]!.children![0]!.children![0]!.name, 'main.ts');
 
-async function startBlockedSourceRefresh(): Promise<{
+async function startBlockedDirectoryRefresh(
+  logicalPath: string,
+  virtualPath: string,
+): Promise<{
   readonly release: () => void;
   readonly refresh: Promise<IFileNode[]>;
 }> {
@@ -295,14 +338,19 @@ async function startBlockedSourceRefresh(): Promise<{
     markRefreshStarted = resolve;
   });
   nextListChildrenBarrier = async (parentPath) => {
-    assert.equal(parentPath, 'projects/birdcoder/src');
+    assert.equal(parentPath, logicalPath);
     markRefreshStarted();
     await refreshBarrier;
   };
-  const refresh = service.refreshDirectory('project-1', '/birdcoder/src');
+  const refresh = service.refreshDirectory('project-1', virtualPath);
   await refreshStarted;
   return { release: releaseRefresh, refresh };
 }
+
+const startBlockedSourceRefresh = () => startBlockedDirectoryRefresh(
+  'projects/birdcoder/src',
+  '/birdcoder/src',
+);
 
 const staleCreateRefresh = await startBlockedSourceRefresh();
 await service.createFile('project-1', '/birdcoder/src/created-during-refresh.ts');
@@ -337,6 +385,118 @@ assert.deepEqual(
   (await service.getFiles('project-1'))[0]!.children![0]!.children!.map((node) => node.name),
   ['renamed-during-refresh.ts'],
   'A stale directory response must not revert a rename completed after the request started.',
+);
+
+let releaseOverlappingCreate!: () => void;
+let markOverlappingCreateStarted!: () => void;
+const overlappingCreateBarrier = new Promise<void>((resolve) => {
+  releaseOverlappingCreate = resolve;
+});
+const overlappingCreateStarted = new Promise<void>((resolve) => {
+  markOverlappingCreateStarted = resolve;
+});
+nextCreateFileBarrier = async () => {
+  markOverlappingCreateStarted();
+  await overlappingCreateBarrier;
+};
+const overlappingCreate = service.createFile(
+  'project-1',
+  '/birdcoder/src/created-with-overlapping-refresh.ts',
+);
+await overlappingCreateStarted;
+const refreshDuringCreate = await startBlockedSourceRefresh();
+releaseOverlappingCreate();
+await overlappingCreate;
+refreshDuringCreate.release();
+await refreshDuringCreate.refresh;
+assert.ok(
+  (await service.getFiles('project-1'))[0]!.children![0]!.children!
+    .some((node) => node.name === 'created-with-overlapping-refresh.ts'),
+  'A refresh started during a mutation must not overwrite the committed mutation result.',
+);
+
+await service.createFolder('project-1', '/birdcoder/src/transient');
+await service.createFile('project-1', '/birdcoder/src/transient/stale.ts');
+await service.loadDirectory('project-1', '/birdcoder/src/transient');
+const deletedSubtreeRefresh = await startBlockedDirectoryRefresh(
+  'projects/birdcoder/src/transient',
+  '/birdcoder/src/transient',
+);
+await service.deleteFolder('project-1', '/birdcoder/src/transient');
+deletedSubtreeRefresh.release();
+await deletedSubtreeRefresh.refresh;
+await service.createFolder('project-1', '/birdcoder/src/transient');
+await assert.rejects(
+  service.getFileContent('project-1', '/birdcoder/src/transient/stale.ts'),
+  /no longer exists/u,
+  'A deleted subtree request must not repopulate cache after the path is recreated.',
+);
+
+await service.createFolder('project-1', '/birdcoder/src/moving');
+await service.createFile('project-1', '/birdcoder/src/moving/stale.ts');
+await service.loadDirectory('project-1', '/birdcoder/src/moving');
+const movedSubtreeRefresh = await startBlockedDirectoryRefresh(
+  'projects/birdcoder/src/moving',
+  '/birdcoder/src/moving',
+);
+await service.renameNode(
+  'project-1',
+  '/birdcoder/src/moving',
+  '/birdcoder/src/moved',
+);
+movedSubtreeRefresh.release();
+await movedSubtreeRefresh.refresh;
+await service.createFolder('project-1', '/birdcoder/src/moving');
+await assert.rejects(
+  service.getFileContent('project-1', '/birdcoder/src/moving/stale.ts'),
+  /no longer exists/u,
+  'A moved subtree request must not repopulate cache under its old path.',
+);
+
+const sourceChildren = listChildren('projects/birdcoder/src');
+const conflictingEntry = sourceChildren[0]!;
+nextListChildrenTransform = (items) => [...items, items[0]!];
+const duplicateSafeTree = await service.refreshDirectory('project-1', '/birdcoder/src');
+const duplicateSafeChildren = duplicateSafeTree[0]!.children!
+  .find((node) => node.path === '/birdcoder/src')!
+  .children!;
+assert.equal(
+  duplicateSafeChildren.length,
+  new Set(sourceChildren.map((candidate) => candidate.logicalPath)).size,
+  'An identical repeated page entry must not create duplicate tree keys.',
+);
+
+nextListChildrenTransform = (items) => [
+  ...items,
+  { ...conflictingEntry, id: `${conflictingEntry.id}:conflict` },
+];
+await assert.rejects(
+  service.refreshDirectory('project-1', '/birdcoder/src'),
+  /inconsistent directory entry identity/u,
+);
+
+nextListChildrenTransform = (items) => Array.from(
+  { length: 20_001 },
+  () => items[0]!,
+);
+await assert.rejects(
+  service.refreshDirectory('project-1', '/birdcoder/src'),
+  /bounded entry limit/u,
+);
+
+nextRepeatedListChildrenCursor = 'repeated-cursor';
+await assert.rejects(
+  service.refreshDirectory('project-1', '/birdcoder/src'),
+  /invalid directory pagination cursor/u,
+);
+
+await assert.rejects(
+  service.createFile('project-1', `/birdcoder/src/${'a'.repeat(256)}`),
+  /supported portable length/u,
+);
+await assert.rejects(
+  service.createFolder('project-1', '/birdcoder/src/CON'),
+  /not portable across supported hosts/u,
 );
 
 const useFileSystemSource = await readFile(

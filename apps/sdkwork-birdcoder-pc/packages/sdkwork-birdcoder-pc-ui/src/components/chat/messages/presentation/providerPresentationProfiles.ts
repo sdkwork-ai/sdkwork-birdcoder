@@ -4,6 +4,9 @@ import {
 import type {
   AgentSessionItemToolProtocolAdapterId,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import {
+  resolveProviderVisualIdentity,
+} from '@sdkwork/birdcoder-pc-ui-shell/providerVisualIdentity';
 import type { ChatMessageLayout } from '../types.ts';
 
 export const CHAT_PROVIDER_ENGINE_IDS = [
@@ -93,7 +96,7 @@ export function shouldShowChatProviderByline(
 export function resolveChatProviderPresentationProfile(
   engineId: string | undefined,
 ): ChatProviderPresentationProfile | undefined {
-  const normalizedEngineId = engineId?.trim().toLowerCase();
+  const normalizedEngineId = resolveProviderVisualIdentity({ engineId }).id;
   return CHAT_PROVIDER_PRESENTATION_PROFILES.find(
     (profile) => profile.engineId === normalizedEngineId,
   );
