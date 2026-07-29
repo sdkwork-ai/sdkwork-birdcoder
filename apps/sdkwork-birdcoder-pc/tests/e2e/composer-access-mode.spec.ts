@@ -57,18 +57,149 @@ async function disableApproveForMeMode(page: Page): Promise<void> {
   });
 }
 
+async function installAccessModeSession(page: Page): Promise<void> {
+  const sessionId = 'session.e2e-access-mode';
+  let agentId = 'agent.intelligence.codex';
+  let runtimeBinding: Record<string, unknown> | null = null;
+  const createSession = () => ({
+    sessionId,
+    tenantId: '0',
+    organizationId: '0',
+    agentId,
+    ownerUserId: 'e2e-user-1',
+    projectId: 'project.e2e-1',
+    sessionKind: 'coding',
+    entrySurface: 'pc',
+    sourceModule: 'sdkwork-birdcoder',
+    sourceContextKind: 'coding-project',
+    sourceContextId: 'project.e2e-1',
+    title: 'New task',
+    status: 'active',
+    itemCount: '0',
+    lastItemSequence: '0',
+    totalInputTokens: '0',
+    totalOutputTokens: '0',
+    createdBy: 'e2e-user-1',
+    updatedBy: 'e2e-user-1',
+    version: '1',
+    createdAt: '2026-01-03T00:00:00.000Z',
+    updatedAt: '2026-01-03T00:00:00.000Z',
+  });
+
+  await page.route('**/app/v3/api/ai/projects/project.e2e-1/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    agentId = String(body.agentId ?? agentId);
+    await route.fulfill({
+      json: {
+        code: 0,
+        data: { item: createSession() },
+        traceId: 'composer-access-mode-session-create',
+      },
+    });
+  });
+
+  await page.route(
+    `**/app/v3/api/ai/agents/*/sessions/${sessionId}/runtime_bindings`,
+    async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fallback();
+        return;
+      }
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      runtimeBinding = {
+        runtimeBindingId: 'runtime-binding.e2e-access-mode',
+        tenantId: '0',
+        organizationId: '0',
+        sessionId,
+        ...body,
+        status: 'active',
+        isCurrent: true,
+        version: '1',
+        createdAt: '2026-01-03T00:00:00.000Z',
+        updatedAt: '2026-01-03T00:00:00.000Z',
+        activatedAt: '2026-01-03T00:00:00.000Z',
+      };
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: { item: runtimeBinding },
+          traceId: 'composer-access-mode-runtime-binding-create',
+        },
+      });
+    },
+  );
+
+  await page.route(
+    new RegExp(
+      `/app/v3/api/ai/agents/[^/]+/sessions/${sessionId}/(?:checkpoints|interactions|items|runtime_bindings|turns)(?:\\?.*)?$`,
+      'u',
+    ),
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const isRuntimeBindingRequest = new URL(route.request().url()).pathname.endsWith(
+        '/runtime_bindings',
+      );
+      const items = isRuntimeBindingRequest && runtimeBinding ? [runtimeBinding] : [];
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: {
+            items,
+            pageInfo: {
+              hasMore: false,
+              mode: 'offset',
+              page: 1,
+              pageSize: 20,
+              totalItems: String(items.length),
+              totalPages: items.length > 0 ? 1 : 0,
+            },
+          },
+          traceId: 'composer-access-mode-session-resources',
+        },
+      });
+    },
+  );
+
+  await page.route(`**/app/v3/api/ai/agents/*/sessions/${sessionId}`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      json: {
+        code: 0,
+        data: { item: createSession() },
+        traceId: 'composer-access-mode-session-detail',
+      },
+    });
+  });
+}
+
 test('composer access mode selects full access and snapshots it into the turn', async ({
   page,
   request,
 }, testInfo) => {
   await bootstrapAuthenticatedSession(page, request);
   await disableApproveForMeMode(page);
+  await installAccessModeSession(page);
   await page.setViewportSize({ width: 1_280, height: 760 });
   await page.goto('/#/app/code');
 
   const newTaskButton = page.locator('[data-sidebar-new-session-trigger="true"]');
   await expect(newTaskButton).toBeVisible({ timeout: 60_000 });
-  await newTaskButton.click();
+  await newTaskButton.hover();
+  const providerMenu = page.locator('[data-sidebar-new-session-menu="true"]');
+  const codexOption = providerMenu.getByRole('menuitemradio').filter({ hasText: 'Codex' });
+  await expect(providerMenu).toBeVisible();
+  await expect(codexOption).toHaveCount(1);
+  await codexOption.click();
 
   const newSessionComposer = page.locator('[data-new-session-composer="true"]');
   const accessModeTrigger = newSessionComposer.getByTestId('composer-access-mode-trigger');
