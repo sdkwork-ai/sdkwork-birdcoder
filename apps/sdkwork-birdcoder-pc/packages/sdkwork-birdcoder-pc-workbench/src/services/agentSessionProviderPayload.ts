@@ -1,7 +1,9 @@
 import {
   normalizeAgentSessionItemResources,
+  resolveTaskProgressDisplayState,
   type AgentSessionItemReasoningView,
   type AgentSessionItemResourceView,
+  type AgentSessionTaskProgressView,
   type AgentSessionItemView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -13,6 +15,13 @@ const MAX_PROVIDER_REASONING_CHARACTERS = 8_000;
 const MAX_PROVIDER_SERIALIZED_INPUT_CHARACTERS = 64_000;
 
 const PROVIDER_TOOL_BLOCK_TYPES = new Set([
+  'collab_agent_tool_call',
+  'command_execution',
+  'dynamic_tool_call',
+  'file_change',
+  'image_generation',
+  'image_generation_call',
+  'mcp_tool_call',
   'mcp_tool_use',
   'server_tool_use',
   'tool',
@@ -21,6 +30,8 @@ const PROVIDER_TOOL_BLOCK_TYPES = new Set([
   'tool_call_response',
   'tool_result',
   'tool_use',
+  'web_search',
+  'web_search_call',
 ]);
 
 const PROVIDER_PAYLOAD_CHILD_KEYS = [
@@ -44,6 +55,7 @@ export interface AgentSessionProviderPayloadViewFields {
   reasoning?: AgentSessionItemReasoningView[];
   resources?: AgentSessionItemResourceView[];
   role?: AgentSessionItemView['role'];
+  taskProgress?: AgentSessionTaskProgressView;
   toolCalls?: unknown[];
 }
 
@@ -226,6 +238,7 @@ export function resolveAgentSessionProviderPayload(
   let consumed = false;
   let retainedContentCharacters = 0;
   let pendingValueIndex = 0;
+  let taskProgress: AgentSessionTaskProgressView | undefined;
 
   const enqueueValue = (value: unknown): void => {
     if (pendingValues.length >= MAX_PROVIDER_PAYLOAD_NODES) {
@@ -275,6 +288,21 @@ export function resolveAgentSessionProviderPayload(
     visitedRecords.add(record);
 
     const type = resolveProviderPayloadType(record);
+    if (type === 'turn_plan_updated') {
+      const payload = resolveProviderEnvelopePayload(record);
+      const displayState = resolveTaskProgressDisplayState(
+        payload as unknown as AgentSessionTaskProgressView,
+      );
+      if (displayState) {
+        taskProgress = {
+          completed: displayState.completed,
+          items: displayState.items,
+          total: displayState.total,
+        };
+      }
+      appendContent(readBoundedString(payload.explanation, MAX_PROVIDER_TEXT_CHARACTERS));
+      consumed = true;
+    }
     if (PROVIDER_TOOL_BLOCK_TYPES.has(type)) {
       const callId = readBoundedString(
         record.id ?? record.callID ?? record.callId ?? record.tool_use_id,
@@ -355,13 +383,15 @@ export function resolveAgentSessionProviderPayload(
   }
   const hasAssistantContent = contentItems.length > 0
     || reasoningItems.length > 0
-    || resources.length > 0;
+    || resources.length > 0
+    || taskProgress !== undefined;
   return {
     consumesToolPayload: true,
     ...(contentItems.length > 0 ? { content: contentItems.join('\n\n') } : {}),
     ...(reasoningItems.length > 0 ? { reasoning: reasoningItems } : {}),
     ...(resources.length > 0 ? { resources } : {}),
     ...(hasAssistantContent ? { role: 'assistant' } : {}),
+    ...(taskProgress ? { taskProgress } : {}),
     ...(toolCalls.length > 0 ? { toolCalls } : {}),
   };
 }

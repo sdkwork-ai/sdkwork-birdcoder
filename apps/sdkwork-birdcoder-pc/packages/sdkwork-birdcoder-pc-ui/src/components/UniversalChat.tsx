@@ -16,6 +16,7 @@ import {
   listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
+  resolveWorkbenchCodeEngineSelectedAccessModeId,
   resolveWorkbenchCodeEngineSelectedModelId,
   useModelCatalogLoaded,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
@@ -58,6 +59,7 @@ import {
   type ComposerProviderCapabilityItem,
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useComposerProviderCapabilities';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import { setWorkbenchCodeEngineAccessMode } from '@sdkwork/birdcoder-pc-workbench/workbench/preferences';
 import {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,
@@ -190,6 +192,7 @@ function deleteComposerModelSelectionOverride(scopeKey: string): void {
 
 
 export interface UniversalChatComposerSelection {
+  accessModeId?: string;
   engineId: string;
   modelId: string;
 }
@@ -1076,6 +1079,7 @@ export const UniversalChat = memo(function UniversalChat({
   const composerCompositionRef = useRef(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showAccessModeMenu, setShowAccessModeMenu] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
   const composerAttachmentsRef = useRef<ComposerAttachmentDraft[]>([]);
   const composerAttachmentScopeRef = useRef('');
@@ -1262,7 +1266,7 @@ export const UniversalChat = memo(function UniversalChat({
   const [queuedTurnFlushGateVersion, setQueuedTurnFlushGateVersion] = useState(0);
   const { addToast } = useToast();
   const { settings: appSettings } = useBirdcoderAppSettings();
-  const { preferences } = useWorkbenchPreferences();
+  const { preferences, updatePreferences } = useWorkbenchPreferences();
   const composerActionRegionRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -1340,10 +1344,15 @@ export const UniversalChat = memo(function UniversalChat({
     currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
+  const currentAccessModeId = resolveWorkbenchCodeEngineSelectedAccessModeId(
+    resolvedSelectedEngineId,
+    preferences,
+  );
   const currentComposerSelection = useMemo<UniversalChatComposerSelection>(() => ({
+    ...(currentAccessModeId ? { accessModeId: currentAccessModeId } : {}),
     engineId: resolvedSelectedEngineId,
     modelId: currentModelId,
-  }), [currentModelId, resolvedSelectedEngineId]);
+  }), [currentAccessModeId, currentModelId, resolvedSelectedEngineId]);
   const currentModelPickerId = buildWorkbenchModelPickerId(
     resolvedSelectedEngineId,
     currentModelId,
@@ -1351,6 +1360,34 @@ export const UniversalChat = memo(function UniversalChat({
   const handleCloseComposerActionPanel = useCallback(() => {
     setShowAttachmentMenu(false);
   }, []);
+  const handleAccessModeMenuOpenChange = useCallback((open: boolean) => {
+    setShowAccessModeMenu(open);
+    if (open) {
+      setShowAttachmentMenu(false);
+      setShowModelMenu(false);
+    }
+  }, []);
+  const handleAttachmentMenuOpenChange = useCallback((open: boolean) => {
+    setShowAttachmentMenu(open);
+    if (open) {
+      setShowAccessModeMenu(false);
+      setShowModelMenu(false);
+    }
+  }, []);
+  const handleModelMenuOpenChange = useCallback((open: boolean) => {
+    setShowModelMenu(open);
+    if (open) {
+      setShowAccessModeMenu(false);
+      setShowAttachmentMenu(false);
+    }
+  }, []);
+  const handleAccessModeSelect = useCallback((accessModeId: string) => {
+    updatePreferences((previousPreferences) => setWorkbenchCodeEngineAccessMode(
+      previousPreferences,
+      resolvedSelectedEngineId,
+      accessModeId,
+    ));
+  }, [resolvedSelectedEngineId, updatePreferences]);
   const handleComposerCapabilitySelect = useCallback((
     kind: ComposerCapabilityKind,
     item: ComposerProviderCapabilityItem,
@@ -2459,6 +2496,28 @@ export const UniversalChat = memo(function UniversalChat({
     }));
   }, [normalizedSessionStateScopeKey]);
 
+  const copyTranscriptAnchorContent = useCallback((content: string) => {
+    void copyTextToClipboard(content).then((didCopy) => {
+      addToast(t(didCopy ? 'chat.messageCopied' : 'chat.copyFailed'), didCopy ? 'success' : 'error');
+    });
+  }, [addToast, t]);
+
+  const useTranscriptAnchorInput = useCallback((content: string) => {
+    if (disabled || hideComposer) {
+      return;
+    }
+
+    setEditingMessage(null);
+    setHistoryIndex(-1);
+    setTempInput('');
+    setInputValue(content);
+    window.requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      textarea?.focus({ preventScroll: true });
+      textarea?.setSelectionRange(content.length, content.length);
+    });
+  }, [disabled, hideComposer, setHistoryIndex, setInputValue, setTempInput]);
+
   useEffect(() => {
     const scopedOverride =
       composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
@@ -2976,10 +3035,14 @@ export const UniversalChat = memo(function UniversalChat({
       setShowAttachmentMenu(false);
     }
 
+    if (showAccessModeMenu) {
+      setShowAccessModeMenu(false);
+    }
+
     if (showPromptModal) {
       setShowPromptModal(false);
     }
-  }, [isActive, showAttachmentMenu, showModelMenu, showPromptModal]);
+  }, [isActive, showAccessModeMenu, showAttachmentMenu, showModelMenu, showPromptModal]);
 
   const handleComposerCompositionStart = () => {
     composerCompositionRef.current = true;
@@ -3228,10 +3291,18 @@ export const UniversalChat = memo(function UniversalChat({
         </div>
         {layout === 'main' ? (
           <ChatTranscriptAnchorRail
+            canUseInput={!disabled && !hideComposer}
+            copyInputLabel={t('chat.copyConversationTurnInput')}
+            copyOutputLabel={t('chat.copyConversationTurnOutput')}
+            inputLabel={t('chat.conversationTurnInput')}
             label={t('chat.conversationMap')}
             messages={normalizedMessages}
+            onCopyContent={copyTranscriptAnchorContent}
             onSelectTurn={scrollTranscriptToTurn}
+            onUseInput={useTranscriptAnchorInput}
+            outputLabel={t('chat.conversationTurnOutput')}
             turnLabel={t('chat.goToConversationTurn')}
+            useInputLabel={t('chat.useConversationTurnInput')}
           />
         ) : null}
         <ChatTranscriptJumpToLatestButton
@@ -3567,6 +3638,7 @@ export const UniversalChat = memo(function UniversalChat({
             />
             </div>
             <UniversalChatComposerFooter
+              accessModes={currentEngine.accessModes}
               attachmentsDisabled={attachmentsDisabled}
               canQueueTypedMessage={canQueueTypedMessage}
               canSubmitComposerMessage={canSubmitComposerMessage}
@@ -3578,23 +3650,27 @@ export const UniversalChat = memo(function UniversalChat({
               folderInputRef={folderInputRef}
               imageInputRef={imageInputRef}
               isAttachmentMenuOpen={showAttachmentMenu}
+              isAccessModeMenuOpen={showAccessModeMenu}
               isAwaitingQueuedTurnSettlement={isAwaitingQueuedTurnSettlement}
               isComposerProcessing={isComposerProcessing}
               isComposerTurnBlocked={isComposerTurnBlocked}
               isListening={isListening}
               isUploadingAttachments={hasUploadingComposerAttachments}
               modelGroups={modelPickerCatalog.groups}
-              onAttachmentMenuOpenChange={setShowAttachmentMenu}
+              onAccessModeMenuOpenChange={handleAccessModeMenuOpenChange}
+              onAttachmentMenuOpenChange={handleAttachmentMenuOpenChange}
               onFileUpload={handleFileUpload}
               onFolderUpload={handleFolderUpload}
               onImageUpload={handleImageUpload}
               onSelectModel={handleComposerModelSelect}
+              onSelectAccessMode={handleAccessModeSelect}
               onSend={handleSend}
               onToggleVoiceInput={toggleVoiceInput}
+              selectedAccessModeId={currentAccessModeId}
               selectedModelLabel={currentComposerModelLabel}
               selectedModelPickerId={currentModelPickerId}
               selectedModelSummary={currentEngineSummary}
-              setShowModelMenu={setShowModelMenu}
+              setShowModelMenu={handleModelMenuOpenChange}
               showModelMenu={showModelMenu}
               showModelPicker={showComposerEngineSelector}
             />

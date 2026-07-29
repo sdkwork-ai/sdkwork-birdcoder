@@ -584,12 +584,10 @@ export function estimateAgentSessionItemPresentationHeight(
         extraHeight += block.items.length * 44;
         break;
       case 'tool-calls':
-        extraHeight += block.calls.reduce((total, call) => {
-          const argumentLines = call.arguments.trim()
-            ? Math.ceil(call.arguments.length / 72)
-            : 1;
-          return total + 56 + Math.min(240, argumentLines * 16);
-        }, 0);
+        // Tool arguments and output are collapsed initially. Expanded rows are
+        // measured by ResizeObserver, so reserving their full payload here
+        // creates very large blank spacers in tool-heavy Codex transcripts.
+        extraHeight += block.calls.length * 40;
         break;
       default:
         break;

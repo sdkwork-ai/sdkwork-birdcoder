@@ -648,6 +648,86 @@ assert.equal(normalizedCodexCall?.id, 'codex-call-1');
 assert.equal(normalizedCodexCall?.name, 'shell_command');
 assert.equal(normalizedCodexCall?.command, 'pnpm typecheck');
 
+const codexPlanUpdateView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-plan-update',
+  toolName: 'update_plan',
+  toolCallId: 'codex-plan-update-1',
+  toolResult: {
+    method: 'turn/plan/updated',
+    params: {
+      threadId: 'codex-thread-1',
+      turnId: 'codex-turn-1',
+      explanation: 'Keep protocol and presentation aligned.',
+      plan: [
+        { step: 'Inspect Codex protocol', status: 'completed' },
+        { step: 'Repair transcript projection', status: 'inProgress' },
+        { step: 'Verify provider history', status: 'pending' },
+      ],
+    },
+  },
+});
+assert.equal(codexPlanUpdateView.role, 'assistant');
+assert.equal(codexPlanUpdateView.content, 'Keep protocol and presentation aligned.');
+assert.deepEqual(codexPlanUpdateView.taskProgress, {
+  completed: 1,
+  items: [
+    { id: 'task-1', text: 'Inspect Codex protocol', status: 'completed' },
+    { id: 'task-2', text: 'Repair transcript projection', status: 'running' },
+    { id: 'task-3', text: 'Verify provider history', status: 'pending' },
+  ],
+  total: 3,
+});
+
+const codexFinalPlanView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-final-plan',
+  toolName: 'provider_event',
+  toolCallId: 'codex-final-plan-1',
+  toolResult: {
+    method: 'item/completed',
+    params: {
+      threadId: 'codex-thread-1',
+      turnId: 'codex-turn-1',
+      item: {
+        id: 'codex-final-plan-1',
+        type: 'plan',
+        text: '1. Inspect protocol\n2. Repair projection\n3. Verify history',
+      },
+    },
+  },
+});
+assert.match(codexFinalPlanView.content, /Inspect protocol/u);
+
+const codexNativeMcpView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-native-mcp',
+  toolName: 'provider_event',
+  toolCallId: 'codex-mcp-1',
+  toolResult: {
+    method: 'item/completed',
+    params: {
+      item: {
+        id: 'codex-mcp-1',
+        type: 'mcpToolCall',
+        server: 'docs',
+        tool: 'search',
+        arguments: { query: 'ThreadItem' },
+        result: { content: [{ type: 'text', text: 'found' }] },
+        status: 'completed',
+        durationMs: 42,
+      },
+    },
+  },
+});
+const normalizedCodexMcp = normalizeAgentSessionItemToolCalls(
+  codexNativeMcpView.tool_calls,
+  { engineId: 'codex' },
+)[0];
+assert.equal(normalizedCodexMcp?.serverName, 'docs');
+assert.equal(normalizedCodexMcp?.name, 'search');
+assert.equal(normalizedCodexMcp?.durationMs, 42);
+
 const claudeNativeResult = {
   type: 'mcp_tool_result',
   tool_use_id: 'claude-call-1',

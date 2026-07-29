@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "kind": "sdkwork.agents-birdcoder-alignment",
-  "updatedAt": "2026-07-25",
+  "updatedAt": "2026-07-29",
   "summary": "BirdCoder consumes canonical Agents Workspace, Project, and Session systems through generated SDK clients and owns no parallel workspace, project, session, transcript, interaction, runtime, artifact, or checkpoint authority.",
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
@@ -14,6 +14,48 @@
     "sdkwork-im -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-agents -/-> sdkwork-im"
   ],
+  "workbenchModes": {
+    "schemaVersion": 1,
+    "catalogAuthority": "sdkwork-agents code-engine catalog",
+    "defaultMode": "coding",
+    "admissionPolicy": "exact-engine-agent-tier-fail-closed",
+    "modes": {
+      "coding": {
+        "tier": "t1-code",
+        "providers": [
+          {
+            "engineId": "codex",
+            "agentId": "agent.intelligence.codex"
+          },
+          {
+            "engineId": "claude-code",
+            "agentId": "agent.intelligence.claude-code"
+          },
+          {
+            "engineId": "gemini",
+            "agentId": "agent.intelligence.gemini"
+          },
+          {
+            "engineId": "opencode",
+            "agentId": "agent.intelligence.opencode"
+          }
+        ]
+      },
+      "work": {
+        "tier": "t2-autonomous",
+        "providers": [
+          {
+            "engineId": "openclaw",
+            "agentId": "agent.intelligence.openclaw"
+          },
+          {
+            "engineId": "hermes",
+            "agentId": "agent.intelligence.hermes"
+          }
+        ]
+      }
+    }
+  },
   "tasks": [
     {
       "id": "ABA-001",
@@ -112,6 +154,40 @@
           {
             "file": "specs/agent-session-item-view.spec.md",
             "pattern": "human Conversation, Message, Member, and ReadCursor"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "pnpm check:agents-birdcoder-alignment"
+        ]
+      }
+    },
+    {
+      "id": "ABA-005",
+      "owner": "birdcoder",
+      "title": "Constrain Coding and Work modes to canonical Agents catalog Providers",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/workbenchMode.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workbenchMode.test.ts",
+          "apps/sdkwork-birdcoder-pc/specs/README.md",
+          "docs/architecture/tech/TECH_ARCHITECTURE.md"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/workbenchMode.ts",
+            "pattern": "provider\\.engineId === normalizedEngineId[\\s\\S]*provider\\.agentId === normalizedAgentId[\\s\\S]*provider\\.tier === normalizedTier"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workbenchMode.test.ts",
+            "pattern": "fails closed for unknown engines and mismatched identities or tiers"
+          },
+          {
+            "file": "docs/architecture/tech/TECH_ARCHITECTURE.md",
+            "pattern": "Work Mode[\\s\\S]*OpenClaw[\\s\\S]*Hermes"
           }
         ]
       },

@@ -33,6 +33,29 @@ The Agents database prefix registry owns the canonical `ai_agent_*` physical
 namespace. PC declares no database table, migration, ORM entity, or alternate
 Workspace/Project/Session identifier.
 
+## Workbench Mode Provider Contract
+
+The Birdcoder sidebar has one persistent mode selector and one stable header
+layout. The selected mode changes the admitted Agent Providers and the sidebar
+information architecture; it does not create a second Project or Session
+domain.
+
+| Mode | Agents tier | Admitted engine and Agent identities |
+| --- | --- | --- |
+| Coding | `t1-code` | `codex` / `agent.intelligence.codex`; `claude-code` / `agent.intelligence.claude-code`; `gemini` / `agent.intelligence.gemini`; `opencode` / `agent.intelligence.opencode` |
+| Work | `t2-autonomous` | `openclaw` / `agent.intelligence.openclaw`; `hermes` / `agent.intelligence.hermes` |
+
+The generated Agents App SDK catalog is the availability authority. BirdCoder
+admits an engine only when its normalized `engineId`, `agentId`, and `tier`
+exactly match the selected mode's allowlist. Missing fields, mismatched tiers,
+unknown engines, and future catalog entries fail closed. A Provider is not
+shown merely because it appears in this document or in local preferences; it
+must also be published by the live catalog with a usable model. Invalid stored
+mode values normalize to Coding.
+
+The machine-readable authority and enforcement evidence live in
+[`../../../../specs/agents-birdcoder-alignment.spec.json`](../../../../specs/agents-birdcoder-alignment.spec.json).
+
 ## Canonical Standards
 
 - [`APP_PC_ARCHITECTURE_SPEC.md`](../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md)

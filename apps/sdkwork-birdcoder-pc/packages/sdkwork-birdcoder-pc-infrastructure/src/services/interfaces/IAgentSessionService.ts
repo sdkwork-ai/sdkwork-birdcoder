@@ -94,6 +94,7 @@ export interface SubmitAgentTurnInput
   extends Pick<
     CreateAgentTurnRequest,
     | 'clientRequestId'
+    | 'accessModeId'
     | 'content'
     | 'contentType'
     | 'driveRefs'

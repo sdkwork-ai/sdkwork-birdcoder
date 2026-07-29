@@ -85,6 +85,7 @@ permissions = [
   "allow-desktop-window-controls-bridge-capabilities",
   "allow-desktop-configure-window-controls-bridge",
   "allow-desktop-perform-window-control-action",
+  "allow-desktop-tray-update-menu",
   "allow-desktop-session-index",
   "allow-desktop-session-replay-slice",
   "allow-desktop-session-attach",

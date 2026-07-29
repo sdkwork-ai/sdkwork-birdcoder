@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 import {
   listBirdCoderCodeEngineCatalog,
+  type BirdCoderCodeEngineAccessModeEntry,
   type BirdCoderCodeEngineCatalogEntry,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/agentsCatalogService';
 
@@ -21,6 +22,11 @@ export interface WorkbenchCodeEngineModelDefinition {
   source: 'agents-catalog';
 }
 
+export interface WorkbenchCodeEngineAccessModeDefinition
+  extends BirdCoderCodeEngineAccessModeEntry {
+  id: string;
+}
+
 export interface WorkbenchCodeEngineDefinition {
   id: WorkbenchCodeEngineId;
   agentId: string;
@@ -31,10 +37,14 @@ export interface WorkbenchCodeEngineDefinition {
   models: readonly WorkbenchCodeEngineModelDefinition[];
   modelCatalog: readonly WorkbenchCodeEngineModelDefinition[];
   modelIds: readonly string[];
+  tier: string;
+  defaultAccessModeId: string;
+  accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
 }
 
 export interface WorkbenchCodeEngineSettings {
   defaultModelId: string;
+  accessModeId?: string;
 }
 
 export type WorkbenchCodeEngineSettingsMap = Partial<
@@ -170,6 +180,16 @@ function toWorkbenchDefinition(
     models.find((model) => model.id === entry.defaultModelId)?.id ??
     models[0]?.id ??
     '';
+  const accessModes = entry.accessModes
+    .filter((mode) => mode.modeId.trim().length > 0)
+    .map((mode): WorkbenchCodeEngineAccessModeDefinition => ({
+      ...mode,
+      id: mode.modeId,
+    }));
+  const defaultAccessModeId =
+    accessModes.find((mode) => mode.enabled && mode.id === entry.defaultAccessModeId)?.id ??
+    accessModes.find((mode) => mode.enabled)?.id ??
+    '';
 
   return {
     id,
@@ -181,6 +201,9 @@ function toWorkbenchDefinition(
     models,
     modelCatalog: models,
     modelIds: models.map((model) => model.id),
+    tier: entry.tier,
+    defaultAccessModeId,
+    accessModes,
   };
 }
 
@@ -372,6 +395,9 @@ function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefin
     models: [],
     modelCatalog: [],
     modelIds: [],
+    tier: '',
+    defaultAccessModeId: '',
+    accessModes: [],
   };
 }
 
@@ -409,6 +435,36 @@ export function normalizeWorkbenchCodeModelId(
   return definition.defaultModelId;
 }
 
+export function findWorkbenchCodeEngineAccessMode(
+  engineId: unknown,
+  accessModeId: unknown,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+): WorkbenchCodeEngineAccessModeDefinition | null {
+  const id = String(accessModeId ?? '').trim();
+  if (!id) {
+    return null;
+  }
+  return findWorkbenchCodeEngineDefinition(engineId, carrier)?.accessModes.find(
+    (mode) => mode.id === id,
+  ) ?? null;
+}
+
+export function normalizeWorkbenchCodeEngineAccessModeId(
+  engineId: unknown,
+  accessModeId: unknown,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+): string {
+  const candidate = String(accessModeId ?? '').trim();
+  const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
+  if (!definition) {
+    return candidate;
+  }
+  const requestedMode = definition.accessModes.find(
+    (mode) => mode.id === candidate && mode.enabled,
+  );
+  return requestedMode?.id ?? definition.defaultAccessModeId;
+}
+
 export function normalizeWorkbenchCodeEngineSettingsMap(
   value: unknown,
   options: { includeDefaults?: boolean } = {},
@@ -426,8 +482,15 @@ export function normalizeWorkbenchCodeEngineSettingsMap(
       entry.defaultModelId ?? entry.selectedModelId ?? entry.modelId ?? definition?.defaultModelId ?? '',
     ).trim();
     const defaultModelId = normalizeWorkbenchCodeModelId(engineId, candidate);
+    const accessModeId = normalizeWorkbenchCodeEngineAccessModeId(
+      engineId,
+      entry.accessModeId ?? definition?.defaultAccessModeId,
+    );
     if (defaultModelId) {
-      settings[engineId] = { defaultModelId };
+      settings[engineId] = {
+        defaultModelId,
+        ...(accessModeId ? { accessModeId } : {}),
+      };
     }
   }
   return settings;
@@ -448,6 +511,25 @@ export function resolveWorkbenchCodeEngineSelectedModelId(
   return normalizeWorkbenchCodeModelId(
     normalizedEngineId,
     explicitModelId?.trim() || configuredModelId,
+    carrier,
+  );
+}
+
+export function resolveWorkbenchCodeEngineSelectedAccessModeId(
+  engineId: unknown,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  explicitAccessModeId?: string | null,
+): string {
+  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId) ?? normalizeKey(engineId);
+  const rawSettings = isRecord(carrier?.codeEngineSettings)
+    ? carrier.codeEngineSettings[normalizedEngineId]
+    : undefined;
+  const configuredAccessModeId = isRecord(rawSettings)
+    ? String(rawSettings.accessModeId ?? '').trim()
+    : '';
+  return normalizeWorkbenchCodeEngineAccessModeId(
+    normalizedEngineId,
+    explicitAccessModeId?.trim() || configuredAccessModeId,
     carrier,
   );
 }

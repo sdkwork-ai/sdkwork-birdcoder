@@ -210,7 +210,7 @@ clearWorkbenchQueuedAgentTurnInputs('project-a/session-attachments');
 enqueueWorkbenchQueuedAgentTurnInput(
   'project-a/session-attachments',
   'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
-  { engineId: ' codex ', modelId: ' gpt-5 ' },
+  { accessModeId: ' full_access ', engineId: ' codex ', modelId: ' gpt-5 ' },
   {
     attachmentContent: ' \n\n[DRIVE_MEDIA:{"id":"design"}]\n ',
     attachmentNames: [' design.png ', 'notes.txt', 'design.png'],
@@ -237,7 +237,11 @@ assert.deepEqual(
   {
     id: queuedAttachmentTurnInput?.id,
     text: 'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
-    composerSelection: { engineId: 'codex', modelId: 'gpt-5' },
+    composerSelection: {
+      accessModeId: 'full_access',
+      engineId: 'codex',
+      modelId: 'gpt-5',
+    },
     attachmentContent: '[DRIVE_MEDIA:{"id":"design"}]',
     attachmentNames: ['design.png', 'notes.txt'],
     driveRefs: [{
@@ -668,6 +672,11 @@ assert.match(
   universalChatSource,
   /submittedAgentTurnInput\.driveRefs\?\.length[\s\S]*\{ driveRefs: submittedAgentTurnInput\.driveRefs \}/u,
   'queued attachment turns must retain their Drive references through deferred dispatch.',
+);
+assert.match(
+  universalChatSource,
+  /submittedAgentTurnInput\.composerSelection \?\? currentComposerSelection/u,
+  'queued turns must dispatch their snapshotted engine, model, and access mode selection.',
 );
 assert.match(
   pendingInteractionsSource,

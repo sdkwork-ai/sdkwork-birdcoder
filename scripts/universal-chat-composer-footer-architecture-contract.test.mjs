@@ -17,6 +17,7 @@ const composerDir = path.join(
 const readComposer = (fileName) => fs.readFileSync(path.join(composerDir, fileName), 'utf8');
 const dispatcherSource = readComposer('UniversalChatComposerFooter.tsx');
 const sharedFooterSource = readComposer('SharedComposerFooter.tsx');
+const accessModeControlSource = readComposer('ComposerAccessModeControl.tsx');
 
 const engineFooters = [
   ['CodexComposerFooter.tsx', 'CodexComposerFooter', 'codex'],
@@ -58,6 +59,26 @@ assert.match(
   sharedFooterSource,
   /data-composer-engine=\{engineId\}/u,
   'Shared footer must expose the active engine for focused styling and integration tests.',
+);
+assert.match(
+  sharedFooterSource,
+  /<Plus[\s\S]*<ComposerAccessModeControl[\s\S]*<input/u,
+  'The shared footer must place the access-mode control immediately to the right of the attachment button.',
+);
+assert.match(
+  accessModeControlSource,
+  /role="menuitemradio"/u,
+  'Access modes must expose single-selection menu semantics.',
+);
+assert.match(
+  accessModeControlSource,
+  /event\.key === 'ArrowDown'[\s\S]*event\.key === 'ArrowUp'[\s\S]*event\.key === 'Home'[\s\S]*event\.key === 'End'/u,
+  'Access-mode options must support complete keyboard navigation.',
+);
+assert.match(
+  accessModeControlSource,
+  /event\.key !== 'Escape'[\s\S]*closeAndRestoreFocus\(\)/u,
+  'Escape must close the access-mode menu and restore trigger focus.',
 );
 
 console.log('universal chat composer footer architecture contract passed.');

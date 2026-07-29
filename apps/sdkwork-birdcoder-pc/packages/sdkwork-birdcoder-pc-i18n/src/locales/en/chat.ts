@@ -49,6 +49,11 @@ export default defineLocaleModule('chat', {
     transcriptRegion: 'Conversation messages',
     conversationMap: 'Conversation map',
     goToConversationTurn: 'Go to conversation turn',
+    conversationTurnInput: 'Input',
+    conversationTurnOutput: 'Output',
+    copyConversationTurnInput: 'Copy input',
+    copyConversationTurnOutput: 'Copy output',
+    useConversationTurnInput: 'Use in composer',
     emptyTitle: 'What do you want to build?',
     emptyDescription: 'Describe your idea, ask a question, or paste some code to get started.',
     messageEdit: 'Edit message',
@@ -66,6 +71,59 @@ export default defineLocaleModule('chat', {
     placeholderEnabled: 'Ask anything or request changes...',
     add: 'Add',
     addAttachment: 'Add attachment',
+    accessModeControl: 'Access mode: {{mode}}',
+    accessModeMenu: 'Access mode',
+    accessModeUnavailable: 'Access unavailable',
+    accessModes: {
+      codex: {
+        ask_for_approval: {
+          label: 'Ask for approval',
+          description: 'Always ask before editing outside the workspace or using the internet',
+        },
+        approve_for_me: {
+          label: 'Approve for me',
+          description: 'Only pause for approval when a risky operation is detected',
+        },
+        full_access: {
+          label: 'Full access',
+          description: 'Access the internet and any file on your computer without restrictions',
+        },
+      },
+      claude_code: {
+        default: {
+          label: 'Default permissions',
+          description: 'Ask before operations not allowed by Claude Code settings',
+        },
+        accept_edits: {
+          label: 'Accept edits',
+          description: 'Allow routine file edits and ask before other risky operations',
+        },
+        bypass_permissions: {
+          label: 'Bypass permissions',
+          description: 'Run without permission prompts when host policy allows it',
+        },
+      },
+      opencode: {
+        ask: {
+          label: 'Ask for permission',
+          description: 'Ask before tools that require permission',
+        },
+        allow_edits: {
+          label: 'Allow edits',
+          description: 'Allow workspace edits while keeping other risky tools gated',
+        },
+        allow_all: {
+          label: 'Allow all',
+          description: 'Allow all tools without permission prompts',
+        },
+      },
+      gemini: {
+        sdk_default: {
+          label: 'SDK default',
+          description: 'Use the execution policy implemented by the installed Gemini CLI SDK',
+        },
+      },
+    },
     composerActions: 'Composer actions',
     composerFiles: 'Files',
     composerFilesDescription: 'Attach one or more files',
@@ -262,6 +320,7 @@ export default defineLocaleModule('chat', {
     toolContextExpand: 'Show context tools',
     toolContextCollapse: 'Hide context tools',
     taskProgress: 'Task progress',
+    taskStep: 'Step {{current}} / {{total}}',
     toolWeb: 'Web access',
     toolDetailsHide: 'Hide tool details',
     toolDetailsShow: 'Show tool details',

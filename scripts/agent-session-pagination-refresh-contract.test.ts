@@ -1057,9 +1057,11 @@ const boundedHeadService = {
       (_, index) => 200 - ((page - 1) * 20) - index,
     );
     return {
-      items: sequences.map((sequence) => ({
+      items: sequences.map((sequence, index) => ({
         sessionId,
-        itemId: `item.bounded-head.${sequence}`,
+        itemId: page === 7 && index === 0
+          ? 'item.head.2'
+          : `item.bounded-head.${sequence}`,
         kind: sequence % 2 === 0 ? 'assistant_output' : 'user_input',
         status: 'completed',
         sequence: String(sequence),
@@ -1071,7 +1073,7 @@ const boundedHeadService = {
         mode: 'offset' as const,
         page,
         pageSize: 50,
-        hasMore: true,
+        hasMore: page < 7,
       },
     };
   },
@@ -1092,22 +1094,20 @@ const resetBoundedHead = await refreshAgentSessionItems({
 });
 assert.deepEqual(
   boundedHeadRequests,
-  [1, 2, 3, 4, 5],
-  'head reconciliation must remain bounded when the loaded window is too stale to overlap',
+  [1, 2, 3, 4, 5, 6, 7],
+  'head reconciliation must continue beyond an arbitrary page budget until it reaches the loaded window',
 );
-assert.equal(resetBoundedHead.agentSession?.itemPageInfo?.page, 5);
-assert.equal(resetBoundedHead.replaceLoadedAuthorityWindow, true);
-assert.equal(resetBoundedHead.agentSession?.items.length, 101);
+assert.equal(resetBoundedHead.agentSession?.itemPageInfo?.page, 7);
+assert.equal(resetBoundedHead.replaceLoadedAuthorityWindow, false);
 assert.equal(
   resetBoundedHead.agentSession?.items.some((item) => item.id === 'item.head.1'),
-  false,
-  'a stale authority tail must not be joined to a disconnected head window',
+  true,
+  'a stale authority tail must remain joined after deep head reconciliation finds overlap',
 );
-assert.equal(resetBoundedHead.agentSession?.items[0]?.id, 'item.bounded-head.101');
 assert.equal(
-  resetBoundedHead.agentSession?.items.at(-1)?.id,
-  resetOptimisticItem.id,
-  'a disconnected-window reset must retain optimistic work at the newest edge',
+  resetBoundedHead.agentSession?.items.some((item) => item.id === resetOptimisticItem.id),
+  true,
+  'deep head reconciliation must retain optimistic work while joining the authority window',
 );
 
 const transientOnlySession = {

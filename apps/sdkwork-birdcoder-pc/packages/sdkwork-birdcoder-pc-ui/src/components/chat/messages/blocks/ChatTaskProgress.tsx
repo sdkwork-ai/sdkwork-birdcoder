@@ -34,6 +34,16 @@ export function ChatTaskProgress({
   const canExpand = displayState.items.length > 0 && Boolean(onToggle);
   const expanded = canExpand && isExpanded;
   const progressLabel = t?.('chat.taskProgress') ?? 'Task progress';
+  const activeItemIndex = displayState.activeItem
+    ? displayState.items.indexOf(displayState.activeItem)
+    : -1;
+  const currentStep = activeItemIndex >= 0
+    ? activeItemIndex + 1
+    : Math.min(displayState.total, Math.max(1, displayState.completed));
+  const stepLabel = t?.('chat.taskStep', {
+    current: currentStep,
+    total: displayState.total,
+  }) ?? `Step ${currentStep} / ${displayState.total}`;
   const toggleDetails = canExpand
     ? () => {
         onToggle?.();
@@ -57,6 +67,7 @@ export function ChatTaskProgress({
         onToggle={toggleDetails}
         percent={displayState.percent}
         progressLabel={progressLabel}
+        stepLabel={stepLabel}
         total={displayState.total}
       />
       {expanded ? (

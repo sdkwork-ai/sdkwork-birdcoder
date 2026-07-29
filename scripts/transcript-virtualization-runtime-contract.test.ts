@@ -339,6 +339,31 @@ assert.ok(
   'deactivating a long transcript must retain a bounded virtual window instead of mounting every historical row.',
 );
 
+const toolRichTranscriptMessages = longTranscriptMessages.map((message, index) => (
+  index === 40
+    ? {
+        ...message,
+        tool_calls: [{
+          id: 'tool-rich-call',
+          name: 'mcp__docs__search',
+          arguments: { query: 'Codex protocol' },
+          status: 'success',
+        }],
+      }
+    : message
+));
+const toolRichWindow = resolveVirtualizedTranscriptWindow({
+  isActive: true,
+  messages: toolRichTranscriptMessages,
+  overscanPx: 0,
+  prefixHeights: longTranscriptPrefixHeights,
+  viewport: { clientHeight: 300, scrollTop: 6_000 },
+});
+assert.equal(toolRichWindow.visibleStartIndex, 0);
+assert.equal(toolRichWindow.visibleMessages.length, toolRichTranscriptMessages.length);
+assert.equal(toolRichWindow.paddingTop, 0);
+assert.equal(toolRichWindow.paddingBottom, 0);
+
 const activeScopeChangedViewport = resolveMeasurementScopeTranscriptViewport({
   didChangeScope: true,
   isActive: true,

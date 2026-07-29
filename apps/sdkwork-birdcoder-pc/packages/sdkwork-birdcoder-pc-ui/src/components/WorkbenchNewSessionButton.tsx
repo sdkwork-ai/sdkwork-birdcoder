@@ -14,9 +14,13 @@ import {
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import {
+  filterWorkbenchModeCatalogEngines,
+  type WorkbenchMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
-type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar';
+type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar' | 'work-sidebar';
 
 interface WorkbenchNewSessionButtonProps {
   buttonLabel: string;
@@ -26,9 +30,11 @@ interface WorkbenchNewSessionButtonProps {
   disabled?: boolean;
   disabledTitle?: string;
   menuLabel?: string;
+  unavailableTitle?: string;
   selectedEngineId: string;
   selectedModelId: string;
   variant: WorkbenchNewSessionButtonVariant;
+  workbenchMode?: WorkbenchMode;
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
 }
 
@@ -54,6 +60,16 @@ function getVariantStyle(
         secondaryButton:
           'flex items-center justify-center border-l px-2 transition-all',
         wrapper: 'flex overflow-hidden rounded-lg border border-dashed border-blue-500/30',
+      };
+    case 'work-sidebar':
+      return {
+        container: 'relative w-full animate-in fade-in slide-in-from-left-4 fill-mode-both',
+        menu:
+          'birdcoder-chrome-menu absolute inset-x-0 top-full z-50 mt-1 w-auto rounded-lg border py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl',
+        primaryButton:
+          'flex h-10 min-w-0 flex-1 items-center gap-3 rounded-md bg-white/[0.11] px-3 text-left text-sm font-semibold transition-colors duration-150',
+        secondaryButton: 'hidden',
+        wrapper: 'flex w-full',
       };
     case 'sidebar':
       return {
@@ -88,9 +104,11 @@ function WorkbenchNewSessionButtonComponent({
   disabled = false,
   disabledTitle,
   menuLabel,
+  unavailableTitle,
   selectedEngineId,
   selectedModelId,
   variant,
+  workbenchMode,
   onCreateSession,
 }: WorkbenchNewSessionButtonProps) {
   const { preferences } = useWorkbenchPreferences();
@@ -101,27 +119,49 @@ function WorkbenchNewSessionButtonComponent({
   const sidebarCloseTimerRef = useRef<number | null>(null);
   const variantStyle = getVariantStyle(variant);
   const isCompactStudio = variant === 'studio' && compact;
-  const isSidebar = variant === 'sidebar';
-  const { availableEngines, preferredSelection } = useMemo(
-    () =>
-      resolveWorkbenchNewSessionEngineCatalog(
-        {
-          currentSessionEngineId: isSidebar ? undefined : currentSessionEngineId,
-          currentSessionModelId: isSidebar ? undefined : currentSessionModelId,
-          preferredEngineId: selectedEngineId,
-          preferredModelId: selectedModelId,
-        },
-        preferences,
-      ),
-    [
-      currentSessionEngineId,
-      currentSessionModelId,
-      isSidebar,
+  const isSidebar = variant === 'sidebar' || variant === 'work-sidebar';
+  const { availableEngines, preferredSelection } = useMemo(() => {
+    const catalog = resolveWorkbenchNewSessionEngineCatalog(
+      {
+        currentSessionEngineId: isSidebar ? undefined : currentSessionEngineId,
+        currentSessionModelId: isSidebar ? undefined : currentSessionModelId,
+        preferredEngineId: selectedEngineId,
+        preferredModelId: selectedModelId,
+      },
       preferences,
-      selectedEngineId,
-      selectedModelId,
-    ],
-  );
+    );
+    const modeEngines = workbenchMode
+      ? filterWorkbenchModeCatalogEngines(workbenchMode, catalog.availableEngines)
+      : [...catalog.availableEngines];
+    const preferredEngine = modeEngines.find(
+      (engine) => engine.id === catalog.preferredSelection.engine.id,
+    ) ?? modeEngines[0] ?? catalog.preferredSelection.engine;
+    return {
+      availableEngines: modeEngines,
+      preferredSelection: {
+        ...catalog.preferredSelection,
+        engine: preferredEngine,
+        engineId: preferredEngine.id,
+        modelId: resolveWorkbenchCodeEngineSelectedModelId(
+          preferredEngine.id,
+          preferences,
+          preferredEngine.id === catalog.preferredSelection.engine.id
+            ? catalog.preferredSelection.modelId
+            : undefined,
+        ),
+        supported: modeEngines.some((engine) => engine.id === preferredEngine.id),
+      },
+    };
+  }, [
+    currentSessionEngineId,
+    currentSessionModelId,
+    isSidebar,
+    preferences,
+    selectedEngineId,
+    selectedModelId,
+    workbenchMode,
+  ]);
+  const isUnavailable = disabled || availableEngines.length === 0;
 
   const clearSidebarCloseTimer = useCallback(() => {
     if (sidebarCloseTimerRef.current !== null) {
@@ -131,13 +171,13 @@ function WorkbenchNewSessionButtonComponent({
   }, []);
 
   const openSidebarMenu = useCallback(() => {
-    if (!isSidebar || disabled || availableEngines.length === 0) {
+    if (!isSidebar || isUnavailable) {
       return;
     }
 
     clearSidebarCloseTimer();
     setIsOpen(true);
-  }, [availableEngines.length, clearSidebarCloseTimer, disabled, isSidebar]);
+  }, [clearSidebarCloseTimer, isSidebar, isUnavailable]);
 
   const scheduleSidebarMenuClose = useCallback(() => {
     if (!isSidebar) {
@@ -158,12 +198,12 @@ function WorkbenchNewSessionButtonComponent({
   }, []);
 
   useEffect(() => {
-    if (!disabled) {
+    if (!isUnavailable) {
       return;
     }
 
     setIsOpen(false);
-  }, [disabled]);
+  }, [isUnavailable]);
 
   useEffect(() => () => clearSidebarCloseTimer(), [clearSidebarCloseTimer]);
 
@@ -185,7 +225,7 @@ function WorkbenchNewSessionButtonComponent({
   }, [isOpen]);
 
   const handlePrimaryClick = useCallback(() => {
-    if (disabled) {
+    if (isUnavailable) {
       return;
     }
 
@@ -194,19 +234,19 @@ function WorkbenchNewSessionButtonComponent({
     void onCreateSession(preferredSelection.engine.id, preferredSelection.modelId);
   }, [
     clearSidebarCloseTimer,
-    disabled,
+    isUnavailable,
     onCreateSession,
     preferredSelection.engine.id,
     preferredSelection.modelId,
   ]);
 
   const handleToggleMenu = useCallback(() => {
-    if (disabled) {
+    if (isUnavailable) {
       return;
     }
 
     setIsOpen((previousState) => !previousState);
-  }, [disabled]);
+  }, [isUnavailable]);
 
   const handlePrimaryKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!isSidebar || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) {
@@ -249,12 +289,16 @@ function WorkbenchNewSessionButtonComponent({
     }
   };
 
-  const buttonTitle = disabled ? disabledTitle ?? buttonLabel : buttonLabel;
+  const buttonTitle = isUnavailable
+    ? availableEngines.length === 0
+      ? unavailableTitle ?? disabledTitle ?? buttonLabel
+      : disabledTitle ?? buttonLabel
+    : buttonLabel;
   const resolvedMenuLabel = menuLabel ?? buttonLabel;
   const primaryButtonClassName =
     variant === 'studio'
       ? `${variantStyle.primaryButton} ${
-          disabled
+          isUnavailable
             ? isCompactStudio
               ? 'cursor-not-allowed text-gray-500'
               : 'cursor-not-allowed text-blue-400/40'
@@ -263,16 +307,16 @@ function WorkbenchNewSessionButtonComponent({
               : 'text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
         } ${isCompactStudio ? '!h-7 !gap-1.5 !px-2.5 !py-0' : ''}`
       : `${variantStyle.primaryButton} ${
-          disabled
+          isUnavailable
             ? 'cursor-not-allowed text-gray-500'
-            : variant === 'sidebar'
+            : isSidebar
               ? 'cursor-pointer text-gray-200 hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white focus-visible:outline-none'
               : 'text-gray-100 hover:bg-white/10'
         } ${variant === 'topbar' && compact ? '!gap-0 !px-2' : ''}`;
   const secondaryButtonClassName =
     variant === 'studio'
       ? `${variantStyle.secondaryButton} ${
-          disabled
+          isUnavailable
             ? isCompactStudio
               ? 'cursor-not-allowed border-white/[0.05] text-gray-600'
               : 'cursor-not-allowed border-blue-500/20 text-blue-400/40'
@@ -281,17 +325,17 @@ function WorkbenchNewSessionButtonComponent({
               : 'border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
         } ${isCompactStudio ? '!h-7 !px-1.5' : ''}`
       : `${variantStyle.secondaryButton} ${
-          disabled
-            ? variant === 'sidebar'
+          isUnavailable
+            ? isSidebar
               ? 'cursor-not-allowed text-gray-700'
               : 'cursor-not-allowed text-gray-600'
-            : variant === 'sidebar'
+            : isSidebar
               ? 'cursor-pointer text-gray-500 hover:bg-white/10 hover:text-white'
               : 'text-gray-400 hover:bg-white/10 hover:text-white'
         }`;
   const wrapperClassName =
-    variant === 'sidebar'
-      ? `${variantStyle.wrapper} ${disabled ? 'text-gray-600' : 'text-gray-200'}`
+    isSidebar
+      ? `${variantStyle.wrapper} ${isUnavailable ? 'text-gray-600' : 'text-gray-200'}`
       : isCompactStudio
         ? `${variantStyle.wrapper} !rounded-md !border-0 !bg-white/[0.07]`
         : variantStyle.wrapper;
@@ -311,7 +355,7 @@ function WorkbenchNewSessionButtonComponent({
         <button
           ref={primaryButtonRef}
           type="button"
-          disabled={disabled}
+          disabled={isUnavailable}
           title={buttonTitle}
           aria-label={buttonLabel}
           aria-expanded={isSidebar ? isOpen : undefined}
@@ -335,7 +379,7 @@ function WorkbenchNewSessionButtonComponent({
         {!isSidebar ? (
           <button
             type="button"
-            disabled={disabled}
+            disabled={isUnavailable}
             title={buttonTitle}
             aria-label={resolvedMenuLabel}
             aria-expanded={isOpen}
@@ -350,7 +394,7 @@ function WorkbenchNewSessionButtonComponent({
           </button>
         ) : null}
       </div>
-      {isOpen && !disabled ? (
+      {isOpen && !isUnavailable ? (
         <div
           aria-label={resolvedMenuLabel}
           className={menuClassName}

@@ -124,7 +124,9 @@
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [],
-    "events": [],
+    "events": [
+      "birdcoder-tray-action"
+    ],
     "configKeys": [],
     "routeManifest": null,
     "sdkDependencies": [],

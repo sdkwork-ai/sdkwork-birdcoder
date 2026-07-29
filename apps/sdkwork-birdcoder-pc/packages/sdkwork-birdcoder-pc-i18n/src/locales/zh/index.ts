@@ -10,6 +10,7 @@ import multiWindow from './multiwindow.ts';
 import appErrors from './app/errors.ts';
 import appBootstrap from './app/bootstrap.ts';
 import appMenu from './app/menu.ts';
+import appTray from './app/tray.ts';
 import appProject from './app/project.ts';
 import appSidebar from './app/sidebar.ts';
 import appDialogs from './app/dialogs.ts';
@@ -40,6 +41,7 @@ export const zhModules = [
   appErrors,
   appBootstrap,
   appMenu,
+  appTray,
   appProject,
   appSidebar,
   appDialogs,

@@ -31,6 +31,7 @@ export interface CreateNewAgentSessionRequest {
     | 'file-menu'
     | 'global-event'
     | 'keyboard-shortcut'
+    | 'tray-menu'
     | 'turn-submit'
     | 'multi-window'
     | 'studio'

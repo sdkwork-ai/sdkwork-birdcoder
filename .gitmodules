@@ -10,3 +10,11 @@
 	path = external/gemini
 	url = https://github.com/google-gemini/gemini-cli.git
 	branch = main
+[submodule "external/openclaw"]
+	path = external/openclaw
+	url = https://github.com/openclaw/openclaw.git
+	branch = main
+[submodule "external/hermes-agent"]
+	path = external/hermes-agent
+	url = https://github.com/NousResearch/hermes-agent.git
+	branch = main

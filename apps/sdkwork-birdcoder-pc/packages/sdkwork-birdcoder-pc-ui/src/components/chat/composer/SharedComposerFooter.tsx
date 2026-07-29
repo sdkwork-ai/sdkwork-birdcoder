@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
+import { ComposerAccessModeControl } from './ComposerAccessModeControl';
 import type { EngineComposerFooterProps } from './UniversalChatComposerFooter.types';
 
 interface SharedComposerFooterProps extends EngineComposerFooterProps {
@@ -16,6 +17,7 @@ interface SharedComposerFooterProps extends EngineComposerFooterProps {
 }
 
 export function SharedComposerFooter({
+  accessModes,
   attachmentsDisabled,
   canQueueTypedMessage,
   canSubmitComposerMessage,
@@ -27,6 +29,7 @@ export function SharedComposerFooter({
   folderInputRef,
   imageInputRef,
   isAttachmentMenuOpen,
+  isAccessModeMenuOpen,
   isAwaitingQueuedTurnSettlement,
   isComposerProcessing,
   isComposerTurnBlocked,
@@ -34,13 +37,16 @@ export function SharedComposerFooter({
   isUploadingAttachments,
   modelGroups,
   onAttachmentMenuOpenChange,
+  onAccessModeMenuOpenChange,
   onFileUpload,
   onFolderUpload,
   onImageUpload,
   onSelectModel,
+  onSelectAccessMode,
   onSend,
   onToggleVoiceInput,
   selectedModelLabel,
+  selectedAccessModeId,
   selectedModelPickerId,
   selectedModelSummary,
   setShowModelMenu,
@@ -86,6 +92,16 @@ export function SharedComposerFooter({
         >
           <Plus aria-hidden="true" size={16} />
         </Button>
+
+        <ComposerAccessModeControl
+          accessModes={accessModes}
+          disabled={disabled}
+          engineId={engineId}
+          isOpen={isAccessModeMenuOpen}
+          onOpenChange={onAccessModeMenuOpenChange}
+          onSelect={onSelectAccessMode}
+          selectedAccessModeId={selectedAccessModeId}
+        />
 
         <input
           type="file"

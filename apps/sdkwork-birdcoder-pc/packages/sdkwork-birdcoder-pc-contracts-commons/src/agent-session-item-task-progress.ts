@@ -55,7 +55,11 @@ function normalizeTaskItemStatus(value: unknown, completed: unknown): AgentSessi
     return 'completed';
   }
   const status = typeof value === 'string'
-    ? value.trim().toLowerCase().replace(/[\s-]+/gu, '_')
+    ? value
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+        .toLowerCase()
+        .replace(/[\s-]+/gu, '_')
     : '';
   if (['blocked', 'failed', 'failure'].includes(status)) {
     return 'blocked';

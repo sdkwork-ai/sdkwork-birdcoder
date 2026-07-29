@@ -31,6 +31,20 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
       bindingId: 'binding.agent-provider.codex',
       healthy: true,
       defaultModelId: 'codex-1',
+      tier: 'official-sdk',
+      defaultAccessModeId: 'ask_for_approval',
+      accessModes: [
+        {
+          modeId: 'ask_for_approval',
+          displayName: 'Ask for approval',
+          description: 'Ask before risky operations',
+          approvalBehavior: 'user_review',
+          workspaceAccess: 'workspace_write',
+          networkAccess: 'restricted',
+          riskLevel: 'scoped',
+          enabled: true,
+        },
+      ],
       models: [
         {
           modelId: 'codex-1',
@@ -53,6 +67,20 @@ const catalog = await listBirdCoderCodeEngineCatalog(
         engineKey: 'codex',
         agentId: 'agent.code-engine.codex',
         bindingId: 'binding.agent-provider.codex',
+        tier: 'official-sdk',
+        defaultAccessModeId: 'ask_for_approval',
+        accessModes: [
+          {
+            modeId: 'ask_for_approval',
+            displayName: 'Ask for approval',
+            description: 'Ask before risky operations',
+            approvalBehavior: 'user_review',
+            workspaceAccess: 'workspace_write',
+            networkAccess: 'restricted',
+            riskLevel: 'scoped',
+            enabled: true,
+          },
+        ],
         models: [
           {
             engineKey: 'codex',

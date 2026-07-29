@@ -1,4 +1,5 @@
 import type {
+  CodeEngineAccessModeCatalogEntry,
   CodeEngineCatalogEngine,
   CodeEngineModelCatalogEntry,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
@@ -14,6 +15,18 @@ export interface BirdCoderCodeEngineCatalogModelEntry {
   defaultForEngine: boolean;
 }
 
+export interface BirdCoderCodeEngineAccessModeEntry {
+  modeId: string;
+  displayName: string;
+  description: string;
+  approvalBehavior: CodeEngineAccessModeCatalogEntry['approvalBehavior'];
+  workspaceAccess: CodeEngineAccessModeCatalogEntry['workspaceAccess'];
+  networkAccess: CodeEngineAccessModeCatalogEntry['networkAccess'];
+  riskLevel: CodeEngineAccessModeCatalogEntry['riskLevel'];
+  enabled: boolean;
+  disabledReason?: string;
+}
+
 export interface BirdCoderCodeEngineCatalogEntry {
   engineId: string;
   agentId: string;
@@ -23,7 +36,9 @@ export interface BirdCoderCodeEngineCatalogEntry {
   healthy: boolean;
   defaultModelId: string;
   models: readonly BirdCoderCodeEngineCatalogModelEntry[];
-  tier?: string;
+  tier: string;
+  defaultAccessModeId: string;
+  accessModes: readonly BirdCoderCodeEngineAccessModeEntry[];
 }
 
 function toModelEntry(model: CodeEngineModelCatalogEntry): BirdCoderCodeEngineCatalogModelEntry {
@@ -34,6 +49,22 @@ function toModelEntry(model: CodeEngineModelCatalogEntry): BirdCoderCodeEngineCa
     providerId: model.providerId,
     bindingId: model.bindingId,
     defaultForEngine: model.defaultForEngine,
+  };
+}
+
+function toAccessModeEntry(
+  mode: CodeEngineAccessModeCatalogEntry,
+): BirdCoderCodeEngineAccessModeEntry {
+  return {
+    modeId: mode.modeId,
+    displayName: mode.displayName,
+    description: mode.description,
+    approvalBehavior: mode.approvalBehavior,
+    workspaceAccess: mode.workspaceAccess,
+    networkAccess: mode.networkAccess,
+    riskLevel: mode.riskLevel,
+    enabled: mode.enabled,
+    ...(mode.disabledReason ? { disabledReason: mode.disabledReason } : {}),
   };
 }
 
@@ -48,6 +79,9 @@ function toCatalogEntry(engine: CodeEngineCatalogEngine): BirdCoderCodeEngineCat
     healthy: engine.models.length > 0,
     defaultModelId: defaultModel?.modelId ?? '',
     models: engine.models.map(toModelEntry),
+    tier: engine.tier ?? '',
+    defaultAccessModeId: engine.defaultAccessModeId ?? '',
+    accessModes: (engine.accessModes ?? []).map(toAccessModeEntry),
   };
 }
 

@@ -10,6 +10,11 @@ import {
   deduplicateAgentProjectsForRender,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import {
+  filterWorkbenchModeCatalogEngines,
+  matchesWorkbenchModeEngineId,
+  type WorkbenchMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import {
@@ -25,6 +30,7 @@ import {
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProjectExplorerHeader } from './ProjectExplorerHeader';
+import { ProjectExplorerModeHeader } from './ProjectExplorerModeHeader';
 import { ProjectExplorerProjectContextMenu } from './ProjectExplorerProjectContextMenu';
 import { ProjectExplorerProjectSection } from './ProjectExplorerProjectSection';
 import { ProjectExplorerRootContextMenu } from './ProjectExplorerRootContextMenu';
@@ -40,6 +46,7 @@ import type {
 import type { ProjectExplorerProps } from './ProjectExplorer.types';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
 import { TaskSearchDialog } from './TaskSearchDialog';
+import { WorkModeSidebar } from './WorkModeSidebar';
 import {
   buildSidebarGlobalSessions,
   canRequestMoreSidebarProjectSessions,
@@ -382,6 +389,7 @@ export const Sidebar = React.memo(function Sidebar({
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
+  const workbenchMode = preferences.workbenchMode;
   const showArchived = preferences.sessionInboxShowArchived;
   const organizeBy: ProjectExplorerOrganizeBy = preferences.sessionInboxGroupMode;
   const providerFilterId = preferences.sessionInboxProviderId;
@@ -433,13 +441,31 @@ export const Sidebar = React.memo(function Sidebar({
     () => deduplicateAgentProjectsForRender(taskSearchProjects),
     [taskSearchProjects],
   );
+  const modeRenderProjects = useMemo(
+    () => renderProjects.map((project) => ({
+      ...project,
+      agentSessions: project.agentSessions.filter((session) =>
+        matchesWorkbenchModeEngineId(workbenchMode, session.engineId),
+      ),
+    })),
+    [renderProjects, workbenchMode],
+  );
+  const modeTaskSearchProjects = useMemo(
+    () => renderTaskSearchProjects.map((project) => ({
+      ...project,
+      agentSessions: project.agentSessions.filter((session) =>
+        matchesWorkbenchModeEngineId(workbenchMode, session.engineId),
+      ),
+    })),
+    [renderTaskSearchProjects, workbenchMode],
+  );
   const projectNamesById = useMemo(
     () => new Map(renderProjects.map((project) => [project.projectId, project.name])),
     [renderProjects],
   );
   const providerOptions = useMemo(() => {
     const providers = new Map<string, { id: string; label: string }>();
-    for (const project of renderProjects) {
+    for (const project of modeRenderProjects) {
       for (const session of project.agentSessions) {
         const providerId = session.providerId.trim();
         if (providerId && providerId !== 'unknown' && !providers.has(providerId)) {
@@ -451,7 +477,7 @@ export const Sidebar = React.memo(function Sidebar({
       }
     }
     return [...providers.values()].sort((left, right) => left.label.localeCompare(right.label));
-  }, [renderProjects]);
+  }, [modeRenderProjects]);
 
   const closeFloatingMenus = useCallback(() => {
     setShowFilterMenu(false);
@@ -749,13 +775,16 @@ export const Sidebar = React.memo(function Sidebar({
   );
   const newSessionEngineOptions = useMemo<readonly ProjectExplorerEngineOption[]>(
     () =>
-      newSessionEngineCatalog.availableEngines.map((engine) => ({
+      filterWorkbenchModeCatalogEngines(
+        workbenchMode,
+        newSessionEngineCatalog.availableEngines,
+      ).map((engine) => ({
         id: engine.id,
         label: engine.label,
         modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
         terminalProfileId: null,
       })),
-    [newSessionEngineCatalog.availableEngines, preferences],
+    [newSessionEngineCatalog.availableEngines, preferences, workbenchMode],
   );
   const terminalEngineOptions: readonly ProjectExplorerEngineOption[] = [];
   const handleLoadMoreProjectSessions = useCallback(
@@ -1057,7 +1086,7 @@ export const Sidebar = React.memo(function Sidebar({
         return EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS;
       }
 
-      return renderProjects
+      return modeRenderProjects
         .filter((project) => showArchived || project.status !== 'archived')
         .map((project) => ({
           project,
@@ -1086,7 +1115,7 @@ export const Sidebar = React.memo(function Sidebar({
       normalizedSearchQuery,
       organizeBy,
       providerFilterId,
-      renderProjects,
+      modeRenderProjects,
       resolveProjectViewSessions,
       sessionFilter,
       showArchived,
@@ -1106,7 +1135,7 @@ export const Sidebar = React.memo(function Sidebar({
           providerFilterId,
           sessionFilter,
         ),
-        projects: renderProjects,
+        projects: modeRenderProjects,
         showArchived,
         sortBy,
       });
@@ -1115,7 +1144,7 @@ export const Sidebar = React.memo(function Sidebar({
       normalizedSearchQuery,
       organizeBy,
       providerFilterId,
-      renderProjects,
+      modeRenderProjects,
       sessionFilter,
       showArchived,
       sortBy,
@@ -1127,7 +1156,7 @@ export const Sidebar = React.memo(function Sidebar({
         return EMPTY_SIDEBAR_CHRONOLOGICAL_CONTINUATIONS;
       }
 
-      return renderProjects
+      return modeRenderProjects
         .filter((project) => showArchived || project.status !== 'archived')
         .filter(canRequestMoreSidebarProjectSessions)
         .map((project) => ({
@@ -1139,7 +1168,7 @@ export const Sidebar = React.memo(function Sidebar({
     [
       loadingMoreSessionProjectIds,
       organizeBy,
-      renderProjects,
+      modeRenderProjects,
       showArchived,
     ],
   );
@@ -1190,12 +1219,28 @@ export const Sidebar = React.memo(function Sidebar({
   const pinnedSessions = useMemo(
     () => buildSidebarGlobalSessions({
       matches: (session) => session.pinned === true,
-      projects: renderTaskSearchProjects,
+      projects: modeTaskSearchProjects,
       showArchived: false,
       sortBy,
     }),
-    [renderTaskSearchProjects, sortBy],
+    [modeTaskSearchProjects, sortBy],
   );
+  const workModeTaskSessions = useMemo(
+    () => workbenchMode === 'work'
+      ? buildSidebarGlobalSessions({
+          matches: (session) => session.pinned !== true,
+          projects: modeRenderProjects,
+          showArchived: false,
+          sortBy,
+        })
+      : EMPTY_SIDEBAR_AGENT_SESSIONS,
+    [modeRenderProjects, sortBy, workbenchMode],
+  );
+  const handleWorkbenchModeChange = useCallback((mode: WorkbenchMode) => {
+    closeFloatingMenus();
+    setShowSearch(false);
+    updatePreferences({ workbenchMode: mode });
+  }, [closeFloatingMenus, updatePreferences]);
   useEffect(() => {
     if (organizeBy !== 'project' || !selectedProjectId || !selectedAgentSessionId) {
       return;
@@ -1375,13 +1420,60 @@ export const Sidebar = React.memo(function Sidebar({
       onContextMenu={handleRootContextMenu}
     >
       <div className="birdcoder-session-list flex min-h-0 flex-1 flex-col">
+        <ProjectExplorerModeHeader
+          activeMode={workbenchMode}
+          codingModeDescription={t('app.codingModeDescription')}
+          codingModeLabel={t('app.codingMode')}
+          searchLabel={t('app.searchTasks')}
+          showSearch={showSearch}
+          switchModeLabel={t('app.switchWorkbenchMode')}
+          workModeDescription={t('app.workModeDescription')}
+          workModeLabel={t('app.workMode')}
+          onModeChange={handleWorkbenchModeChange}
+          onToggleSearch={handleOpenTaskSearch}
+        />
+        {workbenchMode === 'work' ? (
+          <WorkModeSidebar
+            labels={{
+              assistant: t('app.workAssistant'),
+              automation: t('app.workAutomation'),
+              automationUnavailable: t('app.workAutomationUnavailable'),
+              expertTools: t('app.workExpertTools'),
+              more: t('app.workMore'),
+              newTask: t('app.newTask'),
+              noPinnedTasks: t('app.noPinnedTasks'),
+              noTasks: t('app.noSessions'),
+              pinnedTasks: t('app.pinnedTasks'),
+              projects: t('app.projects'),
+              selectProjectFirst: t('code.selectProjectFirst'),
+              spaces: t('app.workSpaces'),
+              tasks: t('app.tasks'),
+              workProvidersUnavailable: t('app.workProvidersUnavailable'),
+            }}
+            pinnedContent={pinnedSessions.length > 0
+              ? pinnedSessions.map((session) => renderFlatSessionRow(session, false, 'pinned'))
+              : undefined}
+            pinnedCount={pinnedSessions.length}
+            projects={modeRenderProjects.filter((project) => project.status !== 'archived')}
+            selectedEngineId={preferences.codeEngineId}
+            selectedModelId={preferences.codeModelId}
+            selectedProjectId={selectedProjectId}
+            taskContent={workModeTaskSessions.length > 0
+              ? workModeTaskSessions.map((session) => renderFlatSessionRow(session, true))
+              : undefined}
+            taskCount={workModeTaskSessions.length}
+            onCreateSession={handleCreateEngineSession}
+            onOpenExpertTools={() => globalEventBus.emit('openSettings', 'plugins')}
+            onOpenMore={() => globalEventBus.emit('openSettings', 'general')}
+            onSelectProject={selectProject}
+          />
+        ) : (
         <ProjectExplorerHeader
           pinnedContent={pinnedSessions.length > 0
             ? pinnedSessions.map((session) => renderFlatSessionRow(session, false, 'pinned'))
             : undefined}
           selectedProjectId={selectedProjectId}
           showFilterMenu={showFilterMenu}
-          showSearch={showSearch}
           organizeBy={organizeBy}
           sortBy={sortBy}
           showArchived={showArchived}
@@ -1394,10 +1486,10 @@ export const Sidebar = React.memo(function Sidebar({
           newSessionLabel={t('app.newTask')}
           newSessionInCurrentProjectLabel={t('app.newSessionInCurrentProject')}
           selectProjectFirstLabel={t('code.selectProjectFirst')}
+          providersUnavailableLabel={t('app.codingProvidersUnavailable')}
           selectedEngineId={preferences.codeEngineId}
           selectedModelId={preferences.codeModelId}
           sessionsLabel={t('app.projects')}
-          searchSessionsTitleLabel={t('app.searchTasks')}
           newProjectLabel={t('app.newProject')}
           organizeLabel={t('app.organize')}
           byProjectLabel={t('app.byProject')}
@@ -1422,7 +1514,6 @@ export const Sidebar = React.memo(function Sidebar({
           scrollRegionRef={scrollRegionRef}
           onCreateSession={handleCreateEngineSession}
           onRefreshSelectedProject={onRefreshProjectSessions ? handleRefreshSelectedProject : undefined}
-          onToggleSearch={handleOpenTaskSearch}
           onCreateProject={handleCreateProjectFromHeader}
           onToggleFilterMenu={() => setShowFilterMenu((previousState) => !previousState)}
           onOrganizeByProject={handleOrganizeByProject}
@@ -1591,6 +1682,7 @@ export const Sidebar = React.memo(function Sidebar({
           ) : null}
         </div>
         </ProjectExplorerHeader>
+        )}
       </div>
 
       {showSearch &&
@@ -1609,7 +1701,7 @@ export const Sidebar = React.memo(function Sidebar({
               selectProjectFirst: t('code.selectProjectFirst'),
               tasks: t('app.tasks'),
             }}
-            projects={renderTaskSearchProjects}
+            projects={modeTaskSearchProjects}
             query={taskSearchQuery}
             returnFocusElement={taskSearchTriggerRef.current}
             runtimeStatusLabels={sessionRuntimeStatusLabels}

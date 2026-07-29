@@ -50,6 +50,11 @@ export default defineLocaleModule('chat', {
     transcriptRegion: '\u5bf9\u8bdd\u6d88\u606f',
     conversationMap: '\u5bf9\u8bdd\u5bfc\u822a',
     goToConversationTurn: '\u8df3\u8f6c\u5230\u5bf9\u8bdd\u8f6e\u6b21',
+    conversationTurnInput: '\u8f93\u5165',
+    conversationTurnOutput: '\u8f93\u51fa',
+    copyConversationTurnInput: '\u590d\u5236\u8f93\u5165',
+    copyConversationTurnOutput: '\u590d\u5236\u8f93\u51fa',
+    useConversationTurnInput: '\u586b\u5165\u5bf9\u8bdd\u6846',
     emptyTitle: '\u4f60\u60f3\u6784\u5efa\u4ec0\u4e48\uff1f',
     emptyDescription: '\u63cf\u8ff0\u60f3\u6cd5\u3001\u63d0\u51fa\u95ee\u9898\u6216\u7c98\u8d34\u4ee3\u7801\u5373\u53ef\u5f00\u59cb\u3002',
     messageEdit: '\u7f16\u8f91\u6d88\u606f',
@@ -67,6 +72,59 @@ export default defineLocaleModule('chat', {
     placeholderEnabled: '\u53ef\u4ee5\u63d0\u95ee\u6216\u8bf7\u6c42\u4fee\u6539...',
     add: '\u6dfb\u52a0',
     addAttachment: '\u6dfb\u52a0\u9644\u4ef6',
+    accessModeControl: '\u8bbf\u95ee\u6a21\u5f0f\uff1a{{mode}}',
+    accessModeMenu: '\u8bbf\u95ee\u6a21\u5f0f',
+    accessModeUnavailable: '\u8bbf\u95ee\u6a21\u5f0f\u4e0d\u53ef\u7528',
+    accessModes: {
+      codex: {
+        ask_for_approval: {
+          label: '\u8bf7\u6c42\u6279\u51c6',
+          description: '\u7f16\u8f91\u5916\u90e8\u6587\u4ef6\u548c\u4f7f\u7528\u4e92\u8054\u7f51\u65f6\u59cb\u7ec8\u8be2\u95ee',
+        },
+        approve_for_me: {
+          label: '\u66ff\u6211\u6279\u51c6',
+          description: '\u4ec5\u5bf9\u68c0\u6d4b\u5230\u7684\u98ce\u9669\u64cd\u4f5c\u8bf7\u6c42\u6279\u51c6',
+        },
+        full_access: {
+          label: '\u5b8c\u5168\u8bbf\u95ee\u6743\u9650',
+          description: '\u53ef\u4e0d\u53d7\u9650\u5236\u5730\u8bbf\u95ee\u4e92\u8054\u7f51\u548c\u60a8\u7535\u8111\u4e0a\u7684\u4efb\u4f55\u6587\u4ef6',
+        },
+      },
+      claude_code: {
+        default: {
+          label: '\u9ed8\u8ba4\u6743\u9650',
+          description: '\u6267\u884c Claude Code \u8bbe\u7f6e\u4e0d\u5141\u8bb8\u7684\u64cd\u4f5c\u524d\u8be2\u95ee',
+        },
+        accept_edits: {
+          label: '\u63a5\u53d7\u7f16\u8f91',
+          description: '\u5141\u8bb8\u5e38\u89c4\u6587\u4ef6\u7f16\u8f91\uff0c\u5176\u4ed6\u98ce\u9669\u64cd\u4f5c\u4ecd\u9700\u8be2\u95ee',
+        },
+        bypass_permissions: {
+          label: '\u7ed5\u8fc7\u6743\u9650\u68c0\u67e5',
+          description: '\u4e3b\u673a\u7b56\u7565\u5141\u8bb8\u65f6\u4e0d\u663e\u793a\u6743\u9650\u63d0\u793a',
+        },
+      },
+      opencode: {
+        ask: {
+          label: '\u8bf7\u6c42\u6743\u9650',
+          description: '\u4f7f\u7528\u9700\u8981\u6743\u9650\u7684\u5de5\u5177\u524d\u8be2\u95ee',
+        },
+        allow_edits: {
+          label: '\u5141\u8bb8\u7f16\u8f91',
+          description: '\u5141\u8bb8\u5de5\u4f5c\u533a\u7f16\u8f91\uff0c\u5176\u4ed6\u98ce\u9669\u5de5\u5177\u4ecd\u53d7\u9650',
+        },
+        allow_all: {
+          label: '\u5168\u90e8\u5141\u8bb8',
+          description: '\u5141\u8bb8\u6240\u6709\u5de5\u5177\uff0c\u4e0d\u663e\u793a\u6743\u9650\u63d0\u793a',
+        },
+      },
+      gemini: {
+        sdk_default: {
+          label: 'SDK \u9ed8\u8ba4\u6a21\u5f0f',
+          description: '\u4f7f\u7528\u5df2\u5b89\u88c5 Gemini CLI SDK \u5b9e\u73b0\u7684\u6267\u884c\u7b56\u7565',
+        },
+      },
+    },
     composerActions: '\u8f93\u5165\u6846\u64cd\u4f5c',
     composerFiles: '\u6587\u4ef6',
     composerFilesDescription: '\u9644\u52a0\u4e00\u4e2a\u6216\u591a\u4e2a\u6587\u4ef6',
@@ -263,6 +321,7 @@ export default defineLocaleModule('chat', {
     toolContextExpand: '\u5c55\u5f00\u4e0a\u4e0b\u6587\u5de5\u5177',
     toolContextCollapse: '\u6536\u8d77\u4e0a\u4e0b\u6587\u5de5\u5177',
     taskProgress: '\u4efb\u52a1\u8fdb\u5ea6',
+    taskStep: '\u6b65\u9aa4 {{current}} / {{total}}',
     toolWeb: '\u7f51\u7edc\u8bbf\u95ee',
     toolDetailsHide: '\u6536\u8d77\u5de5\u5177\u8be6\u60c5',
     toolDetailsShow: '\u5c55\u5f00\u5de5\u5177\u8be6\u60c5',

@@ -60,6 +60,18 @@ export interface VirtualizedTranscriptWindowState {
   visibleStartIndex: number;
 }
 
+function hasHighVarianceTranscriptLayout(message: AgentSessionItemView): boolean {
+  return Boolean(
+    message.taskProgress
+    || message.tool_calls?.length
+    || message.commands?.length
+    || message.fileChanges?.length
+    || message.reasoning?.length
+    || message.resources?.length
+    || message.lifecycleEvents?.length
+  );
+}
+
 export function resolvePrependAdjustedTranscriptViewport({
   currentCache,
   previousCache,
@@ -508,7 +520,10 @@ export function resolveVirtualizedTranscriptWindow({
     };
   }
 
-  if (messages.length <= minVirtualizedMessageCount) {
+  if (
+    messages.length <= minVirtualizedMessageCount
+    || messages.some(hasHighVarianceTranscriptLayout)
+  ) {
     return {
       paddingBottom: 0,
       paddingTop: 0,

@@ -23,6 +23,10 @@ import {
   buildAgentSessionProjectScopedKey,
   buildProjectAgentSessionIndex,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
+import {
+  buildDesktopTraySessionMenuSnapshot,
+  type DesktopTrayAction,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/desktopTraySessionMenu';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import {
   importSelectedProjectDirectory,
@@ -102,6 +106,7 @@ import {
   performNativeWindowControlAction,
   useNativeWindowControlsBridge,
 } from './nativeWindowControlsBridge.ts';
+import { useNativeTrayMenuBridge } from './nativeTrayMenuBridge.ts';
 import { BirdcoderAppHeader } from './BirdcoderAppHeader.tsx';
 import { AppMainBody, isProjectTerminalRequest } from './birdcoderAppMainBody.tsx';
 import {
@@ -852,7 +857,10 @@ export function AppContent() {
 
       addToast('Copied local path', 'success');
     };
-    const handleOpenSettings = () => {
+    const handleOpenSettings = (requestedTab?: unknown) => {
+      if (isSettingsTab(requestedTab)) {
+        setSettingsTab(requestedTab);
+      }
       setActiveTab('settings');
     };
     const handleTerminalRequest = (req: TerminalCommandRequest) => {
@@ -911,7 +919,7 @@ export function AppContent() {
       unsubscribeSettings();
       unsubscribeTerminalReq();
     };
-  }, [addToast, projectRuntimeLocationService, t]);
+  }, [addToast, projectRuntimeLocationService, setSettingsTab, t]);
 
   const hasOpenHeaderSelectionSurface =
     showWorkspaceProjectPopover ||
@@ -1937,6 +1945,41 @@ export function AppContent() {
     [createAgentSessionFromRequest],
   );
   createAgentSessionCommandRef.current = handleCreateAgentSessionCommand;
+
+  const desktopTrayMenuSnapshot = useMemo(
+    () => buildDesktopTraySessionMenuSnapshot({
+      labels: {
+        exit: t('app.tray.exit'),
+        more: t('app.tray.more'),
+        newChat: t('app.tray.newChat'),
+        openApplication: t('app.tray.openApplication'),
+        pinned: t('app.tray.pinned'),
+        recent: t('app.tray.recent'),
+        running: t('app.tray.running'),
+        untitledSession: t('app.tray.untitledSession'),
+      },
+      newChatEnabled: Boolean(user && effectiveProjectId),
+      projects,
+    }),
+    [effectiveProjectId, projects, t, user],
+  );
+  const handleDesktopTrayAction = useCallback((action: DesktopTrayAction) => {
+    if (action.type === 'newChat') {
+      createAgentSessionCommandRef.current({ source: 'tray-menu' });
+      return;
+    }
+
+    const location = projectsIndex.agentSessionLocationsByProjectIdAndId.get(
+      buildAgentSessionProjectScopedKey(action.projectId, action.sessionId),
+    );
+    if (!location) {
+      addToast(t('app.tray.sessionUnavailable'), 'error');
+      return;
+    }
+
+    handleSelectCreatedAgentSession(action.sessionId, { projectId: action.projectId });
+  }, [addToast, handleSelectCreatedAgentSession, projectsIndex, t]);
+  useNativeTrayMenuBridge(desktopTrayMenuSnapshot, handleDesktopTrayAction);
 
   const fileMenuItems = useMemo<TopMenuItem[]>(
     () => [

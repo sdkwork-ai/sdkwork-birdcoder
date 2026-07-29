@@ -165,6 +165,36 @@ When a Session needs local execution context:
 4. Native paths remain in the Tauri boundary.
 5. A missing mount, id, permission, or binding fails closed.
 
+### Coding And Work Mode Provider Admission
+
+The left sidebar keeps one Birdcoder header and one persisted mode selector.
+Coding Mode presents the coding-oriented Project and Session navigation. Work
+Mode presents the WorkBuddy-inspired task, assistant, project, expert/skill/
+connector, automation, and space navigation. Both modes continue to consume
+the same canonical Agents Project and Session facts.
+
+Provider admission is an explicit allowlist over the generated Agents
+code-engine catalog:
+
+| Mode | Required tier | Engine ID | Agent ID |
+| --- | --- | --- | --- |
+| Coding | `t1-code` | `codex` | `agent.intelligence.codex` |
+| Coding | `t1-code` | `claude-code` | `agent.intelligence.claude-code` |
+| Coding | `t1-code` | `gemini` | `agent.intelligence.gemini` |
+| Coding | `t1-code` | `opencode` | `agent.intelligence.opencode` |
+| Work | `t2-autonomous` | `openclaw` (OpenClaw) | `agent.intelligence.openclaw` |
+| Work | `t2-autonomous` | `hermes` (Hermes Agent) | `agent.intelligence.hermes` |
+
+An entry is selectable only when `engineId`, `agentId`, and `tier` all match
+the selected row and the live catalog publishes a usable model. Unknown or
+partially specified entries, an identity with the wrong tier, and later
+Providers that have not been deliberately assigned to a mode are excluded.
+Persisted values outside `coding | work` normalize to Coding. Session lists,
+search results, context-menu engine choices, and new-task Provider menus apply
+the same mode boundary. The exact mapping is machine-governed by
+`specs/agents-birdcoder-alignment.spec.json` and checked by
+`pnpm check:agents-birdcoder-alignment`.
+
 ### Session Activity Inbox
 
 The Agents App API operation

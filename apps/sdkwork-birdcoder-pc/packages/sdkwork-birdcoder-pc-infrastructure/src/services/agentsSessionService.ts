@@ -832,6 +832,11 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     );
     const payload = {
       ...input,
+      accessModeId: normalizeOptionalBoundedValue(
+        input.accessModeId,
+        'Agent access mode ID',
+        AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+      ),
       content: input.content.trim(),
       contentType,
       clientRequestId,

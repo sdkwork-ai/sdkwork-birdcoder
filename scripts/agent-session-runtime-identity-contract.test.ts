@@ -17,7 +17,23 @@ const engines = [
   ['gemini-cli', 'google'],
 ] as const;
 
+const testAccessModeCatalog = {
+  accessModes: [{
+    approvalBehavior: 'user_review' as const,
+    description: 'Ask before risky operations',
+    displayName: 'Ask for approval',
+    enabled: true,
+    modeId: 'ask_for_approval',
+    networkAccess: 'restricted' as const,
+    riskLevel: 'scoped' as const,
+    workspaceAccess: 'workspace_write' as const,
+  }],
+  defaultAccessModeId: 'ask_for_approval',
+  tier: 'official-sdk',
+};
+
 replaceWorkbenchCodeEngineCatalogForTesting(engines.map(([engineId, provider]) => ({
+  ...testAccessModeCatalog,
   agentId: `agent.code-engine.${engineId}`,
   bindingId: `binding.agent.${engineId}`,
   defaultModelId: `${engineId}-default`,
@@ -58,6 +74,7 @@ for (const [engineId, provider] of engines) {
 
 replaceWorkbenchCodeEngineCatalogForTesting([
   ...engines.map(([engineId, provider]) => ({
+    ...testAccessModeCatalog,
     agentId: `agent.code-engine.${engineId}`,
     bindingId: `binding.agent.${engineId}`,
     defaultModelId: `${engineId}-default`,
@@ -75,6 +92,7 @@ replaceWorkbenchCodeEngineCatalogForTesting([
     providerId: `provider.${provider}`,
   })),
   {
+    ...testAccessModeCatalog,
     agentId: 'agent.code-engine.codex-enterprise',
     bindingId: 'binding.agent.codex-enterprise',
     defaultModelId: 'codex-default',

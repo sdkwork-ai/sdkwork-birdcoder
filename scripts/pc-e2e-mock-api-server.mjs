@@ -70,7 +70,7 @@ const projectDriveFileContents = new Map([
 const sessions = [
   createAgentSessionFixture({
     sessionId: 'e2e-claude-session',
-    agentId: 'agent.claude-code',
+    agentId: 'agent.intelligence.claude-code',
     title: 'Claude architecture review',
     itemCount: '8',
     lastItemSequence: '8',
@@ -80,7 +80,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-codex-session',
-    agentId: 'agent.codex',
+    agentId: 'agent.intelligence.codex',
     title: 'Codex implementation',
     itemCount: '105',
     lastItemSequence: '105',
@@ -90,7 +90,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-opencode-session',
-    agentId: 'agent.opencode',
+    agentId: 'agent.intelligence.opencode',
     title: 'OpenCode verification',
     itemCount: '6',
     lastItemSequence: '6',
@@ -100,7 +100,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-gemini-session',
-    agentId: 'agent.gemini-cli',
+    agentId: 'agent.intelligence.gemini',
     title: 'Gemini failure triage',
     itemCount: '3',
     lastItemSequence: '3',
@@ -108,12 +108,32 @@ const sessions = [
     version: '3',
     updatedAt: '2026-01-01T00:05:03.000Z',
   }),
+  createAgentSessionFixture({
+    sessionId: 'e2e-openclaw-session',
+    agentId: 'agent.intelligence.openclaw',
+    title: 'OpenClaw operations plan',
+    itemCount: '4',
+    lastItemSequence: '4',
+    lastItemAt: '2026-01-01T00:04:00.000Z',
+    version: '4',
+    updatedAt: '2026-01-01T00:04:00.000Z',
+  }),
+  createAgentSessionFixture({
+    sessionId: 'e2e-hermes-session',
+    agentId: 'agent.intelligence.hermes',
+    title: 'Hermes research brief',
+    itemCount: '2',
+    lastItemSequence: '2',
+    lastItemAt: '2026-01-01T00:03:00.000Z',
+    version: '2',
+    updatedAt: '2026-01-01T00:03:00.000Z',
+  }),
   ...Array.from({ length: 38 }, (_, index) => {
     const historyNumber = index + 1;
     const updatedAt = new Date(Date.UTC(2025, 11, 31, 23, 59 - index)).toISOString();
     return createAgentSessionFixture({
       sessionId: `e2e-history-session-${historyNumber}`,
-      agentId: 'agent.codex',
+      agentId: 'agent.intelligence.codex',
       title: index === 17
         ? 'History page two session'
         : index === 37
@@ -768,28 +788,39 @@ let completedTurnSequence = 0;
 
 function createSessionRuntimeBinding(session) {
   const runtimeByAgentId = {
-    'agent.claude-code': {
+    'agent.intelligence.claude-code': {
       modelId: 'claude-sonnet-4-5',
       providerBindingId: 'claude-code',
       providerId: 'anthropic',
     },
-    'agent.codex': {
+    'agent.intelligence.codex': {
       modelId: 'gpt-5-codex',
       providerBindingId: 'codex',
       providerId: 'openai',
     },
-    'agent.opencode': {
+    'agent.intelligence.opencode': {
       modelId: 'auto',
       providerBindingId: 'opencode',
       providerId: 'opencode',
     },
-    'agent.gemini-cli': {
+    'agent.intelligence.gemini': {
       modelId: 'gemini-2.5-pro',
       providerBindingId: 'gemini-cli',
       providerId: 'google',
     },
+    'agent.intelligence.openclaw': {
+      modelId: 'openclaw-default',
+      providerBindingId: 'binding.agent-provider.openclaw',
+      providerId: 'provider.model.openclaw',
+    },
+    'agent.intelligence.hermes': {
+      modelId: 'hermes-runtime-default',
+      providerBindingId: 'binding.agent-provider.hermes',
+      providerId: 'provider.model.hermes',
+    },
   };
-  const runtime = runtimeByAgentId[session.agentId] ?? runtimeByAgentId['agent.codex'];
+  const runtime = runtimeByAgentId[session.agentId]
+    ?? runtimeByAgentId['agent.intelligence.codex'];
   return {
     runtimeBindingId: `runtime-binding.${session.sessionId}`,
     tenantId: session.tenantId,
@@ -903,7 +934,7 @@ function createSessionActivitySummary(session) {
     runtimeBinding,
     presentation.turnStatus,
   );
-  const pendingInteraction = session.agentId === 'agent.opencode'
+  const pendingInteraction = session.agentId === 'agent.intelligence.opencode'
     ? createSessionActivityInteraction(session, runtimeBinding)
     : null;
   const isUnknownPresentation = presentation.phase === 'unknown';
@@ -968,7 +999,9 @@ function createSessionUserState(session) {
     userId: session.ownerUserId,
     resourceType: 'session',
     resourceId: session.sessionId,
-    pinnedAt: session.agentId === 'agent.claude-code' ? session.updatedAt : undefined,
+    pinnedAt: session.agentId === 'agent.intelligence.claude-code'
+      ? session.updatedAt
+      : undefined,
     lastOpenedAt: session.updatedAt,
     lastReadItemSequence: session.lastItemSequence,
     version: session.version,

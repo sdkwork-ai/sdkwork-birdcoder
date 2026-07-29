@@ -92,6 +92,18 @@ assert.match(
   'Task progress must use its dedicated configured chat translation key instead of generic tool copy.',
 );
 
+assert.match(
+  taskProgressUiSource,
+  /const activeItemIndex = [\s\S]*const currentStep = [\s\S]*t\?\.\('chat\.taskStep'/,
+  'Task progress summaries must derive and localize the current plan position instead of presenting completed count as the current step.',
+);
+
+assert.match(
+  taskProgressSummarySource,
+  /\{stepLabel\}/,
+  'The compact plan disclosure must display the current Step position.',
+);
+
 assert.doesNotMatch(
   taskProgressUiSource,
   /data-chat-task-progress="inline"[\s\S]{0,180}border border-white\/5/,

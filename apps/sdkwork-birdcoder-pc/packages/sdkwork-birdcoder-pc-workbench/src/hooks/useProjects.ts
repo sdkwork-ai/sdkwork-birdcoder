@@ -157,6 +157,7 @@ interface ScoredProjectCandidate {
 
 type WorkbenchAgentTurnSubmissionContext = WorkbenchAgentSessionTurnContext;
 interface WorkbenchAgentTurnSubmissionOptions {
+  accessModeId?: string;
   driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
   metadata?: Record<string, unknown>;
 }
@@ -1891,6 +1892,7 @@ export function useProjects(options?: UseProjectsOptions) {
         agentId: selectedSession.agentId,
         sessionId: selectedSession.id,
       }, {
+        ...(options?.accessModeId ? { accessModeId: options.accessModeId } : {}),
         content,
         contentType: 'text/plain',
         ...(options?.driveRefs?.length ? { driveRefs: [...options.driveRefs] } : {}),

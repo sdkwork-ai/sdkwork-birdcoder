@@ -937,6 +937,7 @@ function StudioPageComponent({
   const handleSendMessage = useCallback(async (
     text?: string,
     composerSelection?: {
+      accessModeId?: string | null;
       engineId?: string | null;
       modelId?: string | null;
     },
@@ -998,8 +999,13 @@ function StudioPageComponent({
         bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
-        submission?.driveRefs?.length
-          ? { driveRefs: submission.driveRefs }
+        submission?.driveRefs?.length || composerSelection?.accessModeId?.trim()
+          ? {
+              ...(composerSelection?.accessModeId?.trim()
+                ? { accessModeId: composerSelection.accessModeId.trim() }
+                : {}),
+              ...(submission?.driveRefs?.length ? { driveRefs: submission.driveRefs } : {}),
+            }
           : undefined,
       );
       if (

@@ -177,6 +177,7 @@ describe('Agent turn streaming completion contract', () => {
     const controller = new AbortController();
 
     await expect(service.submitTurn(identity, {
+      accessModeId: ' full_access ',
       content: ' hello ',
       driveRefs: [{
         driveNodeId: ' node-design ',
@@ -198,6 +199,7 @@ describe('Agent turn streaming completion contract', () => {
       sessionId,
       expect.objectContaining({
         clientRequestId: expect.any(String),
+        accessModeId: 'full_access',
         content: 'hello',
         driveRefs: [{
           driveNodeId: 'node-design',

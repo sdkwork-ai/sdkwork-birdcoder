@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import { Check, ListFilter, Plus, RefreshCw, Search } from 'lucide-react';
+import { Check, ListFilter, Plus, RefreshCw } from 'lucide-react';
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import type {
   ProjectExplorerOrganizeBy,
@@ -13,7 +13,6 @@ interface ProjectExplorerHeaderProps {
   scrollRegionRef?: RefObject<HTMLDivElement | null>;
   selectedProjectId?: string | null;
   showFilterMenu: boolean;
-  showSearch: boolean;
   organizeBy: ProjectExplorerOrganizeBy;
   sortBy: ProjectExplorerSortBy;
   showArchived: boolean;
@@ -26,10 +25,10 @@ interface ProjectExplorerHeaderProps {
   newSessionLabel: string;
   newSessionInCurrentProjectLabel: string;
   selectProjectFirstLabel: string;
+  providersUnavailableLabel: string;
   selectedEngineId: string;
   selectedModelId: string;
   sessionsLabel: string;
-  searchSessionsTitleLabel: string;
   newProjectLabel: string;
   organizeLabel: string;
   byProjectLabel: string;
@@ -53,7 +52,6 @@ interface ProjectExplorerHeaderProps {
   filterMenuRef: RefObject<HTMLDivElement | null>;
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
   onRefreshSelectedProject?: () => void;
-  onToggleSearch: (trigger: HTMLButtonElement) => void;
   onCreateProject: () => void | Promise<void>;
   onToggleFilterMenu: () => void;
   onOrganizeByProject: () => void;
@@ -74,7 +72,6 @@ export function ProjectExplorerHeader({
   scrollRegionRef,
   selectedProjectId,
   showFilterMenu,
-  showSearch,
   organizeBy,
   sortBy,
   showArchived,
@@ -87,10 +84,10 @@ export function ProjectExplorerHeader({
   newSessionLabel,
   newSessionInCurrentProjectLabel,
   selectProjectFirstLabel,
+  providersUnavailableLabel,
   selectedEngineId,
   selectedModelId,
   sessionsLabel,
-  searchSessionsTitleLabel,
   newProjectLabel,
   organizeLabel,
   byProjectLabel,
@@ -114,7 +111,6 @@ export function ProjectExplorerHeader({
   filterMenuRef,
   onCreateSession,
   onRefreshSelectedProject,
-  onToggleSearch,
   onCreateProject,
   onToggleFilterMenu,
   onOrganizeByProject,
@@ -178,36 +174,17 @@ export function ProjectExplorerHeader({
           }
         `}
       </style>
-      <header
-        className="flex h-12 shrink-0 items-center justify-between px-3"
-        data-sidebar-brand-header="true"
-      >
-        <span className="min-w-0 truncate text-lg font-semibold text-gray-100">
-          Birdcoder
-        </span>
-        <button
-          type="button"
-          aria-expanded={showSearch}
-          aria-haspopup="dialog"
-          aria-label={searchSessionsTitleLabel}
-          title={searchSessionsTitleLabel}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white focus-visible:outline-none ${showSearch ? 'bg-white/[0.07] text-white' : ''}`}
-          data-sidebar-search-trigger="true"
-          onClick={(event) => onToggleSearch(event.currentTarget)}
-        >
-          <Search size={19} aria-hidden="true" />
-        </button>
-      </header>
-
       <div className="birdcoder-sidebar-session-create flex shrink-0 flex-col px-2 pb-1 pt-2">
         <WorkbenchNewSessionButton
           buttonLabel={newSessionLabel}
           disabled={!selectedProjectId}
           disabledTitle={newSessionTitle}
           menuLabel={newSessionLabel}
+          unavailableTitle={providersUnavailableLabel}
           selectedEngineId={selectedEngineId}
           selectedModelId={selectedModelId}
           variant="sidebar"
+          workbenchMode="coding"
           onCreateSession={onCreateSession}
         />
       </div>

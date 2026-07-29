@@ -9,6 +9,7 @@ interface ChatTaskProgressSummaryProps {
   onToggle?: () => void;
   percent: number;
   progressLabel: string;
+  stepLabel: string;
   total: number;
 }
 
@@ -19,6 +20,7 @@ function SummaryContent({
   expanded,
   percent,
   progressLabel,
+  stepLabel,
   total,
 }: Omit<ChatTaskProgressSummaryProps, 'detailsId' | 'onToggle'>) {
   return (
@@ -37,8 +39,8 @@ function SummaryContent({
       ) : (
         <span className="min-w-0 flex-1" aria-hidden="true" />
       )}
-      <span className="shrink-0 font-mono text-[11px] text-gray-400">
-        {completed}/{total}
+      <span className="shrink-0 text-[11px] text-gray-400">
+        {stepLabel}
       </span>
       {canExpand ? (
         <ChevronDown
@@ -79,7 +81,7 @@ export function ChatTaskProgressSummary(props: ChatTaskProgressSummaryProps) {
       className={`${className} hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70`}
       aria-controls={props.detailsId}
       aria-expanded={props.expanded}
-      aria-label={`${props.progressLabel}: ${props.completed}/${props.total}`}
+      aria-label={`${props.progressLabel}: ${props.stepLabel}`}
       onClick={props.onToggle}
     >
       {content}

@@ -37,6 +37,30 @@ assert.equal(
   false,
   'IM ownership must not imply a BirdCoder runtime dependency before human messaging is enabled.',
 );
+assert.deepEqual(spec.workbenchModes, {
+  schemaVersion: 1,
+  catalogAuthority: 'sdkwork-agents code-engine catalog',
+  defaultMode: 'coding',
+  admissionPolicy: 'exact-engine-agent-tier-fail-closed',
+  modes: {
+    coding: {
+      tier: 't1-code',
+      providers: [
+        { engineId: 'codex', agentId: 'agent.intelligence.codex' },
+        { engineId: 'claude-code', agentId: 'agent.intelligence.claude-code' },
+        { engineId: 'gemini', agentId: 'agent.intelligence.gemini' },
+        { engineId: 'opencode', agentId: 'agent.intelligence.opencode' },
+      ],
+    },
+    work: {
+      tier: 't2-autonomous',
+      providers: [
+        { engineId: 'openclaw', agentId: 'agent.intelligence.openclaw' },
+        { engineId: 'hermes', agentId: 'agent.intelligence.hermes' },
+      ],
+    },
+  },
+});
 
 for (const doc of spec.authorityDocs) {
   if (!fs.existsSync(resolvePath(doc))) {

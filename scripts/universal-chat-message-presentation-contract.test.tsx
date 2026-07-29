@@ -8,6 +8,7 @@ import type { AgentSessionItemToolCallView, AgentSessionItemView } from "../apps
 import { resolveAgentSessionItemPresentation } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts";
 import { AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, resolvePreferredAgentSessionItemToolProtocolAdapterId } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts";
 import { ChatTranscriptAnchorRail } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ChatTranscriptAnchorRail.tsx";
+import { buildChatTranscriptTurnAnchors } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatTranscriptAnchors.ts";
 import { UniversalChatMarkdown } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx";
 import { resolveChatCodeFenceLanguage } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts";
 import { buildFileChangeDiffPreview } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileChangePresentation.ts";
@@ -464,10 +465,18 @@ const twoTurns = [
 ];
 const twoTurnRailHtml = renderToStaticMarkup(
   <ChatTranscriptAnchorRail
+    canUseInput={true}
+    copyInputLabel="Copy input"
+    copyOutputLabel="Copy output"
+    inputLabel="Input"
     label="Conversation map"
     messages={twoTurns}
+    onCopyContent={() => undefined}
     onSelectTurn={() => undefined}
+    onUseInput={() => undefined}
+    outputLabel="Output"
     turnLabel="Go to conversation turn"
+    useInputLabel="Use in composer"
   />,
 );
 
@@ -479,22 +488,49 @@ assert.equal(
 
 const threeTurnRailHtml = renderToStaticMarkup(
   <ChatTranscriptAnchorRail
+    canUseInput={true}
+    copyInputLabel="Copy input"
+    copyOutputLabel="Copy output"
+    inputLabel="Input"
     label="Conversation map"
     messages={[
       ...twoTurns,
       createMessage("assistant-2", "assistant", "Second response"),
       createMessage("user-3", "user", "Third turn"),
     ]}
+    onCopyContent={() => undefined}
     onSelectTurn={() => undefined}
+    onUseInput={() => undefined}
+    outputLabel="Output"
     turnLabel="Go to conversation turn"
+    useInputLabel="Use in composer"
   />,
 );
 
 assert.match(threeTurnRailHtml, /data-chat-transcript-anchor-rail="true"/u);
+assert.match(threeTurnRailHtml, /data-chat-transcript-anchor-side="left"/u);
+assert.match(threeTurnRailHtml, /data-chat-transcript-anchor-layout="compact"/u);
+assert.match(threeTurnRailHtml, /data-chat-transcript-anchor-trigger="true"/u);
+assert.match(threeTurnRailHtml, /data-chat-transcript-anchor-details-side="right"/u);
 assert.match(threeTurnRailHtml, /aria-label="Conversation map"/u);
 assert.match(
   threeTurnRailHtml,
   /aria-label="Go to conversation turn 3: Third turn"/u,
+);
+assert.match(threeTurnRailHtml, /aria-label="Copy input: First turn"/u);
+assert.match(threeTurnRailHtml, /aria-label="Copy output: First turn"/u);
+assert.match(threeTurnRailHtml, /aria-label="Use in composer: First turn"/u);
+
+const transcriptAnchors = buildChatTranscriptTurnAnchors([
+  createMessage("user-copy", "user", "Preserve this input exactly."),
+  createMessage("assistant-copy-1", "assistant", "First output segment."),
+  createMessage("assistant-copy-2", "assistant", "Second output segment."),
+]);
+assert.equal(transcriptAnchors[0]?.inputContent, "Preserve this input exactly.");
+assert.equal(
+  transcriptAnchors[0]?.outputContent,
+  "First output segment.\n\nSecond output segment.",
+  "Conversation-map copy actions must retain the complete turn output.",
 );
 
 const turnFileChanges = Array.from({ length: 12 }, (_, index) => ({

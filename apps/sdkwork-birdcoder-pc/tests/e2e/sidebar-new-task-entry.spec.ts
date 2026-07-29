@@ -47,7 +47,7 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
     await route.abort();
   });
   await page.route(
-    /\/app\/v3\/api\/ai\/agents\/agent\.codex\/sessions\/e2e-codex-session\/user_state$/u,
+    /\/app\/v3\/api\/ai\/agents\/agent\.intelligence\.codex\/sessions\/e2e-codex-session\/user_state$/u,
     async (route) => {
       if (route.request().method() !== 'PATCH') {
         await route.fallback();

@@ -502,6 +502,7 @@ export function toAgentSessionItemView(
     lifecycleEvents: resolveItemLifecycleEvents(item),
     reasoning: reasoning.length > 0 ? reasoning : undefined,
     resources: resolveItemResources(item, userContent, providerPayload?.resources),
+    taskProgress: providerPayload?.taskProgress,
   };
 }
 

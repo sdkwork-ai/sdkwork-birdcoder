@@ -78,11 +78,13 @@ export * from './workbench/fileSelectionMutation.ts';
 export * from './workbench/fileSystemRequestGuard.ts';
 export * from './workbench/agentSessionCreation.ts';
 export * from './workbench/agentSessionSelection.ts';
+export * from './workbench/desktopTraySessionMenu.ts';
 export * from './workbench/preferences.ts';
 export * from './workbench/composerCapabilityPreferences.ts';
 export * from './workbench/recovery.ts';
 export * from './workbench/sessionRefresh.ts';
 export * from './workbench/projectInventoryRender.ts';
+export * from './workbench/workbenchMode.ts';
 export {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,

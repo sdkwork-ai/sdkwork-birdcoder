@@ -81,6 +81,20 @@ const EXECUTION_PROVIDER_VISUAL_IDENTITIES: readonly KnownProviderVisualIdentity
     label: 'OpenCode',
     tone: 'rose',
   },
+  {
+    abbreviation: 'CL',
+    aliases: ['openclaw', 'open-claw'],
+    id: 'openclaw',
+    label: 'OpenClaw',
+    tone: 'teal',
+  },
+  {
+    abbreviation: 'HA',
+    aliases: ['hermes', 'hermes-agent'],
+    id: 'hermes',
+    label: 'Hermes Agent',
+    tone: 'violet',
+  },
 ];
 
 const PROVIDER_VISUAL_IDENTITIES: Readonly<Record<string, ProviderVisualIdentity>> = {

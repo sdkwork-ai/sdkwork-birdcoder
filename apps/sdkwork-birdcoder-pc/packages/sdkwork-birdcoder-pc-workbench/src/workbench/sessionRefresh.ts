@@ -39,8 +39,6 @@ import {
 } from './workspaceSessionInboxSync.ts';
 
 const AGENT_SESSION_ITEM_PAGE_SIZE = 50;
-const AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT = 5;
-const AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT = 10;
 const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
@@ -619,7 +617,6 @@ async function loadLatestSessionItemWindow(
     );
   while (
     pages.at(-1)?.pageInfo.hasMore
-    && pages.length < AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT
     && (!overlapsLoadedWindow || !hasEnoughConversationContext())
   ) {
     signal.throwIfAborted();
@@ -1012,11 +1009,7 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
   const requestSignal = signal ?? new AbortController().signal;
   let currentAgentSession = agentSession;
   let loadedItemCount = 0;
-  for (
-    let requestCount = 0;
-    requestCount < AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT;
-    requestCount += 1
-  ) {
+  while (true) {
     const loadedPageInfo = validateLoadedItemPageInfo(
       currentAgentSession.itemPageInfo!,
       'Loaded Agents session item list',

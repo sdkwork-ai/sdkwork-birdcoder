@@ -90,12 +90,7 @@ fn application_publish_preflight(
     application_relative_path: String,
     target_id: String,
 ) -> Result<host::ApplicationPublishPreflightSnapshot, host::ApplicationPublishError> {
-    host::application_publish_preflight(
-        state,
-        root_path,
-        application_relative_path,
-        target_id,
-    )
+    host::application_publish_preflight(state, root_path, application_relative_path, target_id)
 }
 
 #[tauri::command]
@@ -366,6 +361,14 @@ fn desktop_perform_window_control_action(
 }
 
 #[tauri::command]
+fn desktop_tray_update_menu(
+    app: tauri::AppHandle,
+    snapshot: host::DesktopTraySessionMenuSnapshot,
+) -> Result<(), String> {
+    host::desktop_tray_update_menu(app, snapshot)
+}
+
+#[tauri::command]
 fn desktop_session_index(
     state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
 ) -> Result<host::DesktopSessionIndexSnapshot, String> {
@@ -535,6 +538,7 @@ pub fn run() {
             desktop_window_controls_bridge_capabilities,
             desktop_configure_window_controls_bridge,
             desktop_perform_window_control_action,
+            desktop_tray_update_menu,
             desktop_session_index,
             desktop_session_replay_slice,
             desktop_session_attach,

@@ -10,6 +10,7 @@ import {
   DEFAULT_WORKBENCH_CHAT_SELECTION,
   findWorkbenchCodeEngineDefinition,
   normalizeWorkbenchCodeEngineSettingsMap,
+  normalizeWorkbenchCodeEngineAccessModeId,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchChatSelection,
@@ -25,8 +26,10 @@ import {
   type AgentSessionInboxGroupMode,
   type AgentSessionInboxSortMode,
 } from './sessionInbox.ts';
+import { normalizeWorkbenchMode, type WorkbenchMode } from './workbenchMode.ts';
 
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
+  workbenchMode: WorkbenchMode;
   codeEngineSettings: WorkbenchCodeEngineSettingsMap;
   disabledComposerCapabilityIds: string[];
   terminalProfileId: TerminalProfileId;
@@ -55,6 +58,7 @@ export const GIT_REVIEW_DELIVERY_MODES = ['inline', 'separate'] as const;
 export type GitReviewDeliveryMode = (typeof GIT_REVIEW_DELIVERY_MODES)[number];
 
 interface WorkbenchPreferencesInput {
+  workbenchMode?: string | null;
   codeEngineId?: string | null;
   codeModelId?: string | null;
   codeEngineSettings?: unknown;
@@ -116,6 +120,7 @@ const TERMINAL_PROFILE_ALIASES: Readonly<Record<string, TerminalProfileId>> = {
 
 export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   ...DEFAULT_WORKBENCH_CHAT_SELECTION,
+  workbenchMode: 'coding',
   codeEngineSettings: {},
   disabledComposerCapabilityIds: [],
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
@@ -230,6 +235,7 @@ export function normalizeWorkbenchPreferences(
   const defaultWorkingDirectory = value?.defaultWorkingDirectory?.trim();
   return {
     ...resolveWorkbenchChatSelection(value, { codeEngineSettings }),
+    workbenchMode: normalizeWorkbenchMode(value?.workbenchMode),
     codeEngineSettings,
     disabledComposerCapabilityIds: normalizeWorkbenchDisabledComposerCapabilityIds(
       value?.disabledComposerCapabilityIds,
@@ -333,12 +339,49 @@ export function setWorkbenchCodeEngineDefaultModel(
     ...normalizedPreferences,
     codeEngineSettings: {
       ...normalizedPreferences.codeEngineSettings,
-      [normalizedEngineId]: { defaultModelId: resolvedModelId },
+      [normalizedEngineId]: {
+        ...normalizedPreferences.codeEngineSettings[normalizedEngineId],
+        defaultModelId: resolvedModelId,
+      },
     },
     codeModelId:
       normalizedPreferences.codeEngineId === normalizedEngineId
         ? resolvedModelId
         : normalizedPreferences.codeModelId,
+  });
+}
+
+export function setWorkbenchCodeEngineAccessMode(
+  preferences: WorkbenchPreferences,
+  engineId: string | null | undefined,
+  accessModeId: string | null | undefined,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(engineId, normalizedPreferences);
+  if (!normalizedEngineId) {
+    return normalizedPreferences;
+  }
+  const resolvedAccessModeId = normalizeWorkbenchCodeEngineAccessModeId(
+    normalizedEngineId,
+    accessModeId,
+    normalizedPreferences,
+  );
+  if (!resolvedAccessModeId) {
+    return normalizedPreferences;
+  }
+  const currentSettings = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineSettings: {
+      ...normalizedPreferences.codeEngineSettings,
+      [normalizedEngineId]: {
+        ...currentSettings,
+        defaultModelId: currentSettings?.defaultModelId
+          ?? findWorkbenchCodeEngineDefinition(normalizedEngineId)?.defaultModelId
+          ?? '',
+        accessModeId: resolvedAccessModeId,
+      },
+    },
   });
 }
 
@@ -384,7 +427,10 @@ export function setWorkbenchActiveChatSelection(
     ...selection,
     codeEngineSettings: {
       ...normalizedPreferences.codeEngineSettings,
-      [resolvedEngineId]: { defaultModelId: selection.codeModelId },
+      [resolvedEngineId]: {
+        ...normalizedPreferences.codeEngineSettings[resolvedEngineId],
+        defaultModelId: selection.codeModelId,
+      },
     },
   });
 }

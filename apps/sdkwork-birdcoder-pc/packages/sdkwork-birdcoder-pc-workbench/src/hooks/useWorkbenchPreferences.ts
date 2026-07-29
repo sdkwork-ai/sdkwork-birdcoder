@@ -47,6 +47,10 @@ function areWorkbenchCodeEngineSettingsEqual(
       return false;
     }
 
+    if ((leftEntry.accessModeId ?? '') !== (rightEntry.accessModeId ?? '')) {
+      return false;
+    }
+
   }
 
   return true;
@@ -54,6 +58,7 @@ function areWorkbenchCodeEngineSettingsEqual(
 
 function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreferences): boolean {
   return (
+    left.workbenchMode === right.workbenchMode &&
     left.codeEngineId === right.codeEngineId &&
     left.codeModelId === right.codeModelId &&
     areWorkbenchCodeEngineSettingsEqual(left.codeEngineSettings, right.codeEngineSettings) &&

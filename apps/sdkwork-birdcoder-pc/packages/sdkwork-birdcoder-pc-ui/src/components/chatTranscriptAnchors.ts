@@ -5,7 +5,9 @@ const MAX_TURN_PREVIEW_LENGTH = 220;
 export interface ChatTranscriptTurnAnchor {
   filePaths: string[];
   id: string;
+  inputContent: string;
   messageIndex: number;
+  outputContent: string;
   responsePreview: string;
   title: string;
   turnNumber: number;
@@ -52,7 +54,9 @@ export function buildChatTranscriptTurnAnchors(
       currentTurn = {
         filePaths: [],
         id: message.id.trim() || `turn-${messageIndex}`,
+        inputContent: message.content,
         messageIndex,
+        outputContent: '',
         responsePreview: '',
         title: normalizePreview(message.content, `Conversation turn ${turns.length + 1}`),
         turnNumber: turns.length + 1,
@@ -65,8 +69,11 @@ export function buildChatTranscriptTurnAnchors(
       continue;
     }
 
-    if (isReplySegmentRole(message.role) && !currentTurn.responsePreview) {
-      currentTurn.responsePreview = normalizePreview(message.content, '');
+    if (isReplySegmentRole(message.role) && message.content.trim()) {
+      currentTurn.outputContent = currentTurn.outputContent
+        ? `${currentTurn.outputContent}\n\n${message.content}`
+        : message.content;
+      currentTurn.responsePreview = normalizePreview(currentTurn.outputContent, '');
     }
 
     for (const fileChange of message.fileChanges ?? []) {

@@ -30,6 +30,7 @@ export interface WorkbenchAgentTurnDriveRef {
 export interface WorkbenchQueuedAgentTurnInputModelSelection {
   readonly engineId: string;
   readonly modelId: string;
+  readonly accessModeId?: string;
 }
 
 const EMPTY_QUEUED_AGENT_TURN_INPUTS: readonly WorkbenchQueuedAgentTurnInput[] = Object.freeze([]);
@@ -107,12 +108,14 @@ function normalizeQueuedAgentTurnInputModelSelection(
   if (
     composerSelection.engineId.length > MAX_QUEUED_AGENT_TURN_INPUT_MODEL_ID_CHARACTERS
     || composerSelection.modelId.length > MAX_QUEUED_AGENT_TURN_INPUT_MODEL_ID_CHARACTERS
+    || (composerSelection.accessModeId?.length ?? 0) > MAX_QUEUED_AGENT_TURN_INPUT_MODEL_ID_CHARACTERS
   ) {
     throw new RangeError('Queued Agent turn model selection exceeds its identity budget.');
   }
 
   const engineId = composerSelection.engineId.trim();
   const modelId = composerSelection.modelId.trim();
+  const accessModeId = composerSelection.accessModeId?.trim() ?? '';
   if (!engineId || !modelId) {
     return undefined;
   }
@@ -123,7 +126,11 @@ function normalizeQueuedAgentTurnInputModelSelection(
     throw new RangeError('Queued Agent turn model selection exceeds its identity budget.');
   }
 
-  return Object.freeze({ engineId, modelId });
+  return Object.freeze({
+    engineId,
+    modelId,
+    ...(accessModeId ? { accessModeId } : {}),
+  });
 }
 
 function normalizeQueuedAgentTurnInputPresentation(
@@ -238,7 +245,8 @@ function areQueuedAgentTurnInputModelSelectionsEqual(
 ): boolean {
   return (
     (first?.engineId ?? '') === (second?.engineId ?? '') &&
-    (first?.modelId ?? '') === (second?.modelId ?? '')
+    (first?.modelId ?? '') === (second?.modelId ?? '') &&
+    (first?.accessModeId ?? '') === (second?.accessModeId ?? '')
   );
 }
 
@@ -260,7 +268,8 @@ function countQueuedAgentTurnInputStoredCharacters(
       0,
     )
     + (input.composerSelection?.engineId.length ?? 0)
-    + (input.composerSelection?.modelId.length ?? 0);
+    + (input.composerSelection?.modelId.length ?? 0)
+    + (input.composerSelection?.accessModeId?.length ?? 0);
 }
 
 function countQueuedAgentTurnInputsStoredCharacters(
