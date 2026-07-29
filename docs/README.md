@@ -57,6 +57,7 @@ facade, or second identifier.
 - [API reference](reference/api-reference.md)
 - [Environment reference](reference/environment.md)
 - [Command reference](reference/commands.md)
+- [Provider message protocols](providers/README.md)
 
 ## Documentation Policy
 

@@ -39,7 +39,10 @@ export function ChatTaskProgress({
     : -1;
   const currentStep = activeItemIndex >= 0
     ? activeItemIndex + 1
-    : Math.min(displayState.total, Math.max(1, displayState.completed));
+    : Math.min(
+        displayState.total,
+        Math.max(1, displayState.completed + (displayState.completed < displayState.total ? 1 : 0)),
+      );
   const stepLabel = t?.('chat.taskStep', {
     current: currentStep,
     total: displayState.total,
