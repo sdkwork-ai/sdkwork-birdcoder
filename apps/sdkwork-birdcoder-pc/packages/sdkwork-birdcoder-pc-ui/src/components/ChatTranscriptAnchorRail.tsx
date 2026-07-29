@@ -44,7 +44,7 @@ export const ChatTranscriptAnchorRail = memo(function ChatTranscriptAnchorRail({
   return (
     <nav
       aria-label={label}
-      className="pointer-events-none absolute left-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center gap-0.5 min-[1180px]:flex"
+      className="pointer-events-none absolute left-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center min-[1180px]:flex"
       data-chat-transcript-anchor-layout="compact"
       data-chat-transcript-anchor-rail="true"
       data-chat-transcript-anchor-side="left"
@@ -65,11 +65,11 @@ export const ChatTranscriptAnchorRail = memo(function ChatTranscriptAnchorRail({
         return (
           <div
             key={turn.id}
-            className="group relative flex h-3.5 w-4 shrink-0 items-center justify-center"
+            className="group relative flex h-3 w-4 shrink-0 items-center justify-center"
           >
             <button
               aria-label={`${turnLabel} ${turn.turnNumber}: ${turn.title}`}
-              className="pointer-events-auto flex h-3.5 w-4 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80"
+              className="pointer-events-auto flex h-3 w-4 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80"
               data-chat-transcript-anchor-trigger="true"
               onClick={() => onSelectTurn(turn.messageIndex)}
               type="button"
