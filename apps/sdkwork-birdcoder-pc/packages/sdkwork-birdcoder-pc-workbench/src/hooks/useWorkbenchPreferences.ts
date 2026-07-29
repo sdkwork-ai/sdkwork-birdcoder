@@ -59,7 +59,9 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
     left.sessionInboxGroupMode === right.sessionInboxGroupMode &&
     left.sessionInboxProviderId === right.sessionInboxProviderId &&
     left.sessionInboxShowArchived === right.sessionInboxShowArchived &&
-    left.sessionInboxSortMode === right.sessionInboxSortMode
+    left.sessionInboxSortMode === right.sessionInboxSortMode &&
+    left.worktreeAutoPrune === right.worktreeAutoPrune &&
+    left.worktreeListLimit === right.worktreeListLimit
   );
 }
 

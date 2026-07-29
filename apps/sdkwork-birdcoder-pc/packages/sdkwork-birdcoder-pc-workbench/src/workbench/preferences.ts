@@ -36,6 +36,8 @@ export interface WorkbenchPreferences extends WorkbenchChatSelection {
   sessionInboxProviderId: string;
   sessionInboxShowArchived: boolean;
   sessionInboxSortMode: AgentSessionInboxSortMode;
+  worktreeAutoPrune: boolean;
+  worktreeListLimit: number;
 }
 
 interface WorkbenchPreferencesInput {
@@ -50,6 +52,8 @@ interface WorkbenchPreferencesInput {
   sessionInboxProviderId?: string | null;
   sessionInboxShowArchived?: boolean | null;
   sessionInboxSortMode?: string | null;
+  worktreeAutoPrune?: boolean | null;
+  worktreeListLimit?: number | null;
 }
 
 export interface WorkbenchPreferencesStore {
@@ -66,6 +70,9 @@ const WORKBENCH_PREFERENCES_KEY = 'preferences.v1';
 export const MIN_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 320;
 export const MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 960;
 export const DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 520;
+export const MIN_WORKTREE_LIST_LIMIT = 1;
+export const MAX_WORKTREE_LIST_LIMIT = 100;
+export const DEFAULT_WORKTREE_LIST_LIMIT = 15;
 
 const TERMINAL_PROFILE_ALIASES: Readonly<Record<string, TerminalProfileId>> = {
   powershell: 'powershell',
@@ -91,6 +98,8 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   sessionInboxProviderId: 'all',
   sessionInboxShowArchived: false,
   sessionInboxSortMode: 'smart',
+  worktreeAutoPrune: true,
+  worktreeListLimit: DEFAULT_WORKTREE_LIST_LIMIT,
 };
 
 function normalizeStringEnum<TValue extends string>(
@@ -116,6 +125,18 @@ export function normalizeWorkbenchCodeEditorChatWidth(
   return Math.max(
     MIN_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
     Math.min(MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH, Math.round(value)),
+  );
+}
+
+export function normalizeWorkbenchWorktreeListLimit(
+  value: number | null | undefined,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_WORKTREE_LIST_LIMIT;
+  }
+  return Math.max(
+    MIN_WORKTREE_LIST_LIMIT,
+    Math.min(MAX_WORKTREE_LIST_LIMIT, Math.round(value)),
   );
 }
 
@@ -159,6 +180,10 @@ export function normalizeWorkbenchPreferences(
       AGENT_SESSION_INBOX_SORT_MODES,
       DEFAULT_WORKBENCH_PREFERENCES.sessionInboxSortMode,
     ),
+    worktreeAutoPrune: typeof value?.worktreeAutoPrune === 'boolean'
+      ? value.worktreeAutoPrune
+      : DEFAULT_WORKBENCH_PREFERENCES.worktreeAutoPrune,
+    worktreeListLimit: normalizeWorkbenchWorktreeListLimit(value?.worktreeListLimit),
   };
 }
 
