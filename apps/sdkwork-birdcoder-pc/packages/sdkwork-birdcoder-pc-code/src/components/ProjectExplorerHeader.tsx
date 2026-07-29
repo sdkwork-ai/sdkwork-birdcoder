@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import { Check, Folder, FolderPlus, ListFilter, RefreshCw, Search } from 'lucide-react';
+import { Check, ListFilter, Plus, RefreshCw, Search } from 'lucide-react';
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import type {
   ProjectExplorerOrganizeBy,
@@ -9,6 +9,7 @@ import type {
 
 interface ProjectExplorerHeaderProps {
   children?: ReactNode;
+  pinnedContent?: ReactNode;
   scrollRegionRef?: RefObject<HTMLDivElement | null>;
   selectedProjectId?: string | null;
   showFilterMenu: boolean;
@@ -25,14 +26,11 @@ interface ProjectExplorerHeaderProps {
   newSessionLabel: string;
   newSessionInCurrentProjectLabel: string;
   selectProjectFirstLabel: string;
-  currentSessionEngineId?: string | null;
-  currentSessionModelId?: string | null;
   selectedEngineId: string;
   selectedModelId: string;
   sessionsLabel: string;
   searchSessionsTitleLabel: string;
   newProjectLabel: string;
-  openFolderLabel: string;
   organizeLabel: string;
   byProjectLabel: string;
   byProviderLabel: string;
@@ -57,7 +55,6 @@ interface ProjectExplorerHeaderProps {
   onRefreshSelectedProject?: () => void;
   onToggleSearch: (trigger: HTMLButtonElement) => void;
   onCreateProject: () => void | Promise<void>;
-  onOpenFolder?: () => void;
   onToggleFilterMenu: () => void;
   onOrganizeByProject: () => void;
   onOrganizeByProvider: () => void;
@@ -73,6 +70,7 @@ interface ProjectExplorerHeaderProps {
 
 export function ProjectExplorerHeader({
   children,
+  pinnedContent,
   scrollRegionRef,
   selectedProjectId,
   showFilterMenu,
@@ -89,14 +87,11 @@ export function ProjectExplorerHeader({
   newSessionLabel,
   newSessionInCurrentProjectLabel,
   selectProjectFirstLabel,
-  currentSessionEngineId,
-  currentSessionModelId,
   selectedEngineId,
   selectedModelId,
   sessionsLabel,
   searchSessionsTitleLabel,
   newProjectLabel,
-  openFolderLabel,
   organizeLabel,
   byProjectLabel,
   byProviderLabel,
@@ -121,7 +116,6 @@ export function ProjectExplorerHeader({
   onRefreshSelectedProject,
   onToggleSearch,
   onCreateProject,
-  onOpenFolder,
   onToggleFilterMenu,
   onOrganizeByProject,
   onOrganizeByProvider,
@@ -184,11 +178,30 @@ export function ProjectExplorerHeader({
           }
         `}
       </style>
-      <div className="birdcoder-sidebar-session-create p-3 flex shrink-0 flex-col gap-2">
+      <header
+        className="flex h-12 shrink-0 items-center justify-between px-3"
+        data-sidebar-brand-header="true"
+      >
+        <span className="min-w-0 truncate text-lg font-semibold text-gray-100">
+          Birdcoder
+        </span>
+        <button
+          type="button"
+          aria-expanded={showSearch}
+          aria-haspopup="dialog"
+          aria-label={searchSessionsTitleLabel}
+          title={searchSessionsTitleLabel}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white focus-visible:outline-none ${showSearch ? 'bg-white/[0.07] text-white' : ''}`}
+          data-sidebar-search-trigger="true"
+          onClick={(event) => onToggleSearch(event.currentTarget)}
+        >
+          <Search size={19} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="birdcoder-sidebar-session-create flex shrink-0 flex-col px-2 pb-1 pt-2">
         <WorkbenchNewSessionButton
           buttonLabel={newSessionLabel}
-          currentSessionEngineId={currentSessionEngineId}
-          currentSessionModelId={currentSessionModelId}
           disabled={!selectedProjectId}
           disabledTitle={newSessionTitle}
           menuLabel={newSessionLabel}
@@ -199,7 +212,27 @@ export function ProjectExplorerHeader({
         />
       </div>
 
-      <div className="shrink-0 px-1 pt-2">
+      {pinnedContent ? (
+        <section
+          className="min-h-0 shrink px-1 pb-1 pt-4"
+          data-sidebar-pinned-section="true"
+        >
+          <div
+            className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500"
+            data-sidebar-pinned-label="true"
+          >
+            {pinnedLabel}
+          </div>
+          <div
+            className="project-explorer-scroll-region flex max-h-[min(35vh,240px)] flex-col gap-0.5 overflow-y-auto"
+            data-sidebar-pinned-list="true"
+          >
+            {pinnedContent}
+          </div>
+        </section>
+      ) : null}
+
+      <div className="shrink-0 px-1 pt-4" data-sidebar-projects-header="true">
         <div
           className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"
           style={{ animationDelay: '100ms' }}
@@ -225,41 +258,6 @@ export function ProjectExplorerHeader({
             )}
             <button
               type="button"
-              aria-expanded={showSearch}
-              aria-haspopup="dialog"
-              aria-label={searchSessionsTitleLabel}
-              title={searchSessionsTitleLabel}
-              className="text-inherit"
-              onClick={(event) => onToggleSearch(event.currentTarget)}
-            >
-              <Search
-                size={14}
-                aria-hidden="true"
-                className={`cursor-pointer hover:text-white transition-colors ${showSearch ? 'text-white' : ''}`}
-              />
-            </button>
-            <button
-              type="button"
-              title={newProjectLabel}
-              className="text-inherit"
-              onClick={() => {
-                void onCreateProject();
-              }}
-            >
-              <FolderPlus size={14} className="cursor-pointer hover:text-white transition-colors" />
-            </button>
-            {onOpenFolder && (
-              <button
-                type="button"
-                title={openFolderLabel}
-                className="text-inherit"
-                onClick={onOpenFolder}
-              >
-                <Folder size={14} className="cursor-pointer hover:text-white transition-colors" />
-              </button>
-            )}
-            <button
-              type="button"
               title={organizeLabel}
               className="text-inherit"
               onClick={onToggleFilterMenu}
@@ -268,6 +266,18 @@ export function ProjectExplorerHeader({
                 size={14}
                 className={`cursor-pointer hover:text-white transition-colors ${showFilterMenu ? 'text-white' : ''}`}
               />
+            </button>
+            <button
+              type="button"
+              aria-label={newProjectLabel}
+              title={newProjectLabel}
+              className="text-inherit"
+              data-sidebar-add-project-trigger="true"
+              onClick={() => {
+                void onCreateProject();
+              }}
+            >
+              <Plus size={15} className="cursor-pointer hover:text-white transition-colors" />
             </button>
           </div>
 

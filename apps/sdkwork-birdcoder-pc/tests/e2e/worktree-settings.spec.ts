@@ -25,7 +25,26 @@ test('worktree settings match the compact managed workflow', async ({ page }, te
     name: 'Automatically prune stale references',
   });
   await expect(autoPrune).toBeChecked();
+
+  const assertKnobIsInsideTrack = async () => {
+    const trackBox = await autoPrune.boundingBox();
+    const knobBox = await autoPrune.locator('span').boundingBox();
+    if (!trackBox || !knobBox) {
+      throw new Error('The worktree auto-prune switch must have measurable bounds.');
+    }
+    expect(knobBox.x).toBeGreaterThanOrEqual(trackBox.x);
+    expect(knobBox.x + knobBox.width).toBeLessThanOrEqual(trackBox.x + trackBox.width);
+    expect(knobBox.y).toBeGreaterThanOrEqual(trackBox.y);
+    expect(knobBox.y + knobBox.height).toBeLessThanOrEqual(trackBox.y + trackBox.height);
+  };
+
+  await assertKnobIsInsideTrack();
   await autoPrune.click();
+  await expect(autoPrune).not.toBeChecked();
+  await assertKnobIsInsideTrack();
+
+  await sidebar.getByRole('button', { name: 'General' }).click();
+  await sidebar.getByRole('button', { name: 'Worktree' }).click();
   await expect(autoPrune).not.toBeChecked();
 
   const listLimit = page.getByRole('spinbutton', { name: 'List display limit' });

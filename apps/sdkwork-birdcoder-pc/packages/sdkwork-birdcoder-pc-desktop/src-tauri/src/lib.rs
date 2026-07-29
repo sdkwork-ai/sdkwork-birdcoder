@@ -293,9 +293,10 @@ async fn git_commit_changes(
 async fn git_push_branch(
     root_path: String,
     branch_name: Option<String>,
+    force_with_lease: bool,
     remote_name: Option<String>,
 ) -> Result<host::DesktopGitProjectOverview, String> {
-    host::git_push_branch(root_path, branch_name, remote_name).await
+    host::git_push_branch(root_path, branch_name, force_with_lease, remote_name).await
 }
 
 #[tauri::command]

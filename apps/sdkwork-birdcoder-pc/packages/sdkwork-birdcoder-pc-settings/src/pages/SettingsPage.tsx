@@ -15,6 +15,9 @@ import {
   KeyboardShortcutsSettings,
   ConfigSettings,
   PersonalizationSettings,
+  PluginSettings,
+  BrowserSettings,
+  ComputerControlSettings,
   MCPSettings,
   GitSettings,
   EnvironmentSettings,
@@ -100,6 +103,14 @@ export function SettingsPage({
         return <ConfigSettings {...props} />;
       case 'personalization':
         return <PersonalizationSettings {...props} />;
+      case 'plugins':
+        return <PluginSettings {...props} />;
+      case 'browser':
+        return (
+          <BrowserSettings onOpenComputerControl={() => handleActiveTabChange('computerControl')} />
+        );
+      case 'computerControl':
+        return <ComputerControlSettings />;
       case 'mcp':
         return <MCPSettings {...props} />;
       case 'git':
@@ -114,7 +125,7 @@ export function SettingsPage({
         return <LegalComplianceSettings />;
       default:
         return (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex flex-1 items-center justify-center text-[var(--sdk-color-text-muted)]">
             {t('settings.sidebar.unavailable', { tab: activeTab })}
           </div>
         );
@@ -122,7 +133,7 @@ export function SettingsPage({
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0e0e11]">
+    <div className="flex h-full w-full bg-[var(--sdk-color-surface-canvas)] text-[var(--sdk-color-text-primary)]">
       <SettingsSidebar
         activeTab={activeTab}
         setActiveTab={handleActiveTabChange}

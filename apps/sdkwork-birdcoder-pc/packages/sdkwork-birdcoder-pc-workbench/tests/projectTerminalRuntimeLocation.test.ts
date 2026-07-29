@@ -38,6 +38,7 @@ function createAgentSessionRecord(
     sessionId: 'session.default',
     sessionKind: 'coding',
     status: 'active',
+    titleSource: 'system',
     tenantId: '0',
     totalInputTokens: '0',
     totalOutputTokens: '0',

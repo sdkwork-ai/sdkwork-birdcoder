@@ -89,6 +89,48 @@ assert.equal(
   'A streamed tail update must not rerender a stable historical transcript row.',
 );
 
+const nonOwningActionContext = createContext([historicalMessage, activeMessage], {
+  actionTarget: { endIndex: 1, startIndex: 0 },
+  expandedDisclosureKeys: stableContext.expandedDisclosureKeys,
+  showMessageActions: false,
+});
+assert.equal(
+  areChatTranscriptMessagePropsEqual(
+    createProps(nonOwningActionContext),
+    createProps(createContext([
+      historicalMessage,
+      { ...activeMessage, content: 'Streaming action-range delta' },
+    ], {
+      actionTarget: { endIndex: 1, startIndex: 0 },
+      expandedDisclosureKeys: stableContext.expandedDisclosureKeys,
+      showMessageActions: false,
+    })),
+  ),
+  true,
+  'Only the terminal row that renders grouped actions may observe action-range updates.',
+);
+
+const historicalActionContext = createContext([historicalMessage, activeMessage], {
+  actionTarget: { endIndex: 1, startIndex: 0 },
+  expandedDisclosureKeys: stableContext.expandedDisclosureKeys,
+  showMessageActions: true,
+});
+assert.equal(
+  areChatTranscriptMessagePropsEqual(
+    createProps(historicalActionContext),
+    createProps(createContext([
+      historicalMessage,
+      { ...activeMessage, content: 'Updated grouped response' },
+    ], {
+      actionTarget: { endIndex: 1, startIndex: 0 },
+      expandedDisclosureKeys: stableContext.expandedDisclosureKeys,
+      showMessageActions: true,
+    })),
+  ),
+  false,
+  'A row that owns grouped message actions must refresh when a message in its action range changes.',
+);
+
 assert.equal(
   areChatTranscriptMessagePropsEqual(
     createProps(stableContext),
@@ -110,6 +152,65 @@ assert.equal(
   ),
   false,
   'A row must rerender when its turn presentation changes semantically.',
+);
+
+const unrelatedDisclosureContext = createContext([historicalMessage, activeMessage], {
+  expandedDisclosureKeys: new Set([
+    'session-row-memo\u0001turn-active\u0001reasoning',
+  ]),
+});
+assert.equal(
+  areChatTranscriptMessagePropsEqual(
+    createProps(stableContext),
+    createProps(unrelatedDisclosureContext),
+  ),
+  true,
+  'Expanding a disclosure in another turn must not rerender a stable historical row.',
+);
+
+const ownedDisclosureContext = createContext([historicalMessage, activeMessage], {
+  expandedDisclosureKeys: new Set([
+    'session-row-memo\u0001message-historical\u0001reasoning',
+  ]),
+});
+assert.equal(
+  areChatTranscriptMessagePropsEqual(
+    createProps(stableContext),
+    createProps(ownedDisclosureContext),
+  ),
+  false,
+  'A row must rerender when one of its own disclosure keys changes.',
+);
+
+const processDisclosureContext = createContext([historicalMessage, activeMessage], {
+  expandedDisclosureKeys: new Set([
+    'turn:turn-historical\u0001turn-process',
+  ]),
+  turnProcess: {
+    isActive: false,
+    itemCount: 0,
+    items: [],
+    key: 'turn:turn-historical',
+    processBlockCount: 0,
+    targetIndex: 0,
+  },
+});
+assert.equal(
+  areChatTranscriptMessagePropsEqual(
+    createProps(createContext([historicalMessage, activeMessage], {
+      turnProcess: {
+        isActive: false,
+        itemCount: 0,
+        items: [],
+        key: 'turn:turn-historical',
+        processBlockCount: 0,
+        targetIndex: 0,
+      },
+    })),
+    createProps(processDisclosureContext),
+  ),
+  false,
+  'A row that owns a turn process must observe its process disclosure key.',
 );
 
 assert.equal(

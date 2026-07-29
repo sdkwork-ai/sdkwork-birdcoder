@@ -17,8 +17,8 @@ export default defineLocaleModule('code/actions', {
     allFilesSaved: '\u5168\u90e8\u6587\u4ef6\u5df2\u4fdd\u5b58',
     startingApplication: '\u6b63\u5728\u542f\u52a8\u5e94\u7528...',
     revealedInExplorer: '\u5df2\u5728\u7cfb\u7edf\u8d44\u6e90\u7ba1\u7406\u5668\u4e2d\u663e\u793a\uff1a{{path}}',
-    newSessionCreated: '\u65b0\u4f1a\u8bdd\u5df2\u521b\u5efa',
-    failedToCreateSession: '\u521b\u5efa\u4f1a\u8bdd\u5931\u8d25',
+    newSessionCreated: '\u65b0\u4efb\u52a1\u5df2\u521b\u5efa',
+    failedToCreateSession: '\u521b\u5efa\u4efb\u52a1\u5931\u8d25',
     deleteSessionTitle: '\u5220\u9664\u4f1a\u8bdd',
     deleteSessionDescription:
       '\u786e\u5b9a\u8981\u5220\u9664\u6b64\u4f1a\u8bdd\u5417\uff1f\u6b64\u64cd\u4f5c\u65e0\u6cd5\u64a4\u9500\u3002',

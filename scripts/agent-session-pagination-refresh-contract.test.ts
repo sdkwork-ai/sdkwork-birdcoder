@@ -423,7 +423,7 @@ assert.equal(continuationSignal?.aborted, true, 'continuation cancellation must 
 
 let activeBindingReads = 0;
 let activityHeadReads = 0;
-const inventoryRequests: AgentSessionPageRequest[] = [];
+let projectSynchronizationCalls = 0;
 const concurrentRefreshService = {
   async listSessionActivitySummaries(
     request: AgentSessionActivityPageRequest = {},
@@ -434,6 +434,11 @@ const concurrentRefreshService = {
       pageSize: 200,
       projectId: 'project.pagination',
     });
+    assert.equal(
+      projectSynchronizationCalls,
+      1,
+      'project refresh must synchronize provider inventory before reading activity',
+    );
     activityHeadReads += 1;
     return {
       items: Array.from({ length: 60 }, (_, index) => buildActivitySummary(index + 1)),
@@ -443,18 +448,6 @@ const concurrentRefreshService = {
         hasMore: false,
         nextCursor: null,
       },
-    };
-  },
-  async listSessionsByProject(
-    request: AgentSessionPageRequest = {},
-    options?: AgentSessionReadOptions,
-  ) {
-    assert.notEqual(options?.signal?.aborted, true);
-    inventoryRequests.push(request);
-    const page = request.page ?? 1;
-    return {
-      items: [buildSession(1)],
-      pageInfo: { mode: 'offset', page, pageSize: 1, hasMore: true },
     };
   },
   async listRuntimeBindings(
@@ -487,6 +480,18 @@ const concurrentRefreshService = {
   async getSessionUserStates(identities: readonly AgentSessionIdentity[]) {
     return buildSessionUserStates(identities);
   },
+  async synchronizeProjectSessions(
+    projectId: string,
+    options?: AgentSessionReadOptions,
+  ) {
+    assert.equal(projectId, 'project.pagination');
+    assert.notEqual(options?.signal?.aborted, true);
+    projectSynchronizationCalls += 1;
+    return {
+      projectId,
+      synchronizedSessionCount: '60',
+    };
+  },
 } as unknown as IAgentSessionService;
 const projectService = {
   async getProjectById() {
@@ -501,10 +506,10 @@ const refreshedProject = await refreshProjectSessions({
 assert.equal(refreshedProject.status, 'refreshed');
 assert.equal(refreshedProject.projects?.[0]?.agentSessions.length, 60);
 assert.equal(activityHeadReads, 1, 'project refresh must read one bounded activity head page');
-assert.deepEqual(
-  inventoryRequests,
-  [{ page: 1, pageSize: 1, projectId: 'project.pagination' }],
-  'project refresh must trigger one bounded provider inventory synchronization probe',
+assert.equal(
+  projectSynchronizationCalls,
+  1,
+  'project refresh must trigger one explicit provider inventory synchronization call',
 );
 assert.equal(activeBindingReads, 0, 'project refresh must not issue RuntimeBinding N+1 reads');
 assert.equal(normalizeProjectAgentSessionTargetCount(Number.NaN), 1);
@@ -517,19 +522,15 @@ assert.equal(
 
 let timedOutSignal: AbortSignal | undefined;
 const timeoutService = {
-  async listSessionsByProject(
-    request: AgentSessionPageRequest = {},
+  async synchronizeProjectSessions(
+    projectId: string,
     options?: AgentSessionReadOptions,
   ) {
     assert.notEqual(options?.signal?.aborted, true);
-    assert.deepEqual(request, {
-      page: 1,
-      pageSize: 1,
-      projectId: 'project.pagination',
-    });
+    assert.equal(projectId, 'project.pagination');
     return {
-      items: [buildSession(1)],
-      pageInfo: { mode: 'offset' as const, page: 1, pageSize: 1, hasMore: true },
+      projectId,
+      synchronizedSessionCount: '1',
     };
   },
   async listSessionActivitySummaries(

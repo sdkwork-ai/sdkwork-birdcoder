@@ -1187,6 +1187,15 @@ export const Sidebar = React.memo(function Sidebar({
       visibleSessionCountByProjectId,
     ],
   );
+  const pinnedSessions = useMemo(
+    () => buildSidebarGlobalSessions({
+      matches: (session) => session.pinned === true,
+      projects: renderTaskSearchProjects,
+      showArchived: false,
+      sortBy,
+    }),
+    [renderTaskSearchProjects, sortBy],
+  );
   useEffect(() => {
     if (organizeBy !== 'project' || !selectedProjectId || !selectedAgentSessionId) {
       return;
@@ -1323,6 +1332,7 @@ export const Sidebar = React.memo(function Sidebar({
   const renderFlatSessionRow = (
     session: AgentSessionView,
     showProjectName: boolean,
+    variant: 'default' | 'pinned' = 'default',
   ) => (
     <ProjectExplorerSessionRow
       key={buildSidebarSessionRenderKey(session)}
@@ -1331,6 +1341,7 @@ export const Sidebar = React.memo(function Sidebar({
       sessionProjectId={session.projectId}
       projectName={projectNamesById.get(session.projectId)}
       showProjectName={showProjectName}
+      variant={variant}
       isSelected={
         selectedProjectId
           ? selectedAgentSessionId === session.id && selectedProjectId === session.projectId
@@ -1358,74 +1369,73 @@ export const Sidebar = React.memo(function Sidebar({
     />
   );
   return (
-    <div 
+    <div
       className="birdcoder-workbench-sidebar relative flex shrink-0 flex-col border-r text-[length:var(--birdcoder-ui-font-size,12px)] backdrop-blur-xl"
       style={{ width }}
       onContextMenu={handleRootContextMenu}
     >
       <div className="birdcoder-session-list flex min-h-0 flex-1 flex-col">
         <ProjectExplorerHeader
-        selectedProjectId={selectedProjectId}
-        showFilterMenu={showFilterMenu}
-        showSearch={showSearch}
-        organizeBy={organizeBy}
-        sortBy={sortBy}
-        showArchived={showArchived}
-        providerFilterId={providerFilterId}
-        providerOptions={providerOptions}
-        sessionFilter={sessionFilter}
-        isRefreshingSelectedProject={refreshingProjectId === selectedProjectId}
-        refreshSessionsLabel={refreshSessionsLabel}
-        refreshingSessionsLabel={refreshingSessionsLabel}
-        newSessionLabel={t('app.menu.newSession')}
-        newSessionInCurrentProjectLabel={t('app.newSessionInCurrentProject')}
-        selectProjectFirstLabel={t('code.selectProjectFirst')}
-        currentSessionEngineId={selectedSidebarAgentSession?.engineId ?? null}
-        currentSessionModelId={selectedSidebarAgentSession?.modelId ?? null}
-        selectedEngineId={preferences.codeEngineId}
-        selectedModelId={preferences.codeModelId}
-        sessionsLabel={t('app.sessions')}
-        searchSessionsTitleLabel={t('app.searchTasks')}
-        newProjectLabel={t('app.newProject')}
-        openFolderLabel={t('app.menu.openFolder').replace('...', '')}
-        organizeLabel={t('app.organize')}
-        byProjectLabel={t('app.byProject')}
-        byProviderLabel={t('app.byProvider')}
-        chronologicalLabel={t('app.chronological')}
-        sortByLabel={t('app.sortBy')}
-        smartLabel={t('app.smart')}
-        recentLabel={t('app.recent')}
-        createdLabel={t('app.created')}
-        showLabel={t('app.show')}
-        allSessionsLabel={t('app.allSessions')}
-        relevantLabel={t('app.relevant')}
-        providerLabel={t('app.provider')}
-        anyProviderLabel={t('app.anyProvider')}
-        statusLabel={t('app.status')}
-        attentionLabel={t('app.attention')}
-        executingLabel={t('app.executing')}
-        failedLabel={t('app.failed')}
-        pinnedLabel={t('app.pinned')}
-        unreadLabel={t('app.unread')}
-        filterMenuRef={filterMenuRef}
-        scrollRegionRef={scrollRegionRef}
-        onCreateSession={handleCreateEngineSession}
-        onRefreshSelectedProject={onRefreshProjectSessions ? handleRefreshSelectedProject : undefined}
-        onToggleSearch={handleOpenTaskSearch}
-        onCreateProject={handleCreateProjectFromHeader}
-        onOpenFolder={onOpenFolder}
-        onToggleFilterMenu={() => setShowFilterMenu((previousState) => !previousState)}
-        onOrganizeByProject={handleOrganizeByProject}
-        onOrganizeByProvider={handleOrganizeByProvider}
-        onOrganizeChronologically={handleOrganizeChronologically}
-        onSortByCreated={handleSortByCreated}
-        onSortBySmart={handleSortBySmart}
-        onSortByRecent={handleSortByRecent}
-        onShowAllSessions={handleShowAllSessions}
-        onShowRelevantSessions={handleShowRelevantSessions}
-        onProviderFilterChange={handleProviderFilterChange}
-        onSessionFilterChange={handleSessionFilterChange}
-      >
+          pinnedContent={pinnedSessions.length > 0
+            ? pinnedSessions.map((session) => renderFlatSessionRow(session, false, 'pinned'))
+            : undefined}
+          selectedProjectId={selectedProjectId}
+          showFilterMenu={showFilterMenu}
+          showSearch={showSearch}
+          organizeBy={organizeBy}
+          sortBy={sortBy}
+          showArchived={showArchived}
+          providerFilterId={providerFilterId}
+          providerOptions={providerOptions}
+          sessionFilter={sessionFilter}
+          isRefreshingSelectedProject={refreshingProjectId === selectedProjectId}
+          refreshSessionsLabel={refreshSessionsLabel}
+          refreshingSessionsLabel={refreshingSessionsLabel}
+          newSessionLabel={t('app.newTask')}
+          newSessionInCurrentProjectLabel={t('app.newSessionInCurrentProject')}
+          selectProjectFirstLabel={t('code.selectProjectFirst')}
+          selectedEngineId={preferences.codeEngineId}
+          selectedModelId={preferences.codeModelId}
+          sessionsLabel={t('app.projects')}
+          searchSessionsTitleLabel={t('app.searchTasks')}
+          newProjectLabel={t('app.newProject')}
+          organizeLabel={t('app.organize')}
+          byProjectLabel={t('app.byProject')}
+          byProviderLabel={t('app.byProvider')}
+          chronologicalLabel={t('app.chronological')}
+          sortByLabel={t('app.sortBy')}
+          smartLabel={t('app.smart')}
+          recentLabel={t('app.recent')}
+          createdLabel={t('app.created')}
+          showLabel={t('app.show')}
+          allSessionsLabel={t('app.allSessions')}
+          relevantLabel={t('app.relevant')}
+          providerLabel={t('app.provider')}
+          anyProviderLabel={t('app.anyProvider')}
+          statusLabel={t('app.status')}
+          attentionLabel={t('app.attention')}
+          executingLabel={t('app.executing')}
+          failedLabel={t('app.failed')}
+          pinnedLabel={t('app.pinned')}
+          unreadLabel={t('app.unread')}
+          filterMenuRef={filterMenuRef}
+          scrollRegionRef={scrollRegionRef}
+          onCreateSession={handleCreateEngineSession}
+          onRefreshSelectedProject={onRefreshProjectSessions ? handleRefreshSelectedProject : undefined}
+          onToggleSearch={handleOpenTaskSearch}
+          onCreateProject={handleCreateProjectFromHeader}
+          onToggleFilterMenu={() => setShowFilterMenu((previousState) => !previousState)}
+          onOrganizeByProject={handleOrganizeByProject}
+          onOrganizeByProvider={handleOrganizeByProvider}
+          onOrganizeChronologically={handleOrganizeChronologically}
+          onSortByCreated={handleSortByCreated}
+          onSortBySmart={handleSortBySmart}
+          onSortByRecent={handleSortByRecent}
+          onShowAllSessions={handleShowAllSessions}
+          onShowRelevantSessions={handleShowRelevantSessions}
+          onProviderFilterChange={handleProviderFilterChange}
+          onSessionFilterChange={handleSessionFilterChange}
+        >
         <div className="flex flex-col gap-1">
           {organizeBy === 'project' ? (
             projectEntries.map((entry) => {

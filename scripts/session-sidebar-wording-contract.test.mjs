@@ -54,6 +54,15 @@ const codePageSource = readSource(
   'pages',
   'CodePage.tsx',
 );
+const codePageSurfacePropsSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-code',
+  'src',
+  'pages',
+  'useCodePageSurfaceProps.ts',
+);
 const studioChatSidebarSource = readSource(
   'apps',
   
@@ -135,6 +144,26 @@ const zhStudioWorkspaceLocale = readSource(
   'studio',
   'workspace.ts',
 );
+const enSettingsExtraLocale = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-i18n',
+  'src',
+  'locales',
+  'en',
+  'settings-extra.ts',
+);
+const zhSettingsExtraLocale = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-i18n',
+  'src',
+  'locales',
+  'zh',
+  'settings-extra.ts',
+);
 
 assert.match(
   codeSidebarSource,
@@ -144,12 +173,13 @@ assert.match(
 
 assert.match(
   codeProjectExplorerSessionRowSource,
-  /onClick=\{\(\) => onSelectAgentSession\(session\.id\)\}/,
-  'Code sidebar must allow selecting a session directly from the project list.',
+  /onClick=\{\(\) => onSelectAgentSession\(session\.id, resolvedSessionProjectId\)\}/,
+  'Code sidebar must select a session with its owning project context.',
 );
 
 assert.ok(
-  codePageSource.includes('messages: selectedAgentSessionItems'),
+  codePageSource.includes('const selectedAgentSessionItems = useMemo(')
+    && codePageSurfacePropsSource.includes('messages: mainChatMessages'),
   'Code page must continue loading the selected session message history into the chat view.',
 );
 
@@ -202,6 +232,16 @@ assert.ok(
 );
 
 assert.ok(
+  zhAppSidebarLocale.includes("pinned: '\\u7f6e\\u9876'"),
+  'Chinese pinned section heading should use 置顶.',
+);
+
+assert.ok(
+  codeSidebarSource.includes("sessionsLabel={t('app.projects')}"),
+  'Code sidebar project section heading must not fall back to session wording for persisted grouping modes.',
+);
+
+assert.ok(
   enStudioWorkspaceLocale.includes('"searchProjects": "Search projects or sessions..."'),
   'English Studio search should mention sessions instead of threads.',
 );
@@ -212,8 +252,8 @@ assert.ok(
 );
 
 assert.ok(
-  enStudioWorkspaceLocale.includes('"newSession": "New Session"'),
-  'English Studio create action should use session wording.',
+  enStudioWorkspaceLocale.includes('"newSession": "New task"'),
+  'English Studio create action should use task wording.',
 );
 
 assert.ok(
@@ -227,8 +267,22 @@ assert.ok(
 );
 
 assert.ok(
-  zhStudioWorkspaceLocale.includes("newSession: '\\u65b0\\u5efa\\u4f1a\\u8bdd'"),
-  'Chinese Studio create action should use 会话 wording.',
+  zhStudioWorkspaceLocale.includes("newSession: '\\u65b0\\u5efa\\u4efb\\u52a1'"),
+  'Chinese Studio create action should use task wording.',
+);
+
+assert.ok(
+  enSettingsExtraLocale.includes(
+    "newSession: { label: 'New task', description: 'Start a new task' }",
+  ),
+  'English new-task shortcut copy should consistently use task wording.',
+);
+
+assert.ok(
+  zhSettingsExtraLocale.includes(
+    "newSession: { label: '\\u65b0\\u5efa\\u4efb\\u52a1', description: '\\u5f00\\u59cb\\u65b0\\u4efb\\u52a1' }",
+  ),
+  'Chinese new-task shortcut copy should be localized with task wording.',
 );
 
 console.log('session sidebar wording contract passed.');

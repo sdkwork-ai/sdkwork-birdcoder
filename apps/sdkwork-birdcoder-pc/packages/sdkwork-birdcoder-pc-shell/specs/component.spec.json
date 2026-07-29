@@ -119,7 +119,8 @@
     ],
     "requiredPorts": [],
     "publicExports": [
-      "."
+      ".",
+      "./styles"
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [],

@@ -26,6 +26,9 @@ test('settings sidebar provides compact grouped navigation and search', async ({
     'page',
   );
   await expect(sidebar.getByRole('button', { name: 'Keyboard Shortcuts' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Plugins' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Browser' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Computer Control' })).toBeVisible();
 
   const search = sidebar.getByRole('searchbox', { name: 'Search settings...' });
   await search.fill('Worktree');

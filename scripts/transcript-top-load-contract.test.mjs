@@ -17,6 +17,16 @@ const progressiveTranscriptHookPath = path.join(
 );
 
 const progressiveTranscriptHookSource = fs.readFileSync(progressiveTranscriptHookPath, 'utf8');
+const universalChatSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'UniversalChat.tsx',
+), 'utf8');
 
 assert.match(
   progressiveTranscriptHookSource,
@@ -86,8 +96,31 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const scrollMetrics = readTranscriptScrollMetrics\(messagesEndRef\);[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)/s,
+  /const scrollMetrics = readTranscriptScrollMetrics\(\s*scrollContainerRef,\s*\);[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)/s,
   'Progressive transcript pagination must gate earlier-history loading behind the shared top-threshold predicate.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /const scrollContainer = scrollContainerRef\.current;/s,
+  'Progressive transcript pagination must read the explicit transcript scroll container.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*scrollContainerRef: RefObject<HTMLDivElement \| null>/s,
+  'Progressive transcript pagination must require the transcript scroll container as an explicit dependency.',
+);
+assert.doesNotMatch(
+  progressiveTranscriptHookSource,
+  /messagesEndRef|parentElement/,
+  'Progressive transcript pagination must never infer its viewport from the message-end marker DOM parent.',
+);
+
+assert.match(
+  universalChatSource,
+  /useProgressiveTranscriptWindow\(\s*messages,\s*scrollContainerRef,\s*isActive,\s*sessionId,\s*\{[\s\S]*?\},\s*scrollCoordinator,\s*navigationTargetIndex,\s*\);/s,
+  'UniversalChat must pass the real overflow container to progressive transcript pagination.',
 );
 
 assert.match(
@@ -110,14 +143,32 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /currentRemoteHistory\?\.hasMoreMessages[\s\S]*!currentRemoteHistory\.isLoadingMessages[\s\S]*!remoteLoadRequestRef\.current/s,
-  'Progressive transcript pagination must require remote page metadata and an idle request gate before dispatching another server page.',
+  /!currentRemoteHistory\?\.hasMoreMessages[\s\S]*return 'not-at-top';[\s\S]*currentRemoteHistory\.isLoadingMessages \|\| remoteLoadRequestRef\.current[\s\S]*return 'blocked';/s,
+  'Progressive transcript pagination must distinguish exhausted remote history from a temporarily blocked request gate.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /!pendingTopLoadAfterRemoteRequestRef\.current[\s\S]*pendingTopLoadAfterRemoteRequestRef\.current = false;[\s\S]*setRemoteTopLoadRearmVersion\(\(version\) => version \+ 1\);[\s\S]*remoteHistory\?\.isLoadingMessages,\s*transcriptIdentity/s,
+  /!pendingTopLoadAfterRemoteRequestRef\.current[\s\S]*setRemoteTopLoadRearmVersion\(\(version\) => version \+ 1\);[\s\S]*remoteHistory\?\.isLoadingMessages,\s*transcriptIdentity/s,
   'Progressive transcript pagination must recheck the top threshold only when an explicit pending intent survives until both remote loading gates become idle.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /type EarlierTranscriptPageRequestResult = 'blocked' \| 'not-at-top' \| 'started';/,
+  'Top-load request evaluation must report whether intent was consumed or remains blocked.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /const requestResult = requestEarlierTranscriptPage\(\);[\s\S]*requestResult !== 'blocked'[\s\S]*pendingTopLoadIntentRef\.current = false;[\s\S]*pendingTopLoadAfterRemoteRequestRef\.current = false;/s,
+  'Top-load intent must remain pending while request dispatch is blocked and be consumed only after a terminal evaluation.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /if \(pendingTopLoadIntentRef\.current\) \{\s*scheduleEarlierTranscriptPageRequest\(\);\s*\}/,
+  'Listener reinstallation must reschedule a surviving top-load intent after cleanup cancels its animation frame.',
 );
 
 assert.match(

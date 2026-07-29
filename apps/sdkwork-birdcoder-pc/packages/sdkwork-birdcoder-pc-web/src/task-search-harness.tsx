@@ -4,8 +4,8 @@ import type {
   AgentProjectView,
   AgentSessionView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import '@sdkwork/birdcoder-pc-shell/styles';
 import { TaskSearchDialog } from '../../sdkwork-birdcoder-pc-code/src/components/TaskSearchDialog.tsx';
-import '../../../src/index.css';
 
 const taskSeeds = [
   ['review', '全面审查应用实现质量', 'streaming'],

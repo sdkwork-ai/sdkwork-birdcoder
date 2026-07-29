@@ -160,6 +160,7 @@ interface UseCodePageSurfacePropsOptions {
   onForkAgentSessionNewTree: NonNullable<ProjectExplorerProps['onForkAgentSessionNewTree']>;
   onMarkAgentSessionUnread: NonNullable<ProjectExplorerProps['onMarkAgentSessionUnread']>;
   onNewAgentSessionInProject: NonNullable<ProjectExplorerProps['onNewAgentSessionInProject']>;
+  onNewSessionProjectSelect: (projectId: string) => void;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
   onLoadMoreProjectSessions: NonNullable<ProjectExplorerProps['onLoadMoreProjectSessions']>;
@@ -306,6 +307,7 @@ export function useCodePageSurfaceProps({
   onForkAgentSessionNewTree,
   onMarkAgentSessionUnread,
   onNewAgentSessionInProject,
+  onNewSessionProjectSelect,
   onNewProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
@@ -623,13 +625,22 @@ export function useCodePageSurfaceProps({
     onRestore: onRestoreMessage,
     emptyState: mainChatEmptyState,
     newSessionContext: createElement(CodeNewSessionContext, {
+      hasMoreProjects,
+      isLoadingMoreProjects,
+      onLoadMoreProjects,
+      onNewProject,
+      onProjectSelect: onNewSessionProjectSelect,
       projectGitOverviewState,
       projectId: currentProjectId || projectId,
       projectName,
+      projects,
     }),
   }), [
     activeTab,
+    currentProjectId,
+    hasMoreProjects,
     hasMoreRemoteMessages,
+    isLoadingMoreProjects,
     isLoadingMoreRemoteMessages,
     isChatEngineBusy,
     isChatBusy,
@@ -640,6 +651,9 @@ export function useCodePageSurfaceProps({
     onSubmitUserQuestionAnswer,
     onOpenMessageFile,
     onLoadMoreRemoteMessages,
+    onLoadMoreProjects,
+    onNewProject,
+    onNewSessionProjectSelect,
     onRestoreMessage,
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
@@ -650,6 +664,7 @@ export function useCodePageSurfaceProps({
     projectGitOverviewState,
     projectId,
     projectName,
+    projects,
     selectedEngineId,
     selectedModelId,
     selectedSessionEngineId,

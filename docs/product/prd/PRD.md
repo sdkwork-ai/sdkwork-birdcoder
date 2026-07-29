@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-07-27
+Updated: 2026-07-29
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Background And Problem
@@ -99,36 +99,45 @@ Non-goals:
    Project inventory, creation, and import require the selected `workspaceId`.
 4. PC AI workflows use canonical Agents Sessions and Session Items without a
    local Session or transcript authority.
-5. PC Session lists consume the owner-scoped, paginated Agents Session Activity
-   summary. The disposable in-memory projection incorporates Turn,
-   Interaction, Runtime Binding, user-state, provider identity, activity
-   fact-version, and freshness changes even when the Session version is
-   unchanged. Provider observation only enriches rows already selected by the
-   managed authority head and cannot make an older Session enter that head.
-6. Session creation records runtime association through the Agents runtime
+5. A manual Project Session refresh calls the generated Agents App SDK
+   `projectSessions.synchronize` operation before it reads the owner-scoped,
+   paginated Session Activity summary. The read endpoint is side-effect free.
+   The disposable in-memory projection incorporates Turn, Interaction, Runtime
+   Binding, user-state, provider identity, activity fact-version, and freshness
+   changes even when the Session version is unchanged. Browser and desktop
+   clients never send local paths, directory names, or fingerprints to this
+   owner operation. Provider observation only enriches rows already selected by
+   the managed authority head and cannot make an older Session enter that head.
+6. Provider inventory synchronization identifies a provider session identifier within the
+   tenant, organization, owner, engine-qualified provider binding, provider,
+   and provider Session scope. The Agents baseline enforces the stored
+   owner/binding/provider/session-identifier uniqueness constraint. Provider titles
+   remain refreshable only while `titleSource` is `provider`; an explicit user
+   rename changes the authority to `user` and survives later inventories.
+7. Session creation records runtime association through the Agents runtime
    binding resource when local execution context is required.
-7. Skill workflows use the Skills SDK. Human messaging belongs to IM and uses
+8. Skill workflows use the Skills SDK. Human messaging belongs to IM and uses
    the IM SDK when that separate product capability is enabled.
-8. Tauri device state accepts only the explicit settings, project-mount, and
+9. Tauri device state accepts only the explicit settings, project-mount, and
    installation-identity namespaces.
-9. Sandbox composition uses `drive/drive`; document composition accepts only
+10. Sandbox composition uses `drive/drive`; document composition accepts only
    canonical `document/documents` slots and fails closed before a Documents
    SDK call when the slot pairing or reference is invalid.
-10. Frontend features consume injected owner clients or ports and do not
-   implement raw transport or local SDK forks.
-11. Cross-context Session synchronization broadcasts only a scoped
+11. Frontend features consume injected owner clients or ports and do not
+    implement raw transport or local SDK forks.
+12. Cross-context Session synchronization broadcasts only a scoped
     invalidation; receivers re-read Agents, and background refresh does not
     replace an explicit Session selection.
-12. Code and Studio present provider identity as the leftmost visual item and a
+13. Code and Studio present provider identity as the leftmost visual item and a
     known runtime-status icon at the far right. Only initializing and streaming
     animate; waits, failure, and stale presentation remain static. Unknown,
     `null`, or absent runtime status has no label, icon, or reserved slot. Time
     or rendered status text occupies a separate right-aligned trailing metadata
     region; the title truncates in the remaining width and Studio does not put
     time below it.
-13. The Header renders Workspace selection on the left and the selected
+14. The Header renders Workspace selection on the left and the selected
     Workspace's Project inventory on the right.
-14. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
+15. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
     remain mutually consistent.
 
 ## 6. Quality, Security, And Commercial Gates
@@ -162,6 +171,7 @@ the current migration is complete.
 
 - [REQ-2026-0002 Domain ownership convergence](../requirements/REQ-2026-0002-domain-ownership-convergence.md)
 - [REQ-2026-0003 Cross-application Session Activity Inbox](../requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
+- [REQ-2026-0005 PC Appearance Settings](../requirements/REQ-2026-0005-pc-appearance-settings.md)
 - [ADR-20260722 Owner-composed stateless workbench](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../../architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
 - [Direct cutover record](../../migrations/MIG-2026-0002-domain-ownership-cutover.md)
@@ -170,16 +180,29 @@ the current migration is complete.
 ## 9. Open Questions
 
 No product-ownership boundary is open for the current Rust-and-PC cutover.
-Production launch remains blocked on the four owner implementation questions in
+Provider-identity design and the greenfield PostgreSQL baseline are implemented.
+They have source and contract-test evidence, but no configured live database was
+reset or migrated during this work. Production launch remains blocked on the
+following owner operational evidence in
 [REQ-2026-0003](../requirements/REQ-2026-0003-cross-application-session-activity-inbox.md):
 
 - bounded indexed PostgreSQL P1 Session Activity head projection;
-- collision-safe cross-tenant and cross-provider provider Session identity;
+- live PostgreSQL migration and query-plan evidence for the owner-scoped
+  provider identity constraint and activity projection;
 - Project deletion tombstone and pagination semantics;
+- durable distributed runtime routing and synchronization-job ownership for
+  multi-node availability; and
 - a persisted server-monotonic aggregate activity revision if the contract
   requires one.
 
-These require Agents and Kernel maintainer review. Provider-only observation is
+The repository technical-debt quality gate also remains a release blocker until
+the retired Workspace/IDE service types identified by that gate are removed.
+They are outside the Session authority and are not a reason to reintroduce a
+BirdCoder-owned Session store.
+
+The present provider inventory is bounded and executes synchronously on the
+runtime host selected by Agents. It is not a distributed durable job. These
+items require Agents and Kernel maintainer review. Provider-only observation is
 page-local enrichment and does not close head discovery. Additional composition
 kinds must likewise be added by their owning modules before PC can consume
 them; BirdCoder does not invent aliases or compatibility slots.

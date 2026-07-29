@@ -1546,7 +1546,7 @@ export function useProjects(options?: UseProjectsOptions) {
     projectId: string,
     agentSessionId: string,
     updates: UpdateAgentSessionOptions,
-  ) => {
+  ): Promise<boolean> => {
     try {
       if (updates.hostMode !== undefined) {
         throw new Error('Session host mode is managed by the active Agents runtime binding.');
@@ -1602,15 +1602,20 @@ export function useProjects(options?: UseProjectsOptions) {
           })),
         );
       }
+      const sessionViewUpdates: UpdateAgentSessionOptions = { ...updates };
+      delete sessionViewUpdates.archived;
+      delete sessionViewUpdates.pinned;
+      delete sessionViewUpdates.unread;
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
-          ...updates,
+          ...sessionViewUpdates,
           status: updates.status ?? agentSession.status,
           updatedAt: session.updatedAt,
         })),
       );
       void invalidateWorkspaceSessionInbox();
+      return true;
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1620,6 +1625,7 @@ export function useProjects(options?: UseProjectsOptions) {
         ...previousSnapshot,
         error: message,
       }));
+      return false;
     }
   };
 

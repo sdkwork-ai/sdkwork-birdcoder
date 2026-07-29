@@ -38,7 +38,8 @@
     "./providers/ShellRuntimeProviders": {
       "import": "./src/application/providers/ShellRuntimeProviders.tsx",
       "types": "./src/application/providers/ShellRuntimeProviders.tsx"
-    }
+    },
+    "./styles": "./src/styles/index.css"
   },
   "scripts": {}
 }

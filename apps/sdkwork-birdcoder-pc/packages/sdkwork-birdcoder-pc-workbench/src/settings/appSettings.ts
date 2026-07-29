@@ -159,7 +159,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   lightThemeName: "Codex Light",
   lightAccent: "#0285FF",
   lightBackground: "#FFFFFF",
-  lightForeground: "#0D0D0D",
+  lightForeground: "#1A1C1F",
   lightUiFont: "-apple-system, BlinkMacSystemFont",
   lightCodeFont: "ui-monospace, SFMono-Regular",
   lightTranslucent: true,

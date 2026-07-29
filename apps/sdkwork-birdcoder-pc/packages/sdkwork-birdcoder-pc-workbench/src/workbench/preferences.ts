@@ -28,6 +28,7 @@ import {
 
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
   codeEngineSettings: WorkbenchCodeEngineSettingsMap;
+  disabledComposerCapabilityIds: string[];
   terminalProfileId: TerminalProfileId;
   defaultWorkingDirectory: string;
   codeEditorChatWidth: number;
@@ -36,14 +37,28 @@ export interface WorkbenchPreferences extends WorkbenchChatSelection {
   sessionInboxProviderId: string;
   sessionInboxShowArchived: boolean;
   sessionInboxSortMode: AgentSessionInboxSortMode;
+  gitBranchPrefix: string;
+  gitCommitInstructions: string;
+  gitCreateDraftPullRequest: boolean;
+  gitForceWithLease: boolean;
+  gitPullRequestInstructions: string;
+  gitPullRequestMergeMethod: GitPullRequestMergeMethod;
+  gitReviewDeliveryMode: GitReviewDeliveryMode;
   worktreeAutoPrune: boolean;
   worktreeListLimit: number;
 }
+
+export const GIT_PULL_REQUEST_MERGE_METHODS = ['merge', 'squash'] as const;
+export type GitPullRequestMergeMethod = (typeof GIT_PULL_REQUEST_MERGE_METHODS)[number];
+
+export const GIT_REVIEW_DELIVERY_MODES = ['inline', 'separate'] as const;
+export type GitReviewDeliveryMode = (typeof GIT_REVIEW_DELIVERY_MODES)[number];
 
 interface WorkbenchPreferencesInput {
   codeEngineId?: string | null;
   codeModelId?: string | null;
   codeEngineSettings?: unknown;
+  disabledComposerCapabilityIds?: unknown;
   terminalProfileId?: string | null;
   defaultWorkingDirectory?: string | null;
   codeEditorChatWidth?: number | null;
@@ -52,6 +67,13 @@ interface WorkbenchPreferencesInput {
   sessionInboxProviderId?: string | null;
   sessionInboxShowArchived?: boolean | null;
   sessionInboxSortMode?: string | null;
+  gitBranchPrefix?: string | null;
+  gitCommitInstructions?: string | null;
+  gitCreateDraftPullRequest?: boolean | null;
+  gitForceWithLease?: boolean | null;
+  gitPullRequestInstructions?: string | null;
+  gitPullRequestMergeMethod?: string | null;
+  gitReviewDeliveryMode?: string | null;
   worktreeAutoPrune?: boolean | null;
   worktreeListLimit?: number | null;
 }
@@ -73,6 +95,11 @@ export const DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 520;
 export const MIN_WORKTREE_LIST_LIMIT = 1;
 export const MAX_WORKTREE_LIST_LIMIT = 100;
 export const DEFAULT_WORKTREE_LIST_LIMIT = 15;
+export const DEFAULT_GIT_BRANCH_PREFIX = 'codex/';
+export const MAX_GIT_BRANCH_PREFIX_LENGTH = 120;
+export const MAX_GIT_INSTRUCTIONS_LENGTH = 12_000;
+export const MAX_DISABLED_COMPOSER_CAPABILITY_IDS = 500;
+export const MAX_COMPOSER_CAPABILITY_ID_LENGTH = 512;
 
 const TERMINAL_PROFILE_ALIASES: Readonly<Record<string, TerminalProfileId>> = {
   powershell: 'powershell',
@@ -90,6 +117,7 @@ const TERMINAL_PROFILE_ALIASES: Readonly<Record<string, TerminalProfileId>> = {
 export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   ...DEFAULT_WORKBENCH_CHAT_SELECTION,
   codeEngineSettings: {},
+  disabledComposerCapabilityIds: [],
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
   defaultWorkingDirectory: DEFAULT_WORKING_DIRECTORY,
   codeEditorChatWidth: DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
@@ -98,6 +126,13 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   sessionInboxProviderId: 'all',
   sessionInboxShowArchived: false,
   sessionInboxSortMode: 'smart',
+  gitBranchPrefix: DEFAULT_GIT_BRANCH_PREFIX,
+  gitCommitInstructions: '',
+  gitCreateDraftPullRequest: true,
+  gitForceWithLease: false,
+  gitPullRequestInstructions: '',
+  gitPullRequestMergeMethod: 'merge',
+  gitReviewDeliveryMode: 'inline',
   worktreeAutoPrune: true,
   worktreeListLimit: DEFAULT_WORKTREE_LIST_LIMIT,
 };
@@ -114,6 +149,43 @@ function normalizeStringEnum<TValue extends string>(
 function normalizeSessionInboxProviderId(value: string | null | undefined): string {
   const normalized = value?.trim();
   return normalized && normalized.length <= 160 ? normalized : 'all';
+}
+
+export function normalizeWorkbenchDisabledComposerCapabilityIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalizedIds: string[] = [];
+  const seenIds = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const normalizedId = entry.trim().slice(0, MAX_COMPOSER_CAPABILITY_ID_LENGTH);
+    if (!normalizedId || seenIds.has(normalizedId)) {
+      continue;
+    }
+    seenIds.add(normalizedId);
+    normalizedIds.push(normalizedId);
+    if (normalizedIds.length >= MAX_DISABLED_COMPOSER_CAPABILITY_IDS) {
+      break;
+    }
+  }
+  return normalizedIds;
+}
+
+export function normalizeWorkbenchGitBranchPrefix(
+  value: string | null | undefined,
+): string {
+  if (value === null || value === undefined) {
+    return DEFAULT_GIT_BRANCH_PREFIX;
+  }
+  return value.trim().slice(0, MAX_GIT_BRANCH_PREFIX_LENGTH);
+}
+
+function normalizeGitInstructions(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.slice(0, MAX_GIT_INSTRUCTIONS_LENGTH) : '';
 }
 
 export function normalizeWorkbenchCodeEditorChatWidth(
@@ -159,6 +231,9 @@ export function normalizeWorkbenchPreferences(
   return {
     ...resolveWorkbenchChatSelection(value, { codeEngineSettings }),
     codeEngineSettings,
+    disabledComposerCapabilityIds: normalizeWorkbenchDisabledComposerCapabilityIds(
+      value?.disabledComposerCapabilityIds,
+    ),
     terminalProfileId,
     defaultWorkingDirectory:
       defaultWorkingDirectory || DEFAULT_WORKBENCH_PREFERENCES.defaultWorkingDirectory,
@@ -179,6 +254,25 @@ export function normalizeWorkbenchPreferences(
       value?.sessionInboxSortMode,
       AGENT_SESSION_INBOX_SORT_MODES,
       DEFAULT_WORKBENCH_PREFERENCES.sessionInboxSortMode,
+    ),
+    gitBranchPrefix: normalizeWorkbenchGitBranchPrefix(value?.gitBranchPrefix),
+    gitCommitInstructions: normalizeGitInstructions(value?.gitCommitInstructions),
+    gitCreateDraftPullRequest: typeof value?.gitCreateDraftPullRequest === 'boolean'
+      ? value.gitCreateDraftPullRequest
+      : DEFAULT_WORKBENCH_PREFERENCES.gitCreateDraftPullRequest,
+    gitForceWithLease: typeof value?.gitForceWithLease === 'boolean'
+      ? value.gitForceWithLease
+      : DEFAULT_WORKBENCH_PREFERENCES.gitForceWithLease,
+    gitPullRequestInstructions: normalizeGitInstructions(value?.gitPullRequestInstructions),
+    gitPullRequestMergeMethod: normalizeStringEnum(
+      value?.gitPullRequestMergeMethod,
+      GIT_PULL_REQUEST_MERGE_METHODS,
+      DEFAULT_WORKBENCH_PREFERENCES.gitPullRequestMergeMethod,
+    ),
+    gitReviewDeliveryMode: normalizeStringEnum(
+      value?.gitReviewDeliveryMode,
+      GIT_REVIEW_DELIVERY_MODES,
+      DEFAULT_WORKBENCH_PREFERENCES.gitReviewDeliveryMode,
     ),
     worktreeAutoPrune: typeof value?.worktreeAutoPrune === 'boolean'
       ? value.worktreeAutoPrune

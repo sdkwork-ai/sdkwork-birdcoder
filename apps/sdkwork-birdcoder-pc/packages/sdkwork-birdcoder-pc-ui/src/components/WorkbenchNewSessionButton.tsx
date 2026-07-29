@@ -1,5 +1,13 @@
-import { Check, ChevronDown } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronDown, SquarePen } from 'lucide-react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import {
   getWorkbenchCodeModelLabel,
@@ -49,14 +57,13 @@ function getVariantStyle(
       };
     case 'sidebar':
       return {
-        container: 'relative animate-in fade-in slide-in-from-left-4 fill-mode-both',
+        container: 'relative w-full animate-in fade-in slide-in-from-left-4 fill-mode-both',
         menu:
-          'birdcoder-chrome-menu absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl',
+          'birdcoder-chrome-menu absolute inset-x-0 top-full z-50 mt-1 w-auto rounded-lg border py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl',
         primaryButton:
-          'flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left transition-all duration-200',
-        secondaryButton:
-          'flex items-center justify-center border-l border-white/10 px-2 transition-all duration-200',
-        wrapper: 'flex overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.025] transition-all duration-200',
+          'flex h-9 min-w-0 flex-1 items-center gap-3 rounded-md px-2 text-left text-sm font-medium transition-colors duration-150',
+        secondaryButton: 'hidden',
+        wrapper: 'flex w-full',
       };
     case 'topbar':
     default:
@@ -89,14 +96,18 @@ function WorkbenchNewSessionButtonComponent({
   const { preferences } = useWorkbenchPreferences();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
+  const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const sidebarCloseTimerRef = useRef<number | null>(null);
   const variantStyle = getVariantStyle(variant);
   const isCompactStudio = variant === 'studio' && compact;
+  const isSidebar = variant === 'sidebar';
   const { availableEngines, preferredSelection } = useMemo(
     () =>
       resolveWorkbenchNewSessionEngineCatalog(
         {
-          currentSessionEngineId,
-          currentSessionModelId,
+          currentSessionEngineId: isSidebar ? undefined : currentSessionEngineId,
+          currentSessionModelId: isSidebar ? undefined : currentSessionModelId,
           preferredEngineId: selectedEngineId,
           preferredModelId: selectedModelId,
         },
@@ -105,11 +116,46 @@ function WorkbenchNewSessionButtonComponent({
     [
       currentSessionEngineId,
       currentSessionModelId,
+      isSidebar,
       preferences,
       selectedEngineId,
       selectedModelId,
     ],
   );
+
+  const clearSidebarCloseTimer = useCallback(() => {
+    if (sidebarCloseTimerRef.current !== null) {
+      window.clearTimeout(sidebarCloseTimerRef.current);
+      sidebarCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const openSidebarMenu = useCallback(() => {
+    if (!isSidebar || disabled || availableEngines.length === 0) {
+      return;
+    }
+
+    clearSidebarCloseTimer();
+    setIsOpen(true);
+  }, [availableEngines.length, clearSidebarCloseTimer, disabled, isSidebar]);
+
+  const scheduleSidebarMenuClose = useCallback(() => {
+    if (!isSidebar) {
+      return;
+    }
+
+    clearSidebarCloseTimer();
+    sidebarCloseTimerRef.current = window.setTimeout(() => {
+      sidebarCloseTimerRef.current = null;
+      setIsOpen(false);
+    }, 120);
+  }, [clearSidebarCloseTimer, isSidebar]);
+
+  const focusMenuItem = useCallback((index: number) => {
+    window.requestAnimationFrame(() => {
+      menuItemRefs.current[index]?.focus();
+    });
+  }, []);
 
   useEffect(() => {
     if (!disabled) {
@@ -118,6 +164,8 @@ function WorkbenchNewSessionButtonComponent({
 
     setIsOpen(false);
   }, [disabled]);
+
+  useEffect(() => () => clearSidebarCloseTimer(), [clearSidebarCloseTimer]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -141,9 +189,11 @@ function WorkbenchNewSessionButtonComponent({
       return;
     }
 
+    clearSidebarCloseTimer();
     setIsOpen(false);
     void onCreateSession(preferredSelection.engine.id, preferredSelection.modelId);
   }, [
+    clearSidebarCloseTimer,
     disabled,
     onCreateSession,
     preferredSelection.engine.id,
@@ -157,6 +207,47 @@ function WorkbenchNewSessionButtonComponent({
 
     setIsOpen((previousState) => !previousState);
   }, [disabled]);
+
+  const handlePrimaryKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!isSidebar || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) {
+      return;
+    }
+
+    event.preventDefault();
+    openSidebarMenu();
+    focusMenuItem(event.key === 'ArrowUp' ? availableEngines.length - 1 : 0);
+  };
+
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const activeIndex = menuItemRefs.current.findIndex(
+      (item) => item === document.activeElement,
+    );
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      clearSidebarCloseTimer();
+      setIsOpen(false);
+      primaryButtonRef.current?.focus();
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      focusMenuItem(0);
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      focusMenuItem(availableEngines.length - 1);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = (
+        activeIndex + direction + availableEngines.length
+      ) % availableEngines.length;
+      focusMenuItem(nextIndex);
+    }
+  };
 
   const buttonTitle = disabled ? disabledTitle ?? buttonLabel : buttonLabel;
   const resolvedMenuLabel = menuLabel ?? buttonLabel;
@@ -175,7 +266,7 @@ function WorkbenchNewSessionButtonComponent({
           disabled
             ? 'cursor-not-allowed text-gray-500'
             : variant === 'sidebar'
-              ? 'cursor-pointer hover:bg-white/10 hover:text-white'
+              ? 'cursor-pointer text-gray-200 hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white focus-visible:outline-none'
               : 'text-gray-100 hover:bg-white/10'
         } ${variant === 'topbar' && compact ? '!gap-0 !px-2' : ''}`;
   const secondaryButtonClassName =
@@ -200,7 +291,7 @@ function WorkbenchNewSessionButtonComponent({
         }`;
   const wrapperClassName =
     variant === 'sidebar'
-      ? `${variantStyle.wrapper} ${disabled ? 'text-gray-600' : 'bg-transparent text-gray-300'}`
+      ? `${variantStyle.wrapper} ${disabled ? 'text-gray-600' : 'text-gray-200'}`
       : isCompactStudio
         ? `${variantStyle.wrapper} !rounded-md !border-0 !bg-white/[0.07]`
         : variantStyle.wrapper;
@@ -212,49 +303,67 @@ function WorkbenchNewSessionButtonComponent({
     <div
       ref={menuRef}
       className={`${variantStyle.container} ${isCompactStudio ? '!flex-none' : ''} shrink-0 whitespace-nowrap`}
+      data-sidebar-new-session-entry={isSidebar ? 'true' : undefined}
+      onMouseEnter={isSidebar ? openSidebarMenu : undefined}
+      onMouseLeave={isSidebar ? scheduleSidebarMenuClose : undefined}
     >
       <div className={wrapperClassName}>
         <button
+          ref={primaryButtonRef}
           type="button"
           disabled={disabled}
           title={buttonTitle}
           aria-label={buttonLabel}
+          aria-expanded={isSidebar ? isOpen : undefined}
+          aria-haspopup={isSidebar ? 'menu' : undefined}
           className={primaryButtonClassName}
+          data-sidebar-new-session-trigger={isSidebar ? 'true' : undefined}
           onClick={handlePrimaryClick}
+          onKeyDown={handlePrimaryKeyDown}
         >
-          <span className="shrink-0">
-            <WorkbenchCodeEngineIcon engineId={preferredSelection.engine.id} />
-          </span>
+          {isSidebar ? (
+            <SquarePen size={18} className="shrink-0 text-gray-300" aria-hidden="true" />
+          ) : (
+            <span className="shrink-0">
+              <WorkbenchCodeEngineIcon engineId={preferredSelection.engine.id} />
+            </span>
+          )}
           {variant !== 'topbar' || !compact ? (
             <span className="truncate">{buttonLabel}</span>
           ) : null}
         </button>
-        <button
-          type="button"
-          disabled={disabled}
-          title={buttonTitle}
-          aria-label={resolvedMenuLabel}
-          aria-expanded={isOpen}
-          aria-haspopup="menu"
-          className={secondaryButtonClassName}
-          onClick={handleToggleMenu}
-        >
-          <ChevronDown
-            size={variant === 'studio' ? 12 : 14}
-            className={isOpen ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'}
-          />
-        </button>
+        {!isSidebar ? (
+          <button
+            type="button"
+            disabled={disabled}
+            title={buttonTitle}
+            aria-label={resolvedMenuLabel}
+            aria-expanded={isOpen}
+            aria-haspopup="menu"
+            className={secondaryButtonClassName}
+            onClick={handleToggleMenu}
+          >
+            <ChevronDown
+              size={variant === 'studio' ? 12 : 14}
+              className={isOpen ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'}
+            />
+          </button>
+        ) : null}
       </div>
       {isOpen && !disabled ? (
         <div
           aria-label={resolvedMenuLabel}
           className={menuClassName}
+          data-sidebar-new-session-menu={isSidebar ? 'true' : undefined}
           role="menu"
+          onKeyDown={handleMenuKeyDown}
+          onMouseEnter={isSidebar ? clearSidebarCloseTimer : undefined}
+          onMouseLeave={isSidebar ? scheduleSidebarMenuClose : undefined}
         >
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             {resolvedMenuLabel}
           </div>
-          {availableEngines.map((engine) => {
+          {availableEngines.map((engine, index) => {
             const engineModelId = resolveWorkbenchCodeEngineSelectedModelId(
               engine.id,
               preferences,
@@ -266,11 +375,15 @@ function WorkbenchNewSessionButtonComponent({
             return (
               <button
                 key={`new-session-engine-${variant}-${engine.id}`}
+                ref={(element) => {
+                  menuItemRefs.current[index] = element;
+                }}
                 type="button"
                 aria-checked={engine.id === preferredSelection.engine.id}
                 className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white"
                 role="menuitemradio"
                 onClick={() => {
+                  clearSidebarCloseTimer();
                   setIsOpen(false);
                   void onCreateSession(engine.id, engineModelId);
                 }}

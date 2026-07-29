@@ -320,12 +320,14 @@ pub async fn git_commit_changes(
 pub async fn git_push_branch(
     root_path: String,
     branch_name: Option<String>,
+    force_with_lease: bool,
     remote_name: Option<String>,
 ) -> Result<DesktopGitProjectOverview, String> {
     run_with_git_root(root_path, move |root, root_string| {
         sdkwork_birdcoder_git::push_project_git_branch(
             &root_string,
             branch_name.as_deref(),
+            force_with_lease,
             remote_name.as_deref(),
         )
         .map(|overview| map_overview(&root, overview))
@@ -483,6 +485,7 @@ mod tests {
         let pushed = git_push_branch(
             repository.root.to_string_lossy().into_owned(),
             Some("main".to_string()),
+            false,
             None,
         )
         .await

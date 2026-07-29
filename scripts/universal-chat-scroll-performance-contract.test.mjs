@@ -47,8 +47,8 @@ assert.match(
 
 assert.match(
   coordinatorSource,
-  /const markUserScrollIntent = \(\) => \{[\s\S]*cancelPrepend\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);/s,
-  'Explicit user input must cancel queued programmatic scroll work before the browser moves the viewport.',
+  /const markUserScrollIntent = \(\) => \{[\s\S]*cancelActiveAnchorRepair\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);[\s\S]*rebasePendingPrependForScroll\(\);/s,
+  'Explicit user input must cancel queued writes and preserve the latest reading position for unfinished history.',
 );
 
 assert.match(
@@ -71,8 +71,8 @@ assert.ok(
 );
 assert.match(
   nativeScrollHandler[1] ?? '',
-  /updateStickiness\(\);[\s\S]*scheduleAnchorRead\(\);/s,
-  'Native scroll events must queue visual-anchor capture after publishing cheap stickiness state.',
+  /rebasePendingPrependForScroll\(\);[\s\S]*updateStickiness\(\);[\s\S]*scheduleAnchorRead\(\);/s,
+  'Native scroll events must cheaply rebase pending history before queuing visual-anchor capture.',
 );
 assert.doesNotMatch(
   nativeScrollHandler[1] ?? '',

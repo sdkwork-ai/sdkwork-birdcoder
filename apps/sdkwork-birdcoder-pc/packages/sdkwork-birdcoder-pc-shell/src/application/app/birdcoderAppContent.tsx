@@ -75,7 +75,10 @@ import type {
   AgentProjectView,
   AgentWorkspaceView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type { SettingsTab } from '@sdkwork/birdcoder-pc-settings';
+import {
+  isSettingsTab,
+  type SettingsTab,
+} from '@sdkwork/birdcoder-pc-settings';
 import {
   loadWorkbenchCodeEngineCatalog,
   resetWorkbenchCodeEngineCatalog,
@@ -138,7 +141,17 @@ export function AppContent() {
     return shortcut ? formatKeyboardShortcut(shortcut, isMacKeyboard) : undefined;
   }, [isMacKeyboard, keyboardShortcutBindings]);
   const [activeTab, setActiveTab] = useState<AppTab>(() => resolveBirdCoderInitialAppTab());
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
+  const [storedSettingsTab, setStoredSettingsTab] = usePersistedState<unknown>(
+    'settings',
+    'active-tab',
+    'general',
+  );
+  const settingsTab: SettingsTab = isSettingsTab(storedSettingsTab)
+    ? storedSettingsTab
+    : 'general';
+  const setSettingsTab = useCallback((tab: SettingsTab) => {
+    setStoredSettingsTab(tab);
+  }, [setStoredSettingsTab]);
   const [recoverySnapshot, , isRecoveryHydrated] = usePersistedState<WorkbenchRecoverySnapshot>(
     'workbench',
     'recovery-context',

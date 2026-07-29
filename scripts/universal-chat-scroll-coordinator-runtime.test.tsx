@@ -9,6 +9,8 @@ import {
   type TranscriptPrependTransaction,
   type TranscriptScrollCoordinator,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useTranscriptScrollCoordinator.ts';
+import { useProgressiveTranscriptWindow } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useProgressiveTranscriptWindow.ts';
+import { revealChatDisclosureDetails } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/revealChatDisclosureDetails.ts';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -26,6 +28,53 @@ interface HarnessProps {
   onCoordinator: (coordinator: TranscriptScrollCoordinator) => void;
   rows: readonly TranscriptRowGeometry[];
   scopeKey: string;
+}
+
+type ProgressiveTranscriptMessage = Parameters<
+  typeof useProgressiveTranscriptWindow
+>[0][number];
+type ProgressiveTranscriptRemoteHistory = NonNullable<Parameters<
+  typeof useProgressiveTranscriptWindow
+>[4]>;
+
+interface ProgressiveTranscriptHarnessProps {
+  coordinator: Pick<
+    TranscriptScrollCoordinator,
+    'beginPrepend' | 'cancelPrepend' | 'completePrepend'
+  >;
+  geometry: TranscriptGeometry;
+  messages: readonly ProgressiveTranscriptMessage[];
+  remoteHistory?: ProgressiveTranscriptRemoteHistory;
+  requestedMessageIndex?: number | null;
+}
+
+interface DeferredPromise {
+  promise: Promise<void>;
+  resolve: () => void;
+}
+
+function createDeferredPromise(): DeferredPromise {
+  let resolvePromise: (() => void) | undefined;
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve;
+  });
+
+  return {
+    promise,
+    resolve: () => resolvePromise?.(),
+  };
+}
+
+function createProgressiveTranscriptMessages(
+  count: number,
+): readonly ProgressiveTranscriptMessage[] {
+  return Array.from({ length: count }, (_, index) => ({
+    content: `message-${index}`,
+    createdAt: '2026-07-29T00:00:00Z',
+    id: `message-${index}`,
+    role: index % 2 === 0 ? 'user' : 'assistant',
+    sessionId: 'session-a',
+  })) as unknown as readonly ProgressiveTranscriptMessage[];
 }
 
 class ControlledResizeObserver {
@@ -168,11 +217,46 @@ function TranscriptCoordinatorHarness({
       <div ref={coordinator.contentRef}>
         {rows.map((row) => (
           <div
+            id={`row-${row.key}`}
             key={row.key}
             ref={(element) => geometry.attachRow(element, row.top)}
             data-transcript-message-key={row.key}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ProgressiveTranscriptHarness({
+  coordinator,
+  geometry,
+  messages,
+  remoteHistory,
+  requestedMessageIndex,
+}: ProgressiveTranscriptHarnessProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const attachScrollContainer = useCallback((container: HTMLDivElement | null) => {
+    scrollContainerRef.current = container;
+    geometry.attachContainer(container);
+  }, [geometry]);
+  const transcriptWindow = useProgressiveTranscriptWindow(
+    messages,
+    scrollContainerRef,
+    true,
+    'session-a',
+    remoteHistory,
+    coordinator,
+    requestedMessageIndex,
+  );
+
+  return (
+    <div ref={attachScrollContainer} data-testid="outer-scroll-container">
+      <div data-testid="inner-content-root">
+        {transcriptWindow.renderedMessages.map((message, index) => (
+          <div data-message-id={message.id} key={`${message.id}-${index}`} />
+        ))}
+        <div data-testid="messages-end" />
       </div>
     </div>
   );
@@ -274,6 +358,27 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
         return coordinator;
       },
       geometry,
+      render,
+    };
+  }
+
+  async function mountProgressiveTranscriptHarness(
+    props: ProgressiveTranscriptHarnessProps,
+  ) {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const render = async (nextProps: ProgressiveTranscriptHarnessProps) => {
+      await act(async () => {
+        root.render(<ProgressiveTranscriptHarness {...nextProps} />);
+        await Promise.resolve();
+      });
+    };
+    await render(props);
+
+    return {
+      container,
       render,
     };
   }
@@ -452,6 +557,36 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
     expect(geometry.writes).toEqual([900]);
   });
 
+  it('invalidates an unfinished prepend transaction when the transcript becomes inactive', async () => {
+    const geometry = new TranscriptGeometry();
+    const harness = await mountHarness({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    geometry.setNativeScrollTop(200);
+    const transaction = harness.coordinator().beginPrepend();
+
+    await harness.render({
+      geometry,
+      isActive: false,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    geometry.resetWrites();
+    geometry.scrollHeight = 1_100;
+    await act(async () => {
+      harness.coordinator().completePrepend(transaction);
+      await Promise.resolve();
+    });
+
+    expect(geometry.writes).toEqual([]);
+  });
+
   it('commits a prepend transaction once while preserving the stable row anchor', async () => {
     const animationFrames = installAnimationFrameController();
     const geometry = new TranscriptGeometry();
@@ -496,5 +631,372 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
     expect(animationFrames.pendingCount()).toBe(1);
     await animationFrames.flushFrame();
     expect(geometry.writes).toEqual([300]);
+  });
+
+  it('rebases an unfinished prepend transaction to the latest user scroll position', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    const harness = await mountHarness({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    geometry.setNativeScrollTop(200);
+    const transaction = harness.coordinator().beginPrepend();
+    expect(transaction?.anchor?.viewportOffsetTop).toBe(-50);
+
+    geometry.setNativeScrollTop(250);
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    expect(transaction?.metrics.scrollTop).toBe(250);
+    expect(transaction?.anchor?.viewportOffsetTop).toBe(-100);
+
+    geometry.resetWrites();
+    geometry.scrollHeight = 1_100;
+    const prependedRows: readonly TranscriptRowGeometry[] = [
+      { key: 'message-new', top: 0 },
+      { key: 'message-a', top: 250 },
+      { key: 'message-b', top: 350 },
+      { key: 'message-c', top: 450 },
+    ];
+    await harness.render({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: prependedRows,
+      scopeKey: 'session-a',
+    });
+    await act(async () => {
+      harness.coordinator().completePrepend(transaction);
+      await Promise.resolve();
+    });
+
+    expect(geometry.writes).toEqual([350]);
+    await animationFrames.flushFrame();
+    expect(geometry.writes).toEqual([350]);
+  });
+
+  it('keeps an unfinished prepend anchored after explicit offset navigation', async () => {
+    installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    const harness = await mountHarness({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    geometry.setNativeScrollTop(200);
+    const transaction = harness.coordinator().beginPrepend();
+
+    geometry.resetWrites();
+    await act(async () => {
+      harness.coordinator().scrollToOffset(250);
+      await Promise.resolve();
+    });
+    expect(geometry.writes).toEqual([250]);
+    expect(transaction?.metrics.scrollTop).toBe(250);
+    expect(transaction?.anchor).toEqual({
+      messageKey: 'message-b',
+      viewportOffsetTop: 0,
+    });
+
+    geometry.resetWrites();
+    geometry.scrollHeight = 1_100;
+    await harness.render({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: [
+        { key: 'message-new', top: 0 },
+        { key: 'message-a', top: 250 },
+        { key: 'message-b', top: 350 },
+        { key: 'message-c', top: 450 },
+      ],
+      scopeKey: 'session-a',
+    });
+    await act(async () => {
+      harness.coordinator().completePrepend(transaction);
+      await Promise.resolve();
+    });
+    expect(geometry.writes).toEqual([350]);
+  });
+
+  it('loads history from the explicit outer scroll container only at the top threshold', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    geometry.clientHeight = 300;
+    geometry.scrollHeight = 4_000;
+    geometry.scrollTop = 240;
+    const transaction: TranscriptPrependTransaction = {
+      anchor: null,
+      metrics: {
+        clientHeight: geometry.clientHeight,
+        scrollHeight: geometry.scrollHeight,
+        scrollTop: geometry.scrollTop,
+      },
+      scopeKey: 'session-a',
+      token: 1,
+    };
+    const coordinator = {
+      beginPrepend: vi.fn(() => transaction),
+      cancelPrepend: vi.fn(),
+      completePrepend: vi.fn(),
+    };
+    const messages = Array.from({ length: 100 }, (_, index) => ({
+      content: `message-${index}`,
+      createdAt: `2026-07-29T00:00:${String(index).padStart(2, '0')}Z`,
+      id: `message-${index}`,
+      role: index % 2 === 0 ? 'user' : 'assistant',
+      sessionId: 'session-a',
+    })) as unknown as readonly ProgressiveTranscriptMessage[];
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    await act(async () => {
+      root.render(
+        <ProgressiveTranscriptHarness
+          coordinator={coordinator}
+          geometry={geometry}
+          messages={messages}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(coordinator.beginPrepend).not.toHaveBeenCalled();
+
+    geometry.setNativeScrollTop(80);
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(coordinator.beginPrepend).toHaveBeenCalledTimes(1);
+    expect(coordinator.completePrepend).toHaveBeenCalledWith(transaction);
+  });
+
+  it('keeps a top-load intent when loading state rerenders cancel its pending frame', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    geometry.scrollTop = 0;
+    const coordinator = {
+      beginPrepend: vi.fn(),
+      cancelPrepend: vi.fn(),
+      completePrepend: vi.fn(),
+    };
+    const onLoadMoreMessages = vi.fn();
+    const initialMessages = createProgressiveTranscriptMessages(48);
+    const updatedMessages = createProgressiveTranscriptMessages(49);
+    const harness = await mountProgressiveTranscriptHarness({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      await Promise.resolve();
+    });
+    expect(animationFrames.pendingCount()).toBe(1);
+
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: updatedMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: true,
+        onLoadMoreMessages,
+      },
+    });
+    expect(animationFrames.pendingCount()).toBe(1);
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).not.toHaveBeenCalled();
+
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: updatedMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+    expect(animationFrames.pendingCount()).toBe(1);
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(1);
+
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it('rearms exactly page three across request completion, loading lag, and frame cleanup', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    geometry.scrollTop = 0;
+    const coordinator = {
+      beginPrepend: vi.fn(),
+      cancelPrepend: vi.fn(),
+      completePrepend: vi.fn(),
+    };
+    const pageTwo = createDeferredPromise();
+    const pageThree = createDeferredPromise();
+    const onLoadMoreMessages = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(() => pageTwo.promise)
+      .mockImplementationOnce(() => pageThree.promise);
+    const initialMessages = createProgressiveTranscriptMessages(48);
+    const updatedMessages = createProgressiveTranscriptMessages(49);
+    const harness = await mountProgressiveTranscriptHarness({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      await Promise.resolve();
+    });
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: true,
+        onLoadMoreMessages,
+      },
+    });
+    await act(async () => {
+      pageTwo.resolve();
+      await pageTwo.promise;
+      await Promise.resolve();
+    });
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('wheel'));
+      await Promise.resolve();
+    });
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(1);
+
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+    expect(animationFrames.pendingCount()).toBe(1);
+
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: updatedMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+    expect(animationFrames.pendingCount()).toBe(1);
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      pageThree.resolve();
+      await pageThree.promise;
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it('reveals a requested local history row without sequential top-load gestures', async () => {
+    const geometry = new TranscriptGeometry();
+    const coordinator = {
+      beginPrepend: vi.fn(),
+      cancelPrepend: vi.fn(),
+      completePrepend: vi.fn(),
+    };
+    const messages = Array.from({ length: 100 }, (_, index) => ({
+      content: `message-${index}`,
+      createdAt: `2026-07-29T00:00:${String(index).padStart(2, '0')}Z`,
+      id: `message-${index}`,
+      role: index % 2 === 0 ? 'user' : 'assistant',
+      sessionId: 'session-a',
+    })) as unknown as readonly ProgressiveTranscriptMessage[];
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <ProgressiveTranscriptHarness
+          coordinator={coordinator}
+          geometry={geometry}
+          messages={messages}
+          requestedMessageIndex={10}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-message-id="message-10"]')).not.toBeNull();
+    expect(coordinator.beginPrepend).not.toHaveBeenCalled();
+  });
+
+  it('routes disclosure reveal scrolling through the coordinator write site', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    const harness = await mountHarness({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    expect(geometry.scrollTop).toBe(700);
+    geometry.resetWrites();
+
+    revealChatDisclosureDetails('row-message-a');
+    await animationFrames.flushFrame();
+
+    expect(geometry.writes).toEqual([150]);
+    expect(harness.coordinator().shouldStickToBottomRef.current).toBe(false);
   });
 });

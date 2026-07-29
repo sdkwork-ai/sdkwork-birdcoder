@@ -43,7 +43,6 @@ const AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT = 5;
 const AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT = 10;
 const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
-const PROJECT_SESSION_INVENTORY_PROBE_PAGE_SIZE = 1;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
 
@@ -768,13 +767,8 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  await agentSessionService.listSessionsByProject({
-    page: 1,
-    pageSize: PROJECT_SESSION_INVENTORY_PROBE_PAGE_SIZE,
-    projectId: normalizedProjectId,
-  }, { signal });
+  await agentSessionService.synchronizeProjectSessions(normalizedProjectId, { signal });
   signal?.throwIfAborted();
-
   const snapshot = await loadProjectSessionActivityHead(
     agentSessionService,
     project,

@@ -13,6 +13,8 @@ const modulePath = new URL(
 const {
   buildTranscriptPrefixHeights,
   reconcileTranscriptPrefixHeightsCache,
+  resolveMeasurementScopeTranscriptViewport,
+  resolvePrependAdjustedTranscriptViewport,
   resolveTranscriptMessageKey,
   resolveVirtualizedTranscriptWindow,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
@@ -172,6 +174,15 @@ assert.deepEqual(
   [0, 116, 232, 632],
   'prepending transcript history must rebuild spacer prefixes from the earliest changed height.',
 );
+assert.deepEqual(
+  resolvePrependAdjustedTranscriptViewport({
+    currentCache: prependedPrefixCache,
+    previousCache: updatedPrefixCache,
+    viewport: { clientHeight: 300, scrollTop: 200 },
+  }),
+  { clientHeight: 300, scrollTop: 316 },
+  'a prepend render must select the old visual window before the coordinator writes the repaired scrollTop.',
+);
 
 const removedLeadingMessageCache = reconcileTranscriptPrefixHeightsCache({
   measuredHeights: new Map<string, number>([[assistantMessageKey, 400]]),
@@ -303,28 +314,81 @@ assert.deepEqual(
   'transcript height estimates must reserve vertical space for taskProgress rows so virtualized engine sessions do not overlap progress UI.',
 );
 
+const longTranscriptMessages = Array.from({ length: 120 }, (_, index) => ({
+  agentSessionId: 'session-inactive-window',
+  content: `message ${index}`,
+  createdAt: `2026-04-21T00:${String(index).padStart(2, '0')}:00.000Z`,
+  id: `message-${index}`,
+  role: index % 2 === 0 ? 'user' : 'assistant',
+})) as AgentSessionItemView[];
+const longTranscriptPrefixHeights = Array.from(
+  { length: longTranscriptMessages.length + 1 },
+  (_, index) => index * 100,
+);
+const inactiveWindow = resolveVirtualizedTranscriptWindow({
+  isActive: false,
+  messages: longTranscriptMessages,
+  overscanPx: 0,
+  prefixHeights: longTranscriptPrefixHeights,
+  viewport: { clientHeight: 300, scrollTop: 6_000 },
+});
+assert.equal(inactiveWindow.visibleStartIndex, 60);
+assert.equal(inactiveWindow.visibleMessages.length, 3);
+assert.ok(
+  inactiveWindow.visibleMessages.length < longTranscriptMessages.length,
+  'deactivating a long transcript must retain a bounded virtual window instead of mounting every historical row.',
+);
+
+const activeScopeChangedViewport = resolveMeasurementScopeTranscriptViewport({
+  didChangeScope: true,
+  isActive: true,
+  totalHeight: 12_000,
+  viewport: { clientHeight: 300, scrollTop: 6_000 },
+});
+assert.deepEqual(
+  activeScopeChangedViewport,
+  { clientHeight: 300, scrollTop: 11_700 },
+  'switching to an active long transcript must select its estimated bottom window on the first render.',
+);
+const activeScopeChangedWindow = resolveVirtualizedTranscriptWindow({
+  isActive: true,
+  messages: longTranscriptMessages,
+  overscanPx: 0,
+  prefixHeights: longTranscriptPrefixHeights,
+  viewport: activeScopeChangedViewport,
+});
+assert.equal(activeScopeChangedWindow.visibleStartIndex, 117);
+assert.equal(activeScopeChangedWindow.visibleMessages.length, 3);
+assert.equal(activeScopeChangedWindow.visibleMessages.at(-1)?.id, 'message-119');
+
 assert.match(
   virtualizationSource,
-  /const prefixHeightsCacheRef = useRef<TranscriptPrefixHeightsCache \| null>\(null\);/,
-  'useVirtualizedTranscriptWindow should keep a reusable transcript prefix-height cache ref.',
+  /interface TranscriptMeasurementScope \{[\s\S]*prefixHeightsCache: TranscriptPrefixHeightsCache \| null;[\s\S]*\}/s,
+  'useVirtualizedTranscriptWindow should keep a reusable transcript prefix-height cache inside each measurement scope.',
 );
 
 assert.match(
   virtualizationSource,
-  /measurementScopeKey[\s\S]*measurementScopeKeyRef[\s\S]*resizeObserverRef\.current\?\.unobserve[\s\S]*observedElementsRef\.current\.clear\(\);[\s\S]*messageIdByElementRef\.current\.clear\(\);[\s\S]*messageRefCallbackMapRef\.current\.clear\(\);[\s\S]*measuredHeightsRef\.current\.clear\(\);[\s\S]*prefixHeightsCacheRef\.current = null;/s,
-  'useVirtualizedTranscriptWindow must fully reset session-scoped measurement refs so reused row keys cannot carry DOM observation state across sessions.',
+  /const measurementScope = useMemo\([\s\S]*createTranscriptMeasurementScope\(normalizedMeasurementScopeKey\)[\s\S]*useLayoutEffect\(\(\) => \{[\s\S]*disposeTranscriptMeasurementScope\(previousScope\);[\s\S]*committedMeasurementScopeRef\.current = measurementScope;/s,
+  'useVirtualizedTranscriptWindow must isolate session measurement state and dispose the previous scope only after the replacement render commits.',
+);
+
+assert.doesNotMatch(
+  virtualizationSource,
+  /if \([^)]*measurementScopeKeyRef\.current[^)]*\) \{[\s\S]*\.clear\(\);/s,
+  'useVirtualizedTranscriptWindow must not clear committed measurement or observer state during render.',
 );
 
 assert.match(
   virtualizationSource,
-  /const didResetMeasurementScope = measurementScopeKeyRef\.current !== normalizedMeasurementScopeKey;/,
-  'useVirtualizedTranscriptWindow must detect session-scope changes before resolving the visible window so stale scrollTop cannot create a first-frame blank spacer.',
+  /pendingMessageIds: Map<string, number>;[\s\S]*requestAnimationFrame\([\s\S]*publishPendingMeasurementChanges[\s\S]*committedPublishedThroughSequence[\s\S]*changeSequence <= measurementState\.publishedThroughSequence/s,
+  'useVirtualizedTranscriptWindow must batch measurement keys by frame and clear only the sequences consumed by a committed prefix-cache render.',
 );
 
 assert.match(
   virtualizationSource,
-  /interface ScopedTranscriptViewport extends TranscriptViewport \{[\s\S]*measurementScopeKey: string;[\s\S]*\}[\s\S]*const effectiveViewport = viewport\.measurementScopeKey !== normalizedMeasurementScopeKey\s*\?\s*\{\s*clientHeight: viewport\.clientHeight,\s*scrollTop: 0,\s*\}\s*: viewport;/s,
-  'useVirtualizedTranscriptWindow must clamp the first visible window after a session switch to scrollTop 0 instead of reusing the previous session scroll position.',
+  /const effectiveViewport = resolveMeasurementScopeTranscriptViewport\(\{[\s\S]*didChangeScope: viewport\.measurementScopeKey !== normalizedMeasurementScopeKey,[\s\S]*isActive,[\s\S]*totalHeight: totalTranscriptHeight,[\s\S]*viewport,[\s\S]*\}\);/s,
+  'useVirtualizedTranscriptWindow must select the active transcript bottom window while a new session scope is waiting for its first viewport publication.',
 );
 
 assert.doesNotMatch(
@@ -347,8 +411,8 @@ assert.match(
 
 assert.match(
   virtualizationSource,
-  /viewport: effectiveViewport,/,
-  'useVirtualizedTranscriptWindow must resolve the virtualized range from the session-reset viewport.',
+  /resolvePrependAdjustedTranscriptViewport\([\s\S]*viewport: effectiveViewport,[\s\S]*viewport: windowViewport,/,
+  'useVirtualizedTranscriptWindow must preserve the visible range during prepend before resolving the virtualized window.',
 );
 
 assert.match(

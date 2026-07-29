@@ -4,7 +4,7 @@ export default defineLocaleModule('app/menu', {
   app: {
     menu: {
       file: '\u6587\u4ef6',
-      newSession: '\u65b0\u5efa\u4f1a\u8bdd',
+      newSession: '\u65b0\u5efa\u4efb\u52a1',
       openFolder: '\u6253\u5f00\u670d\u52a1\u7aef\u6587\u4ef6\u5939...',
       save: '\u4fdd\u5b58',
       saveAll: '\u5168\u90e8\u4fdd\u5b58',

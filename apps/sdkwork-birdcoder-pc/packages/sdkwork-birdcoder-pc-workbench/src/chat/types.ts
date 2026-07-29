@@ -34,6 +34,7 @@ export type {
 
 export {
   AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE,
+  areAgentSessionItemsEquivalent,
   buildAgentSessionItemPresentationSynchronizationSignature,
   estimateAgentSessionItemPresentationHeight,
   normalizeTaskProgressCounter,

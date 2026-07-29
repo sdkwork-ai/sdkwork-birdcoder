@@ -4,7 +4,7 @@ Status: accepted
 Owner: SDKWork maintainers
 Source: customer
 Priority: P0
-Updated: 2026-07-27
+Updated: 2026-07-29
 Specs: REQUIREMENTS_SPEC.md, DOMAIN_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, SECURITY_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Problem
@@ -79,52 +79,66 @@ selection during background synchronization.
 
 ## Acceptance Criteria
 
-1. BirdCoder refreshes the Agents Session Activity summary from a null cursor,
-   follows bounded `nextCursor` pages when required, and does not use a Session
-   version as the sole activity change detector.
+1. BirdCoder uses generated Agents App SDK methods to call the explicit Project
+   Session synchronization operation, then refreshes the read-only Agents
+   Session Activity summary from a null cursor, follows bounded `nextCursor`
+   pages when required, and does not use a Session version as the sole activity
+   change detector. The client never sends a local path, directory name, or
+   fingerprint for provider discovery.
 2. A Session executing in another application is projected as running without
    requiring BirdCoder to have initiated the Turn when that application has
    recorded the managed Turn, Interaction, Runtime Binding, or user-state
    lifecycle through Agents.
-3. Codex and Claude Code Sessions inside one authorized owner scope retain
-   their canonical provider, model, runtime, Project, and Session identities;
-   cross-tenant provider Session identity is not claimed complete by this requirement.
-4. `queued` and `running` phases map to animated `initializing` and `streaming`
+3. Codex, Claude Code, OpenCode, Gemini, and future provider Sessions retain
+   their canonical provider, model, runtime, Project, and Session identities.
+   Provider synchronization deduplicates by tenant, organization, owner,
+   engine-qualified provider binding, provider, and provider Session identity;
+   the Agents baseline enforces the stored owner/binding/provider/session-identifier
+   uniqueness constraint.
+4. A provider-owned title is updated from a later inventory, while an explicit
+   user rename remains user-owned and is never overwritten by provider refresh.
+5. `queued` and `running` phases map to animated `initializing` and `streaming`
    presentation; no wait state animates as busy.
-5. Approval, tool, and user-question waits map to distinct static attention
+6. Approval, tool, and user-question waits map to distinct static attention
    presentation; failed state is explicit.
-6. Expired, stale, unsupported, or unavailable activity does not leave a
+7. Expired, stale, unsupported, or unavailable activity does not leave a
    permanent spinner and cannot be presented as known ready state.
-7. The status slot is the first Session-row visual slot, precedes provider
-   identity, and reserves the same dimensions for active and idle rows.
-8. An explicit Code or Studio Session selection survives background inventory
+8. Provider identity is the leftmost Session-row visual item. A known runtime
+   status icon is rightmost; unknown or absent status has no label, icon, or
+   reserved status-slot space.
+9. An explicit Code or Studio Session selection survives background inventory
    and activity refresh.
-9. Smart sorting uses the complete currently loaded inventory and places busy
+10. Smart sorting uses the complete currently loaded inventory and places busy
    Sessions ahead of idle Sessions independently of Project-local render
    windows.
-10. Cross-context messages contain only a validated scope key and invalidation
+11. Cross-context messages contain only a validated scope key and invalidation
     kind; every receiver re-fetches authority data.
-11. Browser or Tauri persistence contains no Session Activity summary or
+12. Browser or Tauri persistence contains no Session Activity summary or
     provider activity observation.
-12. Owner API, workbench synchronization, status mapping, row presentation,
+13. Owner API, SDK generation, workbench synchronization, status mapping, row presentation,
     selection stability, pagination, and documentation checks pass.
 
 ## Launch Blockers
 
-The requirement and architecture direction are accepted, but production launch
-remains blocked until Agents and Kernel maintainers review and close all of the
-following with owner-side contracts, migrations, and executable evidence:
+The owner provider-identity design, title authority, baseline uniqueness
+constraint, and explicit synchronization operation are implemented. Production
+launch remains blocked until Agents and Kernel maintainers review and close the
+following with live operational evidence:
 
 1. The PostgreSQL P1 path has a bounded indexed Session Activity head
    projection and production query-plan evidence; an in-memory index or a
    source-level query assertion is not sufficient.
-2. Provider Session identity is scoped across tenant, organization, provider,
-   runtime, and provider Session dimensions without cross-tenant or cross-provider
-   collision; no raw `providerSessionId` global uniqueness assumption remains.
+2. Live PostgreSQL migration and query-plan evidence proves the owner-scoped
+   provider identity constraint and the bounded activity projection at the
+   intended P1 capacity. A greenfield baseline and source-level SQL assertion
+   are not production evidence.
 3. Project deletion has an explicit Session Activity tombstone and pagination
    contract. Current Session tombstone behavior does not prove Project deletion
    behavior.
-4. If consumers require an aggregate activity revision, Agents exposes a
+4. Durable distributed runtime routing and synchronization-job ownership make
+   provider inventory execution available across nodes. The current bounded
+   inventory executes synchronously on its selected runtime host.
+5. If consumers require an aggregate activity revision, Agents exposes a
    server-monotonic contract with persistence and ordering evidence. Until then,
    BirdCoder must compare the returned owner fact versions and snapshot fields
    without describing them as one monotonic revision.

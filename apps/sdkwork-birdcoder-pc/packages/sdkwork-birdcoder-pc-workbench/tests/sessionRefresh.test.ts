@@ -124,9 +124,14 @@ function services(
 ) {
   const listSessionActivitySummaries = vi.fn().mockResolvedValue(page);
   const listSessionsByProject = vi.fn();
+  const synchronizeProjectSessions = vi.fn().mockResolvedValue({
+    projectId: PROJECT_ID,
+    synchronizedSessionCount: '2',
+  });
   const agentSessionService = {
     listSessionActivitySummaries,
     listSessionsByProject,
+    synchronizeProjectSessions,
   } as unknown as IAgentSessionService;
   const projectService = {
     getProjectById: vi.fn().mockResolvedValue(loadedProject),
@@ -135,12 +140,13 @@ function services(
     agentSessionService,
     listSessionActivitySummaries,
     listSessionsByProject,
+    synchronizeProjectSessions,
     projectService,
   };
 }
 
 describe('manual Project Session refresh', () => {
-  it('triggers one bounded provider inventory probe before loading the canonical activity head', async () => {
+  it('explicitly synchronizes before loading the canonical activity head', async () => {
     const page = cursorPage([
       summary('session.codex'),
       summary('session.claude'),
@@ -156,17 +162,20 @@ describe('manual Project Session refresh', () => {
       projectService: dependencies.projectService,
     });
 
+    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledWith(
+      PROJECT_ID,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(
+      dependencies.synchronizeProjectSessions.mock.invocationCallOrder[0],
+    ).toBeLessThan(dependencies.listSessionActivitySummaries.mock.invocationCallOrder[0]);
     expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
     expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledWith({
       pageSize: 200,
       projectId: PROJECT_ID,
     }, { signal: expect.any(AbortSignal) });
-    expect(dependencies.listSessionsByProject).toHaveBeenCalledTimes(1);
-    expect(dependencies.listSessionsByProject).toHaveBeenCalledWith({
-      page: 1,
-      pageSize: 1,
-      projectId: PROJECT_ID,
-    }, { signal: expect.any(AbortSignal) });
+    expect(dependencies.listSessionsByProject).not.toHaveBeenCalled();
     expect(result.status).toBe('refreshed');
     expect(result.sessionIds).toEqual(['session.codex', 'session.claude']);
     expect(result.projects?.[0]?.agentSessions.map((candidate) => candidate.id)).toEqual([

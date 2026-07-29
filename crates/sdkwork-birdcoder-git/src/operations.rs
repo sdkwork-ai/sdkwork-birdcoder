@@ -230,6 +230,7 @@ pub fn commit_project_git_changes(
 pub fn push_project_git_branch(
     project_root_path: &str,
     branch_name: Option<&str>,
+    force_with_lease: bool,
     remote_name: Option<&str>,
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
@@ -291,11 +292,14 @@ pub fn push_project_git_branch(
             "Git remote does not exist: {remote}"
         )));
     }
-    let args = if upstream_name.is_some() {
-        vec!["push", remote, resolved_branch.as_str()]
-    } else {
-        vec!["push", "--set-upstream", remote, resolved_branch.as_str()]
-    };
+    let mut args = vec!["push"];
+    if force_with_lease {
+        args.push("--force-with-lease");
+    }
+    if upstream_name.is_none() {
+        args.push("--set-upstream");
+    }
+    args.extend([remote, resolved_branch.as_str()]);
     run_git(&args, root).map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
         .map_err(|e| GitMutationError::Mutate(e.to_string()))
@@ -952,7 +956,7 @@ mod tests {
             .output()
             .expect("git commit");
 
-        let result = push_project_git_branch(&repo.to_string_lossy(), None, None);
+        let result = push_project_git_branch(&repo.to_string_lossy(), None, false, None);
         assert!(result.is_err());
         fs::remove_dir_all(&repo).ok();
     }
@@ -987,7 +991,7 @@ mod tests {
             .output()
             .expect("add upstream");
 
-        let overview = push_project_git_branch(&repo.to_string_lossy(), None, None)
+        let overview = push_project_git_branch(&repo.to_string_lossy(), None, false, None)
             .expect("push current branch");
         let current_branch = overview.current_branch.expect("current branch");
         let upstream = run_git(
@@ -1000,6 +1004,80 @@ mod tests {
         )
         .expect("resolve upstream");
         assert_eq!(upstream.trim(), format!("upstream/{current_branch}"));
+        fs::remove_dir_all(&repo).ok();
+        fs::remove_dir_all(&remote).ok();
+    }
+
+    #[test]
+    fn push_project_git_branch_uses_force_with_lease_for_rewritten_history() {
+        let repo = create_temp_git_repo("push-force-with-lease");
+        let remote = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-git-force-with-lease-remote-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&remote).expect("create remote directory");
+        Command::new("git")
+            .args(["init", "--bare"])
+            .current_dir(&remote)
+            .output()
+            .expect("init bare remote");
+        fs::write(repo.join("README.md"), "initial").expect("write file");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&repo)
+            .output()
+            .expect("git add");
+        Command::new("git")
+            .args(["commit", "-m", "initial"])
+            .current_dir(&repo)
+            .output()
+            .expect("git commit");
+        Command::new("git")
+            .args(["remote", "add", "origin", &remote.to_string_lossy()])
+            .current_dir(&repo)
+            .output()
+            .expect("add origin");
+
+        let initial_overview = push_project_git_branch(
+            &repo.to_string_lossy(),
+            None,
+            false,
+            Some("origin"),
+        )
+        .expect("push initial history");
+        let branch = initial_overview.current_branch.expect("current branch");
+        fs::write(repo.join("README.md"), "rewritten").expect("rewrite file");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&repo)
+            .output()
+            .expect("git add rewritten file");
+        Command::new("git")
+            .args(["commit", "--amend", "-m", "rewritten"])
+            .current_dir(&repo)
+            .output()
+            .expect("amend commit");
+
+        assert!(push_project_git_branch(
+            &repo.to_string_lossy(),
+            Some(&branch),
+            false,
+            Some("origin"),
+        )
+        .is_err());
+        push_project_git_branch(
+            &repo.to_string_lossy(),
+            Some(&branch),
+            true,
+            Some("origin"),
+        )
+        .expect("push rewritten history with force-with-lease");
+
+        let local_revision = run_git(&["rev-parse", "HEAD"], &repo).expect("local revision");
+        let remote_ref = format!("refs/heads/{branch}");
+        let remote_revision = run_git(&["rev-parse", &remote_ref], &remote)
+            .expect("remote revision");
+        assert_eq!(local_revision.trim(), remote_revision.trim());
         fs::remove_dir_all(&repo).ok();
         fs::remove_dir_all(&remote).ok();
     }
@@ -1024,7 +1102,7 @@ mod tests {
             .output()
             .expect("detach HEAD");
 
-        let result = push_project_git_branch(&repo.to_string_lossy(), None, None);
+        let result = push_project_git_branch(&repo.to_string_lossy(), None, false, None);
         assert!(matches!(result, Err(GitMutationError::Validation(_))));
         fs::remove_dir_all(&repo).ok();
     }

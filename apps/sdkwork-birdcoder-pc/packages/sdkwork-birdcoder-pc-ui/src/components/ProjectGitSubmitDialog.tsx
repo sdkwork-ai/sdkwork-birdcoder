@@ -14,6 +14,7 @@ import {
   type ProjectGitOverviewViewState,
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitMutationActions';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
@@ -44,6 +45,7 @@ export function ProjectGitSubmitDialog({
 }: ProjectGitSubmitDialogProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const { preferences } = useWorkbenchPreferences();
   const localOverviewState = useProjectGitOverview({
     isActive: !projectGitOverviewState && isOpen,
     projectId,
@@ -121,7 +123,10 @@ export function ProjectGitSubmitDialog({
     setPhase('pushing');
     setErrorMessage('');
     try {
-      await pushBranch({ branchName: currentBranch });
+      await pushBranch({
+        branchName: currentBranch,
+        forceWithLease: preferences.gitForceWithLease,
+      });
       addToast(t('code.gitCommittedAndPushed'), 'success');
       onClose();
     } catch (error) {
@@ -158,7 +163,10 @@ export function ProjectGitSubmitDialog({
       setCommittedAwaitingPush(true);
       setPhase('pushing');
       try {
-        await pushBranch({ branchName: currentBranch });
+        await pushBranch({
+          branchName: currentBranch,
+          forceWithLease: preferences.gitForceWithLease,
+        });
         addToast(t('code.gitCommittedAndPushed'), 'success');
         onClose();
       } catch (error) {

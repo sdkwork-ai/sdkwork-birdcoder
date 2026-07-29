@@ -92,8 +92,14 @@ assert.equal(
 
 assert.match(
   virtualizationSource,
-  /const prefixHeightsCacheRef = useRef<TranscriptPrefixHeightsCache \| null>\(null\);/,
-  'useVirtualizedTranscriptWindow must keep a reusable prefix-height cache ref across measurement updates.',
+  /interface TranscriptMeasurementScope \{[\s\S]*prefixHeightsCache: TranscriptPrefixHeightsCache \| null;[\s\S]*\}/s,
+  'useVirtualizedTranscriptWindow must keep a reusable prefix-height cache inside the isolated measurement scope.',
+);
+
+assert.match(
+  virtualizationSource,
+  /useLayoutEffect\(\(\) => \{[\s\S]*measurementScope\.prefixHeightsCache = prefixHeightsCache;/s,
+  'useVirtualizedTranscriptWindow must publish the reconciled prefix-height cache only after the render commits.',
 );
 
 assert.match(

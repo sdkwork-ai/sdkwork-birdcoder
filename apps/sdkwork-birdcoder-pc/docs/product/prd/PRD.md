@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-27
+Updated: 2026-07-29
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -41,7 +41,9 @@ their business semantics.
   Workspace identity.
 - PC does not create a BirdCoder Project or second Project id.
 - PC consumes the paginated Agents Session Activity summary through the
-  generated owner SDK and keeps only a disposable in-memory projection.
+  generated owner SDK and keeps only a disposable in-memory projection. Manual
+  refresh explicitly synchronizes provider inventory before reading the
+  read-only activity summary; it never sends paths or directory fingerprints.
 - Cross-application head eligibility is driven by Agents-managed Turn,
   Interaction, Runtime Binding, and Session user-state facts. Provider-native
   observation only enriches rows already returned in the current page and
@@ -73,10 +75,13 @@ their business semantics.
   turn presentation contract. Provider protocol differences stay behind
   adapters, while provider identity remains contextual metadata rather than a
   separate transcript skin.
-- Production acceptance remains blocked on the REQ-2026-0003 PostgreSQL P1
-  indexed head, collision-safe cross-tenant provider Session identity, Project deletion
-  tombstone, and any declared server-monotonic activity revision. Agents and
-  Kernel maintainers must review and close those owner contracts.
+- Provider session identity, database uniqueness baseline, and title authority
+  are implemented by Agents: provider titles refresh only while provider-owned;
+  user renames survive inventory synchronization. Production acceptance remains
+  blocked on REQ-2026-0003 PostgreSQL migration/query-plan evidence, Project
+  deletion tombstone pagination, distributed synchronization-job ownership, and
+  any declared server-monotonic activity revision. Agents and Kernel maintainers
+  must review and close those operational owner contracts.
 - Code and Studio Session rows place the provider badge at the left edge and a
   known runtime-status icon at the far right. Busy states animate; waits,
   failure, and stale remain static. Unknown, `null`, or absent runtime status is

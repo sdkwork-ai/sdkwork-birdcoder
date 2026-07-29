@@ -83,8 +83,8 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   });
   await ensureProjectSessionsExpanded(page);
 
-  const sessionList = page.locator('.birdcoder-session-list');
-  const sessionRows = page.locator('.birdcoder-session-list .birdcoder-session-row:visible');
+  const sessionList = page.locator('.project-explorer-scroll-region').last();
+  const sessionRows = sessionList.locator('.birdcoder-session-row:visible');
   await expect(sessionList.getByText('Claude architecture review', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('Codex implementation', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
@@ -130,11 +130,11 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
 
   const claudeSessionVisualStyle = providerVisualStyles.get('claude-code');
   expect(claudeSessionVisualStyle).toBeDefined();
+  const sidebarNewTaskEntry = page.locator('[data-sidebar-new-session-trigger="true"]');
+  await expect(sidebarNewTaskEntry).toHaveAccessibleName('New task');
+  await expect(sidebarNewTaskEntry.locator('[data-provider-id]')).toHaveCount(0);
+  await expect(sidebarNewTaskEntry.locator('.lucide-square-pen')).toHaveCount(1);
   const sharedClaudeProviderIcons = [
-    page
-      .getByRole('button', { name: 'New Session', exact: true })
-      .first()
-      .locator('[data-provider-id="claude-code"]'),
     page
       .getByRole('button', { name: 'Current provider: Claude Code', exact: true })
       .locator('[data-provider-id="claude-code"]'),
@@ -399,7 +399,7 @@ test('direct Studio startup mounts the full surface and renders Session activity
   await expect(sessionMenu.getByRole('button', { name: 'New Project' })).toHaveCount(1);
   await expect(sessionMenu.getByRole('button', { name: 'Open Folder' })).toHaveCount(0);
   await expect(sessionMenu.getByRole('button', { name: 'Refresh Sessions' })).toBeVisible();
-  await expect(sessionMenu.getByRole('button', { name: 'New Session', exact: true })).toBeVisible();
+  await expect(sessionMenu.getByRole('button', { name: 'New task', exact: true })).toBeVisible();
   await expect(sessionMenu.getByRole('button', { name: 'Refresh Messages' })).toHaveCount(0);
 
   const expectedRuntimeStates = [

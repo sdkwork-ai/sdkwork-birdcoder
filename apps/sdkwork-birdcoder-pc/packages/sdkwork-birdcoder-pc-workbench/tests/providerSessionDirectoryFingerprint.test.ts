@@ -33,7 +33,7 @@ describe('browser provider Session directory identity', () => {
     );
   });
 
-  it('adds the directory identity only to the first project session page', async () => {
+  it('never sends local directory identity while listing project sessions', async () => {
     const list = vi.fn(async (
       _projectId: string,
       _params?: Record<string, unknown>,
@@ -41,29 +41,20 @@ describe('browser provider Session directory identity', () => {
       items: [],
       pageInfo: { hasMore: false, mode: 'offset', page: 1, pageSize: 20 },
     }));
-    const identityProvider = vi.fn(async () => ({
-      directoryFingerprint:
-        'sha256:501fa61985d3b2c255fdb3816cfa1f20953812554fbeb8dd07c2b18b89388913',
-      directoryName: 'BirdCoder',
-    }));
     const service = new BirdCoderAgentSessionService({
       client: {
         ai: { agents: { projectSessions: { list } } },
       } as never,
-      providerSessionDirectoryIdentityProvider: identityProvider,
     });
 
     await service.listSessionsByProject({ page: 1, projectId: 'project.test' });
     await service.listSessionsByProject({ page: 2, projectId: 'project.test' });
 
-    expect(identityProvider).toHaveBeenCalledTimes(1);
-    expect(list.mock.calls[0]?.[1]).toMatchObject({
-      providerSessionDirectoryFingerprint:
-        'sha256:501fa61985d3b2c255fdb3816cfa1f20953812554fbeb8dd07c2b18b89388913',
-      providerSessionDirectoryName: 'BirdCoder',
-      page: 1,
-    });
+    expect(list.mock.calls[0]?.[1]).toMatchObject({ page: 1 });
+    expect(list.mock.calls[0]?.[1]).not.toHaveProperty('providerSessionDirectoryFingerprint');
+    expect(list.mock.calls[0]?.[1]).not.toHaveProperty('providerSessionDirectoryName');
     expect(list.mock.calls[1]?.[1]).toMatchObject({ page: 2 });
     expect(list.mock.calls[1]?.[1]).not.toHaveProperty('providerSessionDirectoryFingerprint');
+    expect(list.mock.calls[1]?.[1]).not.toHaveProperty('providerSessionDirectoryName');
   });
 });

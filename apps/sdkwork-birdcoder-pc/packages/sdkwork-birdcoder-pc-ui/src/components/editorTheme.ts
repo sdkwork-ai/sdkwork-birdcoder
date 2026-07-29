@@ -104,3 +104,127 @@ export const BIRDCODER_EDITOR_THEME: editor.IStandaloneThemeData = {
     'diffEditor.diagonalFill': '#30363D',
   },
 };
+
+interface BirdCoderEditorThemeInput {
+  accentColor: string;
+  backgroundColor: string;
+  colorMode: 'dark' | 'light';
+  foregroundColor: string;
+}
+
+function withoutHash(color: string): string {
+  return color.replace(/^#/u, '');
+}
+
+export function createBirdCoderEditorTheme({
+  accentColor,
+  backgroundColor,
+  colorMode,
+  foregroundColor,
+}: BirdCoderEditorThemeInput): editor.IStandaloneThemeData {
+  const isDark = colorMode === 'dark';
+  const accent = withoutHash(accentColor);
+  const background = withoutHash(backgroundColor);
+  const foreground = withoutHash(foregroundColor);
+  const surface = isDark ? '161B22' : 'F3F4F6';
+  const elevated = isDark ? '1F242C' : 'FFFFFF';
+  const border = isDark ? '30363D' : 'D1D5DB';
+  const muted = isDark ? '8B949E' : '667085';
+
+  return {
+    base: isDark ? 'vs-dark' : 'vs',
+    inherit: true,
+    rules: isDark ? BIRDCODER_EDITOR_THEME.rules : [
+      { token: 'comment', foreground: '6A737D', fontStyle: 'italic' },
+      { token: 'comment.doc', foreground: '667085', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'CF222E' },
+      { token: 'keyword.control', foreground: 'CF222E' },
+      { token: 'keyword.operator', foreground: '0550AE' },
+      { token: 'operator', foreground: '0550AE' },
+      { token: 'delimiter', foreground: '57606A' },
+      { token: 'delimiter.bracket', foreground: '8250DF' },
+      { token: 'string', foreground: '0A3069' },
+      { token: 'string.quote', foreground: '0A3069' },
+      { token: 'string.escape', foreground: '0550AE', fontStyle: 'bold' },
+      { token: 'regexp', foreground: '116329' },
+      { token: 'number', foreground: '0550AE' },
+      { token: 'number.hex', foreground: '0550AE' },
+      { token: 'number.float', foreground: '0550AE' },
+      { token: 'type', foreground: '116329' },
+      { token: 'type.identifier', foreground: '116329' },
+      { token: 'typeParameter', foreground: '116329' },
+      { token: 'class', foreground: '116329' },
+      { token: 'interface', foreground: '116329' },
+      { token: 'namespace', foreground: '116329' },
+      { token: 'function', foreground: '8250DF' },
+      { token: 'function.call', foreground: '8250DF' },
+      { token: 'method', foreground: '8250DF' },
+      { token: 'constructor', foreground: '8250DF' },
+      { token: 'variable', foreground: '953800' },
+      { token: 'variable.predefined', foreground: '953800' },
+      { token: 'parameter', foreground: '953800' },
+      { token: 'constant', foreground: '0550AE' },
+      { token: 'constant.language', foreground: '0550AE' },
+      { token: 'annotation', foreground: '8250DF' },
+      { token: 'tag', foreground: '116329' },
+      { token: 'metatag', foreground: 'CF222E' },
+      { token: 'attribute.name', foreground: '8250DF' },
+      { token: 'attribute.value', foreground: '0A3069' },
+      { token: 'key', foreground: '0550AE' },
+      { token: 'invalid', foreground: '82071E', background: 'FFEBE9' },
+    ],
+    colors: {
+      'editor.background': `#${background}`,
+      'editor.foreground': `#${foreground}`,
+      'editorGutter.background': `#${background}`,
+      'editorLineNumber.foreground': `#${muted}`,
+      'editorLineNumber.activeForeground': `#${foreground}`,
+      'editorCursor.foreground': `#${accent}`,
+      'editor.selectionBackground': `#${accent}42`,
+      'editor.inactiveSelectionBackground': `#${accent}24`,
+      'editor.selectionHighlightBackground': `#${accent}20`,
+      'editor.wordHighlightBackground': `#${accent}18`,
+      'editor.wordHighlightStrongBackground': `#${accent}28`,
+      'editor.findMatchBackground': isDark ? '#9E6A03AA' : '#FFDF5D99',
+      'editor.findMatchHighlightBackground': isDark ? '#BB800955' : '#FFDF5D66',
+      'editor.findRangeHighlightBackground': `#${accent}16`,
+      'editor.lineHighlightBackground': `#${surface}`,
+      'editor.lineHighlightBorder': '#00000000',
+      'editorWhitespace.foreground': `#${muted}66`,
+      'editorIndentGuide.background1': `#${border}`,
+      'editorIndentGuide.activeBackground1': `#${muted}`,
+      'editorBracketMatch.background': `#${accent}22`,
+      'editorBracketMatch.border': `#${accent}`,
+      'editorError.foreground': '#F85149',
+      'editorWarning.foreground': '#D29922',
+      'editorInfo.foreground': `#${accent}`,
+      'editorHint.foreground': `#${muted}`,
+      'editorLink.activeForeground': `#${accent}`,
+      'editorCodeLens.foreground': `#${muted}`,
+      'editorInlayHint.foreground': `#${muted}`,
+      'editorInlayHint.background': `#${surface}`,
+      'editorWidget.background': `#${elevated}`,
+      'editorWidget.border': `#${border}`,
+      'editorHoverWidget.background': `#${elevated}`,
+      'editorHoverWidget.border': `#${border}`,
+      'editorSuggestWidget.background': `#${elevated}`,
+      'editorSuggestWidget.border': `#${border}`,
+      'editorSuggestWidget.foreground': `#${foreground}`,
+      'editorSuggestWidget.highlightForeground': `#${accent}`,
+      'editorSuggestWidget.selectedBackground': `#${accent}28`,
+      'editorStickyScroll.background': `#${background}`,
+      'editorStickyScroll.border': `#${border}`,
+      'editorOverviewRuler.border': '#00000000',
+      'minimap.background': `#${background}`,
+      'minimap.selectionHighlight': `#${accent}42`,
+      'scrollbarSlider.background': `#${muted}33`,
+      'scrollbarSlider.hoverBackground': `#${muted}55`,
+      'scrollbarSlider.activeBackground': `#${muted}70`,
+      'diffEditor.insertedTextBackground': '#2EA04333',
+      'diffEditor.removedTextBackground': '#F8514933',
+      'diffEditor.insertedLineBackground': '#2EA04318',
+      'diffEditor.removedLineBackground': '#F8514918',
+      'diffEditor.diagonalFill': `#${border}`,
+    },
+  };
+}

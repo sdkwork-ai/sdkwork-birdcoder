@@ -81,6 +81,7 @@ import {
 import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import { ChatTranscriptJumpToLatestButton } from './ChatTranscriptJumpToLatestButton';
+import { reconcileTranscriptProjectionReferences } from './transcriptProjection';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import {
@@ -369,6 +370,7 @@ interface UniversalChatTranscriptProps {
   localeKey: string;
   messages: readonly AgentSessionItemView[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  navigationRequest: TranscriptNavigationRequest | null;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   scrollCoordinator: Pick<
     TranscriptScrollCoordinator,
@@ -376,9 +378,18 @@ interface UniversalChatTranscriptProps {
     | 'cancelPrepend'
     | 'completePrepend'
     | 'pauseFollowing'
+    | 'scrollToOffset'
   >;
   sessionId: string;
   onLoadMoreRemoteMessages?: () => void | Promise<void>;
+}
+
+interface TranscriptNavigationRequest {
+  message: AgentSessionItemView;
+  messageIndex: number;
+  messageKey: string;
+  requestId: number;
+  scopeKey: string;
 }
 
 interface RemoteMessageRequestState {
@@ -456,6 +467,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   localeKey: _localeKey,
   messages,
   messagesEndRef,
+  navigationRequest,
   onLoadMoreRemoteMessages,
   scrollContainerRef,
   scrollCoordinator,
@@ -466,6 +478,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     cancelPrepend,
     completePrepend,
     pauseFollowing,
+    scrollToOffset,
   } = scrollCoordinator;
   const [transcriptDisclosureState, setTranscriptDisclosureState] =
     useState<TranscriptDisclosureState>(() => ({
@@ -507,15 +520,19 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     remoteMessageRequestState.sessionId === sessionId
     && remoteMessageRequestState.isRequesting;
   const pendingRemotePrependRef = useRef<{
-    firstMessageId: string;
-    messageCount: number;
+    firstMessageKey: string;
     sessionId: string;
     transaction: TranscriptPrependTransaction;
   } | null>(null);
-  const firstMessageId = messages[0]?.id ?? '';
+  const firstMessageKey = messages.length > 0
+    ? resolveTranscriptMessageKey(messages[0], 0)
+    : '';
 
   useLayoutEffect(() => {
-    cancelPrepend(pendingRemotePrependRef.current?.transaction);
+    const pendingPrepend = pendingRemotePrependRef.current;
+    if (pendingPrepend) {
+      cancelPrepend(pendingPrepend.transaction);
+    }
     pendingRemotePrependRef.current = null;
   }, [cancelPrepend, sessionId]);
 
@@ -529,10 +546,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       pendingRemotePrependRef.current = null;
       return;
     }
-    if (
-      pendingPrepend.messageCount === messages.length
-      && pendingPrepend.firstMessageId === firstMessageId
-    ) {
+    if (pendingPrepend.firstMessageKey === firstMessageKey) {
       if (!isLoadingMoreRemoteMessages && !isRequestingRemoteMessages) {
         cancelPrepend(pendingPrepend.transaction);
         pendingRemotePrependRef.current = null;
@@ -544,11 +558,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   }, [
     cancelPrepend,
     completePrepend,
-    firstMessageId,
+    firstMessageKey,
     isActive,
     isLoadingMoreRemoteMessages,
     isRequestingRemoteMessages,
-    messages.length,
     sessionId,
   ]);
 
@@ -565,8 +578,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       return;
     }
     pendingRemotePrependRef.current = {
-      firstMessageId,
-      messageCount: messages.length,
+      firstMessageKey,
       sessionId,
       transaction,
     };
@@ -587,13 +599,34 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     }
   }, [
     beginPrepend,
-    firstMessageId,
+    firstMessageKey,
     isLoadingMoreRemoteMessages,
     isRequestingRemoteMessages,
-    messages.length,
     onLoadMoreRemoteMessages,
     sessionId,
   ]);
+
+  const navigationTargetIndex = useMemo(() => {
+    if (
+      !navigationRequest
+      || navigationRequest.scopeKey !== sessionId
+      || messages.length === 0
+    ) {
+      return null;
+    }
+
+    const referenceIndex = messages.indexOf(navigationRequest.message);
+    if (referenceIndex >= 0) {
+      return referenceIndex;
+    }
+    const keyedIndex = messages.findIndex((message, index) => (
+      resolveTranscriptMessageKey(message, index) === navigationRequest.messageKey
+    ));
+    if (keyedIndex >= 0) {
+      return keyedIndex;
+    }
+    return Math.max(0, Math.min(messages.length - 1, navigationRequest.messageIndex));
+  }, [messages, navigationRequest, sessionId]);
 
   const {
     hasEarlierMessages,
@@ -602,7 +635,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     visibleTranscriptStartIndex,
   } = useProgressiveTranscriptWindow(
     messages,
-    messagesEndRef,
+    scrollContainerRef,
     isActive,
     sessionId,
     {
@@ -611,6 +644,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       onLoadMoreMessages: handleLoadMoreRemoteMessages,
     },
     scrollCoordinator,
+    navigationTargetIndex,
   );
   const turnFileChangesPresentations = useMemo(
     () => resolveTurnFileChangesMessagePresentations(renderedMessages, {
@@ -619,9 +653,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     [isLive, renderedMessages],
   );
   const {
+    measurementVersion,
     paddingBottom,
     paddingTop,
     registerMessageElement,
+    resolveMessageOffset,
     visibleMessages,
     visibleStartIndex,
   } = useVirtualizedTranscriptWindow(
@@ -632,6 +668,68 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       layout,
       engineId,
     );
+  const completedNavigationRequestRef = useRef(0);
+  const lastNavigationEstimateRef = useRef<{
+    requestId: number;
+    top: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    if (
+      !isActive
+      || !navigationRequest
+      || navigationRequest.scopeKey !== sessionId
+      || navigationTargetIndex === null
+      || navigationTargetIndex < visibleTranscriptStartIndex
+      || completedNavigationRequestRef.current === navigationRequest.requestId
+    ) {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    const renderedMessage = scrollContainer.querySelector<HTMLElement>(
+      `[data-transcript-message-index="${navigationTargetIndex}"]`,
+    );
+    if (renderedMessage) {
+      completedNavigationRequestRef.current = navigationRequest.requestId;
+      lastNavigationEstimateRef.current = null;
+      scrollToOffset(Math.max(0, renderedMessage.offsetTop - 16));
+      return;
+    }
+
+    const renderedTargetIndex = navigationTargetIndex - visibleTranscriptStartIndex;
+    const estimatedTop = resolveMessageOffset(renderedTargetIndex);
+    if (estimatedTop === null) {
+      return;
+    }
+    const previousEstimate = lastNavigationEstimateRef.current;
+    if (
+      previousEstimate?.requestId === navigationRequest.requestId
+      && Math.abs(previousEstimate.top - estimatedTop) <= 1
+    ) {
+      return;
+    }
+    lastNavigationEstimateRef.current = {
+      requestId: navigationRequest.requestId,
+      top: estimatedTop,
+    };
+    scrollToOffset(Math.max(0, estimatedTop - 16));
+  }, [
+    isActive,
+    measurementVersion,
+    navigationRequest,
+    navigationTargetIndex,
+    resolveMessageOffset,
+    scrollContainerRef,
+    scrollToOffset,
+    sessionId,
+    visibleMessages,
+    visibleStartIndex,
+    visibleTranscriptStartIndex,
+  ]);
   const messageActionTargets = useMemo(
     () =>
       buildVisibleMessageActionTargets(
@@ -874,12 +972,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                 engineId={engineId}
                 messageRenderKey={messageRenderKey}
                 messageRef={messageRef}
-                context={{
-                  ...messageRenderContext,
-                  index: messageIndex,
-                  environment: messageEnvironment,
-                  actionTarget,
-                  showMessageActions,
+                 context={{
+                   ...messageRenderContext,
+                   index: messageIndex,
+                   environment: messageEnvironment,
+                   actionTarget: showMessageActions ? actionTarget : null,
+                   showMessageActions,
                   turn: turnPresentation,
                   suppressInlineFileChanges:
                     turnFileChangesPresentation?.suppressInlineFileChanges ?? false,
@@ -914,6 +1012,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.emptyState !== nextProps.emptyState ||
     previousProps.hasMoreRemoteMessages !== nextProps.hasMoreRemoteMessages ||
     previousProps.isLoadingMoreRemoteMessages !== nextProps.isLoadingMoreRemoteMessages ||
+    previousProps.navigationRequest !== nextProps.navigationRequest ||
     previousProps.onLoadMoreRemoteMessages !== nextProps.onLoadMoreRemoteMessages ||
     previousProps.scrollCoordinator !== nextProps.scrollCoordinator
   ) {
@@ -1209,6 +1308,7 @@ export const UniversalChat = memo(function UniversalChat({
     refresh: refreshComposerProviderCapabilities,
   } = useComposerProviderCapabilities({
     agentId: currentEngine.agentId,
+    disabledCapabilityIds: preferences.disabledComposerCapabilityIds,
     isActive: isActive && showAttachmentMenu,
     pageSize: 20,
   });
@@ -1352,22 +1452,36 @@ export const UniversalChat = memo(function UniversalChat({
       ?? resolvedSelectedEngineId,
     [resolvedSelectedEngineId],
   );
-  const normalizedMessages = useMemo(
+  const projectedMessages = useMemo(
     () => composeAgentSessionTranscriptActivity(
       resolveVisibleSessionMessages(messages, normalizedSessionId),
       { engineId: transcriptEngineId },
     ),
     [messages, normalizedSessionId, transcriptEngineId],
   );
+  const committedTranscriptProjectionRef = useRef<readonly AgentSessionItemView[]>([]);
+  const normalizedMessages = useMemo(
+    () => reconcileTranscriptProjectionReferences(
+      committedTranscriptProjectionRef.current,
+      projectedMessages,
+    ),
+    [projectedMessages],
+  );
+  useLayoutEffect(() => {
+    committedTranscriptProjectionRef.current = normalizedMessages;
+  }, [normalizedMessages]);
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
   const transcriptEnvironmentRef = useRef<UniversalChatTranscriptEnvironment | null>(null);
   const transcriptScrollContainerRef = useRef<HTMLDivElement>(null);
+  const transcriptNavigationRequestIdRef = useRef(0);
+  const [transcriptNavigationRequest, setTranscriptNavigationRequest] =
+    useState<TranscriptNavigationRequest | null>(null);
   const transcriptScrollCoordinator = useTranscriptScrollCoordinator({
     isActive,
     latestMessageContentLength: lastMessageContentLength,
     latestMessageIdentity: lastMessage
-      ? `${lastMessage.id}\u0001${lastMessage.createdAt}`
+      ? resolveTranscriptMessageKey(lastMessage, normalizedMessages.length - 1)
       : '',
     messageCount: normalizedMessages.length,
     scopeKey: normalizedTranscriptScopeKey,
@@ -1378,11 +1492,13 @@ export const UniversalChat = memo(function UniversalChat({
     cancelPrepend: transcriptScrollCoordinator.cancelPrepend,
     completePrepend: transcriptScrollCoordinator.completePrepend,
     pauseFollowing: transcriptScrollCoordinator.pauseFollowing,
+    scrollToOffset: transcriptScrollCoordinator.scrollToOffset,
   }), [
     transcriptScrollCoordinator.beginPrepend,
     transcriptScrollCoordinator.cancelPrepend,
     transcriptScrollCoordinator.completePrepend,
     transcriptScrollCoordinator.pauseFollowing,
+    transcriptScrollCoordinator.scrollToOffset,
   ]);
   const focusedNewSessionScopeRef = useRef('');
   const shouldPresentNewSessionComposer =
@@ -2996,30 +3112,20 @@ export const UniversalChat = memo(function UniversalChat({
     setManualComposerHeight(nextHeight);
   }, [manualComposerHeight]);
   const scrollTranscriptToTurn = useCallback((messageIndex: number) => {
-    const scrollContainer = transcriptScrollContainerRef.current;
-    if (!scrollContainer || normalizedMessages.length === 0) {
+    const message = normalizedMessages[messageIndex];
+    if (!message) {
       return;
     }
 
-    const renderedMessage = scrollContainer.querySelector<HTMLDivElement>(
-      `[data-transcript-message-index="${messageIndex}"]`,
-    );
-    if (renderedMessage) {
-      transcriptScrollCoordinator.scrollToOffset(
-        Math.max(0, renderedMessage.offsetTop - 16),
-      );
-      return;
-    }
-
-    const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
-    const messagePosition = Math.max(
-      0,
-      Math.min(normalizedMessages.length - 1, messageIndex),
-    );
-    transcriptScrollCoordinator.scrollToOffset(
-      maxScrollTop * (messagePosition / Math.max(1, normalizedMessages.length - 1)),
-    );
-  }, [normalizedMessages.length, transcriptScrollCoordinator.scrollToOffset]);
+    transcriptNavigationRequestIdRef.current += 1;
+    setTranscriptNavigationRequest({
+      message,
+      messageIndex,
+      messageKey: resolveTranscriptMessageKey(message, messageIndex),
+      requestId: transcriptNavigationRequestIdRef.current,
+      scopeKey: normalizedTranscriptScopeKey,
+    });
+  }, [normalizedMessages, normalizedTranscriptScopeKey]);
 
   return (
     <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
@@ -3087,7 +3193,11 @@ export const UniversalChat = memo(function UniversalChat({
           aria-label={t('chat.transcriptRegion')}
           className={`flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar ${layout === 'sidebar' ? 'gap-4 p-4 pb-4 pl-11' : 'pb-6 pt-1'}`}
           role="region"
-          style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
+          style={{
+            overflowAnchor: 'none',
+            overscrollBehavior: 'contain',
+            scrollbarGutter: 'stable',
+          }}
           tabIndex={0}
         >
           <div
@@ -3108,6 +3218,7 @@ export const UniversalChat = memo(function UniversalChat({
               localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
               messages={normalizedMessages}
               messagesEndRef={messagesEndRef}
+              navigationRequest={transcriptNavigationRequest}
               onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
               scrollContainerRef={transcriptScrollContainerRef}
               scrollCoordinator={transcriptPrependCoordinator}

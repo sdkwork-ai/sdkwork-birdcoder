@@ -62,6 +62,7 @@ export interface CommitWorkbenchGitChangesInput {
 
 export interface PushWorkbenchGitBranchInput {
   branchName?: string;
+  forceWithLease?: boolean;
   remoteName?: string;
 }
 

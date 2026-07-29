@@ -1,9 +1,18 @@
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { RefObject } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   hasTranscriptMessageKey,
   reconcileTranscriptPrefixHeightsCache,
+  resolveMeasurementScopeTranscriptViewport,
+  resolvePrependAdjustedTranscriptViewport,
   resolveVirtualizedTranscriptWindow,
   type TranscriptPrefixHeightsCache,
   type TranscriptViewport,
@@ -14,6 +23,7 @@ interface VirtualizedTranscriptWindowResult {
   paddingBottom: number;
   paddingTop: number;
   registerMessageElement: (messageId: string) => (element: HTMLDivElement | null) => void;
+  resolveMessageOffset: (messageIndex: number) => number | null;
   visibleMessages: readonly AgentSessionItemView[];
   visibleStartIndex: number;
 }
@@ -22,11 +32,61 @@ const EMPTY_INVALIDATED_MESSAGE_IDS: string[] = [];
 
 interface TranscriptMeasurementState {
   changedMessageIds: readonly string[];
+  publishedThroughSequence: number;
+  scope: TranscriptMeasurementScope;
   version: number;
 }
 
 interface ScopedTranscriptViewport extends TranscriptViewport {
   measurementScopeKey: string;
+}
+
+interface TranscriptMeasurementScope {
+  committedPublishedThroughSequence: number;
+  isDisposed: boolean;
+  key: string;
+  measuredHeights: Map<string, number>;
+  messageIdByElement: Map<HTMLDivElement, string>;
+  messageRefCallbacks: Map<string, (element: HTMLDivElement | null) => void>;
+  nextChangeSequence: number;
+  observedElements: Map<string, HTMLDivElement>;
+  pendingMessageIds: Map<string, number>;
+  prefixHeightsCache: TranscriptPrefixHeightsCache | null;
+  publishFrameId: number | null;
+  resizeObserver: ResizeObserver | null;
+}
+
+function createTranscriptMeasurementScope(key: string): TranscriptMeasurementScope {
+  return {
+    committedPublishedThroughSequence: 0,
+    isDisposed: false,
+    key,
+    measuredHeights: new Map<string, number>(),
+    messageIdByElement: new Map<HTMLDivElement, string>(),
+    messageRefCallbacks: new Map<string, (element: HTMLDivElement | null) => void>(),
+    nextChangeSequence: 0,
+    observedElements: new Map<string, HTMLDivElement>(),
+    pendingMessageIds: new Map<string, number>(),
+    prefixHeightsCache: null,
+    publishFrameId: null,
+    resizeObserver: null,
+  };
+}
+
+function disposeTranscriptMeasurementScope(scope: TranscriptMeasurementScope): void {
+  scope.isDisposed = true;
+  if (scope.publishFrameId !== null && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(scope.publishFrameId);
+  }
+  scope.publishFrameId = null;
+  scope.resizeObserver?.disconnect();
+  scope.resizeObserver = null;
+  scope.observedElements.clear();
+  scope.messageIdByElement.clear();
+  scope.messageRefCallbacks.clear();
+  scope.measuredHeights.clear();
+  scope.pendingMessageIds.clear();
+  scope.prefixHeightsCache = null;
 }
 
 export function useVirtualizedTranscriptWindow(
@@ -38,6 +98,10 @@ export function useVirtualizedTranscriptWindow(
   engineId?: string,
 ): VirtualizedTranscriptWindowResult {
   const normalizedMeasurementScopeKey = measurementScopeKey.trim();
+  const measurementScope = useMemo(
+    () => createTranscriptMeasurementScope(normalizedMeasurementScopeKey),
+    [normalizedMeasurementScopeKey],
+  );
   const [viewport, setViewport] = useState<ScopedTranscriptViewport>({
     clientHeight: 0,
     measurementScopeKey: normalizedMeasurementScopeKey,
@@ -45,111 +109,151 @@ export function useVirtualizedTranscriptWindow(
   });
   const [measurementState, setMeasurementState] = useState<TranscriptMeasurementState>({
     changedMessageIds: EMPTY_INVALIDATED_MESSAGE_IDS,
+    publishedThroughSequence: 0,
+    scope: measurementScope,
     version: 0,
   });
-  const measuredHeightsRef = useRef(new Map<string, number>());
-  const observedElementsRef = useRef(new Map<string, HTMLDivElement>());
-  const messageIdByElementRef = useRef(new Map<HTMLDivElement, string>());
-  const messageRefCallbackMapRef = useRef(
-    new Map<string, (element: HTMLDivElement | null) => void>(),
-  );
-  const prefixHeightsCacheRef = useRef<TranscriptPrefixHeightsCache | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const isActiveRef = useRef(isActive);
-  const measurementScopeKeyRef = useRef(normalizedMeasurementScopeKey);
+  const committedMeasurementScopeRef = useRef(measurementScope);
 
-  const didResetMeasurementScope = measurementScopeKeyRef.current !== normalizedMeasurementScopeKey;
-  if (didResetMeasurementScope) {
-    measurementScopeKeyRef.current = normalizedMeasurementScopeKey;
-    for (const element of observedElementsRef.current.values()) {
-      resizeObserverRef.current?.unobserve(element);
+  useLayoutEffect(() => {
+    const previousScope = committedMeasurementScopeRef.current;
+    if (previousScope === measurementScope) {
+      return;
     }
-    observedElementsRef.current.clear();
-    messageIdByElementRef.current.clear();
-    messageRefCallbackMapRef.current.clear();
-    measuredHeightsRef.current.clear();
-    prefixHeightsCacheRef.current = null;
-  }
-  const effectiveViewport = viewport.measurementScopeKey !== normalizedMeasurementScopeKey
-    ? {
-        clientHeight: viewport.clientHeight,
-        scrollTop: 0,
+
+    disposeTranscriptMeasurementScope(previousScope);
+    committedMeasurementScopeRef.current = measurementScope;
+  }, [measurementScope]);
+
+  const publishPendingMeasurementChanges = useCallback(() => {
+    measurementScope.publishFrameId = null;
+    if (measurementScope.isDisposed || measurementScope.pendingMessageIds.size === 0) {
+      return;
+    }
+
+    const changedMessageIds = Array.from(measurementScope.pendingMessageIds.keys());
+    const publishedThroughSequence = measurementScope.nextChangeSequence;
+    setMeasurementState((previousState) => {
+      if (measurementScope.isDisposed) {
+        return previousState;
       }
-    : viewport;
+
+      const hasUncommittedMeasurementBatch =
+        previousState.scope === measurementScope
+        && previousState.publishedThroughSequence
+          > measurementScope.committedPublishedThroughSequence;
+      const nextChangedMessageIds = hasUncommittedMeasurementBatch
+        ? Array.from(new Set([
+            ...previousState.changedMessageIds,
+            ...changedMessageIds,
+          ]))
+        : changedMessageIds;
+
+      return {
+        changedMessageIds: nextChangedMessageIds,
+        publishedThroughSequence,
+        scope: measurementScope,
+        version: previousState.version + 1,
+      };
+    });
+  }, [measurementScope]);
 
   const publishMeasurementChange = useCallback((changedMessageIds?: readonly string[]) => {
-    const normalizedChangedMessageIds =
-      changedMessageIds && changedMessageIds.length > 0
-        ? Array.from(
-            new Set(
-              changedMessageIds
-                .map((messageId) => messageId.trim())
-                .filter((messageId) => messageId.length > 0),
-            ),
-          )
-        : EMPTY_INVALIDATED_MESSAGE_IDS;
+    if (measurementScope.isDisposed || !changedMessageIds || changedMessageIds.length === 0) {
+      return;
+    }
 
-    setMeasurementState((previousState) => ({
-      changedMessageIds: normalizedChangedMessageIds,
-      version: previousState.version + 1,
-    }));
-  }, []);
+    let didQueueMeasurement = false;
+    for (const messageId of changedMessageIds) {
+      const normalizedMessageId = messageId.trim();
+      if (!normalizedMessageId) {
+        continue;
+      }
+
+      measurementScope.nextChangeSequence += 1;
+      measurementScope.pendingMessageIds.set(
+        normalizedMessageId,
+        measurementScope.nextChangeSequence,
+      );
+      didQueueMeasurement = true;
+    }
+
+    if (!didQueueMeasurement || measurementScope.publishFrameId !== null) {
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      publishPendingMeasurementChanges();
+      return;
+    }
+    measurementScope.publishFrameId = window.requestAnimationFrame(
+      publishPendingMeasurementChanges,
+    );
+  }, [measurementScope, publishPendingMeasurementChanges]);
 
   const updateMeasuredTranscriptElementHeight = useCallback(
     (messageId: string, element: HTMLDivElement): boolean => {
       const nextHeight = Math.max(1, Math.ceil(element.getBoundingClientRect().height));
-      const previousHeight = measuredHeightsRef.current.get(messageId);
+      const previousHeight = measurementScope.measuredHeights.get(messageId);
       if (previousHeight === nextHeight) {
         return false;
       }
 
-      measuredHeightsRef.current.set(messageId, nextHeight);
+      measurementScope.measuredHeights.set(messageId, nextHeight);
       return true;
     },
-    [],
+    [measurementScope],
   );
 
   useEffect(() => {
     isActiveRef.current = isActive;
   }, [isActive]);
 
+  const previousPrefixHeightsCache = measurementScope.prefixHeightsCache;
+  const invalidatedMessageIds =
+    measurementState.scope === measurementScope
+    && measurementState.publishedThroughSequence
+      > measurementScope.committedPublishedThroughSequence
+    ? measurementState.changedMessageIds
+    : EMPTY_INVALIDATED_MESSAGE_IDS;
   const prefixHeightsCache = useMemo(
     () =>
       reconcileTranscriptPrefixHeightsCache({
-        invalidatedMessageIds: measurementState.changedMessageIds,
-        measuredHeights: measuredHeightsRef.current,
+        invalidatedMessageIds,
+        measuredHeights: measurementScope.measuredHeights,
         messages,
         options: { layout, engineId },
-        previousCache: prefixHeightsCacheRef.current,
+        previousCache: measurementScope.prefixHeightsCache,
       }),
-    [engineId, layout, measurementState, messages, normalizedMeasurementScopeKey],
+    [engineId, invalidatedMessageIds, layout, measurementScope, messages],
   );
   const messageIndexesByKey = prefixHeightsCache.messageIndexesByKey;
 
   useEffect(() => {
-    for (const messageId of measuredHeightsRef.current.keys()) {
+    for (const messageId of measurementScope.measuredHeights.keys()) {
       if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
-      measuredHeightsRef.current.delete(messageId);
+      measurementScope.measuredHeights.delete(messageId);
     }
 
-    for (const [messageId, element] of observedElementsRef.current.entries()) {
+    for (const [messageId, element] of measurementScope.observedElements.entries()) {
       if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
-      resizeObserverRef.current?.unobserve(element);
-      observedElementsRef.current.delete(messageId);
-      messageIdByElementRef.current.delete(element);
+      measurementScope.resizeObserver?.unobserve(element);
+      measurementScope.observedElements.delete(messageId);
+      measurementScope.messageIdByElement.delete(element);
     }
 
-    for (const messageId of messageRefCallbackMapRef.current.keys()) {
+    for (const messageId of measurementScope.messageRefCallbacks.keys()) {
       if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
-      messageRefCallbackMapRef.current.delete(messageId);
+      measurementScope.messageRefCallbacks.delete(messageId);
     }
-  }, [messageIndexesByKey, normalizedMeasurementScopeKey]);
+  }, [measurementScope, messageIndexesByKey]);
 
   useEffect(() => {
     if (!isActive || typeof ResizeObserver !== 'function') {
@@ -164,7 +268,7 @@ export function useVirtualizedTranscriptWindow(
           continue;
         }
 
-        const messageId = messageIdByElementRef.current.get(element);
+        const messageId = measurementScope.messageIdByElement.get(element);
         if (!messageId) {
           continue;
         }
@@ -178,12 +282,12 @@ export function useVirtualizedTranscriptWindow(
         publishMeasurementChange(changedMessageIds);
       }
     });
-    resizeObserverRef.current = resizeObserver;
+    measurementScope.resizeObserver = resizeObserver;
 
     const initiallyChangedMessageIds: string[] = [];
-    for (const element of observedElementsRef.current.values()) {
+    for (const element of measurementScope.observedElements.values()) {
       resizeObserver.observe(element);
-      const messageId = messageIdByElementRef.current.get(element);
+      const messageId = measurementScope.messageIdByElement.get(element);
       if (!messageId) {
         continue;
       }
@@ -199,60 +303,92 @@ export function useVirtualizedTranscriptWindow(
 
     return () => {
       resizeObserver.disconnect();
-      if (resizeObserverRef.current === resizeObserver) {
-        resizeObserverRef.current = null;
+      if (measurementScope.resizeObserver === resizeObserver) {
+        measurementScope.resizeObserver = null;
       }
     };
-  }, [isActive, publishMeasurementChange, updateMeasuredTranscriptElementHeight]);
+  }, [
+    isActive,
+    measurementScope,
+    publishMeasurementChange,
+    updateMeasuredTranscriptElementHeight,
+  ]);
 
   const registerMessageElement = useCallback(
     (messageId: string) => {
       const normalizedMessageId = messageId.trim();
-      const cachedCallback = messageRefCallbackMapRef.current.get(normalizedMessageId);
+      const cachedCallback = measurementScope.messageRefCallbacks.get(normalizedMessageId);
       if (cachedCallback) {
         return cachedCallback;
       }
 
       const nextCallback = (element: HTMLDivElement | null) => {
-        const previousElement = observedElementsRef.current.get(normalizedMessageId);
+        const previousElement = measurementScope.observedElements.get(normalizedMessageId);
         if (previousElement === element) {
           return;
         }
 
         if (previousElement) {
-          resizeObserverRef.current?.unobserve(previousElement);
-          observedElementsRef.current.delete(normalizedMessageId);
-          messageIdByElementRef.current.delete(previousElement);
+          measurementScope.resizeObserver?.unobserve(previousElement);
+          measurementScope.observedElements.delete(normalizedMessageId);
+          measurementScope.messageIdByElement.delete(previousElement);
         }
 
         if (!element || !normalizedMessageId) {
           return;
         }
 
-        observedElementsRef.current.set(normalizedMessageId, element);
-        messageIdByElementRef.current.set(element, normalizedMessageId);
+        measurementScope.observedElements.set(normalizedMessageId, element);
+        measurementScope.messageIdByElement.set(element, normalizedMessageId);
         if (!isActiveRef.current) {
           return;
         }
 
-        resizeObserverRef.current?.observe(element);
+        measurementScope.resizeObserver?.observe(element);
 
         if (updateMeasuredTranscriptElementHeight(normalizedMessageId, element)) {
           publishMeasurementChange([normalizedMessageId]);
         }
       };
 
-      messageRefCallbackMapRef.current.set(normalizedMessageId, nextCallback);
+      measurementScope.messageRefCallbacks.set(normalizedMessageId, nextCallback);
       return nextCallback;
     },
-    [publishMeasurementChange, updateMeasuredTranscriptElementHeight],
+    [measurementScope, publishMeasurementChange, updateMeasuredTranscriptElementHeight],
   );
 
-  useEffect(() => {
-    prefixHeightsCacheRef.current = prefixHeightsCache;
-  }, [prefixHeightsCache]);
+  useLayoutEffect(() => {
+    measurementScope.prefixHeightsCache = prefixHeightsCache;
+    if (measurementState.scope !== measurementScope) {
+      return;
+    }
+
+    measurementScope.committedPublishedThroughSequence = Math.max(
+      measurementScope.committedPublishedThroughSequence,
+      measurementState.publishedThroughSequence,
+    );
+    for (const [messageId, changeSequence] of measurementScope.pendingMessageIds) {
+      if (changeSequence <= measurementState.publishedThroughSequence) {
+        measurementScope.pendingMessageIds.delete(messageId);
+      }
+    }
+  }, [measurementScope, measurementState, prefixHeightsCache]);
   const prefixHeights = prefixHeightsCache.prefixHeights;
   const totalTranscriptHeight = prefixHeights[messages.length] ?? 0;
+  const effectiveViewport = resolveMeasurementScopeTranscriptViewport({
+    didChangeScope: viewport.measurementScopeKey !== normalizedMeasurementScopeKey,
+    isActive,
+    totalHeight: totalTranscriptHeight,
+    viewport,
+  });
+  const windowViewport = useMemo(
+    () => resolvePrependAdjustedTranscriptViewport({
+      currentCache: prefixHeightsCache,
+      previousCache: previousPrefixHeightsCache,
+      viewport: effectiveViewport,
+    }),
+    [effectiveViewport, prefixHeightsCache, previousPrefixHeightsCache],
+  );
 
   useEffect(() => {
     if (!isActive || typeof window === 'undefined') {
@@ -337,14 +473,25 @@ export function useVirtualizedTranscriptWindow(
         isActive,
         messages,
         prefixHeights,
-        viewport: effectiveViewport,
+        viewport: windowViewport,
       }),
-    [effectiveViewport, isActive, messages, prefixHeights],
+    [isActive, messages, prefixHeights, windowViewport],
   );
+  const resolveMessageOffset = useCallback((messageIndex: number): number | null => {
+    if (
+      !Number.isInteger(messageIndex)
+      || messageIndex < 0
+      || messageIndex >= messages.length
+    ) {
+      return null;
+    }
+    return prefixHeights[messageIndex] ?? null;
+  }, [messages.length, prefixHeights]);
 
   return {
     ...windowedTranscript,
     measurementVersion: measurementState.version,
     registerMessageElement,
+    resolveMessageOffset,
   };
 }

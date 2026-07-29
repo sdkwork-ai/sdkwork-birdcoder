@@ -38,7 +38,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\{[\s\S]*hasMoreMessages:\s*hasMoreRemoteMessages,[\s\S]*isLoadingMessages:\s*isLoadingMoreRemoteMessages \|\| isRequestingRemoteMessages,[\s\S]*onLoadMoreMessages:\s*handleLoadMoreRemoteMessages,[\s\S]*\},\s*\);/s,
+  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*scrollContainerRef,\s*isActive,\s*sessionId,\s*\{[\s\S]*hasMoreMessages:\s*hasMoreRemoteMessages,[\s\S]*isLoadingMessages:\s*isLoadingMoreRemoteMessages \|\| isRequestingRemoteMessages,[\s\S]*onLoadMoreMessages:\s*handleLoadMoreRemoteMessages,[\s\S]*\},\s*scrollCoordinator,\s*\);/s,
   'UniversalChat transcript must delegate progressive transcript windowing to the dedicated hook.',
 );
 

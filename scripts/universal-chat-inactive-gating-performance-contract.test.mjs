@@ -24,7 +24,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,/s,
+  /useProgressiveTranscriptWindow\(\s*messages,\s*scrollContainerRef,\s*isActive,\s*sessionId,/s,
   'UniversalChat transcript rendering must forward the activity flag into the progressive transcript window hook.',
 );
 
@@ -42,8 +42,8 @@ assert.match(
 
 assert.match(
   progressiveTranscriptSource,
-  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*remoteHistory\?: ProgressiveTranscriptRemoteHistory,\s*scrollCoordinator\?: Pick<[\s\S]*'beginPrepend' \| 'cancelPrepend' \| 'completePrepend'[\s\S]*>,\s*\)/s,
-  'useProgressiveTranscriptWindow must accept activity gating and a restricted prepend coordinator instead of owning scroll writes.',
+  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*scrollContainerRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*remoteHistory\?: ProgressiveTranscriptRemoteHistory,\s*scrollCoordinator\?: Pick<[\s\S]*'beginPrepend' \| 'cancelPrepend' \| 'completePrepend'[\s\S]*>,\s*requestedMessageIndex\?: number \| null,\s*\)/s,
+  'useProgressiveTranscriptWindow must accept activity gating, navigation reveal intent, and a restricted prepend coordinator instead of owning scroll writes.',
 );
 
 assert.match(

@@ -155,13 +155,6 @@ assert.match(expandedContextGroupHtml, />Read<\/span><span[^>]*>path:/u);
 assert.match(expandedContextGroupHtml, />Search<\/span><span[^>]*>pattern:/u);
 assert.doesNotMatch(expandedContextGroupHtml, />File operation<\/span><span[^>]*>Read/u);
 
-const activitySummarySource = fs.readFileSync(
-  new URL(
-    "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx",
-    import.meta.url,
-  ),
-  "utf8",
-);
 const disclosurePresentationSource = fs.readFileSync(
   new URL(
     "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/revealChatDisclosureDetails.ts",
@@ -169,11 +162,33 @@ const disclosurePresentationSource = fs.readFileSync(
   ),
   "utf8",
 );
+const transcriptScrollCoordinatorSource = fs.readFileSync(
+  new URL(
+    "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useTranscriptScrollCoordinator.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 assert.match(
-  `${activitySummarySource}\n${disclosurePresentationSource}`,
-  /function revealChatDisclosureDetails\([\s\S]*scrollIntoView\(\{[\s\S]*block: 'nearest'/,
-  "Expanded disclosure details must be scrolled into the nearest visible transcript area.",
+  disclosurePresentationSource,
+  /CHAT_TRANSCRIPT_REVEAL_EVENT/,
+  "Expanded disclosure details must use the shared transcript reveal event.",
+);
+assert.match(
+  disclosurePresentationSource,
+  /function revealChatDisclosureDetails\([\s\S]*dispatchEvent/,
+  "Expanded disclosure details must dispatch their transcript reveal intent.",
+);
+assert.match(
+  transcriptScrollCoordinatorSource,
+  /const revealTranscriptElement[\s\S]*addEventListener\(CHAT_TRANSCRIPT_REVEAL_EVENT/,
+  "The transcript scroll coordinator must own disclosure reveal positioning.",
+);
+assert.doesNotMatch(
+  disclosurePresentationSource,
+  /scrollIntoView|scrollTop\s*=/,
+  "Disclosure reveal helpers must not bypass the transcript scroll coordinator.",
 );
 
 const markdown = [

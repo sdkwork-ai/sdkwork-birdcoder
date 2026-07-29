@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Code2, Moon, Sun, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import {
+  useBirdcoderAppSettings,
+  useBirdcoderTheme,
+} from '@sdkwork/birdcoder-pc-workbench';
 
 interface AuthShellProps {
   children: ReactNode;
 }
 
 type WindowControlAction = 'close' | 'minimize' | 'toggleMaximize';
-type AuthThemeMode = 'dark' | 'light';
 type DesktopWindowLike = {
   isMaximized?: () => Promise<boolean> | boolean;
   maximize?: () => Promise<void> | void;
@@ -16,70 +20,6 @@ type DesktopWindowLike = {
   unmaximize?: () => Promise<void> | void;
 };
 type TauriInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
-
-const BIRDCODER_SETTINGS_STORAGE_KEY = 'birdcoder-settings';
-
-type StoredBirdCoderSettings = {
-  theme?: 'system' | AuthThemeMode;
-  [key: string]: unknown;
-};
-
-function readStoredBirdCoderSettings(): StoredBirdCoderSettings {
-  if (typeof localStorage === 'undefined') {
-    return {};
-  }
-
-  try {
-    const raw = localStorage.getItem(BIRDCODER_SETTINGS_STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? parsed as StoredBirdCoderSettings : {};
-  } catch {
-    return {};
-  }
-}
-
-function persistAuthThemeMode(theme: AuthThemeMode): void {
-  if (typeof localStorage === 'undefined') {
-    return;
-  }
-
-  try {
-    localStorage.setItem(BIRDCODER_SETTINGS_STORAGE_KEY, JSON.stringify({
-      ...readStoredBirdCoderSettings(),
-      theme,
-    }));
-  } catch {
-  }
-}
-
-function resolveSystemAuthThemeMode(): AuthThemeMode {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return 'dark';
-  }
-
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-}
-
-function resolveInitialAuthThemeMode(): AuthThemeMode {
-  const storedTheme = readStoredBirdCoderSettings().theme;
-  if (storedTheme === 'light' || storedTheme === 'dark') {
-    return storedTheme;
-  }
-
-  return resolveSystemAuthThemeMode();
-}
-
-function applyAuthThemeMode(theme: AuthThemeMode): void {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.documentElement.classList.toggle('light-mode', theme === 'light');
-  document.documentElement.style.colorScheme = theme;
-}
 
 function isDesktopRuntime(): boolean {
   if (typeof window === 'undefined') {
@@ -276,14 +216,12 @@ function WindowControlRestoreIcon() {
 }
 
 export function AuthShell({ children }: AuthShellProps) {
-  const [authThemeMode, setAuthThemeMode] = useState<AuthThemeMode>(() => resolveInitialAuthThemeMode());
+  const { t } = useTranslation();
+  const { updateSettings } = useBirdcoderAppSettings();
+  const { colorMode } = useBirdcoderTheme();
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
-  const isLightMode = authThemeMode === 'light';
+  const isLightMode = colorMode === 'light';
   const shouldRenderDesktopAppHeader = isDesktopRuntime();
-
-  useEffect(() => {
-    applyAuthThemeMode(authThemeMode);
-  }, [authThemeMode]);
 
   const refreshWindowState = useCallback(async () => {
     const appWindow = resolveTauriWindowApi();
@@ -304,12 +242,8 @@ export function AuthShell({ children }: AuthShellProps) {
   }, [refreshWindowState]);
 
   const toggleAuthTheme = useCallback(() => {
-    setAuthThemeMode((currentTheme) => {
-      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-      persistAuthThemeMode(nextTheme);
-      return nextTheme;
-    });
-  }, []);
+    updateSettings({ theme: isLightMode ? 'Dark' : 'Light' });
+  }, [isLightMode, updateSettings]);
 
   const onWindowControl = useCallback((action: WindowControlAction) => {
     ignoreWindowControlFailure(handleWindowControl(action)
@@ -374,10 +308,18 @@ export function AuthShell({ children }: AuthShellProps) {
           <div className="sdkwork-birdcoder-auth-header-center" data-tauri-drag-region />
           <div className="sdkwork-birdcoder-auth-header-actions no-drag" data-no-drag="true">
             <button
-              aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+              aria-label={t(
+                isLightMode
+                  ? 'settings.appearance.switchToDark'
+                  : 'settings.appearance.switchToLight',
+              )}
               className="sdkwork-birdcoder-auth-theme-button"
               onClick={toggleAuthTheme}
-              title={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+              title={t(
+                isLightMode
+                  ? 'settings.appearance.switchToDark'
+                  : 'settings.appearance.switchToLight',
+              )}
               type="button"
             >
               {isLightMode ? <Moon size={14} /> : <Sun size={14} />}

@@ -3,7 +3,7 @@
 Status: accepted
 Owner: SDKWork maintainers
 Date: 2026-07-27
-Updated: 2026-07-27
+Updated: 2026-07-29
 Requirement: [REQ-2026-0003](../../product/requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOMAIN_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, SECURITY_SPEC.md
 
@@ -37,7 +37,9 @@ Session aggregate nor a durable change feed.
 | Head source of truth | Agents Session, latest relevant Turn, pending Interaction, current Runtime Binding, and Session user state |
 | Provider enrichment | Fresh provider activity evidence may refine only a row already selected in the current page; it cannot create head eligibility or order |
 | Owner projection | Agents computes provider identity, owner fact versions, freshness, activity time, and effective presentation phase; no server-monotonic aggregate activity revision is claimed |
-| BirdCoder integration | Generated Agents SDK behind an injected service port |
+| BirdCoder integration | Generated Agents SDK behind an injected service port; manual refresh invokes explicit `projectSessions.synchronize` before the read-only activity query |
+| Provider identity | Tenant, organization, owner, engine-qualified provider binding, provider, and provider session identifier; the baseline constrains stored owner/binding/provider/session-identifier uniqueness |
+| Title authority | Provider inventory may refresh a `provider` title; explicit user rename changes authority to `user` and wins over later inventories |
 | BirdCoder state | Disposable in-memory projection scoped by authenticated subject and Agents Workspace |
 | Refresh | Start at a null cursor; follow `nextCursor` only for the current bounded traversal |
 | Cross-context coordination | Broadcast a validated scope-key invalidation only, then re-read Agents |
@@ -162,18 +164,23 @@ diverge as freshness expires.
 
 ## Launch Blockers
 
-This decision fixes ownership and consumer behavior; it does not declare the
-following owner implementation work complete. Production launch requires
-Agents and Kernel maintainer review and executable evidence for all four items:
+This decision's identity, title-authority, explicit synchronization, and
+greenfield baseline work are implemented. It does not claim production
+operations evidence, live migration evidence, or distributed synchronization
+ownership. Production launch requires Agents and Kernel maintainer review and
+executable evidence for all remaining items:
 
 1. A bounded, indexed PostgreSQL P1 Session Activity head projection with its
    schema/index migration and production query-plan evidence.
-2. Tenant-, organization-, provider-, runtime-, and provider Session scoped
-   identity that cannot collide across tenants or providers. Any raw
-   `providerSessionId` uniqueness rule requires a human-reviewed owner migration.
+2. A live PostgreSQL migration and query-plan proof for the owner-scoped
+   provider identity constraint and the activity projection. The implemented
+   baseline and source contracts do not demonstrate a deployed database.
 3. An explicit Project deletion tombstone and pagination contract. A deleted
    Session row does not prove deleted-Project coverage.
-4. A persisted, server-monotonic aggregate activity revision if such a revision
+4. Durable distributed runtime routing and synchronization-job ownership. The
+   present provider inventory is bounded but runs synchronously on the selected
+   runtime host and is not a cross-node durable job.
+5. A persisted, server-monotonic aggregate activity revision if such a revision
    is part of the consumer contract. Until it exists, clients use returned
    owner fact versions and fields without claiming monotonic aggregate order.
 
@@ -183,8 +190,9 @@ fail closed rather than be presented as a complete cross-application result.
 
 ## Verification
 
-- Existing Agents API tests cover owner scope, opaque cursor binding,
-  deterministic pending Interaction selection, current Runtime Binding
+- Existing Agents API tests cover owner scope, opaque cursor binding, explicit
+  synchronization behavior, provider title authority, provider identity
+  deduplication, deterministic pending Interaction selection, current Runtime Binding
   behavior, user-state ordering, and freshness semantics for the implemented
   projection. They do not close the four launch blockers above.
 - BirdCoder workbench tests prove snapshot merging, request deduplication,
@@ -195,9 +203,9 @@ fail closed rather than be presented as a complete cross-application result.
 - Session Inbox tests prove loaded-inventory filtering and global sorting.
 - Documentation standards and build checks prove requirement, ADR, PRD, and
   architecture traceability.
-- Launch evidence must additionally include PostgreSQL index/query-plan proof,
-  cross-tenant provider Session identity tests, Project deletion tombstone tests, and any
-  declared server-monotonic revision contract.
+- Launch evidence must additionally include PostgreSQL migration/index/query-plan
+  proof, distributed synchronization ownership evidence, Project deletion
+  tombstone tests, and any declared server-monotonic revision contract.
 
 ## Supersession
 

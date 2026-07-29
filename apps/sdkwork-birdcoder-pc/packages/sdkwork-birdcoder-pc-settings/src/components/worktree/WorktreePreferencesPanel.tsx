@@ -66,7 +66,7 @@ export function WorktreePreferencesPanel({
         <button
           aria-checked={autoPrune}
           aria-label={t('settings.worktree.autoPrune')}
-          className={`relative h-5 w-9 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400/70 disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`relative h-4 w-7 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400/70 disabled:cursor-not-allowed disabled:opacity-50 ${
             autoPrune ? 'bg-[#1689f5]' : 'bg-[#3b3c40]'
           }`}
           disabled={!onAutoPruneChange}
@@ -75,8 +75,9 @@ export function WorktreePreferencesPanel({
           type="button"
         >
           <span
-            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-              autoPrune ? 'translate-x-[18px]' : 'translate-x-0.5'
+            aria-hidden="true"
+            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+              autoPrune ? 'translate-x-3.5' : 'translate-x-0.5'
             }`}
           />
         </button>

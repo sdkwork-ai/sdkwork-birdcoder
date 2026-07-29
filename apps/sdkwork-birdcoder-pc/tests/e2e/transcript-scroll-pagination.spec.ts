@@ -114,11 +114,10 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   await expect(transcript).toBeFocused();
 
   const middleConversationTurn = page.getByRole('button', {
-    name: 'Go to conversation turn 5: Codex historical message 35',
-    exact: true,
+    name: /Go to conversation turn \d+: Codex historical message 65$/u,
   });
   await middleConversationTurn.click();
-  await expect(transcript.getByText('Codex historical message 35', { exact: true })).toBeVisible();
+  await expect(transcript.getByText('Codex historical message 65', { exact: true })).toBeVisible();
   await expect(jumpToLatestMessage).toBeVisible();
   await page.waitForTimeout(500);
   await expect.poll(async () => transcript.evaluate((element) => (
@@ -135,33 +134,44 @@ test('opens at the latest message and auto-loads anchored history at the top', a
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
       && url.searchParams.get('page') === '2'
-      && url.searchParams.get('page_size') === '20';
+      && url.searchParams.get('page_size') === '50';
   });
   const secondPageAnchorTop = await scrollTranscriptToTopAndReadAnchor(
     transcript,
-    'Codex historical message 26',
+    'Codex historical message 56',
   );
   await secondPageResponse;
-  const secondPageAnchor = transcript.getByText('Codex historical message 26', { exact: true });
+  const secondPageAnchor = transcript.getByText('Codex historical message 56', { exact: true });
   await expect.poll(async () => (
     Math.abs((await secondPageAnchor.evaluate(
       (element) => element.getBoundingClientRect().top,
     )) - secondPageAnchorTop)
   )).toBeLessThanOrEqual(4);
   expect(requestedHistoryPages).toEqual(['2']);
+  await expect(page.getByRole('button', {
+    name: 'Load earlier messages',
+    exact: true,
+  })).toBeEnabled();
+
+  const virtualizedDistantTurn = page.getByRole('button', {
+    name: /Go to conversation turn \d+: Codex historical message 95$/u,
+  });
+  await virtualizedDistantTurn.click();
+  await expect(transcript.getByText('Codex historical message 95', { exact: true })).toBeVisible();
+  await expect(jumpToLatestMessage).toBeVisible();
 
   const thirdPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
       && url.searchParams.get('page') === '3'
-      && url.searchParams.get('page_size') === '20';
+      && url.searchParams.get('page_size') === '50';
   });
   const thirdPageAnchorTop = await scrollTranscriptToTopAndReadAnchor(
     transcript,
-    'Codex historical message 6',
+    'Codex historical message 7',
   );
   await thirdPageResponse;
-  const thirdPageAnchor = transcript.getByText('Codex historical message 6', { exact: true });
+  const thirdPageAnchor = transcript.getByText('Codex historical message 7', { exact: true });
   await expect.poll(async () => (
     Math.abs((await thirdPageAnchor.evaluate(
       (element) => element.getBoundingClientRect().top,
@@ -169,15 +179,19 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   )).toBeLessThanOrEqual(4);
 
   await expect(transcript.getByText('Codex historical message 1', { exact: true })).toHaveCount(1);
-  const historicalMessageSequence = await transcript
+  const renderedHistoricalMessageSequence = await transcript
     .locator('[data-transcript-message-index]')
     .evaluateAll((elements) => elements.flatMap((element) => {
       const match = element.textContent?.match(/Codex historical message (\d+)/u);
       return match ? [Number(match[1])] : [];
     }));
-  expect(historicalMessageSequence).toEqual(
-    Array.from({ length: 39 }, (_, index) => index + 1),
+  expect(renderedHistoricalMessageSequence.length).toBeGreaterThan(0);
+  expect(new Set(renderedHistoricalMessageSequence).size)
+    .toBe(renderedHistoricalMessageSequence.length);
+  expect(renderedHistoricalMessageSequence).toEqual(
+    [...renderedHistoricalMessageSequence].sort((left, right) => left - right),
   );
+  expect(renderedHistoricalMessageSequence[0]).toBe(1);
   expect(requestedHistoryPages).toEqual(['2', '3']);
 
   await expect(jumpToLatestMessage).toBeVisible();

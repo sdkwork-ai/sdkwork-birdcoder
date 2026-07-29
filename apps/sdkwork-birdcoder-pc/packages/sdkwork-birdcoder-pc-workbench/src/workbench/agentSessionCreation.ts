@@ -254,7 +254,7 @@ export function buildWorkbenchAgentSessionTurnContext({
 function buildWorkbenchAgentTurnSessionTitle(turnInputContent: string): string {
   const normalizedTurnInputContent = turnInputContent.trim();
   if (!normalizedTurnInputContent) {
-    return 'New Session';
+    return 'New task';
   }
 
   return (

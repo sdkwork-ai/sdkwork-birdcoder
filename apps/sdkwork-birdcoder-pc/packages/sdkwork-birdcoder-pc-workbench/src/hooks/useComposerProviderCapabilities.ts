@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   ComposerProviderCapabilities,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
+import { applyDisabledComposerCapabilities } from '../workbench/composerCapabilityPreferences.ts';
 
 export type {
   ComposerProviderCapabilities,
@@ -17,6 +18,7 @@ const EMPTY_CAPABILITIES: ComposerProviderCapabilities = {
 
 export interface UseComposerProviderCapabilitiesOptions {
   agentId: string;
+  disabledCapabilityIds?: readonly string[];
   isActive: boolean;
   pageSize?: number;
 }
@@ -34,12 +36,13 @@ function toError(error: unknown): Error {
 
 export function useComposerProviderCapabilities({
   agentId,
+  disabledCapabilityIds = [],
   isActive,
   pageSize = 20,
 }: UseComposerProviderCapabilitiesOptions): ComposerProviderCapabilitiesState {
   const { catalogService } = useIDEServices();
   const normalizedAgentId = agentId.trim();
-  const [capabilities, setCapabilities] = useState(EMPTY_CAPABILITIES);
+  const [loadedCapabilities, setLoadedCapabilities] = useState(EMPTY_CAPABILITIES);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -49,7 +52,7 @@ export function useComposerProviderCapabilities({
 
   useEffect(() => {
     if (!isActive || !normalizedAgentId) {
-      setCapabilities(EMPTY_CAPABILITIES);
+      setLoadedCapabilities(EMPTY_CAPABILITIES);
       setError(null);
       setIsLoading(false);
       return;
@@ -57,7 +60,6 @@ export function useComposerProviderCapabilities({
 
     let isCurrent = true;
     const controller = new AbortController();
-    setCapabilities((previous) => previous);
     setError(null);
     setIsLoading(true);
 
@@ -70,7 +72,7 @@ export function useComposerProviderCapabilities({
       })
       .then((nextCapabilities) => {
         if (isCurrent) {
-          setCapabilities(nextCapabilities);
+          setLoadedCapabilities(nextCapabilities);
         }
       })
       .catch((loadError: unknown) => {
@@ -89,6 +91,15 @@ export function useComposerProviderCapabilities({
       controller.abort(new Error('Composer provider capability request was superseded.'));
     };
   }, [catalogService, isActive, normalizedAgentId, pageSize, refreshVersion]);
+
+  const disabledCapabilityKey = disabledCapabilityIds.join('\u0000');
+  const capabilities = useMemo(
+    () => applyDisabledComposerCapabilities(
+      loadedCapabilities,
+      disabledCapabilityKey ? disabledCapabilityKey.split('\u0000') : [],
+    ),
+    [disabledCapabilityKey, loadedCapabilities],
+  );
 
   return {
     capabilities,

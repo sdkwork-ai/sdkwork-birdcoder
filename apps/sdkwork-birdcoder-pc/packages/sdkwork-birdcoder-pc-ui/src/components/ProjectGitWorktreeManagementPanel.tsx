@@ -10,6 +10,7 @@ import {
   useProjectGitMutationActions,
   useProjectGitOverview,
   useToast,
+  useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-workbench';
 import type { WorkbenchGitWorktreeView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -34,6 +35,7 @@ export function ProjectGitWorktreeManagementPanel({
 }: ProjectGitWorktreeManagementPanelProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const { preferences } = useWorkbenchPreferences();
   const {
     applyGitOverview,
     diagnosticCode,
@@ -221,7 +223,13 @@ export function ProjectGitWorktreeManagementPanel({
             aria-label={t('settings.worktree.createAction')}
             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#85868b] outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400/70 disabled:pointer-events-none disabled:opacity-40"
             disabled={!isRepositoryReady}
-            onClick={() => setIsCreateOpen((open) => !open)}
+            onClick={() => {
+              const nextIsOpen = !isCreateOpen;
+              setIsCreateOpen(nextIsOpen);
+              if (nextIsOpen) {
+                setBranchName(preferences.gitBranchPrefix);
+              }
+            }}
             title={t('settings.worktree.createAction')}
             type="button"
           >

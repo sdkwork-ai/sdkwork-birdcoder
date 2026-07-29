@@ -17,6 +17,7 @@
     "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
+    "@sdkwork/ui-pc-react": "workspace:*",
     "lucide-react": "catalog:",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",

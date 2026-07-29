@@ -51,8 +51,6 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'agentSessionService':
         return new BirdCoderAgentSessionService({
           client: runtime.agentsClient,
-          providerSessionDirectoryIdentityProvider: (projectId) =>
-            runtime.projectDeviceMountRegistry.resolveProviderSessionDirectoryIdentity(projectId),
         });
       case 'applicationPublishService':
         return runtime.applicationPublishService;

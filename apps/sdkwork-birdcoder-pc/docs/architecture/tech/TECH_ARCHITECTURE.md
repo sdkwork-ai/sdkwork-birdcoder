@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-27
+Updated: 2026-07-29
 Specs: DOCUMENTATION_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -55,8 +55,10 @@ Session creation and local execution context use:
 3. the Agents Session;
 4. Agents `sessionRuntimeBindings` with the opaque Tauri runtime id.
 
-The Session list uses the Agents App API Session Activity summary rather than
-inferring state from the Session version. The owner snapshot composes Session,
+The Session list explicitly invokes the generated Agents App SDK Project Session
+synchronization operation and then reads the side-effect-free Agents App API
+Session Activity summary rather than inferring state from the Session version.
+The owner snapshot composes Session,
 latest relevant Turn, pending Interaction, current Runtime Binding, Session
 user state, provider session identity, owner fact versions, freshness, and the
 effective presentation phase. No server-monotonic aggregate activity revision
@@ -84,12 +86,16 @@ history file timestamps as live activity. A durable managed Turn in running
 state retains owner lifecycle authority and does not receive an invented PC
 timeout.
 
-Production launch remains blocked until Agents and Kernel maintainers approve
-evidence for a bounded indexed PostgreSQL P1 head projection, collision-safe
-tenant/organization/provider/runtime/provider Session identity, Project deletion
-tombstone and pagination behavior, and a persisted server-monotonic aggregate
+Agents implements provider Session identity with a tenant, organization, owner,
+engine-qualified binding, provider, and provider session identifier scope, plus an
+owner-scoped baseline uniqueness constraint. Provider titles synchronize only
+while provider-owned; user renames retain title authority. Production launch
+remains blocked until Agents and Kernel maintainers approve evidence for a
+bounded indexed PostgreSQL P1 head projection, live migration/query-plan proof,
+Project deletion tombstone and pagination behavior, durable distributed
+synchronization-job ownership, and a persisted server-monotonic aggregate
 activity revision if the contract declares one. The PC client does not claim
-those owner concerns are closed.
+those operational owner concerns are closed.
 
 Code and Studio rows place provider identity at the left edge and a present,
 known runtime-status icon at the far right. Initializing and streaming animate;

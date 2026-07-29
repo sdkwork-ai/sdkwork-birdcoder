@@ -16,6 +16,7 @@ import type {
   CreateAgentSessionRuntimeBindingRequest,
   CreateAgentTurnRequest,
   PageInfo,
+  ProjectSessionSynchronizationResult,
   SessionActivitySummary,
   UpdateAgentSessionUserStateRequest,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
@@ -154,6 +155,10 @@ export interface IAgentSessionService {
     request: AgentProjectSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRecord>>;
+  synchronizeProjectSessions(
+    projectId: string,
+    options?: AgentSessionReadOptions,
+  ): Promise<ProjectSessionSynchronizationResult>;
   listSessionsByWorkspace(
     request: AgentWorkspaceSessionPageRequest,
     options?: AgentSessionReadOptions,

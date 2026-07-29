@@ -25,12 +25,27 @@ export interface ProjectSessionSynchronizationCoordinator<TResult> {
 
 const DEFAULT_PROJECT_SESSION_SYNCHRONIZATION_CACHE_TTL_MS = 60_000;
 
+/**
+ * 每个协调器实例中缓存的 scope 数量上限。超出时优先淘汰最久未访问的已完成记录，
+ * 确保长期运行下内存保持有界。
+ */
+const PROJECT_SESSION_SYNCHRONIZATION_MAX_CACHED_SCOPES = 20;
+const PROJECT_SESSION_SYNCHRONIZATION_MAX_SCOPE_KEY_LENGTH = 256;
+
 function normalizeScopePart(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) {
     throw new Error(`${label} is required to synchronize project sessions.`);
   }
   return normalized;
+}
+
+function assertValidScopeKey(scopeKey: string): void {
+  if (scopeKey.length > PROJECT_SESSION_SYNCHRONIZATION_MAX_SCOPE_KEY_LENGTH) {
+    throw new Error(
+      `Project Session synchronization scope key exceeds maximum length ${PROJECT_SESSION_SYNCHRONIZATION_MAX_SCOPE_KEY_LENGTH}.`,
+    );
+  }
 }
 
 export function buildProjectSessionSynchronizationScopeKey(
@@ -60,6 +75,39 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
     inFlightByScopeKey.delete(scopeKey);
   };
 
+  /**
+   * 淘汰最久未访问的、非进行中的 scope 条目，直到缓存量回落至上限以内。
+   * 利用 Map 的插入顺序语义：最早插入（最少访问）的在前面。
+   * 跳过 inFlight 中的 scope（仍有活跃任务）以避免破坏进行中的同步。
+   */
+  function evictLeastRecentlyUsedScopes(): void {
+    const totalSize = Math.max(
+      completedAtByScopeKey.size,
+      generationByScopeKey.size,
+      controllerByScopeKey.size,
+      inFlightByScopeKey.size,
+    );
+    if (totalSize <= PROJECT_SESSION_SYNCHRONIZATION_MAX_CACHED_SCOPES) {
+      return;
+    }
+    const overflow = totalSize - PROJECT_SESSION_SYNCHRONIZATION_MAX_CACHED_SCOPES;
+    let evicted = 0;
+    // 基于 completedAtByScopeKey 的插入顺序判定 LRU（该 Map 在每个 scope 完成后被 set）
+    const iterator = completedAtByScopeKey.keys();
+    while (evicted < overflow) {
+      const next = iterator.next();
+      if (next.done) break;
+      const key = next.value;
+      // 仍有 inflight 或 active controller 的 scope 暂不淘汰
+      if (inFlightByScopeKey.has(key) || controllerByScopeKey.has(key)) {
+        continue;
+      }
+      completedAtByScopeKey.delete(key);
+      generationByScopeKey.delete(key);
+      evicted += 1;
+    }
+  }
+
   return {
     invalidate(scope) {
       invalidateScopeKey(buildProjectSessionSynchronizationScopeKey(scope));
@@ -67,6 +115,7 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
 
     synchronize(scope, task, options = {}) {
       const scopeKey = buildProjectSessionSynchronizationScopeKey(scope);
+      assertValidScopeKey(scopeKey);
       const cacheTtlMs = options.cacheTtlMs
         ?? DEFAULT_PROJECT_SESSION_SYNCHRONIZATION_CACHE_TTL_MS;
       if (!Number.isSafeInteger(cacheTtlMs) || cacheTtlMs < 0) {
@@ -75,6 +124,9 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
       if (!options.force) {
         const completedAt = completedAtByScopeKey.get(scopeKey);
         if (completedAt !== undefined && Date.now() - completedAt < cacheTtlMs) {
+          // 缓存命中：更新访问顺序（重新插入相当于 touch）
+          completedAtByScopeKey.delete(scopeKey);
+          completedAtByScopeKey.set(scopeKey, completedAt);
           return Promise.resolve(null);
         }
         const inFlight = inFlightByScopeKey.get(scopeKey);
@@ -84,6 +136,8 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
       } else {
         invalidateScopeKey(scopeKey);
       }
+      // 新 scope 首次写入后，检查是否需要 LRU 淘汰
+      evictLeastRecentlyUsedScopes();
 
       const generation = (generationByScopeKey.get(scopeKey) ?? 0) + 1;
       generationByScopeKey.set(scopeKey, generation);

@@ -26,11 +26,14 @@
   ],
   "contracts": {
     "layerRole": "frontend-core",
-    "publicExports": ["."],
+    "publicExports": [".", "./sdk", "./modules", "./host", "./session", "./composition"],
     "providedPorts": [
       { "name": "runtimeConfig", "export": "." },
-      { "name": "sessionScope", "export": "." },
-      { "name": "sdkPorts", "export": "." }
+      { "name": "sessionScope", "export": "./session" },
+      { "name": "sdkPorts", "export": "./sdk" },
+      { "name": "moduleRegistry", "export": "./modules" },
+      { "name": "hostRegistry", "export": "./host" },
+      { "name": "coreComposition", "export": "./composition" }
     ],
     "requiredPorts": [],
     "runtimeEntrypoints": [],

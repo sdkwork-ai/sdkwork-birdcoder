@@ -650,6 +650,10 @@ function CodePageComponent({
     () => onRequestProjectCreation(),
     [onRequestProjectCreation],
   );
+  const handleNewSessionProjectSelect = useCallback((nextProjectId: string) => {
+    clearPendingNewAgentSessionRequest();
+    selectProjectWithoutAgentSession(nextProjectId);
+  }, [clearPendingNewAgentSessionRequest, selectProjectWithoutAgentSession]);
 
   const handleOpenFolder = useCallback(async () => {
     try {
@@ -741,7 +745,12 @@ function CodePageComponent({
     if (project) {
       const agentSession = resolvedSessionLocation?.agentSession;
       if (agentSession) {
-        await updateAgentSession(project.projectId, agentSessionId, { pinned: !agentSession.pinned });
+        const didUpdate = await updateAgentSession(project.projectId, agentSessionId, {
+          pinned: !agentSession.pinned,
+        });
+        if (!didUpdate) {
+          return;
+        }
         addToast(
           t(agentSession.pinned ? 'code.unpinnedSession' : 'code.pinnedSession', {
             name: agentSession.title,
@@ -1394,6 +1403,7 @@ function CodePageComponent({
     onForkAgentSessionNewTree: handleForkSessionNewTree,
     onMarkAgentSessionUnread: handleMarkSessionUnread,
     onNewAgentSessionInProject: createAgentSessionInProjectWithTranscriptReset,
+    onNewSessionProjectSelect: handleNewSessionProjectSelect,
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,
     onLoadMoreProjectSessions: loadMoreProjectSessions,

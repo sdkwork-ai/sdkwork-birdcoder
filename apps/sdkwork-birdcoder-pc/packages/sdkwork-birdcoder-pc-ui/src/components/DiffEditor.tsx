@@ -8,6 +8,8 @@ import {
 import type { editor, IDisposable } from 'monaco-editor';
 import { Loader2, WrapText, Columns, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
+import { useBirdcoderTheme } from '@sdkwork/birdcoder-pc-workbench/theme/birdcoderTheme';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 import {
@@ -18,10 +20,7 @@ import {
 } from './monacoRuntime';
 import { configureBirdCoderMonacoLanguages } from './monacoLanguageSupport';
 import { resolveBirdCoderEditorLanguageLabel } from './editorLanguage';
-import {
-  BIRDCODER_EDITOR_THEME,
-  BIRDCODER_EDITOR_THEME_ID,
-} from './editorTheme';
+import { createBirdCoderEditorTheme } from './editorTheme';
 import {
   claimEditorCommandTarget,
   ownsEditorCommandTarget,
@@ -38,7 +37,11 @@ export interface DiffEditorProps {
 
 export function DiffEditor({ language, original, modified, readOnly = false, renderSideBySide = false }: DiffEditorProps) {
   const monaco = useMonaco();
-  const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on');
+  const { settings: appSettings } = useBirdcoderAppSettings();
+  const birdcoderTheme = useBirdcoderTheme();
+  const [wordWrap, setWordWrap] = useState<'on' | 'off'>(
+    appSettings.wordWrap ? 'on' : 'off',
+  );
   const [isSideBySide, setIsSideBySide] = useState(renderSideBySide);
   const { addToast } = useToast();
   const languageLabel = resolveBirdCoderEditorLanguageLabel(language);
@@ -50,6 +53,12 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
   const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneDiffEditor | null>(null);
+  const editorThemeId = `birdcoder-${birdcoderTheme.colorMode}-professional`;
+  const editorThemeDefinition = useMemo(
+    () => createBirdCoderEditorTheme(birdcoderTheme),
+    [birdcoderTheme],
+  );
+  const codeFontSize = Number.parseInt(birdcoderTheme.codeFontSize, 10) || 12;
 
   const handleEditorDidMount: DiffOnMount = (mountedEditorInstance) => {
     editorRef.current = mountedEditorInstance;
@@ -79,14 +88,18 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
     configureBirdCoderMonacoTypeScriptDefaults(monacoApi);
     applyBirdCoderMonacoTheme(
       monacoApi,
-      BIRDCODER_EDITOR_THEME_ID,
-      BIRDCODER_EDITOR_THEME,
+      editorThemeId,
+      editorThemeDefinition,
     );
-  }, []);
+  }, [editorThemeDefinition, editorThemeId]);
 
   useEffect(() => {
     setIsSideBySide(renderSideBySide);
   }, [renderSideBySide]);
+
+  useEffect(() => {
+    setWordWrap(appSettings.wordWrap ? 'on' : 'off');
+  }, [appSettings.wordWrap]);
 
   useEffect(() => {
     const handleEditorCommand = (command: string) => {
@@ -243,18 +256,19 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
         language={language}
         original={original}
         modified={modified}
-        theme={BIRDCODER_EDITOR_THEME_ID}
+        theme={editorThemeId}
         loading={loadingComponent}
         onMount={handleEditorDidMount}
         options={{
           overflowWidgetsDomNode: overflowWidgetsDomNode,
           fixedOverflowWidgets: true,
           automaticLayout: false,
-          minimap: { enabled: true, scale: 0.75, renderCharacters: false },
-          fontSize: 14,
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
+          minimap: { enabled: appSettings.minimap, scale: 0.75, renderCharacters: false },
+          fontSize: codeFontSize,
+          fontFamily: birdcoderTheme.codeFontFamily,
           fontLigatures: true,
-          lineHeight: 24,
+          lineHeight: Math.max(18, Math.round(codeFontSize * 1.65)),
+          lineNumbers: appSettings.showLineNumbers ? 'on' : 'off',
           padding: { top: 16, bottom: 16 },
           scrollBeyondLastLine: false,
           readOnly: readOnly,

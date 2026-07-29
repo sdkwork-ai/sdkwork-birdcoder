@@ -17,6 +17,7 @@ export interface ProjectExplorerSessionRowProps {
   sessionProjectId?: string | null;
   projectName?: string;
   showProjectName?: boolean;
+  variant?: 'default' | 'pinned';
   isSelected: boolean;
   isRenaming: boolean;
   renameValue: string;
@@ -45,6 +46,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   sessionProjectId,
   projectName,
   showProjectName = false,
+  variant = 'default',
   isSelected,
   isRenaming,
   renameValue,
@@ -57,6 +59,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   onRenameSubmit,
   onRenameCancel,
 }: ProjectExplorerSessionRowProps) {
+  const isPinnedVariant = variant === 'pinned';
   const resolvedSessionProjectId = sessionProjectId?.trim() || session.projectId;
   const runtimeStatusLabel = resolveSessionRuntimeStatusLabel(
     session.runtimeStatus,
@@ -79,6 +82,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
         isSelected ? 'text-white' : 'text-gray-400'
       }`}
       data-agent-session-id={session.id}
+      data-session-row-variant={variant}
       data-session-project-id={resolvedSessionProjectId}
       data-session-selected={isSelected ? 'true' : undefined}
       style={buildProjectExplorerSurfaceStyle('36px')}
@@ -87,14 +91,18 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       onContextMenu={(event) => onAgentSessionContextMenu(event, session.id, resolvedSessionProjectId)}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-        <SessionProviderBadge
-          agentId={session.agentId}
-          engineId={session.engineId}
-          providerId={session.providerId}
-        />
-        {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
-        {session.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-        {session.archived && <Archive size={12} className="text-gray-500 shrink-0" />}
+        {!isPinnedVariant ? (
+          <>
+            <SessionProviderBadge
+              agentId={session.agentId}
+              engineId={session.engineId}
+              providerId={session.providerId}
+            />
+            {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
+            {session.unread && <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />}
+            {session.archived && <Archive size={12} className="shrink-0 text-gray-500" />}
+          </>
+        ) : null}
         {isRenaming ? (
           <input
             type="text"
@@ -121,7 +129,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
           </span>
         )}
       </div>
-      {!isRenaming && (
+      {!isRenaming && !isPinnedVariant && (
         <span
           className="ml-auto inline-flex shrink-0 items-center justify-end gap-1 pl-2 text-right transition-opacity group-hover:opacity-0 group-focus-within:opacity-0"
           data-session-trailing-metadata="true"

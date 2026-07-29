@@ -7,6 +7,8 @@ import Editor, {
 import type { editor } from 'monaco-editor';
 import { AlignLeft, Check, Copy, Loader2, Map, WrapText } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
+import { useBirdcoderTheme } from '@sdkwork/birdcoder-pc-workbench/theme/birdcoderTheme';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { copyTextToClipboard } from './clipboard';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
@@ -20,10 +22,7 @@ import { configureBirdCoderMonacoLanguages } from './monacoLanguageSupport';
 import {
   resolveBirdCoderEditorLanguageLabel,
 } from './editorLanguage';
-import {
-  BIRDCODER_EDITOR_THEME,
-  BIRDCODER_EDITOR_THEME_ID,
-} from './editorTheme';
+import { createBirdCoderEditorTheme } from './editorTheme';
 import { cn } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   claimEditorCommandTarget,
@@ -52,8 +51,8 @@ export interface CodeEditorProps {
 
 export function CodeEditor({
   className,
-  defaultShowMinimap = true,
-  defaultWordWrap = 'on',
+  defaultShowMinimap,
+  defaultWordWrap,
   formatOnPaste = true,
   formatOnType = true,
   language,
@@ -64,23 +63,35 @@ export function CodeEditor({
   retainedModelPaths,
   showLanguageBadge = true,
   showToolbar = true,
-  themeDefinition = BIRDCODER_EDITOR_THEME,
-  themeId = BIRDCODER_EDITOR_THEME_ID,
+  themeDefinition,
+  themeId,
   value,
 }: CodeEditorProps) {
   const monaco = useMonaco();
+  const { settings: appSettings } = useBirdcoderAppSettings();
+  const birdcoderTheme = useBirdcoderTheme();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const ownedModelPathsRef = useRef(new Set<string>());
   const editorCommandTargetRef = useRef<object>({});
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
-  const [wordWrap, setWordWrap] = useState<'on' | 'off'>(defaultWordWrap);
-  const [showMinimap, setShowMinimap] = useState(defaultShowMinimap);
+  const [wordWrap, setWordWrap] = useState<'on' | 'off'>(
+    defaultWordWrap ?? (appSettings.wordWrap ? 'on' : 'off'),
+  );
+  const [showMinimap, setShowMinimap] = useState(
+    defaultShowMinimap ?? appSettings.minimap,
+  );
   const [copied, setCopied] = useState(false);
   const copyFeedbackTimeoutRef = useRef<number | null>(null);
   const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneCodeEditor | null>(null);
   const { addToast } = useToast();
   const languageLabel = resolveBirdCoderEditorLanguageLabel(language);
+  const resolvedThemeId = themeId ?? `birdcoder-${birdcoderTheme.colorMode}-professional`;
+  const resolvedThemeDefinition = useMemo(
+    () => themeDefinition ?? createBirdCoderEditorTheme(birdcoderTheme),
+    [birdcoderTheme, themeDefinition],
+  );
+  const codeFontSize = Number.parseInt(birdcoderTheme.codeFontSize, 10) || 12;
 
   const clearCopyFeedbackTimeout = useCallback(() => {
     if (copyFeedbackTimeoutRef.current === null) {
@@ -102,8 +113,20 @@ export function CodeEditor({
   const configureMonaco = useCallback((monacoApi: Monaco) => {
     configureBirdCoderMonacoLanguages(monacoApi);
     configureBirdCoderMonacoTypeScriptDefaults(monacoApi);
-    applyBirdCoderMonacoTheme(monacoApi, themeId, themeDefinition);
-  }, [themeDefinition, themeId]);
+    applyBirdCoderMonacoTheme(monacoApi, resolvedThemeId, resolvedThemeDefinition);
+  }, [resolvedThemeDefinition, resolvedThemeId]);
+
+  useEffect(() => {
+    if (defaultWordWrap === undefined) {
+      setWordWrap(appSettings.wordWrap ? 'on' : 'off');
+    }
+  }, [appSettings.wordWrap, defaultWordWrap]);
+
+  useEffect(() => {
+    if (defaultShowMinimap === undefined) {
+      setShowMinimap(appSettings.minimap);
+    }
+  }, [appSettings.minimap, defaultShowMinimap]);
 
   const handleFormat = async () => {
     const editor = editorRef.current;
@@ -374,10 +397,11 @@ export function CodeEditor({
           fixedOverflowWidgets: true,
           automaticLayout: false,
           minimap: { enabled: showMinimap, scale: 0.75, renderCharacters: false },
-          fontSize: 14,
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
+          fontSize: codeFontSize,
+          fontFamily: birdcoderTheme.codeFontFamily,
           fontLigatures: true,
-          lineHeight: 24,
+          lineHeight: Math.max(18, Math.round(codeFontSize * 1.65)),
+          lineNumbers: appSettings.showLineNumbers ? 'on' : 'off',
           padding: { top: 16, bottom: 16 },
           scrollBeyondLastLine: false,
           readOnly,
@@ -426,7 +450,7 @@ export function CodeEditor({
             enabled: 'on',
           },
         }}
-        theme={themeId}
+        theme={resolvedThemeId}
         value={value}
       />
     </div>

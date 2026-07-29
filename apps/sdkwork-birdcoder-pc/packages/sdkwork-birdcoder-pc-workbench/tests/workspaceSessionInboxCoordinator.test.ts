@@ -88,6 +88,7 @@ function summary(
       sessionKind: 'coding',
       entrySurface: 'pc',
       title: sessionId,
+      titleSource: 'system',
       status: 'active',
       itemCount: version,
       lastItemSequence: version,

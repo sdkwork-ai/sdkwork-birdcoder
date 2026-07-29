@@ -17,8 +17,8 @@ export default defineLocaleModule('code/actions', {
     allFilesSaved: 'All files saved',
     startingApplication: 'Starting application...',
     revealedInExplorer: 'Revealed in OS Explorer: {{path}}',
-    newSessionCreated: 'New session created',
-    failedToCreateSession: 'Failed to create session',
+    newSessionCreated: 'Task created',
+    failedToCreateSession: 'Failed to create task',
     deleteSessionTitle: 'Delete Session',
     deleteSessionDescription:
       'Are you sure you want to delete this session? This action cannot be undone.',

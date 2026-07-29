@@ -309,7 +309,15 @@ test('selected code providers create their own Agent Sessions without a runtime 
   await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole('button', { name: 'Expand E2E Project' }).click();
+  const expandProject = page.getByRole('button', { name: 'Expand E2E Project' });
+  const collapseProject = page.getByRole('button', { name: 'Collapse E2E Project' });
+  await expect.poll(async () => (
+    await expandProject.count() > 0 || await collapseProject.count() > 0
+  ), { timeout: 60_000 }).toBe(true);
+  if (await expandProject.count() > 0) {
+    await expandProject.click();
+  }
+  await expect(collapseProject).toBeVisible();
 
   const providers = [
     {
@@ -335,14 +343,11 @@ test('selected code providers create their own Agent Sessions without a runtime 
     },
   ] as const;
 
-  const providerMenuButton = page.getByRole('button', {
-    expanded: false,
-    name: 'New Session',
-  }).first();
-  const providerMenu = page.getByRole('menu', { name: 'New Session' });
+  const providerMenuButton = page.locator('[data-sidebar-new-session-trigger="true"]');
+  const providerMenu = page.getByRole('menu', { name: 'New task' });
 
   for (const [index, provider] of providers.entries()) {
-    await providerMenuButton.click();
+    await providerMenuButton.hover();
     await expect(providerMenu).toBeVisible();
     await providerMenu.getByRole('menuitemradio', { name: provider.menuName }).click();
     await expect.poll(() => runtimeBindingBodies.length).toBe(index + 1);
@@ -478,7 +483,7 @@ test('selected code providers create their own Agent Sessions without a runtime 
   await expect(page.getByText('Provider selection verified.', { exact: true })).toHaveCount(1);
 
   failNextRuntimeBinding = true;
-  await providerMenuButton.click();
+  await providerMenuButton.hover();
   await providerMenu.getByRole('menuitemradio', {
     name: providers[1].menuName,
   }).click();

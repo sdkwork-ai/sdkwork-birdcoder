@@ -64,7 +64,76 @@ export type AgentSessionStoreRemovalResult =
   | 'not-found'
   | 'removed';
 
+/**
+ * 最大缓存的 ProjectsStore scope 数量。
+ *
+ * 当缓存数量超过此上限时，会从最少访问的且无活跃监听器的 Scope Store 开始
+ * 淘汰，确保长期运行的工作区切换不会导致内存无限增长。
+ *
+ * 默认值 5 个工作区 × 每工作区 ~200 agent sessions × 每 session ~10 transcript items
+ * ≈ 10,000 个对象引用，在浏览器可承受范围内。
+ */
+const PROJECT_STORE_MAX_CACHED_SCOPES = 5;
+const PROJECT_STORE_MAX_SCOPE_KEY_LENGTH = 256;
+
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
+
+/**
+ * 更新 scope 的访问顺序，将其标记为最近访问。
+ * 利用 Map 的插入顺序语义：删除并重新插入即可移至末尾（MRU 端）。
+ */
+function touchScopeAccess(scopeKey: string): void {
+  const store = projectStoresByScopeKey.get(scopeKey);
+  if (!store) {
+    return;
+  }
+  projectStoresByScopeKey.delete(scopeKey);
+  projectStoresByScopeKey.set(scopeKey, store);
+}
+
+/**
+ * 淘汰最少访问的 scope store，直到缓存量回落至上限以内。
+ *
+ * 仅淘汰无活跃 listener 的 store，避免导致当前正在渲染的 UI 状态异常。
+ * 若所有 store 均处于活跃状态，本次不强制淘汰，依赖下一次写入时再次尝试。
+ */
+function evictLeastRecentlyUsedScopes(): void {
+  if (projectStoresByScopeKey.size <= PROJECT_STORE_MAX_CACHED_SCOPES) {
+    return;
+  }
+
+  const overflow = projectStoresByScopeKey.size - PROJECT_STORE_MAX_CACHED_SCOPES;
+  let evicted = 0;
+
+  // 迭代器按照插入顺序返回（LRU 在前）
+  const iterator = projectStoresByScopeKey.keys();
+  while (evicted < overflow) {
+    const next = iterator.next();
+    if (next.done) {
+      break;
+    }
+    const key = next.value;
+    const store = projectStoresByScopeKey.get(key)!;
+    if (store.listeners.size === 0) {
+      // 无订阅者：可安全释放整个 store
+      store.agentSessionTombstones.clear();
+      store.agentSessionTranscriptRevisions.clear();
+      projectStoresByScopeKey.delete(key);
+      evicted += 1;
+    }
+  }
+}
+
+/**
+ * 验证 scopeKey 构成合法性，防止超长 scopeKey 导致未绑定的 Map 增长。
+ */
+function assertValidScopeKey(scopeKey: string): void {
+  if (scopeKey.length > PROJECT_STORE_MAX_SCOPE_KEY_LENGTH) {
+    throw new Error(
+      `Projects store scope key exceeds maximum length ${PROJECT_STORE_MAX_SCOPE_KEY_LENGTH}.`,
+    );
+  }
+}
 
 function buildAgentSessionTranscriptRevisionKey(
   projectId: string,
@@ -92,7 +161,9 @@ export function buildProjectsStoreScopeKey(
   if (!normalizedWorkspaceId) {
     throw new Error('Workspace ID is required for the Projects store scope.');
   }
-  return `${normalizeProjectsStoreUserScope(userScope)}::${normalizedWorkspaceId}`;
+  const scopeKey = `${normalizeProjectsStoreUserScope(userScope)}::${normalizedWorkspaceId}`;
+  assertValidScopeKey(scopeKey);
+  return scopeKey;
 }
 
 export function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
@@ -1222,21 +1293,27 @@ export function removeAgentSessionFromProjectsStore(
 }
 
 export function getProjectsStore(scopeKey: string): ProjectsStore {
+  assertValidScopeKey(scopeKey);
   let store = projectStoresByScopeKey.get(scopeKey);
-  if (!store) {
-    store = {
-      agentSessionTombstones: new Map(),
-      agentSessionTranscriptRevisions: new Map(),
-      inventoryVersion: 0,
-      inflight: null,
-      inflightKey: null,
-      listeners: new Set(),
-      removedProjectIds: new Set(),
-      snapshot: createProjectsStoreSnapshot(),
-    };
-    projectStoresByScopeKey.set(scopeKey, store);
+  if (store) {
+    // 已在缓存：更新访问顺序（移至 MRU 端）
+    touchScopeAccess(scopeKey);
+    return store;
   }
 
+  // 新建 store 并执行 LRU 淘汰检查
+  store = {
+    agentSessionTombstones: new Map(),
+    agentSessionTranscriptRevisions: new Map(),
+    inventoryVersion: 0,
+    inflight: null,
+    inflightKey: null,
+    listeners: new Set(),
+    removedProjectIds: new Set(),
+    snapshot: createProjectsStoreSnapshot(),
+  };
+  projectStoresByScopeKey.set(scopeKey, store);
+  evictLeastRecentlyUsedScopes();
   return store;
 }
 
@@ -1603,5 +1680,13 @@ export function upsertProjectIntoProjectsStoreByScopeKey(
 }
 
 export function deleteProjectsStore(scopeKey: string): void {
-  projectStoresByScopeKey.delete(scopeKey);
+  const store = projectStoresByScopeKey.get(scopeKey);
+  if (store) {
+    // 主动清理 Map 内部数据，帮助 GC 在长时间运行的应用中更快回收
+    store.agentSessionTombstones.clear();
+    store.agentSessionTranscriptRevisions.clear();
+    store.removedProjectIds.clear();
+    store.listeners.clear();
+    projectStoresByScopeKey.delete(scopeKey);
+  }
 }

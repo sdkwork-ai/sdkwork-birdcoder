@@ -186,6 +186,7 @@ function summary(options: SummaryOptions = {}): ActivitySummary {
       sessionKind: 'coding',
       entrySurface: 'pc',
       title: resolvedSessionId,
+      titleSource: 'system',
       status: 'active',
       itemCount: '0',
       lastItemSequence: '0',

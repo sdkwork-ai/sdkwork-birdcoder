@@ -19,6 +19,10 @@ function buildMessage(index: number): AgentSessionItemView {
 const messages = Array.from({ length: 256 }, (_, index) => buildMessage(index));
 const retainedKey = resolveTranscriptMessageKey(messages[128], 128);
 const shiftedKey = resolveTranscriptMessageKey(messages[128], 127);
+const reconciledKey = resolveTranscriptMessageKey({
+  ...messages[128]!,
+  content: 'message 128 reconciled by authority',
+}, 128);
 const currentMessageKeys = new Set<string>();
 for (let index = 0; index < messages.length; index += 1) {
   currentMessageKeys.add(resolveTranscriptMessageKey(messages[index], index));
@@ -28,6 +32,11 @@ assert.equal(
   shiftedKey,
   retainedKey,
   'Transcript message identity must remain stable when prepended history shifts an existing row index.',
+);
+assert.equal(
+  reconciledKey,
+  retainedKey,
+  'Canonical message identity must survive authority content reconciliation.',
 );
 assert.equal(
   hasTranscriptMessageKey(currentMessageKeys, retainedKey),

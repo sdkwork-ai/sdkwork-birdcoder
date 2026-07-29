@@ -8,6 +8,24 @@ interface RgbColor {
   red: number;
 }
 
+interface BirdcoderSemanticPalette {
+  chromeBorder: string;
+  chromeSelection: string;
+  chromeSelectionHover: string;
+  chromeSurface: string;
+  chromeSurfaceHover: string;
+  chromeSurfaceRaised: string;
+  defaultContrast: number;
+  elevatedSurface: string;
+  fieldSurface: string;
+  fieldSurfaceDisabled: string;
+  fieldSurfaceHover: string;
+  mutedSurface: string;
+  shellSurface: string;
+}
+
+type SdkworkColorMode = "dark" | "light";
+
 const THEME_COLOR_SWATCHES: Record<SdkworkThemeColor, string> = {
   "green-tech": "#10b981",
   lobster: "#ef4444",
@@ -17,7 +35,39 @@ const THEME_COLOR_SWATCHES: Record<SdkworkThemeColor, string> = {
   zinc: "#52525b",
 };
 
-type SdkworkColorMode = "dark" | "light";
+const CODEX_SEMANTIC_PALETTES: Record<SdkworkColorMode, BirdcoderSemanticPalette> = {
+  dark: {
+    chromeBorder: "#343A44",
+    chromeSelection: "#303135",
+    chromeSelectionHover: "#38393D",
+    chromeSurface: "#1E2024",
+    chromeSurfaceHover: "#26282D",
+    chromeSurfaceRaised: "#292A2D",
+    defaultContrast: 60,
+    elevatedSurface: "#2D2D2D",
+    fieldSurface: "#2D2D2D",
+    fieldSurfaceDisabled: "#262626",
+    fieldSurfaceHover: "#333333",
+    mutedSurface: "#262626",
+    shellSurface: "#222222",
+  },
+  light: {
+    chromeBorder: "#D4D7DD",
+    chromeSelection: "#E4E8ED",
+    chromeSelectionHover: "#DCE2E8",
+    chromeSurface: "#F0F3F9",
+    chromeSurfaceHover: "#E9EDF2",
+    chromeSurfaceRaised: "#FFFFFF",
+    defaultContrast: 45,
+    elevatedSurface: "#FFFFFF",
+    fieldSurface: "#FFFFFF",
+    fieldSurfaceDisabled: "#F5F5F5",
+    fieldSurfaceHover: "#FAFAFA",
+    mutedSurface: "#F7F7F8",
+    shellSurface: "#FFFFFF",
+  },
+};
+
 type SdkworkThemeColor =
   | "green-tech"
   | "lobster"
@@ -28,14 +78,19 @@ type SdkworkThemeColor =
 type SdkworkThemeSelection = SdkworkColorMode | "system";
 
 export interface BirdcoderThemeState {
+  accentColor: string;
+  backgroundColor: string;
   codeFontFamily: string;
   codeFontSize: string;
   colorMode: SdkworkColorMode;
+  foregroundColor: string;
   hostStyle: Record<string, string>;
+  sidebarTranslucent: boolean;
   themeColor: SdkworkThemeColor;
   themeSelection: SdkworkThemeSelection;
   uiFontFamily: string;
   uiFontSize: string;
+  usePointerCursor: boolean;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -175,6 +230,17 @@ function resolveThemeColorFromName(
   return null;
 }
 
+function resolveSemanticPalette(
+  colorMode: SdkworkColorMode,
+  themeName: string | null | undefined,
+  backgroundColor: string,
+): BirdcoderSemanticPalette | null {
+  const normalizedThemeName = themeName?.trim().toLowerCase();
+  const isCodexTheme = normalizedThemeName === `codex ${colorMode}`;
+  const isCodexCanvas = backgroundColor === (colorMode === "dark" ? "#181818" : "#FFFFFF");
+  return isCodexTheme && isCodexCanvas ? CODEX_SEMANTIC_PALETTES[colorMode] : null;
+}
+
 function resolveThemeColorFromAccent(accentColor: string): SdkworkThemeColor {
   const accent = parseHexColor(accentColor, THEME_COLOR_SWATCHES["tech-blue"]);
   let resolvedThemeColor: SdkworkThemeColor = "tech-blue";
@@ -222,12 +288,18 @@ function useSystemColorMode(): SdkworkColorMode {
     };
 
     syncColorMode(mediaQuery);
-    mediaQuery.addEventListener?.("change", syncColorMode);
-    mediaQuery.addListener?.(syncColorMode);
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", syncColorMode);
+    } else {
+      mediaQuery.addListener?.(syncColorMode);
+    }
 
     return () => {
-      mediaQuery.removeEventListener?.("change", syncColorMode);
-      mediaQuery.removeListener?.(syncColorMode);
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", syncColorMode);
+      } else {
+        mediaQuery.removeListener?.(syncColorMode);
+      }
     };
   }, []);
 
@@ -259,6 +331,7 @@ export function resolveBirdcoderThemeState(
     || "ui-monospace, SFMono-Regular";
   const uiFontSize = settings.uiFontSize?.trim() || "12";
   const codeFontSize = settings.codeFontSize?.trim() || "12";
+  const uiFontSizeValue = Number.parseInt(uiFontSize, 10) || 12;
   const contrastValue = clamp(
     Number.isFinite(isDarkMode ? settings.darkContrast : settings.lightContrast)
       ? Number(isDarkMode ? settings.darkContrast : settings.lightContrast)
@@ -272,12 +345,68 @@ export function resolveBirdcoderThemeState(
     resolveThemeColorFromName(themeName)
     ?? resolveThemeColorFromAccent(accentColor);
   const canvasSurface = backgroundColor;
+  const semanticPalette = resolveSemanticPalette(colorMode, themeName, backgroundColor);
   const panelLiftRatio = isDarkMode
-    ? 0.08 + (contrastValue / 100) * 0.10
-    : 0.02 + (contrastValue / 100) * 0.08;
-  const mutedSurface = mixHexColors(canvasSurface, foregroundColor, panelLiftRatio * 1.25, canvasSurface);
-  const elevatedSurface = mixHexColors(canvasSurface, foregroundColor, panelLiftRatio * 1.75, canvasSurface);
-  const shellSurface = mixHexColors(canvasSurface, foregroundColor, panelLiftRatio, canvasSurface);
+    ? 0.036 + (contrastValue / 100) * 0.041
+    : 0.0067 + (contrastValue / 100) * 0.031;
+  let mutedSurface = mixHexColors(
+    canvasSurface,
+    foregroundColor,
+    panelLiftRatio + (isDarkMode ? 0.0173 : 0.0207),
+    canvasSurface,
+  );
+  let elevatedSurface = mixHexColors(
+    canvasSurface,
+    foregroundColor,
+    panelLiftRatio + (isDarkMode ? 0.0433 : 0.0413),
+    canvasSurface,
+  );
+  let shellSurface = mixHexColors(canvasSurface, foregroundColor, panelLiftRatio, canvasSurface);
+  let fieldSurface = isDarkMode
+    ? mixHexColors(canvasSurface, foregroundColor, 0.091, canvasSurface)
+    : canvasSurface;
+  let fieldSurfaceHover = mixHexColors(
+    canvasSurface,
+    foregroundColor,
+    isDarkMode ? 0.1126 : 0.0207,
+    canvasSurface,
+  );
+  let fieldSurfaceDisabled = mixHexColors(
+    canvasSurface,
+    foregroundColor,
+    isDarkMode ? 0.0606 : 0.0413,
+    canvasSurface,
+  );
+  let chromeSurface = mutedSurface;
+  let chromeSurfaceHover = elevatedSurface;
+  let chromeSurfaceRaised = elevatedSurface;
+  let chromeSelection: string | null = null;
+  let chromeSelectionHover: string | null = null;
+  let chromeBorder: string | null = null;
+  if (semanticPalette) {
+    const contrastDelta = contrastValue - semanticPalette.defaultContrast;
+    const contrastTarget = contrastDelta >= 0 ? foregroundColor : canvasSurface;
+    const contrastRatio = Math.abs(contrastDelta) / 100 * 0.28;
+    const adjustSemanticSurface = (surface: string): string => mixHexColors(
+      surface,
+      contrastTarget,
+      contrastRatio,
+      surface,
+    );
+
+    mutedSurface = adjustSemanticSurface(semanticPalette.mutedSurface);
+    elevatedSurface = adjustSemanticSurface(semanticPalette.elevatedSurface);
+    shellSurface = adjustSemanticSurface(semanticPalette.shellSurface);
+    fieldSurface = adjustSemanticSurface(semanticPalette.fieldSurface);
+    fieldSurfaceHover = adjustSemanticSurface(semanticPalette.fieldSurfaceHover);
+    fieldSurfaceDisabled = adjustSemanticSurface(semanticPalette.fieldSurfaceDisabled);
+    chromeSurface = adjustSemanticSurface(semanticPalette.chromeSurface);
+    chromeSurfaceHover = adjustSemanticSurface(semanticPalette.chromeSurfaceHover);
+    chromeSurfaceRaised = adjustSemanticSurface(semanticPalette.chromeSurfaceRaised);
+    chromeSelection = adjustSemanticSurface(semanticPalette.chromeSelection);
+    chromeSelectionHover = adjustSemanticSurface(semanticPalette.chromeSelectionHover);
+    chromeBorder = adjustSemanticSurface(semanticPalette.chromeBorder);
+  }
   const emphasisSurface = isDarkMode
     ? mixHexColors(canvasSurface, "#000000", 0.18, canvasSurface)
     : mixHexColors(canvasSurface, foregroundColor, 0.09, canvasSurface);
@@ -324,6 +453,9 @@ export function resolveBirdcoderThemeState(
     "--sdk-color-border-subtle": borderSubtleColor,
     "--sdk-color-surface-canvas": canvasSurface,
     "--sdk-color-surface-elevated": elevatedSurface,
+    "--sdk-color-surface-field": fieldSurface,
+    "--sdk-color-surface-field-disabled": fieldSurfaceDisabled,
+    "--sdk-color-surface-field-hover": fieldSurfaceHover,
     "--sdk-color-surface-overlay": surfaceOverlayColor,
     "--sdk-color-surface-panel": shellSurface,
     "--sdk-color-surface-panel-muted": mutedSurface,
@@ -331,6 +463,22 @@ export function resolveBirdcoderThemeState(
     "--sdk-color-text-muted": mutedTextColor,
     "--sdk-color-text-primary": foregroundColor,
     "--sdk-color-text-secondary": secondaryTextColor,
+    "--birdcoder-chrome-bg": translucent
+      ? createAlphaColor(chromeSurface, isDarkMode ? 0.96 : 0.98, chromeSurface)
+      : chromeSurface,
+    "--birdcoder-chrome-border": chromeBorder ?? borderDefaultColor,
+    "--birdcoder-chrome-border-strong": borderStrongColor,
+    "--birdcoder-chrome-focus": createAlphaColor(accentColor, 0.42, accentColor),
+    "--birdcoder-chrome-selection": chromeSelection ?? brandPrimarySoftColor,
+    "--birdcoder-chrome-selection-hover": chromeSelectionHover
+      ?? createAlphaColor(accentColor, isDarkMode ? 0.26 : 0.18, accentColor),
+    "--birdcoder-chrome-surface": chromeSurface,
+    "--birdcoder-chrome-surface-hover": chromeSurfaceHover,
+    "--birdcoder-chrome-surface-raised": chromeSurfaceRaised,
+    "--birdcoder-chrome-text": foregroundColor,
+    "--birdcoder-chrome-text-muted": secondaryTextColor,
+    "--birdcoder-chrome-text-subtle": mutedTextColor,
+    "--birdcoder-conversation-bg": canvasSurface,
     "--sdk-shadow-lg": shadowLg,
     "--sdk-shadow-md": shadowMd,
     "--sdk-shadow-sm": shadowSm,
@@ -352,17 +500,28 @@ export function resolveBirdcoderThemeState(
     "--birdcoder-theme-foreground": foregroundColor,
     "--birdcoder-theme-surface": shellSurface,
     "--birdcoder-ui-font-family": uiFontFamily,
-    "--birdcoder-ui-font-size": `${Number.parseInt(uiFontSize, 10) || 12}px`,
+    "--birdcoder-ui-font-size": `${uiFontSizeValue}px`,
+    "--text-xs": `${Math.max(9, 12 + uiFontSizeValue - 12)}px`,
+    "--text-sm": `${Math.max(10, 14 + uiFontSizeValue - 12)}px`,
+    "--text-base": `${Math.max(11, 16 + uiFontSizeValue - 12)}px`,
+    "--text-lg": `${Math.max(12, 18 + uiFontSizeValue - 12)}px`,
+    "--text-xl": `${Math.max(14, 20 + uiFontSizeValue - 12)}px`,
+    "--text-2xl": `${Math.max(16, 24 + uiFontSizeValue - 12)}px`,
   };
   return {
+    accentColor,
+    backgroundColor,
     codeFontFamily,
     codeFontSize,
     colorMode,
+    foregroundColor,
     hostStyle,
+    sidebarTranslucent: translucent,
     themeColor,
     themeSelection,
     uiFontFamily,
     uiFontSize,
+    usePointerCursor: settings.usePointerCursor,
   };
 }
 

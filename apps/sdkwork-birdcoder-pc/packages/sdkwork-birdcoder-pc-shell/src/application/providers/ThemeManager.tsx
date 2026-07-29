@@ -7,9 +7,11 @@ export function ThemeManager() {
     codeFontSize,
     colorMode,
     hostStyle,
+    sidebarTranslucent,
     themeColor,
     uiFontFamily,
     uiFontSize,
+    usePointerCursor,
   } = useBirdcoderTheme();
 
   useEffect(() => {
@@ -20,7 +22,9 @@ export function ThemeManager() {
     const root = document.documentElement;
     const previousAttributes = {
       sdkColorMode: root.getAttribute("data-sdk-color-mode"),
+      sidebarTranslucent: root.getAttribute("data-birdcoder-sidebar-translucent"),
       theme: root.getAttribute("data-theme"),
+      usePointerCursor: root.getAttribute("data-birdcoder-pointer-cursor"),
     };
     const previousFontFamily = root.style.fontFamily;
     const previousColorScheme = root.style.colorScheme;
@@ -32,10 +36,14 @@ export function ThemeManager() {
       "--birdcoder-code-font-size",
     ].map((name) => [name, root.style.getPropertyValue(name)] as const);
     const hadDarkClass = root.classList.contains("dark");
+    const hadLightModeClass = root.classList.contains("light-mode");
 
     root.setAttribute("data-theme", themeColor);
     root.setAttribute("data-sdk-color-mode", colorMode);
+    root.setAttribute("data-birdcoder-sidebar-translucent", sidebarTranslucent ? "true" : "false");
+    root.setAttribute("data-birdcoder-pointer-cursor", usePointerCursor ? "true" : "false");
     root.classList.toggle("dark", colorMode === "dark");
+    root.classList.toggle("light-mode", colorMode === "light");
     root.style.colorScheme = colorMode;
     root.style.fontFamily = uiFontFamily;
     root.style.setProperty("--birdcoder-ui-font-family", uiFontFamily);
@@ -49,6 +57,7 @@ export function ThemeManager() {
 
     return () => {
       root.classList.toggle("dark", hadDarkClass);
+      root.classList.toggle("light-mode", hadLightModeClass);
 
       if (previousAttributes.theme) {
         root.setAttribute("data-theme", previousAttributes.theme);
@@ -60,6 +69,18 @@ export function ThemeManager() {
         root.setAttribute("data-sdk-color-mode", previousAttributes.sdkColorMode);
       } else {
         root.removeAttribute("data-sdk-color-mode");
+      }
+
+      if (previousAttributes.sidebarTranslucent) {
+        root.setAttribute("data-birdcoder-sidebar-translucent", previousAttributes.sidebarTranslucent);
+      } else {
+        root.removeAttribute("data-birdcoder-sidebar-translucent");
+      }
+
+      if (previousAttributes.usePointerCursor) {
+        root.setAttribute("data-birdcoder-pointer-cursor", previousAttributes.usePointerCursor);
+      } else {
+        root.removeAttribute("data-birdcoder-pointer-cursor");
       }
 
       root.style.fontFamily = previousFontFamily;
@@ -79,9 +100,11 @@ export function ThemeManager() {
     codeFontSize,
     colorMode,
     hostStyle,
+    sidebarTranslucent,
     themeColor,
     uiFontFamily,
     uiFontSize,
+    usePointerCursor,
   ]);
 
   return null;

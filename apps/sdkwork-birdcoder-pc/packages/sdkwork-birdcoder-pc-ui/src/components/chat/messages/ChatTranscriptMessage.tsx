@@ -238,16 +238,110 @@ function areActionTargetsEqual(
   );
 }
 
+function areActionTargetMessagesEqual(
+  left: ChatMessageRenderContext,
+  right: ChatMessageRenderContext,
+): boolean {
+  const actionTarget = left.actionTarget;
+  if (!left.showMessageActions || !actionTarget) {
+    return true;
+  }
+
+  for (let index = actionTarget.startIndex; index <= actionTarget.endIndex; index += 1) {
+    if (left.allMessages[index] !== right.allMessages[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isDisclosureKeyInScope(key: string, scope: string | undefined): boolean {
+  const normalizedScope = scope?.trim();
+  return Boolean(
+    normalizedScope
+    && (key === normalizedScope || key.startsWith(`${normalizedScope}\u0001`)),
+  );
+}
+
+function isDisclosureKeyRelevantToSourceMessage(
+  key: string,
+  context: ChatMessageRenderContext,
+  sourceIndex: number,
+): boolean {
+  const sourceMessage = context.allMessages[sourceIndex];
+  const sessionScope = `${context.sessionId}\u0001`;
+  const turnId = sourceMessage?.turnId?.trim();
+  const messageId = sourceMessage?.id?.trim();
+  return Boolean(
+    (turnId && key.startsWith(`${sessionScope}${turnId}\u0001`))
+    || (messageId && key.startsWith(`${sessionScope}${messageId}\u0001`))
+    || key.startsWith(`${sessionScope}${sourceIndex}\u0001`),
+  );
+}
+
+function isDisclosureKeyRelevantToContext(
+  key: string,
+  context: ChatMessageRenderContext,
+): boolean {
+  if (
+    isDisclosureKeyRelevantToSourceMessage(key, context, context.index)
+    || isDisclosureKeyInScope(key, context.turnFileChanges?.scopeKey)
+    || isDisclosureKeyInScope(key, context.turnProcess?.key)
+  ) {
+    return true;
+  }
+
+  return context.turnProcess?.items.some((item) => (
+    isDisclosureKeyRelevantToSourceMessage(key, context, item.sourceIndex)
+  )) ?? false;
+}
+
+function areDisclosureStatesEqual(
+  left: ChatMessageRenderContext,
+  right: ChatMessageRenderContext,
+): boolean {
+  const leftKeys = left.expandedDisclosureKeys;
+  const rightKeys = right.expandedDisclosureKeys;
+  if (leftKeys === rightKeys) {
+    return true;
+  }
+
+  for (const key of leftKeys) {
+    if (
+      !rightKeys.has(key)
+      && (
+        isDisclosureKeyRelevantToContext(key, left)
+        || isDisclosureKeyRelevantToContext(key, right)
+      )
+    ) {
+      return false;
+    }
+  }
+  for (const key of rightKeys) {
+    if (
+      !leftKeys.has(key)
+      && (
+        isDisclosureKeyRelevantToContext(key, left)
+        || isDisclosureKeyRelevantToContext(key, right)
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function areRenderContextsEqual(
   left: ChatMessageRenderContext,
   right: ChatMessageRenderContext,
 ): boolean {
   return left === right || (
     areActionTargetsEqual(left.actionTarget, right.actionTarget)
+    && areActionTargetMessagesEqual(left, right)
     && left.copyMessageToClipboard === right.copyMessageToClipboard
     && left.engineId === right.engineId
     && left.environment === right.environment
-    && left.expandedDisclosureKeys === right.expandedDisclosureKeys
+    && areDisclosureStatesEqual(left, right)
     && left.index === right.index
     && left.layout === right.layout
     && left.providerProfile === right.providerProfile

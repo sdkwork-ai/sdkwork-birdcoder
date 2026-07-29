@@ -112,8 +112,14 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /const transcriptEngineId = useMemo\([\s\S]*resolveChatProviderPresentationProfile\(resolvedSelectedEngineId\)[\s\S]*const normalizedMessages = useMemo\(\s*\(\) => composeAgentSessionTranscriptActivity\(\s*resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\{ engineId: transcriptEngineId \},\s*\),\s*\[messages, normalizedSessionId, transcriptEngineId\],\s*\);/s,
+  /const transcriptEngineId = useMemo\([\s\S]*resolveChatProviderPresentationProfile\(resolvedSelectedEngineId\)[\s\S]*const projectedMessages = useMemo\(\s*\(\) => composeAgentSessionTranscriptActivity\(\s*resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\{ engineId: transcriptEngineId \},\s*\),\s*\[messages, normalizedSessionId, transcriptEngineId\],\s*\);/s,
   'UniversalChat must compose session filtering with provider-neutral Agent Session activity in one memoized transcript boundary.',
+);
+
+assert.match(
+  universalChatSource,
+  /const committedTranscriptProjectionRef = useRef<readonly AgentSessionItemView\[\]>\(\[\]\);[\s\S]*const normalizedMessages = useMemo\(\s*\(\) => reconcileTranscriptProjectionReferences\(\s*committedTranscriptProjectionRef\.current,\s*projectedMessages,\s*\),\s*\[projectedMessages\],\s*\);[\s\S]*useLayoutEffect\(\(\) => \{\s*committedTranscriptProjectionRef\.current = normalizedMessages;\s*\}, \[normalizedMessages\]\);/s,
+  'UniversalChat must reconcile composed activity against the committed projection and update its cache after commit so streaming renders preserve historical row references without mutating refs during render.',
 );
 
 console.log('universal chat transcript performance contract passed.');

@@ -34,6 +34,11 @@ assert.match(
   /ref=\{transcriptScrollCoordinator\.contentRef\}[\s\S]*data-chat-transcript-content="true"/s,
   'UniversalChat must expose one measurable transcript content root to the coordinator.',
 );
+assert.match(
+  universalChatSource,
+  /overflowAnchor: 'none',[\s\S]*overscrollBehavior: 'contain',[\s\S]*scrollbarGutter: 'stable'/s,
+  'The transcript viewport must disable native scroll anchoring so the coordinator remains the only scroll owner.',
+);
 
 const ownedScrollTopWrites = coordinatorSource.match(/scrollContainer\.scrollTop\s*=/gu) ?? [];
 assert.equal(
@@ -96,9 +101,29 @@ assert.match(
   'Remote history rendering must complete the retained transaction through the coordinator.',
 );
 assert.match(
+  universalChatSource,
+  /firstMessageKey: string;[\s\S]*const firstMessageKey = messages\.length > 0[\s\S]*resolveTranscriptMessageKey\(messages\[0\], 0\)[\s\S]*pendingPrepend\.firstMessageKey === firstMessageKey/s,
+  'Remote history completion must be identified by a stable leading-message key.',
+);
+assert.doesNotMatch(
+  universalChatSource,
+  /pendingPrepend\.messageCount|pendingPrepend\.firstMessageId/,
+  'Tail appends must not be mistaken for completed remote history prepends.',
+);
+assert.match(
   coordinatorSource,
-  /markUserScrollIntent[\s\S]*cancelPrepend\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);/s,
-  'Explicit user input must cancel stale prepend and bottom-follow work immediately.',
+  /markUserScrollIntent[\s\S]*cancelActiveAnchorRepair\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);[\s\S]*rebasePendingPrependForScroll\(\);/s,
+  'Explicit user input must stop stale repair writes while rebasing an unfinished prepend transaction.',
+);
+assert.match(
+  coordinatorSource,
+  /pendingPrependTransactionRef\.current = transaction;[\s\S]*pendingPrependTransactionRef\.current\?\.token !== transaction\.token[\s\S]*pendingPrependTransactionRef\.current = null;/s,
+  'The coordinator must retain one unfinished prepend transaction and consume it exactly once.',
+);
+assert.doesNotMatch(
+  progressiveTranscriptSource,
+  /cancelPrependAnchorRepairForUserInput/,
+  'Progressive input handlers must not invalidate an unfinished local prepend transaction.',
 );
 
 assert.match(
@@ -108,8 +133,18 @@ assert.match(
 );
 assert.match(
   universalChatSource,
-  /transcriptScrollCoordinator\.scrollToOffset\(/s,
-  'Conversation-map navigation must route through the same scroll writer.',
+  /setTranscriptNavigationRequest\([\s\S]*navigationRequest=\{transcriptNavigationRequest\}/s,
+  'Conversation-map navigation must submit a stable row reveal request to the transcript renderer.',
+);
+assert.match(
+  universalChatSource,
+  /const renderedMessage = scrollContainer\.querySelector<[\s\S]*scrollToOffset\(Math\.max\(0, renderedMessage\.offsetTop - 16\)\)/s,
+  'Conversation-map navigation must route exact target positioning through the same scroll writer.',
+);
+assert.doesNotMatch(
+  universalChatSource,
+  /maxScrollTop \* \(messagePosition/,
+  'Conversation-map navigation must not use a one-shot linear position estimate for variable-height or progressively mounted rows.',
 );
 assert.match(
   universalChatSource,

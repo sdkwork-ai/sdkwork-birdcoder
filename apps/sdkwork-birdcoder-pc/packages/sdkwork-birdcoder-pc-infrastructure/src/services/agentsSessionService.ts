@@ -54,9 +54,6 @@ const AGENT_INTERACTION_MAX_OPTION_VALUE_CHARACTERS = 256;
 export interface BirdCoderAgentSessionServiceOptions {
   agentId?: string;
   client: AgentsAppSdkClient;
-  providerSessionDirectoryIdentityProvider?: (
-    projectId: string,
-  ) => Promise<{ directoryFingerprint: string; directoryName: string } | null>;
   turnRecoveryMaxAttempts?: number;
   turnRecoveryPollIntervalMs?: number;
 }
@@ -446,20 +443,17 @@ function normalizeTurnRecoveryOption(value: number, fallback: number, minimum: n
 export class BirdCoderAgentSessionService implements IAgentSessionService {
   private readonly agentId: string;
   private readonly client: AgentsAppSdkClient;
-  private readonly providerSessionDirectoryIdentityProvider?: BirdCoderAgentSessionServiceOptions['providerSessionDirectoryIdentityProvider'];
   private readonly turnRecoveryMaxAttempts: number;
   private readonly turnRecoveryPollIntervalMs: number;
 
   constructor({
     agentId,
     client,
-    providerSessionDirectoryIdentityProvider,
     turnRecoveryMaxAttempts = TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS,
     turnRecoveryPollIntervalMs = TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS,
   }: BirdCoderAgentSessionServiceOptions) {
     this.agentId = resolveAgentId(agentId);
     this.client = client;
-    this.providerSessionDirectoryIdentityProvider = providerSessionDirectoryIdentityProvider;
     this.turnRecoveryMaxAttempts = normalizeTurnRecoveryOption(
       turnRecoveryMaxAttempts,
       TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS,
@@ -713,19 +707,23 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   ) {
     const projectId = normalizeProjectId(request.projectId);
     const pageRequest = normalizePageRequest(request);
-    const providerSessionDirectoryIdentity = pageRequest.page === 1
-      ? await this.providerSessionDirectoryIdentityProvider?.(projectId) ?? null
-      : null;
     const response = await this.client.ai.agents.projectSessions.list(projectId, {
       ...pageRequest,
       includeArchived: request.includeArchived,
-      ...(providerSessionDirectoryIdentity ? {
-        providerSessionDirectoryFingerprint: providerSessionDirectoryIdentity.directoryFingerprint,
-        providerSessionDirectoryName: providerSessionDirectoryIdentity.directoryName,
-      } : {}),
       status: request.status,
     }, toApiRequestOptions(options));
     return response;
+  }
+
+  async synchronizeProjectSessions(
+    projectId: string,
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedProjectId = normalizeProjectId(projectId);
+    return this.client.ai.agents.projectSessions.synchronize(
+      normalizedProjectId,
+      toApiRequestOptions(options),
+    );
   }
 
   async listSessionsByWorkspace(

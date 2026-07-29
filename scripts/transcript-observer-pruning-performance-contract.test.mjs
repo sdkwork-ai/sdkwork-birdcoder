@@ -23,7 +23,7 @@ const source = fs.readFileSync(
 
 assert.match(
   source,
-  /for \(const \[messageId,\s*element\] of observedElementsRef\.current\.entries\(\)\) \{[\s\S]*resizeObserverRef\.current\?\.unobserve\(element\);[\s\S]*observedElementsRef\.current\.delete\(messageId\);[\s\S]*messageIdByElementRef\.current\.delete\(element\);[\s\S]*\}/s,
+  /for \(const \[messageId,\s*element\] of measurementScope\.observedElements\.entries\(\)\) \{[\s\S]*measurementScope\.resizeObserver\?\.unobserve\(element\);[\s\S]*measurementScope\.observedElements\.delete\(messageId\);[\s\S]*measurementScope\.messageIdByElement\.delete\(element\);[\s\S]*\}/s,
   'useVirtualizedTranscriptWindow must stop observing removed transcript rows and clear element mappings when messages leave the windowed transcript set.',
 );
 

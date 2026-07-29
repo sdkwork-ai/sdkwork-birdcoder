@@ -13,6 +13,7 @@ import {
   resolveTranscriptElementAnchorScrollTop,
   type TranscriptElementScrollAnchorSnapshot,
 } from './transcriptScrollAnchor';
+import { CHAT_TRANSCRIPT_REVEAL_EVENT } from './chat/messages/revealChatDisclosureDetails';
 
 export const TRANSCRIPT_PREPEND_ANCHOR_SETTLE_MS = 320;
 
@@ -130,6 +131,7 @@ export function useTranscriptScrollCoordinator({
   const userScrollSettleTimerRef = useRef<number | null>(null);
   const prependAnchorSettleTimerRef = useRef<number | null>(null);
   const prependTokenRef = useRef(0);
+  const pendingPrependTransactionRef = useRef<TranscriptPrependTransaction | null>(null);
   const activeAnchorRef = useRef<ActiveTranscriptAnchor | null>(null);
   const readingAnchorRef = useRef<TranscriptElementScrollAnchorSnapshot | null>(null);
   const lastLayoutSnapshotRef = useRef<TranscriptLayoutSnapshot | null>(null);
@@ -186,9 +188,47 @@ export function useTranscriptScrollCoordinator({
 
   const updateReadingAnchor = useCallback(() => {
     const scrollContainer = scrollContainerRef.current;
-    readingAnchorRef.current = scrollContainer
-      ? captureTranscriptElementScrollAnchor(scrollContainer)
-      : null;
+    if (!scrollContainer) {
+      readingAnchorRef.current = null;
+      return;
+    }
+
+    const anchor = captureTranscriptElementScrollAnchor(scrollContainer);
+    readingAnchorRef.current = anchor;
+    const pendingPrepend = pendingPrependTransactionRef.current;
+    if (
+      pendingPrepend
+      && pendingPrepend.scopeKey === currentScopeKeyRef.current
+      && pendingPrepend.token === prependTokenRef.current
+    ) {
+      pendingPrepend.anchor = anchor;
+      pendingPrepend.metrics = readTranscriptMetrics(scrollContainer);
+    }
+  }, [scrollContainerRef]);
+
+  const rebasePendingPrependForScroll = useCallback(() => {
+    const scrollContainer = scrollContainerRef.current;
+    const pendingPrepend = pendingPrependTransactionRef.current;
+    if (
+      !scrollContainer
+      || !pendingPrepend
+      || pendingPrepend.scopeKey !== currentScopeKeyRef.current
+      || pendingPrepend.token !== prependTokenRef.current
+    ) {
+      return;
+    }
+
+    const nextMetrics = readTranscriptMetrics(scrollContainer);
+    const scrollTopDelta = nextMetrics.scrollTop - pendingPrepend.metrics.scrollTop;
+    if (pendingPrepend.anchor && scrollTopDelta !== 0) {
+      pendingPrepend.anchor = {
+        ...pendingPrepend.anchor,
+        viewportOffsetTop:
+          pendingPrepend.anchor.viewportOffsetTop - scrollTopDelta,
+      };
+      readingAnchorRef.current = pendingPrepend.anchor;
+    }
+    pendingPrepend.metrics = nextMetrics;
   }, [scrollContainerRef]);
 
   const updateStickiness = useCallback(() => {
@@ -327,18 +367,23 @@ export function useTranscriptScrollCoordinator({
     scrollAnimationFrameRef.current = window.requestAnimationFrame(flushScheduledOperation);
   }, [flushScheduledOperation]);
 
-  const cancelPrepend = useCallback((transaction?: TranscriptPrependTransaction | null) => {
-    if (transaction && transaction.token !== prependTokenRef.current) {
-      return;
-    }
-
-    prependTokenRef.current += 1;
+  const cancelActiveAnchorRepair = useCallback(() => {
     activeAnchorRef.current = null;
     clearPrependAnchorTimer();
     if (pendingOperationRef.current?.kind === 'anchor') {
       pendingOperationRef.current = null;
     }
   }, [clearPrependAnchorTimer]);
+
+  const cancelPrepend = useCallback((transaction?: TranscriptPrependTransaction | null) => {
+    if (transaction && transaction.token !== prependTokenRef.current) {
+      return;
+    }
+
+    prependTokenRef.current += 1;
+    pendingPrependTransactionRef.current = null;
+    cancelActiveAnchorRepair();
+  }, [cancelActiveAnchorRepair]);
 
   const cancelBottomFollow = useCallback(() => {
     if (pendingOperationRef.current?.kind === 'bottom') {
@@ -370,12 +415,14 @@ export function useTranscriptScrollCoordinator({
     shouldStickToBottomRef.current = false;
     const anchor = captureTranscriptElementScrollAnchor(scrollContainer);
     readingAnchorRef.current = anchor;
-    return {
+    const transaction: TranscriptPrependTransaction = {
       anchor,
       metrics: readTranscriptMetrics(scrollContainer),
       scopeKey: currentScopeKeyRef.current,
       token,
     };
+    pendingPrependTransactionRef.current = transaction;
+    return transaction;
   }, [cancelBottomFollow, cancelPrepend, scrollContainerRef]);
 
   const completePrepend = useCallback((transaction: TranscriptPrependTransaction | null) => {
@@ -383,10 +430,12 @@ export function useTranscriptScrollCoordinator({
       !transaction
       || transaction.scopeKey !== currentScopeKeyRef.current
       || transaction.token !== prependTokenRef.current
+      || pendingPrependTransactionRef.current?.token !== transaction.token
     ) {
       return;
     }
 
+    pendingPrependTransactionRef.current = null;
     const activeAnchor: ActiveTranscriptAnchor = {
       anchor: transaction.anchor,
       expiresAt: readTranscriptScrollClock() + TRANSCRIPT_PREPEND_ANCHOR_SETTLE_MS,
@@ -457,7 +506,7 @@ export function useTranscriptScrollCoordinator({
   }, [cancelPrepend, clearScrollAnimationFrame, performScrollOperation]);
 
   const scrollToOffset = useCallback((top: number) => {
-    cancelPrepend();
+    cancelActiveAnchorRepair();
     pauseFollowing();
     clearScrollAnimationFrame();
     pendingOperationRef.current = null;
@@ -468,12 +517,35 @@ export function useTranscriptScrollCoordinator({
     });
     updateReadingAnchor();
   }, [
-    cancelPrepend,
+    cancelActiveAnchorRepair,
     clearScrollAnimationFrame,
     pauseFollowing,
     performScrollOperation,
     updateReadingAnchor,
   ]);
+
+  const revealTranscriptElement = useCallback((element: HTMLElement) => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !scrollContainer.contains(element)) {
+      return;
+    }
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    if (elementRect.height >= containerRect.height) {
+      if (elementRect.top < containerRect.top || elementRect.top >= containerRect.bottom) {
+        scrollToOffset(scrollContainer.scrollTop + elementRect.top - containerRect.top);
+      }
+      return;
+    }
+    if (elementRect.top < containerRect.top) {
+      scrollToOffset(scrollContainer.scrollTop + elementRect.top - containerRect.top);
+      return;
+    }
+    if (elementRect.bottom > containerRect.bottom) {
+      scrollToOffset(scrollContainer.scrollTop + elementRect.bottom - containerRect.bottom);
+    }
+  }, [scrollContainerRef, scrollToOffset]);
 
   useLayoutEffect(() => {
     const previousLayoutSnapshot = lastLayoutSnapshotRef.current;
@@ -486,6 +558,13 @@ export function useTranscriptScrollCoordinator({
     };
 
     if (!isActive) {
+      if (!previousLayoutSnapshot || previousLayoutSnapshot.isActive) {
+        prependTokenRef.current += 1;
+        pendingPrependTransactionRef.current = null;
+        activeAnchorRef.current = null;
+        readingAnchorRef.current = null;
+        clearPrependAnchorTimer();
+      }
       clearScrollAnimationFrame();
       clearScrollAnchorReadAnimationFrame();
       pendingOperationRef.current = null;
@@ -496,6 +575,7 @@ export function useTranscriptScrollCoordinator({
     if (didChangeScope) {
       currentScopeKeyRef.current = normalizedScopeKey;
       prependTokenRef.current += 1;
+      pendingPrependTransactionRef.current = null;
       activeAnchorRef.current = null;
       readingAnchorRef.current = null;
       isUserControllingScrollRef.current = false;
@@ -659,9 +739,10 @@ export function useTranscriptScrollCoordinator({
     };
     const markUserScrollIntent = () => {
       isUserControllingScrollRef.current = true;
-      cancelPrepend();
+      cancelActiveAnchorRepair();
       cancelBottomFollow();
       clearScrollAnimationFrame();
+      rebasePendingPrependForScroll();
       scheduleUserScrollRelease();
     };
     const handleScroll = () => {
@@ -673,6 +754,7 @@ export function useTranscriptScrollCoordinator({
       ) {
         return;
       }
+      rebasePendingPrependForScroll();
       updateStickiness();
       scheduleAnchorRead();
     };
@@ -717,6 +799,11 @@ export function useTranscriptScrollCoordinator({
         markUserScrollIntent();
       }
     };
+    const handleRevealRequest = (event: Event) => {
+      if (event.target instanceof HTMLElement) {
+        revealTranscriptElement(event.target);
+      }
+    };
 
     updateStickiness();
     updateReadingAnchor();
@@ -726,6 +813,7 @@ export function useTranscriptScrollCoordinator({
     scrollContainer.addEventListener('touchmove', markUserScrollIntent, { passive: true });
     scrollContainer.addEventListener('pointerdown', handlePointerDown, { passive: true });
     scrollContainer.addEventListener('keydown', handleKeyDown);
+    scrollContainer.addEventListener(CHAT_TRANSCRIPT_REVEAL_EVENT, handleRevealRequest);
     window.addEventListener('pointerup', handlePointerRelease, { passive: true });
     window.addEventListener('pointercancel', handlePointerRelease, { passive: true });
 
@@ -736,6 +824,7 @@ export function useTranscriptScrollCoordinator({
       scrollContainer.removeEventListener('touchmove', markUserScrollIntent);
       scrollContainer.removeEventListener('pointerdown', handlePointerDown);
       scrollContainer.removeEventListener('keydown', handleKeyDown);
+      scrollContainer.removeEventListener(CHAT_TRANSCRIPT_REVEAL_EVENT, handleRevealRequest);
       window.removeEventListener('pointerup', handlePointerRelease);
       window.removeEventListener('pointercancel', handlePointerRelease);
       if (userScrollSettleTimerRef.current !== null) {
@@ -747,10 +836,12 @@ export function useTranscriptScrollCoordinator({
     };
   }, [
     cancelBottomFollow,
-    cancelPrepend,
+    cancelActiveAnchorRepair,
     clearScrollAnimationFrame,
     isActive,
     normalizedScopeKey,
+    revealTranscriptElement,
+    rebasePendingPrependForScroll,
     scheduleAnchorRead,
     scrollContainerRef,
     updateReadingAnchor,

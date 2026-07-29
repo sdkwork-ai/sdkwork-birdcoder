@@ -11,6 +11,9 @@ const chatSource = read(
 const progressiveWindowSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useProgressiveTranscriptWindow.ts',
 );
+const scrollCoordinatorSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useTranscriptScrollCoordinator.ts',
+);
 const codeSurfaceSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts',
 );
@@ -33,14 +36,14 @@ assert.match(
   'UniversalChat must expose explicit remote transcript continuation state.',
 );
 assert.match(
-  chatSource,
-  /computeTranscriptRepairScrollTop\([\s\S]*pendingPrepend\.metrics[\s\S]*scrollContainer\.scrollHeight/,
-  'Remote transcript prepends must preserve the visible scroll anchor.',
+  scrollCoordinatorSource,
+  /resolveTranscriptElementAnchorScrollTop\([\s\S]*computeTranscriptRepairScrollTop\([\s\S]*operation\.previousMetrics/s,
+  'Remote transcript prepends must preserve the visible element anchor with a metrics fallback.',
 );
 assert.match(
-  chatSource,
-  /const settleAnchor = \(\) => \{[\s\S]*isUserControllingScrollRef\.current[\s\S]*finishAnchorRepair\(\);[\s\S]*restoreTranscriptScrollAnchor/,
-  'User scroll intent must cancel a pending remote prepend anchor repair.',
+  scrollCoordinatorSource,
+  /const rebasePendingPrependForScroll = useCallback\([\s\S]*scrollTopDelta[\s\S]*viewportOffsetTop:[\s\S]*pendingPrepend\.metrics = nextMetrics/s,
+  'User scroll intent must rebase an unfinished remote prepend to the latest reading position.',
 );
 assert.match(
   chatSource,
@@ -53,7 +56,7 @@ assert.match(
   'A completed remote transcript request must not clear another Session request state.',
 );
 const sessionChangeEffect = chatSource.match(
-  /useLayoutEffect\(\(\) => \{\s*pendingRemotePrependRef\.current = null;([\s\S]*?)\}, \[sessionId\]\);/,
+  /useLayoutEffect\(\(\) => \{\s*const pendingPrepend = pendingRemotePrependRef\.current;([\s\S]*?)\}, \[cancelPrepend, sessionId\]\);/,
 );
 assert.ok(
   sessionChangeEffect,
@@ -71,8 +74,13 @@ assert.match(
 );
 assert.match(
   chatSource,
-  /pendingPrepend\.messageCount === messages\.length[\s\S]*pendingPrepend\.firstMessageId === firstMessageId[\s\S]*!isLoadingMoreRemoteMessages && !isRequestingRemoteMessages[\s\S]*pendingRemotePrependRef\.current = null/,
+  /pendingPrepend\.firstMessageKey === firstMessageKey[\s\S]*!isLoadingMoreRemoteMessages && !isRequestingRemoteMessages[\s\S]*pendingRemotePrependRef\.current = null/,
   'An empty or duplicate-only remote page must clear its pending prepend anchor after loading settles.',
+);
+assert.doesNotMatch(
+  chatSource,
+  /pendingPrepend\.messageCount|pendingPrepend\.firstMessageId/,
+  'A tail append during remote loading must not be treated as a completed history prepend.',
 );
 assert.match(
   chatSource,

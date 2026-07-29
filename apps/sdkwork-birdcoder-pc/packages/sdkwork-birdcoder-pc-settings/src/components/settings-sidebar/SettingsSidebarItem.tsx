@@ -21,10 +21,10 @@ export function SettingsSidebarItem({
     <button
       type="button"
       aria-current={isActive ? 'page' : undefined}
-      className={`flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400/70 ${
+      className={`flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--sdk-color-border-focus)] ${
         isActive
-          ? 'bg-white/[0.10] text-white'
-          : 'text-[#d2d3d6] hover:bg-white/[0.055] hover:text-white'
+          ? 'bg-[var(--birdcoder-chrome-selection)] text-[var(--sdk-color-text-primary)]'
+          : 'text-[var(--sdk-color-text-secondary)] hover:bg-[var(--birdcoder-chrome-surface-hover)] hover:text-[var(--sdk-color-text-primary)]'
       }`}
       onClick={() => onSelect(tab)}
       title={label}

@@ -163,6 +163,7 @@ export function createTauriProjectGitRuntime({
     pushProjectGitBranch(projectId, request) {
       return invokeProjectGit(projectId, 'git_push_branch', {
         ...(request.branchName ? { branchName: request.branchName } : {}),
+        forceWithLease: request.forceWithLease ?? false,
         ...(request.remoteName ? { remoteName: request.remoteName } : {}),
       });
     },

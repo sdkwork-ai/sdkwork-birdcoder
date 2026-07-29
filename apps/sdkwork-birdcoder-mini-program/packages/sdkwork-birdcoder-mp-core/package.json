@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sdk": "./src/sdk/index.ts",
+    "./modules": "./src/modules/index.ts",
+    "./host": "./src/host/index.ts",
+    "./session": "./src/session/index.ts",
+    "./composition": "./src/composition/index.ts"
   }
 }

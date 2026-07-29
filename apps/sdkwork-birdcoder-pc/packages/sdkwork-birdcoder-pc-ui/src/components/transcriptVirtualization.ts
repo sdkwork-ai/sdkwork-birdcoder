@@ -29,11 +29,71 @@ export interface TranscriptViewport {
   scrollTop: number;
 }
 
+export function resolveMeasurementScopeTranscriptViewport({
+  didChangeScope,
+  isActive,
+  totalHeight,
+  viewport,
+}: {
+  didChangeScope: boolean;
+  isActive: boolean;
+  totalHeight: number;
+  viewport: TranscriptViewport;
+}): TranscriptViewport {
+  if (!didChangeScope) {
+    return viewport;
+  }
+
+  const clientHeight = Math.max(0, viewport.clientHeight);
+  return {
+    clientHeight,
+    scrollTop: isActive
+      ? Math.max(0, totalHeight - clientHeight)
+      : 0,
+  };
+}
+
 export interface VirtualizedTranscriptWindowState {
   paddingBottom: number;
   paddingTop: number;
   visibleMessages: readonly AgentSessionItemView[];
   visibleStartIndex: number;
+}
+
+export function resolvePrependAdjustedTranscriptViewport({
+  currentCache,
+  previousCache,
+  viewport,
+}: {
+  currentCache: TranscriptPrefixHeightsCache;
+  previousCache: TranscriptPrefixHeightsCache | null;
+  viewport: TranscriptViewport;
+}): TranscriptViewport {
+  if (
+    !previousCache
+    || previousCache.entries.length === 0
+    || currentCache.entries.length <= previousCache.entries.length
+  ) {
+    return viewport;
+  }
+
+  const previousFirstKey = previousCache.entries[0]?.key;
+  const shiftedFirstIndex = previousFirstKey
+    ? currentCache.messageIndexesByKey.get(previousFirstKey)
+    : undefined;
+  if (shiftedFirstIndex === undefined || shiftedFirstIndex <= 0) {
+    return viewport;
+  }
+
+  const prependedHeight = currentCache.prefixHeights[shiftedFirstIndex] ?? 0;
+  if (prependedHeight <= 0) {
+    return viewport;
+  }
+
+  return {
+    ...viewport,
+    scrollTop: viewport.scrollTop + prependedHeight,
+  };
 }
 
 function resolveTranscriptMessageSequence(
@@ -448,11 +508,7 @@ export function resolveVirtualizedTranscriptWindow({
     };
   }
 
-  if (
-    !isActive ||
-    viewport.clientHeight <= 0 ||
-    messages.length <= minVirtualizedMessageCount
-  ) {
+  if (messages.length <= minVirtualizedMessageCount) {
     return {
       paddingBottom: 0,
       paddingTop: 0,
@@ -461,15 +517,23 @@ export function resolveVirtualizedTranscriptWindow({
     };
   }
 
-  const visibleStartOffset = Math.max(0, viewport.scrollTop - overscanPx);
-  const visibleEndOffset = viewport.scrollTop + viewport.clientHeight + overscanPx;
+  const totalHeight = prefixHeights[messages.length] ?? 0;
+  const effectiveViewport = viewport.clientHeight > 0
+    ? viewport
+    : {
+        clientHeight: 1,
+        scrollTop: isActive
+          ? totalHeight
+          : Math.max(0, Math.min(viewport.scrollTop, totalHeight)),
+      };
+  const visibleStartOffset = Math.max(0, effectiveViewport.scrollTop - overscanPx);
+  const visibleEndOffset =
+    effectiveViewport.scrollTop + effectiveViewport.clientHeight + overscanPx;
   const visibleStartIndex = resolveVisibleStartIndex(prefixHeights, visibleStartOffset);
   const visibleEndIndex = Math.max(
     visibleStartIndex + 1,
     resolveVisibleEndIndex(prefixHeights, visibleEndOffset),
   );
-  const totalHeight = prefixHeights[messages.length] ?? 0;
-
   return {
     paddingBottom: Math.max(0, totalHeight - (prefixHeights[visibleEndIndex] ?? 0)),
     paddingTop: prefixHeights[visibleStartIndex] ?? 0,

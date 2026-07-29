@@ -17,6 +17,11 @@ type WorkbenchPreferencesUpdate =
   | Partial<WorkbenchPreferences>
   | ((previousState: WorkbenchPreferences) => Partial<WorkbenchPreferences>);
 
+type WorkbenchPreferencesListener = (preferences: WorkbenchPreferences) => void;
+
+let liveWorkbenchPreferences: WorkbenchPreferences | null = null;
+const workbenchPreferencesListeners = new Set<WorkbenchPreferencesListener>();
+
 function areWorkbenchCodeEngineSettingsEqual(
   left: WorkbenchPreferences['codeEngineSettings'],
   right: WorkbenchPreferences['codeEngineSettings'],
@@ -52,6 +57,10 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
     left.codeEngineId === right.codeEngineId &&
     left.codeModelId === right.codeModelId &&
     areWorkbenchCodeEngineSettingsEqual(left.codeEngineSettings, right.codeEngineSettings) &&
+    left.disabledComposerCapabilityIds.length === right.disabledComposerCapabilityIds.length &&
+    left.disabledComposerCapabilityIds.every(
+      (capabilityId, index) => capabilityId === right.disabledComposerCapabilityIds[index],
+    ) &&
     left.terminalProfileId === right.terminalProfileId &&
     left.codeEditorChatWidth === right.codeEditorChatWidth &&
     left.defaultWorkingDirectory === right.defaultWorkingDirectory &&
@@ -60,20 +69,56 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
     left.sessionInboxProviderId === right.sessionInboxProviderId &&
     left.sessionInboxShowArchived === right.sessionInboxShowArchived &&
     left.sessionInboxSortMode === right.sessionInboxSortMode &&
+    left.gitBranchPrefix === right.gitBranchPrefix &&
+    left.gitCommitInstructions === right.gitCommitInstructions &&
+    left.gitCreateDraftPullRequest === right.gitCreateDraftPullRequest &&
+    left.gitForceWithLease === right.gitForceWithLease &&
+    left.gitPullRequestInstructions === right.gitPullRequestInstructions &&
+    left.gitPullRequestMergeMethod === right.gitPullRequestMergeMethod &&
+    left.gitReviewDeliveryMode === right.gitReviewDeliveryMode &&
     left.worktreeAutoPrune === right.worktreeAutoPrune &&
     left.worktreeListLimit === right.worktreeListLimit
   );
 }
 
+function publishWorkbenchPreferences(preferences: WorkbenchPreferences): void {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  if (
+    liveWorkbenchPreferences
+    && preferencesEqual(liveWorkbenchPreferences, normalizedPreferences)
+  ) {
+    return;
+  }
+
+  liveWorkbenchPreferences = normalizedPreferences;
+  for (const listener of workbenchPreferencesListeners) {
+    listener(normalizedPreferences);
+  }
+}
+
 export function useWorkbenchPreferences() {
   const [storedPreferences, setStoredPreferences] = useState<WorkbenchPreferences>(
-    DEFAULT_WORKBENCH_PREFERENCES,
+    () => liveWorkbenchPreferences ?? DEFAULT_WORKBENCH_PREFERENCES,
   );
   const [persistedPreferences, setPersistedPreferences] = useState<WorkbenchPreferences>(
     DEFAULT_WORKBENCH_PREFERENCES,
   );
   const [isHydrated, setIsHydrated] = useState(false);
   const pendingPersistPreferencesRef = useRef<WorkbenchPreferences | null>(null);
+
+  useEffect(() => {
+    const handlePreferencesChange: WorkbenchPreferencesListener = (nextPreferences) => {
+      setStoredPreferences((previousPreferences) => (
+        preferencesEqual(previousPreferences, nextPreferences)
+          ? previousPreferences
+          : nextPreferences
+      ));
+    };
+    workbenchPreferencesListeners.add(handlePreferencesChange);
+    return () => {
+      workbenchPreferencesListeners.delete(handlePreferencesChange);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,8 +131,13 @@ export function useWorkbenchPreferences() {
 
         const normalizedValue = normalizeWorkbenchPreferences(persistedValue);
         pendingPersistPreferencesRef.current = null;
-        setStoredPreferences(normalizedValue);
         setPersistedPreferences(normalizedValue);
+        if (liveWorkbenchPreferences) {
+          setStoredPreferences(liveWorkbenchPreferences);
+        } else {
+          publishWorkbenchPreferences(normalizedValue);
+          setStoredPreferences(normalizedValue);
+        }
         setIsHydrated(true);
       })
       .catch(() => {
@@ -96,8 +146,10 @@ export function useWorkbenchPreferences() {
         }
 
         pendingPersistPreferencesRef.current = null;
-        setStoredPreferences(DEFAULT_WORKBENCH_PREFERENCES);
         setPersistedPreferences(DEFAULT_WORKBENCH_PREFERENCES);
+        const fallbackPreferences = liveWorkbenchPreferences ?? DEFAULT_WORKBENCH_PREFERENCES;
+        publishWorkbenchPreferences(fallbackPreferences);
+        setStoredPreferences(fallbackPreferences);
         setIsHydrated(true);
       });
 
@@ -120,6 +172,8 @@ export function useWorkbenchPreferences() {
       normalizedStoredPreferences,
     ),
   });
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
 
   useEffect(() => {
     if (!isHydrated || preferencesEqual(persistedPreferences, preferences)) {
@@ -167,18 +221,18 @@ export function useWorkbenchPreferences() {
 
   const updatePreferences = useCallback(
     (value: WorkbenchPreferencesUpdate) => {
-      setStoredPreferences((previousState) => {
-        const normalizedPreviousState = normalizeWorkbenchPreferences(previousState);
-        const partialValue =
-          typeof value === 'function' ? value(normalizedPreviousState) : value;
-
-        return normalizeWorkbenchPreferences({
-          ...normalizedPreviousState,
-          ...partialValue,
-        });
+      const normalizedPreviousState = normalizeWorkbenchPreferences(preferencesRef.current);
+      const partialValue =
+        typeof value === 'function' ? value(normalizedPreviousState) : value;
+      const nextPreferences = normalizeWorkbenchPreferences({
+        ...normalizedPreviousState,
+        ...partialValue,
       });
+      preferencesRef.current = nextPreferences;
+      publishWorkbenchPreferences(nextPreferences);
+      setStoredPreferences(nextPreferences);
     },
-    [setStoredPreferences],
+    [],
   );
 
   return {

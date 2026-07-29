@@ -135,12 +135,20 @@ function service(items: AgentSessionActivitySummaryRecord[]) {
       nextCursor: null,
     },
   }));
+  const synchronizeProjectSessions = vi.fn(async () => ({
+    deletedSessionIds: [],
+    disabledAgentIds: [],
+    projectVersion: '1',
+    synchronizedAgentIds: [],
+  }));
   return {
     listSessionActivitySummaries,
     listSessionsByProject,
+    synchronizeProjectSessions,
     value: {
       listSessionActivitySummaries,
       listSessionsByProject,
+      synchronizeProjectSessions,
     } as unknown as IAgentSessionService,
   };
 }
@@ -166,11 +174,6 @@ describe('hydrateImportedProjectFromAuthority', () => {
     });
 
     expect(agentSessionService.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
-    expect(agentSessionService.listSessionsByProject).toHaveBeenCalledWith({
-      page: 1,
-      pageSize: 1,
-      projectId,
-    }, { signal: expect.any(AbortSignal) });
     expect(agentSessionService.listSessionActivitySummaries).toHaveBeenCalledWith({
       pageSize: 200,
       projectId,

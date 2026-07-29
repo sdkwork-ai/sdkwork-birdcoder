@@ -185,12 +185,13 @@ Agents Session Activity summary
   -> Code and Studio Session lists
 ```
 
-Every refresh starts with a null cursor and may follow `nextCursor` only for
-that bounded traversal. A cursor is not a durable change-feed watermark. Head
-eligibility and ordering come from Agents-managed Session, Turn, Interaction,
-Runtime Binding, and Session user-state facts. Query-time provider observation
-may enrich only rows already selected in the current page; provider-only
-activity cannot insert or reorder an old Session at the head. The coordinator
+Every explicit Project refresh invokes the generated Agents App SDK
+`projectSessions.synchronize` operation and then starts a read-only activity
+traversal with a null cursor. A cursor is not a durable change-feed watermark.
+Head eligibility and ordering come from Agents-managed Session, Turn,
+Interaction, Runtime Binding, and Session user-state facts. Query-time provider
+observation may enrich only rows already selected in the current page;
+provider-only activity cannot insert or reorder an old Session at the head. The coordinator
 deduplicates subscribers, discards superseded responses, pauses while offline
 or hidden, backs off after failure, and refreshes on resume or a scoped
 invalidation.
@@ -256,16 +257,32 @@ file explorer before enforcing a 320-pixel chat column, and critically narrow
 layouts hide the chat surface while keeping it mounted so Composer state is
 preserved until the Diff closes.
 
-#### Launch Blockers
+#### Commercial Readiness Gaps
 
-This consumer architecture is not production-complete until Agents and Kernel
-maintainers approve executable evidence for: a bounded indexed PostgreSQL P1
-head projection; collision-safe tenant/organization/provider/runtime/provider
-Session identity; Project deletion tombstone and pagination semantics; and a
-persisted server-monotonic aggregate activity revision if that revision is
-declared part of the contract. Until those items close, provider-only activity
-cannot be described as complete head discovery, and clients use returned owner
-fact versions without claiming monotonic aggregate order.
+Provider identity, explicit synchronization, title authority, and the greenfield
+PostgreSQL uniqueness baseline are implemented. Provider identity is scoped by
+tenant, organization, owner, engine-qualified provider binding, provider, and
+provider session identifier; provider titles update only while provider-owned, and
+an explicit user rename wins over later inventory. The read endpoint is
+side-effect free, and client paths, directory names, and fingerprints never
+cross the owner SDK boundary.
+
+This consumer architecture is not commercial-production complete until Agents
+and Kernel maintainers approve executable evidence for: a bounded indexed
+PostgreSQL P1 head projection; live PostgreSQL migration and query-plan evidence
+for its activity and identity constraints; Project deletion tombstone and
+pagination semantics; durable distributed runtime routing and synchronization-job
+ownership; and a persisted server-monotonic aggregate activity revision only if
+that revision becomes a product contract. The current inventory is bounded but
+executes synchronously on the selected runtime host. Until those items close,
+provider-only activity cannot be described as complete head discovery, and
+clients use returned owner fact versions without claiming monotonic aggregate
+order.
+
+The repository technical-debt quality gate currently also rejects retired
+Workspace/IDE service types. That independent cleanup must pass before release;
+it must preserve the rule that BirdCoder has no Workspace, Project, or Session
+business authority.
 
 ## 6. PC Host And Composition Boundaries
 

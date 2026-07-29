@@ -4,7 +4,7 @@ export default defineLocaleModule('app/menu', {
   app: {
     menu: {
       file: 'File',
-      newSession: 'New Session',
+      newSession: 'New task',
       openFolder: 'Open Server Folder...',
       save: 'Save',
       saveAll: 'Save All',

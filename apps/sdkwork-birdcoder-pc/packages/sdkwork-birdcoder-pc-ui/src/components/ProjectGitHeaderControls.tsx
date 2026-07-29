@@ -4,6 +4,7 @@ import {
   useProjectGitOverview,
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitMutationActions';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import {
   getProjectGitWorktreeDisplayName,
@@ -65,6 +66,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
 }: ProjectGitHeaderControlsProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const { preferences } = useWorkbenchPreferences();
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showUnifiedMenu, setShowUnifiedMenu] = useState(false);
@@ -305,7 +307,11 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
               if (!normalizedProjectId) {
                 return;
               }
-              setShowUnifiedMenu((isOpen) => !isOpen);
+              const nextIsOpen = !showUnifiedMenu;
+              setShowUnifiedMenu(nextIsOpen);
+              if (nextIsOpen && !newWorktreeBranchName.trim()) {
+                setNewWorktreeBranchName(preferences.gitBranchPrefix);
+              }
               setShowBranchMenu(false);
               setShowWorktreeMenu(false);
               onAnyMenuOpen?.();
@@ -436,7 +442,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
                           className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
                           onClick={() => {
                             setShowUnifiedMenu(false);
-                            setNewBranchName('');
+                            setNewBranchName(preferences.gitBranchPrefix);
                             setShowBranchModal(true);
                           }}
                         >
@@ -618,7 +624,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
           }}
           onRefresh={handleRefreshGitOverview}
           onRequestCreateBranch={() => {
-            setNewBranchName('');
+            setNewBranchName(preferences.gitBranchPrefix);
             setShowBranchModal(true);
           }}
           onSelectBranch={handleSwitchBranch}

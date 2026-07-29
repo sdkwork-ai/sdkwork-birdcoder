@@ -1,11 +1,14 @@
 import {
+  AppWindow,
   Archive,
+  Blocks,
   Cpu,
   FolderGit2,
   GitBranch,
   MonitorCog,
   Keyboard,
   Mic2,
+  MousePointer2,
   Palette,
   PlugZap,
   Scale,
@@ -23,6 +26,9 @@ export type SettingsTab =
   | 'shortcuts'
   | 'config'
   | 'personalization'
+  | 'plugins'
+  | 'browser'
+  | 'computerControl'
   | 'mcp'
   | 'git'
   | 'environment'
@@ -64,6 +70,13 @@ export const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
     id: 'integrations',
     labelKey: 'settings.sidebar.groups.integrations',
     items: [
+      { id: 'plugins', icon: Blocks, labelKey: 'settings.sidebar.plugins' },
+      { id: 'browser', icon: AppWindow, labelKey: 'settings.sidebar.browser' },
+      {
+        id: 'computerControl',
+        icon: MousePointer2,
+        labelKey: 'settings.sidebar.computerControl',
+      },
       { id: 'mcp', icon: PlugZap, labelKey: 'settings.sidebar.mcpServers' },
     ],
   },
@@ -85,3 +98,10 @@ export const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
     ],
   },
 ] as const;
+
+export function isSettingsTab(value: unknown): value is SettingsTab {
+  return typeof value === 'string'
+    && SETTINGS_NAVIGATION_GROUPS.some((group) =>
+      group.items.some((item) => item.id === value),
+    );
+}

@@ -21,6 +21,15 @@ import {
 const WORKSPACE_SESSION_INBOX_INVALIDATION_CHANNEL =
   'sdkwork-birdcoder.workspace-session-inbox-invalidation.v1';
 
+/**
+ * 单次同步操作的最大允许飞行时间（毫秒）。
+ *
+ * 如果服务端响应缓慢或长轮询挂起，当此定时器到期时会主动中止当前请求。
+ * 这保证同步循环在下一个刷新间隔开启前总是能回到空闲状态，防止请求堆积。
+ * 设定为刷新间隔的 4 倍（60s），避免在常规慢网络下过早中断有效请求。
+ */
+const WORKSPACE_SESSION_INBOX_MAX_INFLIGHT_MS = 60_000;
+
 export interface WorkspaceSessionInboxSynchronizationScope {
   userScope: string;
   workspaceId: string;
@@ -195,6 +204,20 @@ function synchronizeEntry(
   entry.generation = generation;
   const controller = new AbortController();
   entry.controller = controller;
+
+  // 背压保护：如果刷新超过最大飞行时间，主动中止并立即规划下一次重试，
+  // 防止长请求阻塞后续刷新定时器。
+  let inflightTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  inflightTimeoutId = setTimeout(() => {
+    inflightTimeoutId = null;
+    if (entry.generation === generation) {
+      abortRefresh(entry, 'Session Inbox synchronization exceeded maximum flight duration.');
+      // abortRefresh 不会重新调度 —— 由于本次是超时主动触发，需要立即重调度
+      // 以便在下一个刷新间隔时恢复同步，否则 UI 将陷入停滞直到下一次外部触发。
+      scheduleRefresh(entry);
+    }
+  }, WORKSPACE_SESSION_INBOX_MAX_INFLIGHT_MS);
+
   const task = (async () => {
     const head = await loadWorkspaceSessionInboxUpdate(
       entry.service,
@@ -227,6 +250,9 @@ function synchronizeEntry(
       console.error('Failed to synchronize the Agents Workspace Session Inbox', error);
     })
     .finally(() => {
+      if (inflightTimeoutId !== null) {
+        clearTimeout(inflightTimeoutId);
+      }
       if (entry.generation !== generation) {
         return;
       }

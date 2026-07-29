@@ -24,7 +24,7 @@ export default defineLocaleModule('app/sidebar', {
     pinned: 'Pinned',
     unread: 'Unread',
     searchSessions: 'Search sessions...',
-    newSessionInCurrentProject: 'Create a new session in the current project',
+    newSessionInCurrentProject: 'Create a new task in the current project',
     searchSessionsTitle: 'Search sessions',
     searchTasks: 'Search tasks',
     clearTaskSearch: 'Clear task search',

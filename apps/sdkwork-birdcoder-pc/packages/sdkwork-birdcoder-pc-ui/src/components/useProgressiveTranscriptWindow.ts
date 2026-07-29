@@ -20,6 +20,8 @@ interface ProgressiveTranscriptWindowState {
   visibleTranscriptStartIndex: number;
 }
 
+type EarlierTranscriptPageRequestResult = 'blocked' | 'not-at-top' | 'started';
+
 const TRANSCRIPT_INTERACTIVE_DESCENDANT_SELECTOR = [
   'a[href]',
   'button',
@@ -47,17 +49,10 @@ function createProgressiveTranscriptWindowState(
   };
 }
 
-function resolveTranscriptScrollContainer(
-  messagesEndRef: RefObject<HTMLDivElement | null>,
-): HTMLDivElement | null {
-  const scrollContainer = messagesEndRef.current?.parentElement;
-  return scrollContainer instanceof HTMLDivElement ? scrollContainer : null;
-}
-
 function readTranscriptScrollMetrics(
-  messagesEndRef: RefObject<HTMLDivElement | null>,
+  scrollContainerRef: RefObject<HTMLDivElement | null>,
 ): TranscriptScrollMetrics | null {
-  const scrollContainer = resolveTranscriptScrollContainer(messagesEndRef);
+  const scrollContainer = scrollContainerRef.current;
   if (!scrollContainer) {
     return null;
   }
@@ -80,7 +75,7 @@ function isTranscriptInteractiveDescendant(
 
 export function useProgressiveTranscriptWindow(
   messages: readonly AgentSessionItemView[],
-  messagesEndRef: RefObject<HTMLDivElement | null>,
+  scrollContainerRef: RefObject<HTMLDivElement | null>,
   isActive = true,
   transcriptScopeKey = '',
   remoteHistory?: ProgressiveTranscriptRemoteHistory,
@@ -88,6 +83,7 @@ export function useProgressiveTranscriptWindow(
     TranscriptScrollCoordinator,
     'beginPrepend' | 'cancelPrepend' | 'completePrepend'
   >,
+  requestedMessageIndex?: number | null,
 ) {
   const firstMessageId = messages[0]?.id ?? '';
   const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
@@ -101,7 +97,6 @@ export function useProgressiveTranscriptWindow(
   const remoteHistoryRef = useRef(remoteHistory);
   const remoteLoadRequestRef = useRef<Promise<void> | null>(null);
   const remoteLoadRequestScopeRef = useRef(transcriptIdentity);
-  const handledRemoteTopLoadRearmVersionRef = useRef(0);
   const handledRemoteTopLoadContinuationVersionRef = useRef(0);
   const pendingRemoteTopLoadAfterLocalExpansionRef = useRef(false);
   const [remoteTopLoadRearmVersion, setRemoteTopLoadRearmVersion] = useState(0);
@@ -112,7 +107,6 @@ export function useProgressiveTranscriptWindow(
     remoteLoadRequestRef.current = null;
     pendingTopLoadIntentRef.current = false;
     pendingTopLoadAfterRemoteRequestRef.current = false;
-    handledRemoteTopLoadRearmVersionRef.current = remoteTopLoadRearmVersion;
     handledRemoteTopLoadContinuationVersionRef.current = remoteTopLoadContinuationVersion;
     pendingRemoteTopLoadAfterLocalExpansionRef.current = false;
   }
@@ -129,6 +123,56 @@ export function useProgressiveTranscriptWindow(
     visibleTranscriptStartIndex,
   } = currentTranscriptWindowState;
 
+  useLayoutEffect(() => {
+    if (
+      !isActive
+      || requestedMessageIndex === null
+      || requestedMessageIndex === undefined
+      || !Number.isInteger(requestedMessageIndex)
+      || messages.length === 0
+    ) {
+      return;
+    }
+
+    const targetIndex = Math.max(0, Math.min(messages.length - 1, requestedMessageIndex));
+    if (targetIndex >= visibleTranscriptStartIndex) {
+      return;
+    }
+
+    const pendingPrepend = pendingPrependTransactionRef.current;
+    if (pendingPrepend) {
+      scrollCoordinator?.cancelPrepend(pendingPrepend);
+      pendingPrependTransactionRef.current = null;
+    }
+    setTranscriptWindowState((previousState) => {
+      const activeState = previousState.transcriptIdentity === transcriptIdentity
+        ? previousState
+        : createProgressiveTranscriptWindowState(transcriptIdentity, messages.length);
+      const nextVisibleTranscriptStartIndex = Math.min(
+        activeState.visibleTranscriptStartIndex,
+        targetIndex,
+      );
+      if (
+        !activeState.isLoadingEarlierMessages
+        && nextVisibleTranscriptStartIndex === activeState.visibleTranscriptStartIndex
+      ) {
+        return previousState;
+      }
+      return {
+        isLoadingEarlierMessages: false,
+        transcriptIdentity,
+        visibleTranscriptStartIndex: nextVisibleTranscriptStartIndex,
+      };
+    });
+  }, [
+    isActive,
+    messages.length,
+    requestedMessageIndex,
+    scrollCoordinator,
+    transcriptIdentity,
+    visibleTranscriptStartIndex,
+  ]);
+
   useEffect(() => {
     if (
       !isActive
@@ -139,7 +183,6 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    pendingTopLoadAfterRemoteRequestRef.current = false;
     setRemoteTopLoadRearmVersion((version) => version + 1);
   }, [isActive, remoteHistory?.isLoadingMessages, transcriptIdentity]);
 
@@ -157,7 +200,10 @@ export function useProgressiveTranscriptWindow(
     }
 
     if (messages.length === 0 && visibleTranscriptStartIndex !== 0) {
-      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+      const pendingPrepend = pendingPrependTransactionRef.current;
+      if (pendingPrepend) {
+        scrollCoordinator?.cancelPrepend(pendingPrepend);
+      }
       pendingPrependTransactionRef.current = null;
       setTranscriptWindowState({
         isLoadingEarlierMessages: false,
@@ -169,7 +215,10 @@ export function useProgressiveTranscriptWindow(
 
     const maxVisibleTranscriptStartIndex = resolveInitialVisibleTranscriptStartIndex(messages.length);
     if (visibleTranscriptStartIndex > maxVisibleTranscriptStartIndex) {
-      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+      const pendingPrepend = pendingPrependTransactionRef.current;
+      if (pendingPrepend) {
+        scrollCoordinator?.cancelPrepend(pendingPrepend);
+      }
       pendingPrependTransactionRef.current = null;
       setTranscriptWindowState({
         isLoadingEarlierMessages: false,
@@ -192,37 +241,36 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    const scrollContainer = resolveTranscriptScrollContainer(messagesEndRef);
+    const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) {
       return;
     }
 
-    const canRequestRemoteMessages = () => {
-      const currentRemoteHistory = remoteHistoryRef.current;
-      return Boolean(
-        currentRemoteHistory?.hasMoreMessages
-        && !currentRemoteHistory.isLoadingMessages
-        && currentRemoteHistory.onLoadMoreMessages
-        && !remoteLoadRequestRef.current,
-      );
-    };
     const isEarlierPageThresholdReached = () => {
-      const scrollMetrics = readTranscriptScrollMetrics(messagesEndRef);
+      const scrollMetrics = readTranscriptScrollMetrics(
+        scrollContainerRef,
+      );
       if (!isTranscriptWithinTopLoadThreshold(scrollMetrics)) {
         return false;
       }
 
-      return visibleTranscriptStartIndex > 0 || canRequestRemoteMessages();
+      const currentRemoteHistory = remoteHistoryRef.current;
+      return visibleTranscriptStartIndex > 0 || Boolean(
+        currentRemoteHistory?.hasMoreMessages
+        && currentRemoteHistory.onLoadMoreMessages,
+      );
     };
-    const requestRemoteMessages = () => {
+    const requestRemoteMessages = (): EarlierTranscriptPageRequestResult => {
       const currentRemoteHistory = remoteHistoryRef.current;
       if (
         !currentRemoteHistory?.hasMoreMessages
-        || currentRemoteHistory.isLoadingMessages
         || !currentRemoteHistory.onLoadMoreMessages
-        || remoteLoadRequestRef.current
       ) {
-        return;
+        return 'not-at-top';
+      }
+      if (currentRemoteHistory.isLoadingMessages || remoteLoadRequestRef.current) {
+        pendingTopLoadAfterRemoteRequestRef.current = true;
+        return 'blocked';
       }
 
       const requestScope = transcriptIdentity;
@@ -242,43 +290,50 @@ export function useProgressiveTranscriptWindow(
               shouldRearmTopLoad
               && !remoteHistoryRef.current?.isLoadingMessages
             ) {
-              pendingTopLoadAfterRemoteRequestRef.current = false;
               setRemoteTopLoadRearmVersion((version) => version + 1);
             }
           }
         });
       remoteLoadRequestRef.current = request;
+      return 'started';
     };
-    const requestEarlierTranscriptPage = () => {
+    const requestEarlierTranscriptPage = (): EarlierTranscriptPageRequestResult => {
+      const isRemoteRequestBlocked = Boolean(
+        remoteHistoryRef.current?.isLoadingMessages
+        || remoteLoadRequestRef.current,
+      );
       if (
         pendingPrependTransactionRef.current
         || isLoadingEarlierMessages
-        || remoteHistoryRef.current?.isLoadingMessages
-        || remoteLoadRequestRef.current
+        || isRemoteRequestBlocked
       ) {
-        return;
+        if (isRemoteRequestBlocked) {
+          pendingTopLoadAfterRemoteRequestRef.current = true;
+        }
+        return 'blocked';
       }
 
-      const scrollMetrics = readTranscriptScrollMetrics(messagesEndRef);
+      const scrollMetrics = readTranscriptScrollMetrics(
+        scrollContainerRef,
+      );
       if (!isTranscriptWithinTopLoadThreshold(scrollMetrics)) {
-        return;
+        return 'not-at-top';
       }
 
       if (visibleTranscriptStartIndex === 0) {
-        requestRemoteMessages();
-        return;
+        return requestRemoteMessages();
       }
 
       if (
         !scrollMetrics
         || !shouldLoadEarlierTranscriptPage(scrollMetrics, visibleTranscriptStartIndex)
       ) {
-        return;
+        return 'not-at-top';
       }
 
       const prependTransaction = scrollCoordinator?.beginPrepend() ?? null;
       if (!prependTransaction) {
-        return;
+        return 'blocked';
       }
       pendingPrependTransactionRef.current = prependTransaction;
       const nextVisibleTranscriptStartIndex = resolveEarlierTranscriptStartIndex(
@@ -301,6 +356,7 @@ export function useProgressiveTranscriptWindow(
           ),
         };
       });
+      return 'started';
     };
     const scheduleEarlierTranscriptPageRequest = () => {
       if (pendingPrependTransactionRef.current || isLoadingEarlierMessages) {
@@ -318,18 +374,17 @@ export function useProgressiveTranscriptWindow(
           return;
         }
 
-        pendingTopLoadIntentRef.current = false;
-        requestEarlierTranscriptPage();
+        const requestResult = requestEarlierTranscriptPage();
+        if (requestResult !== 'blocked') {
+          pendingTopLoadIntentRef.current = false;
+          pendingTopLoadAfterRemoteRequestRef.current = false;
+        }
       });
     };
     const handleTranscriptScroll = () => {
       if (pendingTopLoadIntentRef.current) {
         scheduleEarlierTranscriptPageRequest();
       }
-    };
-    const cancelPrependAnchorRepairForUserInput = () => {
-      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
-      pendingPrependTransactionRef.current = null;
     };
     const markPendingTopLoadIntent = (event?: Event) => {
       if (
@@ -340,7 +395,6 @@ export function useProgressiveTranscriptWindow(
       }
 
       pendingTopLoadIntentRef.current = true;
-      cancelPrependAnchorRepairForUserInput();
       if (
         remoteLoadRequestRef.current
         || remoteHistoryRef.current?.isLoadingMessages
@@ -355,17 +409,6 @@ export function useProgressiveTranscriptWindow(
         return;
       }
 
-      if (
-        event.key === 'ArrowDown'
-        || event.key === 'ArrowUp'
-        || event.key === 'End'
-        || event.key === 'Home'
-        || event.key === 'PageDown'
-        || event.key === 'PageUp'
-        || event.key === ' '
-      ) {
-        cancelPrependAnchorRepairForUserInput();
-      }
       if (
         event.key === 'ArrowUp'
         || event.key === 'Home'
@@ -397,12 +440,15 @@ export function useProgressiveTranscriptWindow(
       }
 
       pendingTopLoadAfterPointerReleaseRef.current = false;
-      pendingTopLoadIntentRef.current = false;
       if (topLoadAnimationFrameRef.current !== null) {
         window.cancelAnimationFrame(topLoadAnimationFrameRef.current);
         topLoadAnimationFrameRef.current = null;
       }
-      requestEarlierTranscriptPage();
+      const requestResult = requestEarlierTranscriptPage();
+      if (requestResult !== 'blocked') {
+        pendingTopLoadIntentRef.current = false;
+        pendingTopLoadAfterRemoteRequestRef.current = false;
+      }
     };
     scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
     scrollContainer.addEventListener('wheel', markPendingTopLoadIntent, { passive: true });
@@ -411,8 +457,7 @@ export function useProgressiveTranscriptWindow(
     scrollContainer.addEventListener('pointerdown', handleTranscriptPointerDown, { passive: true });
     window.addEventListener('pointerup', handleTranscriptPointerRelease, true);
     window.addEventListener('pointercancel', handleTranscriptPointerRelease, true);
-    if (handledRemoteTopLoadRearmVersionRef.current < remoteTopLoadRearmVersion) {
-      handledRemoteTopLoadRearmVersionRef.current = remoteTopLoadRearmVersion;
+    if (pendingTopLoadIntentRef.current) {
       scheduleEarlierTranscriptPageRequest();
     }
     if (
@@ -442,7 +487,7 @@ export function useProgressiveTranscriptWindow(
     isActive,
     isLoadingEarlierMessages,
     messages.length,
-    messagesEndRef,
+    scrollContainerRef,
     remoteHistory?.hasMoreMessages,
     remoteTopLoadContinuationVersion,
     remoteTopLoadRearmVersion,
@@ -465,7 +510,7 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    const scrollContainer = resolveTranscriptScrollContainer(messagesEndRef);
+    const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) {
       scrollCoordinator?.cancelPrepend(pendingPrepend);
       pendingPrependTransactionRef.current = null;
@@ -494,14 +539,17 @@ export function useProgressiveTranscriptWindow(
     ));
   }, [
     isActive,
-    messagesEndRef,
     renderedMessages.length,
+    scrollContainerRef,
     scrollCoordinator,
     transcriptIdentity,
   ]);
 
   useEffect(() => () => {
-    scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+    const pendingPrepend = pendingPrependTransactionRef.current;
+    if (pendingPrepend) {
+      scrollCoordinator?.cancelPrepend(pendingPrepend);
+    }
     pendingPrependTransactionRef.current = null;
   }, [scrollCoordinator]);
 
