@@ -83,6 +83,10 @@ export default defineLocaleModule('code/sidebar', {
     sessionMessagesRefreshed: 'Refreshed messages for session: {{name}}',
     failedToRefreshProjectSessions: 'Failed to refresh project sessions',
     failedToRefreshSessionMessages: 'Failed to refresh session messages',
+    sessionMessagesLoadFailedTitle: 'Conversation could not be loaded',
+    sessionMessagesLoadFailedDescription:
+      'The session is still available, but its messages could not be synchronized.',
+    retrySessionMessages: 'Retry',
     unpinSession: 'Unpin session',
     pinSession: 'Pin session',
     renameSession: 'Rename Session',

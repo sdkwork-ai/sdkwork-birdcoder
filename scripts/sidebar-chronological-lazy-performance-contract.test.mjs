@@ -26,8 +26,8 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /const chronologicalSessions = useMemo\([\s\S]*if \(organizeBy !== 'chronological'\) \{[\s\S]*return EMPTY_SIDEBAR_AGENT_SESSIONS;[\s\S]*\}/s,
-  'Code sidebar must not build the chronological all-session list while the project-organized view is active.',
+  /const chronologicalSessions = useMemo\([\s\S]*if \(organizeBy === 'project'\) \{[\s\S]*return EMPTY_SIDEBAR_AGENT_SESSIONS;[\s\S]*\}/s,
+  'Code sidebar must not build the provider/chronological all-session list while the project-organized view is active.',
 );
 
 assert.match(
@@ -56,8 +56,8 @@ assert.doesNotMatch(
 
 assert.match(
   sidebarSource,
-  /function resolveSidebarProjectViewSessions\([\s\S]*if \(sortBy === 'updated'\) \{[\s\S]*return agentSessions as AgentSessionView\[\];[\s\S]*\}/s,
-  'Project-organized sidebar view must reuse the already activity-sorted session order when sorting by updated time.',
+  /function sortSidebarSessionsByMode\([\s\S]*return sortAgentSessionInboxEntries\(agentSessions, sortBy\);[\s\S]*function resolveSidebarProjectViewSessions\([\s\S]*return sortSidebarSessionsByMode\(agentSessions, sortBy\);/s,
+  'Project-organized sidebar view must reuse the shared, deterministic Session inbox ordering implementation.',
 );
 
 assert.doesNotMatch(

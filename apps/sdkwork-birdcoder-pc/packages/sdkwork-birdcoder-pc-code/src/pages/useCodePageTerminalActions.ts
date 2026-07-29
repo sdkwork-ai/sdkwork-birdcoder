@@ -188,6 +188,7 @@ export function useCodePageTerminalActions({
     }
 
     emitOpenTerminalRequest({
+      agentId: location.agentSession.agentId,
       agentSessionId: location.agentSession.id,
       command: resumeResolution.command,
       path: localWorkingDirectory ?? undefined,

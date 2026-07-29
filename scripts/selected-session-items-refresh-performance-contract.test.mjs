@@ -38,8 +38,8 @@ assert.match(
 );
 assert.match(
   hookSource,
-  /buildAgentSessionItemsRefreshScopeKey\(\{[\s\S]*agentSessionId: normalizedSessionId,[\s\S]*projectId: resolvedProjectId,/s,
-  'Selected Session Item refreshes must use a Project- and Session-scoped request key.',
+  /buildAgentSessionItemsRefreshScopeKey\(\{[\s\S]*agentId: normalizedAgentId \|\| 'unresolved-agent',[\s\S]*agentSessionId: normalizedSessionId,[\s\S]*projectId: resolvedProjectId,/s,
+  'Selected Session Item refreshes must use an Agent-, Project-, and Session-scoped request key.',
 );
 assert.match(
   hookSource,

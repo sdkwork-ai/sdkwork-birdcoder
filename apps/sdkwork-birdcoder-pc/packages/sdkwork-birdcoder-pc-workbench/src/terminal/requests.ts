@@ -5,6 +5,7 @@ export type TerminalCommandSurface = 'project' | 'embedded';
 
 export interface TerminalCommandRequest {
   surface: TerminalCommandSurface;
+  agentId?: string;
   agentSessionId?: string;
   path?: string;
   command?: string;
@@ -43,6 +44,7 @@ export function buildDefaultTerminalCommandRequest(
 ): TerminalCommandRequest {
   return {
     surface: overrides.surface ?? 'project',
+    agentId: overrides.agentId?.trim() || undefined,
     agentSessionId: overrides.agentSessionId?.trim() || undefined,
     path: overrides.path?.trim() || undefined,
     command: overrides.command?.trim() || undefined,
@@ -74,6 +76,7 @@ export function areTerminalCommandRequestsEqual(
 
   return (
     left.surface === right.surface &&
+    left.agentId === right.agentId &&
     left.agentSessionId === right.agentSessionId &&
     left.path === right.path &&
     left.command === right.command &&

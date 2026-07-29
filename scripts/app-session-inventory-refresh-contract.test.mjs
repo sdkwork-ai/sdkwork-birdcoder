@@ -26,7 +26,7 @@ const selectedSessionMessagesHookSource = fs.readFileSync(
 
 assert.match(
   appSource,
-  /refreshProjects,[\s\S]*\} = useProjects\(\{[\s\S]*isActive: Boolean\(user\) && Boolean\(selectedWorkspaceId\),[\s\S]*targetProjectId:[\s\S]*workspaceId: selectedWorkspaceId,/,
+  /refreshProjects,[\s\S]*\} = useProjects\(\{[\s\S]*isActive: Boolean\(user\) && isRecoveryHydrated && Boolean\(selectedWorkspaceId\),[\s\S]*targetProjectId:[\s\S]*workspaceId: selectedWorkspaceId,/,
   'App must own the active project session inventory through the shared useProjects store.',
 );
 
@@ -104,8 +104,8 @@ assert.doesNotMatch(
 
 assert.match(
   sharedRefreshHookSource,
-  /refreshProjectSessions\(/,
-  'Shared refresh hook must call the project refresh orchestrator.',
+  /synchronizeProjectSessions\(targetProjectId, true\)/,
+  'Shared refresh hook must force the authoritative project Session inventory synchronization.',
 );
 
 assert.match(
@@ -122,31 +122,31 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /const requestGeneration = \+\+projectRefreshGenerationRef\.current;[\s\S]*await refreshProjectSessions\([\s\S]*if \(projectRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
+  /const requestGeneration = \+\+projectRefreshGenerationRef\.current;[\s\S]*await synchronizeProjectSessions\(targetProjectId, true\);[\s\S]*projectRefreshGenerationRef\.current !== requestGeneration[\s\S]*activeUserScopeRef\.current !== userScope[\s\S]*return;/,
   'Project refresh actions must ignore stale responses before applying inventory or error state.',
 );
 
 assert.match(
   sharedRefreshHookSource,
-  /const requestGeneration = \+\+agentSessionRefreshGenerationRef\.current;[\s\S]*await refreshAgentSessionItems\([\s\S]*if \(agentSessionRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
+  /const requestGeneration = \+\+agentSessionRefreshGenerationRef\.current;[\s\S]*await refreshAgentSessionItems\([\s\S]*agentSessionRefreshGenerationRef\.current !== requestGeneration[\s\S]*activeUserScopeRef\.current !== userScope[\s\S]*return;/,
   'Coding-session refresh actions must ignore stale responses before applying inventory or error state.',
 );
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(projectRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingProjectId\(null\);/,
+  /projectRefreshGenerationRef\.current === requestGeneration[\s\S]*activeUserScopeRef\.current === userScope[\s\S]*setRefreshingProjectScope\(null\);/,
   'An older project refresh must not clear the visible state for a newer project refresh.',
 );
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(agentSessionRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingAgentSessionScope\(null\);/,
+  /agentSessionRefreshGenerationRef\.current === requestGeneration[\s\S]*activeUserScopeRef\.current === userScope[\s\S]*setRefreshingAgentSessionScope\(null\);/,
   'An older coding-session refresh must not clear the visible state for a newer session refresh.',
 );
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(isPreservedSelectionStillCurrent\(preservedSelection\)\) \{\s*restoreSelectionAfterRefresh\(/,
+  /if \(isPreservedSelectionStillCurrent\(preservedSelection\)\) \{\s*restoreSelectionAfterRefreshRef\.current\(/,
   'Refresh completion must not restore a selection that the user changed while the request was in flight.',
 );
 
@@ -158,7 +158,7 @@ assert.match(
 
 assert.match(
   selectedSessionMessagesHookSource,
-  /if \(!project\) \{\s*return;\s*\}[\s\S]*upsertProjectIntoProjectsStore\(project, userScope\);[\s\S]*upsertAgentSessionIntoProjectsStore\(/,
+  /if \(disposed \|\| !project\) \{\s*return;\s*\}[\s\S]*upsertProjectIntoProjectsStore\(project, userScope\);[\s\S]*upsertAgentSessionIntoProjectsStore\(/,
   'Selected-session hydration must apply the authoritative refreshed session after any synchronized project snapshot so clicking a successfully loaded transcript clears stale failed status in the sidebar.',
 );
 

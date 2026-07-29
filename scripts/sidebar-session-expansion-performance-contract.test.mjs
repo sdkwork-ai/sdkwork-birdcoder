@@ -135,7 +135,7 @@ assert.match(
 );
 assert.match(
   agentSessionViewModelsSource,
-  /PROJECT_SESSION_INVENTORY_CONCURRENCY = 6;[\s\S]*mapWithConcurrency\([\s\S]*PROJECT_SESSION_INVENTORY_CONCURRENCY/,
+  /PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY = 6;[\s\S]*mapWithConcurrency\([\s\S]*PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY/,
   'Project inventory hydration must use bounded concurrency instead of one request per project at once.',
 );
 assert.doesNotMatch(
@@ -155,7 +155,7 @@ assert.match(
 );
 assert.match(
   projectsHookSource,
-  /const completed = await agentSessionService\.submitTurn\([\s\S]*const activityAt = completed\.turn\.completedAt \?\? completed\.turn\.updatedAt;[\s\S]*runtimeStatus: completed\.turn\.status === 'failed' \? 'failed' : 'ready',[\s\S]*resolveAgentSessionItemActivitySortTimestamp\(activityAt\)/,
+  /const completed = await agentSessionService\.submitTurn\(\{[\s\S]*agentId: selectedSession\.agentId,[\s\S]*sessionId: selectedSession\.id,[\s\S]*const activityAt = completed\.turn\.completedAt \?\? completed\.turn\.updatedAt;[\s\S]*completed\.turn\.status === 'failed' \|\| completed\.turn\.status === 'cancelled'[\s\S]*\? 'failed'[\s\S]*: 'ready',[\s\S]*resolveAgentSessionItemActivitySortTimestamp\(activityAt\)/,
   'A completed Agents turn must update runtime status, activity time, and the stable sort key from the canonical turn result.',
 );
 assert.match(
@@ -186,8 +186,8 @@ for (const [surfaceName, source, translationKey] of [
 }
 assert.match(
   sidebarSource,
-  /collectSidebarChronologicalSessions\([\s\S]*?visibleSessionCountByProjectId[\s\S]*?sessionIndex < sessionCount/,
-  'Chronological mode must flatten only each project\'s visible five-plus-ten window.',
+  /const chronologicalSessions = useMemo\([\s\S]*buildSidebarGlobalSessions\(\{[\s\S]*projects: renderProjects,[\s\S]*\}\);/,
+  'Chronological mode must flatten only the canonical project inventory already loaded into the bounded, virtualized sidebar.',
 );
 assert.match(
   sidebarSource,

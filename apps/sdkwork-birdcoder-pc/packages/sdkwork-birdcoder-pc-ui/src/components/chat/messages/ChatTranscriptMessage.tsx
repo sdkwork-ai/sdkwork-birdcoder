@@ -1,9 +1,11 @@
 import React, { memo, useMemo } from 'react';
 import {
-  resolveAgentTurnActivityPresentation,
   resolveAgentSessionItemPresentation,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type {
+  AgentSessionItemView,
+  AgentTurnActivityPresentation,
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { defaultChatMessageRendererRegistry } from './defaultRegistry.ts';
 import type {
   ChatMessageLayout,
@@ -16,8 +18,10 @@ import { TurnFileChangesCard } from './activity/TurnFileChangesCard.tsx';
 import { TurnProcessDisclosure } from './presentation/TurnProcessDisclosure.tsx';
 
 export interface ChatTranscriptMessageProps {
+  activitySummary: AgentTurnActivityPresentation | null;
   message: AgentSessionItemView;
   index: number;
+  transcriptIndex?: number;
   sessionId: string;
   layout: ChatMessageLayout;
   engineId?: string;
@@ -28,8 +32,10 @@ export interface ChatTranscriptMessageProps {
 }
 
 export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
+  activitySummary,
   message,
   index,
+  transcriptIndex = index,
   sessionId,
   layout,
   engineId,
@@ -38,10 +44,8 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   context,
   registry = defaultChatMessageRendererRegistry,
 }: ChatTranscriptMessageProps) {
-  const activitySummary = useMemo(
-    () => resolveAgentTurnActivityPresentation(context.allMessages, message, { engineId }),
-    [context.allMessages, engineId, message],
-  );
+  const resolvedMessageKey = messageRenderKey
+    ?? `${sessionId}\u0001${message.id || message.createdAt || 'message'}`;
   const view = useMemo(
     () => resolveAgentSessionItemPresentation(message, { activitySummary, engineId, layout }),
     [activitySummary, engineId, layout, message],
@@ -66,13 +70,20 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   const entry = useMemo(() => registry.resolve(displayView), [displayView, registry]);
   const Renderer = entry.Component;
   const isUser = displayView.kind === 'user.text';
+  const renderStreamingMarkdownContent = useMemo(
+    () => (content: string) => context.renderMarkdownContent(content, 'basic'),
+    [context.renderMarkdownContent],
+  );
   const resolvedContext = useMemo(
     () => ({
       ...context,
       index,
       layout,
+      renderMarkdownContent: context.turn.isActiveTail
+        ? renderStreamingMarkdownContent
+        : context.renderMarkdownContent,
     }),
-    [context, index, layout],
+    [context, index, layout, renderStreamingMarkdownContent],
   );
   const hasSurfaceContent = displayView.blocks.length > 0
     || Boolean(resolvedContext.turnProcess)
@@ -82,11 +93,11 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   if (!hasSurfaceContent) {
     return (
       <div
-        key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
         ref={messageRef}
         className="h-0 w-full overflow-hidden"
         data-chat-process-source-hidden="true"
-        data-transcript-message-index={index}
+        data-transcript-message-index={transcriptIndex}
+        data-transcript-message-key={resolvedMessageKey}
         aria-hidden="true"
       />
     );
@@ -94,10 +105,10 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
 
   return (
     <ChatTranscriptSurface
-      key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
-      index={index}
+      index={transcriptIndex}
       isUser={isUser}
       layout={layout}
+      messageKey={resolvedMessageKey}
       messageRef={messageRef}
       providerProfile={resolvedContext.providerProfile}
       turn={resolvedContext.turn}
@@ -132,4 +143,142 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
       ) : null}
     </ChatTranscriptSurface>
   );
-});
+}, areChatTranscriptMessagePropsEqual);
+
+function areShallowObjectsEqual(left: object, right: object): boolean {
+  if (left === right) return true;
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  if (leftKeys.length !== Object.keys(rightRecord).length) return false;
+  return leftKeys.every((key) => leftRecord[key] === rightRecord[key]);
+}
+
+function areOrderedShallowObjectsEqual<T extends object>(
+  left: readonly T[] | undefined,
+  right: readonly T[] | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+  return left.every((value, index) => {
+    const nextValue = right[index];
+    return Boolean(nextValue && areShallowObjectsEqual(value, nextValue));
+  });
+}
+
+function areActivitySummariesEqual(
+  left: AgentTurnActivityPresentation | null,
+  right: AgentTurnActivityPresentation | null,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return areOrderedShallowObjectsEqual(left.commands, right.commands)
+    && areOrderedShallowObjectsEqual(left.fileChanges, right.fileChanges);
+}
+
+function areTurnPresentationsEqual(
+  left: ChatMessageRenderContext['turn'],
+  right: ChatMessageRenderContext['turn'],
+): boolean {
+  return left === right || (
+    left.isActiveTail === right.isActiveTail
+    && left.isEnd === right.isEnd
+    && left.isStart === right.isStart
+    && left.key === right.key
+    && left.position === right.position
+  );
+}
+
+function areFileChangePresentationsEqual(
+  left: ChatMessageRenderContext['turnFileChanges'],
+  right: ChatMessageRenderContext['turnFileChanges'],
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return left.messageId === right.messageId
+    && left.scopeKey === right.scopeKey
+    && areOrderedShallowObjectsEqual(left.fileChanges, right.fileChanges);
+}
+
+function areProcessPresentationsEqual(
+  left: ChatMessageRenderContext['turnProcess'],
+  right: ChatMessageRenderContext['turnProcess'],
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  if (
+    left.completedAtMs !== right.completedAtMs
+    || left.isActive !== right.isActive
+    || left.itemCount !== right.itemCount
+    || left.key !== right.key
+    || left.processBlockCount !== right.processBlockCount
+    || left.startedAtMs !== right.startedAtMs
+    || left.targetIndex !== right.targetIndex
+    || left.items.length !== right.items.length
+  ) {
+    return false;
+  }
+
+  return left.items.every((item, index) => {
+    const nextItem = right.items[index];
+    return item === nextItem || (
+      item.sourceIndex === nextItem?.sourceIndex
+      && item.view.source === nextItem.view.source
+    );
+  });
+}
+
+function areActionTargetsEqual(
+  left: ChatMessageRenderContext['actionTarget'],
+  right: ChatMessageRenderContext['actionTarget'],
+): boolean {
+  return left === right || (
+    left?.startIndex === right?.startIndex
+    && left?.endIndex === right?.endIndex
+  );
+}
+
+function areRenderContextsEqual(
+  left: ChatMessageRenderContext,
+  right: ChatMessageRenderContext,
+): boolean {
+  return left === right || (
+    areActionTargetsEqual(left.actionTarget, right.actionTarget)
+    && left.copyMessageToClipboard === right.copyMessageToClipboard
+    && left.engineId === right.engineId
+    && left.environment === right.environment
+    && left.expandedDisclosureKeys === right.expandedDisclosureKeys
+    && left.index === right.index
+    && left.layout === right.layout
+    && left.providerProfile === right.providerProfile
+    && left.renderMarkdownContent === right.renderMarkdownContent
+    && left.sessionId === right.sessionId
+    && left.showMessageActions === right.showMessageActions
+    && left.suppressInlineFileChanges === right.suppressInlineFileChanges
+    && left.suppressProcessBlocks === right.suppressProcessBlocks
+    && left.toggleDisclosure === right.toggleDisclosure
+    && areTurnPresentationsEqual(left.turn, right.turn)
+    && areFileChangePresentationsEqual(left.turnFileChanges, right.turnFileChanges)
+    && areProcessPresentationsEqual(left.turnProcess, right.turnProcess)
+  );
+}
+
+export function areChatTranscriptMessagePropsEqual(
+  previousProps: ChatTranscriptMessageProps,
+  nextProps: ChatTranscriptMessageProps,
+): boolean {
+  return previousProps.message === nextProps.message
+    && previousProps.index === nextProps.index
+    && previousProps.transcriptIndex === nextProps.transcriptIndex
+    && previousProps.sessionId === nextProps.sessionId
+    && previousProps.layout === nextProps.layout
+    && previousProps.engineId === nextProps.engineId
+    && previousProps.messageRenderKey === nextProps.messageRenderKey
+    && previousProps.messageRef === nextProps.messageRef
+    && previousProps.registry === nextProps.registry
+    && areActivitySummariesEqual(
+      previousProps.activitySummary,
+      nextProps.activitySummary,
+    )
+    && areRenderContextsEqual(previousProps.context, nextProps.context);
+}

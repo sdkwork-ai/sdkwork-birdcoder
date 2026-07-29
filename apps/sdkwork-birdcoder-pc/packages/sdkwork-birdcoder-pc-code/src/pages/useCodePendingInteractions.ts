@@ -8,16 +8,19 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionInteractions';
 
 interface UseCodePendingInteractionsOptions {
+  agentId: string | null;
   refreshToken?: string | number | null;
   projectId?: string | null;
   sessionId: string | null;
   sessionScopeKey?: string | null;
   onRefreshAgentSessionItems: (
     agentSessionId: string,
+    projectId?: string | null,
   ) => void | Promise<void>;
 }
 
 export function useCodePendingInteractions({
+  agentId,
   refreshToken,
   projectId,
   sessionId,
@@ -31,7 +34,7 @@ export function useCodePendingInteractions({
     submitApprovalDecision,
     submitQuestionAnswer,
   } = useAgentSessionPendingInteractions(
-    sessionId,
+    agentId && sessionId ? { agentId, sessionId } : null,
     refreshToken,
     sessionScopeKey,
     projectId,
@@ -43,9 +46,9 @@ export function useCodePendingInteractions({
   ) => {
     await submitApprovalDecision(interactionId, request);
     if (sessionId) {
-      await onRefreshAgentSessionItems(sessionId);
+      await onRefreshAgentSessionItems(sessionId, projectId);
     }
-  }, [onRefreshAgentSessionItems, sessionId, submitApprovalDecision]);
+  }, [onRefreshAgentSessionItems, projectId, sessionId, submitApprovalDecision]);
 
   const onSubmitUserQuestionAnswer = useCallback(async (
     interactionId: string,
@@ -53,9 +56,9 @@ export function useCodePendingInteractions({
   ) => {
     await submitQuestionAnswer(interactionId, request);
     if (sessionId) {
-      await onRefreshAgentSessionItems(sessionId);
+      await onRefreshAgentSessionItems(sessionId, projectId);
     }
-  }, [onRefreshAgentSessionItems, sessionId, submitQuestionAnswer]);
+  }, [onRefreshAgentSessionItems, projectId, sessionId, submitQuestionAnswer]);
 
   return {
     onSubmitApprovalDecision,

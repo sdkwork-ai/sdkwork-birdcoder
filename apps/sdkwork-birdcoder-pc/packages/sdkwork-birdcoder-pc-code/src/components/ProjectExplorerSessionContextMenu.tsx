@@ -12,7 +12,7 @@ interface ProjectExplorerSessionContextMenuProps {
   session?: AgentSessionView;
   isRefreshing: boolean;
   onClose: () => void;
-  onRefresh?: (id: string) => Promise<void> | void;
+  onRefresh?: (id: string, projectId: string) => Promise<void> | void;
   onPin?: (id: string, projectId: string) => void;
   onStartRename: (id: string, projectId: string, title: string) => void;
   onArchive?: (id: string, projectId: string) => void;
@@ -67,7 +67,7 @@ export function ProjectExplorerSessionContextMenu({
           if (isRefreshing) {
             return;
           }
-          void onRefresh?.(sessionId);
+          void onRefresh?.(sessionId, projectId);
           onClose();
         }}
       >

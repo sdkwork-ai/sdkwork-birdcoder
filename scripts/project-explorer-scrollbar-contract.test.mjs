@@ -28,14 +28,14 @@ assert.match(
 const sectionHeaderIndex = source.indexOf(
   'className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"',
 );
-const searchInputIndex = source.indexOf('placeholder={searchSessionsPlaceholder}');
+const searchTriggerIndex = source.indexOf('aria-label={searchSessionsTitleLabel}');
 const scrollRegionIndex = source.indexOf(
   'className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"',
 );
 const scrollRegionChildrenIndex = source.indexOf('{children}', scrollRegionIndex);
 
 assert.notEqual(sectionHeaderIndex, -1, 'Project explorer section header must exist.');
-assert.notEqual(searchInputIndex, -1, 'Project explorer search input must exist.');
+assert.notEqual(searchTriggerIndex, -1, 'Project explorer search trigger must exist.');
 assert.notEqual(scrollRegionIndex, -1, 'Project explorer scroll region must exist.');
 assert.notEqual(scrollRegionChildrenIndex, -1, 'Project explorer children must render inside the scroll region.');
 
@@ -45,8 +45,8 @@ assert.ok(
 );
 
 assert.ok(
-  searchInputIndex < scrollRegionIndex,
-  'Project explorer search box must render before the scroll region so searching controls stay pinned above project scrolling.',
+  searchTriggerIndex < scrollRegionIndex,
+  'Project explorer search trigger must render before the scroll region so search controls stay pinned above project scrolling.',
 );
 
 assert.doesNotMatch(
@@ -81,7 +81,7 @@ assert.match(
 
 assert.match(
   sessionRowSource,
-  /className=\{`\$\{paddingClassName\} py-1\.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden/,
+  /className=\{`\$\{paddingClassName\} group birdcoder-session-row relative flex w-full min-w-0 max-w-full[^`]*items-center justify-between overflow-hidden[^`]*py-1\.5/,
   'Code ProjectExplorer session row must occupy a stable full-width box that cannot be widened by its hover content.',
 );
 
@@ -93,7 +93,7 @@ assert.match(
 
 assert.match(
   sessionRowSource,
-  /<span className="min-w-0 flex-1 truncate">\{session\.title\}<\/span>/,
+  /<span className="flex min-w-0 flex-1 items-baseline gap-1\.5 overflow-hidden">[\s\S]*<span className="min-w-0 truncate">\{session\.title\}<\/span>/,
   'Code ProjectExplorer session titles must truncate inside the row instead of participating in intrinsic width expansion.',
 );
 

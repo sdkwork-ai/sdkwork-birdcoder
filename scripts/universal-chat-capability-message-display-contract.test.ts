@@ -70,13 +70,13 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /shouldUseRichChatMarkdown\(content,\s*mode,\s*environmentRef\.current\?\.skills \?\? \[\]\)/,
+  /shouldUseRichChatMarkdown\(content,\s*mode,\s*messageEnvironment\?\.skills \?\? \[\]\)/,
   'UniversalChat must pass configured skills into the rich markdown gate so known skill mentions can render.',
 );
 
 assert.match(
   universalChatSource,
-  /unknownSkillDescription=\{environmentRef\.current\?\.t\('chat\.skillDetailsUnavailable'\) \?\? 'Skill details unavailable'\}/,
+  /unknownSkillDescription=\{messageEnvironment\?\.t\('chat\.skillDetailsUnavailable'\) \?\? 'Skill details unavailable'\}/,
   'UniversalChat must pass localized neutral copy for unknown skill links into the markdown renderer.',
 );
 

@@ -1,6 +1,9 @@
 import { type ReactNode } from 'react';
 import i18n from '@sdkwork/birdcoder-pc-workbench/i18n';
-import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-pc-ui-shell';
+import {
+  SessionTranscriptErrorState,
+  SessionTranscriptLoadingState,
+} from '@sdkwork/birdcoder-pc-ui-shell';
 import { resolveBirdCoderEditorLanguage } from '@sdkwork/birdcoder-pc-ui/components/editorLanguage';
 import { CodeChatEmptyState } from './CodeChatEmptyState';
 
@@ -40,11 +43,26 @@ export function CodeSessionTranscriptLoadingState() {
   );
 }
 
-export function createCodeChatEmptyStates(isHydrating: boolean): {
+interface CodeSessionTranscriptErrorStateOptions {
+  description: string;
+  onRetry: () => void;
+  retryLabel: string;
+  title: string;
+}
+
+export function createCodeChatEmptyStates(
+  isHydrating: boolean,
+  loadError?: CodeSessionTranscriptErrorStateOptions,
+): {
   mainChatEmptyState: ReactNode;
   editorChatEmptyState?: ReactNode;
 } {
-  return isHydrating
+  return loadError
+    ? {
+      mainChatEmptyState: <SessionTranscriptErrorState {...loadError} />,
+      editorChatEmptyState: <SessionTranscriptErrorState {...loadError} />,
+    }
+    : isHydrating
     ? {
       mainChatEmptyState: <CodeSessionTranscriptLoadingState />,
       editorChatEmptyState: <CodeSessionTranscriptLoadingState />,

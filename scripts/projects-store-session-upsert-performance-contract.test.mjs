@@ -44,13 +44,23 @@ assert.ok(
 );
 assert.doesNotMatch(
   messageFilterBody,
-  /messages\.filter\(/,
-  'projectsStore must not eagerly allocate a filtered transcript array when selected-session local reads already return scoped messages.',
+  /items\.filter\(/,
+  'projectsStore must not eagerly allocate a filtered transcript array when selected-session local reads already return scoped items.',
 );
 assert.match(
   messageFilterBody,
-  /let scopedMessages: AgentSessionItemView\[\] \| null = null;/,
+  /let scopedItems: AgentSessionItemView\[\] \| null = null;/,
   'projectsStore transcript filtering must stay allocation-free until the first out-of-scope message is actually found.',
+);
+assert.match(
+  messageFilterBody,
+  /scopedItems = items\.slice\(0, index\)/,
+  'projectsStore transcript filtering must allocate only after the first out-of-scope item is found.',
+);
+assert.match(
+  messageFilterBody,
+  /return scopedItems \?\? \(items as AgentSessionItemView\[\]\);/,
+  'projectsStore transcript filtering must reuse the original item collection when every item is already in scope.',
 );
 
 const updateBody = projectsStoreSource.match(

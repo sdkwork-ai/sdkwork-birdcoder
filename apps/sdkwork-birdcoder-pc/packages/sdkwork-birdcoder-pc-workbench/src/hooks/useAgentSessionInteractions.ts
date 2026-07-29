@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type {
+  AgentSessionIdentity,
+  IAgentSessionService,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import { useIDEServices } from '../context/ideServices.ts';
 import {
@@ -148,11 +151,16 @@ export function mapAgentSessionPendingInteractions(
 
 export async function loadAgentSessionPendingInteractions(
   service: IAgentSessionService,
-  sessionId: string,
+  identity: AgentSessionIdentity,
   expectedProjectId?: string | null,
   signal?: AbortSignal,
 ): Promise<AgentSessionPendingInteractions> {
-  const session = await service.getSession(sessionId, { signal });
+  const normalizedIdentity = {
+    agentId: identity.agentId.trim(),
+    sessionId: identity.sessionId.trim(),
+  };
+  const session = await service.getSession(normalizedIdentity, { signal });
+  const sessionId = normalizedIdentity.sessionId;
   const normalizedExpectedProjectId = expectedProjectId?.trim();
   if (
     normalizedExpectedProjectId
@@ -167,7 +175,7 @@ export async function loadAgentSessionPendingInteractions(
   const interactionIds = new Set<string>();
   for (let page = 1; page <= PENDING_INTERACTION_MAX_PAGES; page += 1) {
     signal?.throwIfAborted();
-    const interactionPage = await service.listInteractions(sessionId, {
+    const interactionPage = await service.listInteractions(normalizedIdentity, {
       page,
       pageSize: PENDING_INTERACTION_PAGE_SIZE,
       status: 'pending',
@@ -205,11 +213,11 @@ export async function loadAgentSessionPendingInteractions(
 
 async function claimInteraction(
   service: IAgentSessionService,
-  sessionId: string,
+  identity: AgentSessionIdentity,
   interaction: AgentInteractionRecord,
   claimOwner: string,
 ) {
-  return service.claimInteraction(sessionId, interaction.interactionId, {
+  return service.claimInteraction(identity, interaction.interactionId, {
     claimOwner,
     expectedVersion: interaction.version,
     leaseSeconds: INTERACTION_CLAIM_LEASE_SECONDS,
@@ -218,7 +226,7 @@ async function claimInteraction(
 }
 
 export function useAgentSessionPendingInteractions(
-  sessionId?: string | null,
+  identity?: AgentSessionIdentity | null,
   refreshToken?: string | number | null,
   scopeKey?: string | null,
   expectedProjectId?: string | null,
@@ -228,8 +236,10 @@ export function useAgentSessionPendingInteractions(
   const latestRequestIdRef = useRef(0);
   const latestScopeKeyRef = useRef<string | null>(null);
   const refreshAbortControllerRef = useRef<AbortController | null>(null);
-  const normalizedScopeKey = sessionId
-    ? scopeKey?.trim() || sessionId
+  const agentId = identity?.agentId.trim() ?? '';
+  const sessionId = identity?.sessionId.trim() ?? '';
+  const normalizedScopeKey = agentId && sessionId
+    ? scopeKey?.trim() || `${agentId}\u0001${sessionId}`
     : null;
 
   const refreshPendingInteractions = useCallback(async () => {
@@ -240,7 +250,7 @@ export function useAgentSessionPendingInteractions(
       'AbortError',
     ));
     refreshAbortControllerRef.current = null;
-    if (!sessionId) {
+    if (!agentId || !sessionId) {
       latestScopeKeyRef.current = null;
       setState(INITIAL_STATE);
       return EMPTY_PENDING_INTERACTIONS;
@@ -258,7 +268,7 @@ export function useAgentSessionPendingInteractions(
     try {
       const pending = await loadAgentSessionPendingInteractions(
         agentSessionService,
-        sessionId,
+        { agentId, sessionId },
         expectedProjectId,
         controller.signal,
       );
@@ -280,15 +290,18 @@ export function useAgentSessionPendingInteractions(
         refreshAbortControllerRef.current = null;
       }
     }
-  }, [agentSessionService, expectedProjectId, normalizedScopeKey, sessionId]);
+  }, [agentId, agentSessionService, expectedProjectId, normalizedScopeKey, sessionId]);
 
   const resolveInteractionAndClaimOwner = useCallback(async (interactionId: string) => {
-    if (!sessionId) {
+    if (!agentId || !sessionId) {
       throw new Error('An agent session is required to resolve an interaction.');
     }
     const normalizedInteractionId = interactionId.trim();
     const [interaction, currentUser] = await Promise.all([
-      agentSessionService.getInteraction(sessionId, normalizedInteractionId),
+      agentSessionService.getInteraction(
+        { agentId, sessionId },
+        normalizedInteractionId,
+      ),
       authService.getCurrentUser(),
     ]);
     if (interaction.status !== 'pending') {
@@ -301,13 +314,13 @@ export function useAgentSessionPendingInteractions(
       throw new Error('An authenticated user is required to claim an agent interaction.');
     }
     return { claimOwner, interaction };
-  }, [agentSessionService, authService, sessionId]);
+  }, [agentId, agentSessionService, authService, sessionId]);
 
   const submitApprovalDecision = useCallback(async (
     interactionId: string,
     input: AgentApprovalDecisionInput,
   ) => {
-    if (!sessionId) {
+    if (!agentId || !sessionId) {
       throw new Error('An agent session is required to approve an interaction.');
     }
     const reason = normalizeBoundedInteractionInput(
@@ -321,12 +334,12 @@ export function useAgentSessionPendingInteractions(
     }
     const claim = await claimInteraction(
       agentSessionService,
-      sessionId,
+      { agentId, sessionId },
       interaction,
       claimOwner,
     );
     const result = await agentSessionService.approveInteraction(
-      sessionId,
+      { agentId, sessionId },
       interaction.interactionId,
       {
         approved: input.decision === 'approved',
@@ -342,13 +355,19 @@ export function useAgentSessionPendingInteractions(
     void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;
-  }, [agentSessionService, refreshPendingInteractions, resolveInteractionAndClaimOwner, sessionId]);
+  }, [
+    agentId,
+    agentSessionService,
+    refreshPendingInteractions,
+    resolveInteractionAndClaimOwner,
+    sessionId,
+  ]);
 
   const submitQuestionAnswer = useCallback(async (
     interactionId: string,
     input: AgentQuestionAnswerInput,
   ) => {
-    if (!sessionId) {
+    if (!agentId || !sessionId) {
       throw new Error('An agent session is required to answer an interaction.');
     }
     const submittedAnswer = normalizeBoundedInteractionInput(
@@ -378,13 +397,13 @@ export function useAgentSessionPendingInteractions(
     }
     const claim = await claimInteraction(
       agentSessionService,
-      sessionId,
+      { agentId, sessionId },
       interaction,
       claimOwner,
     );
     const answer = submittedAnswer || optionLabel || '';
     const result = await agentSessionService.answerInteraction(
-      sessionId,
+      { agentId, sessionId },
       interaction.interactionId,
       {
         answer,
@@ -399,7 +418,13 @@ export function useAgentSessionPendingInteractions(
     void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;
-  }, [agentSessionService, refreshPendingInteractions, resolveInteractionAndClaimOwner, sessionId]);
+  }, [
+    agentId,
+    agentSessionService,
+    refreshPendingInteractions,
+    resolveInteractionAndClaimOwner,
+    sessionId,
+  ]);
 
   useEffect(() => {
     void refreshPendingInteractions();
@@ -414,7 +439,7 @@ export function useAgentSessionPendingInteractions(
     refreshAbortControllerRef.current = null;
   }, [normalizedScopeKey]);
 
-  const visibleState = sessionId && latestScopeKeyRef.current === normalizedScopeKey
+  const visibleState = agentId && sessionId && latestScopeKeyRef.current === normalizedScopeKey
     ? state
     : INITIAL_STATE;
   return {

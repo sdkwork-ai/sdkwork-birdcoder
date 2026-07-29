@@ -801,21 +801,55 @@ export function mergeLatestAgentSessionItems(
   existingItems: readonly AgentSessionItemView[],
   latestItems: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
+  const deduplicatedLatestItems = deduplicateAgentSessionItemViews(latestItems);
   const latestTurnRoleKeys = new Set(
-    latestItems.flatMap((item) => {
+    deduplicatedLatestItems.flatMap((item) => {
       const turnId = item.turnId?.trim() ?? '';
       return turnId
         ? [stringifyBirdCoderApiJson([item.sessionId.trim(), turnId, item.role])]
         : [];
     }),
   );
-  const retainedExistingItems = existingItems.filter(
-    (existingItem) => !isSupersededTransientAgentSessionItem(
-      existingItem,
-      latestTurnRoleKeys,
-    ),
-  );
-  return deduplicateAgentSessionItemViews([...retainedExistingItems, ...latestItems]);
+  const latestItemMatchIndex = new MutableAgentSessionItemMatchIndex();
+  deduplicatedLatestItems.forEach((item, index) => {
+    latestItemMatchIndex.append(index, item);
+  });
+  const matchedLatestItems = new Uint8Array(deduplicatedLatestItems.length);
+  let mergedItems: AgentSessionItemView[] | null = null;
+
+  existingItems.forEach((existingItem, existingIndex) => {
+    if (isSupersededTransientAgentSessionItem(existingItem, latestTurnRoleKeys)) {
+      mergedItems ??= existingItems.slice(0, existingIndex) as AgentSessionItemView[];
+      return;
+    }
+
+    const matchingLatestIndex = latestItemMatchIndex.findMatchingIndex(existingItem);
+    const nextItem = matchingLatestIndex >= 0
+      ? mergeAgentSessionItemViews(
+          existingItem,
+          deduplicatedLatestItems[matchingLatestIndex]!,
+        )
+      : existingItem;
+    if (matchingLatestIndex >= 0) {
+      matchedLatestItems[matchingLatestIndex] = 1;
+    }
+    if (mergedItems) {
+      mergedItems.push(nextItem);
+    } else if (nextItem !== existingItem) {
+      mergedItems = existingItems.slice(0, existingIndex) as AgentSessionItemView[];
+      mergedItems.push(nextItem);
+    }
+  });
+
+  deduplicatedLatestItems.forEach((latestItem, latestIndex) => {
+    if (matchedLatestItems[latestIndex] === 1) {
+      return;
+    }
+    mergedItems ??= [...existingItems];
+    mergedItems.push(latestItem);
+  });
+
+  return mergedItems ?? existingItems as AgentSessionItemView[];
 }
 
 export function formatAgentSessionDisplayTime(

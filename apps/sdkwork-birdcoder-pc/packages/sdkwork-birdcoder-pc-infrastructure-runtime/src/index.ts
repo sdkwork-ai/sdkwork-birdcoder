@@ -87,6 +87,8 @@ export type {
   AgentProjectSessionPageRequest,
   AgentScopedSessionPageRequest,
   AgentSessionActivityPageRequest,
+  AgentSessionIdentity,
+  AgentSessionItemPageRequest,
   AgentSessionListPageRequest,
   AgentSessionPageRequest,
   AgentSessionReadOptions,

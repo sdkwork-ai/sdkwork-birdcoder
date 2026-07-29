@@ -60,6 +60,13 @@ const universalChatSource = readFileSync(
   ),
   'utf8',
 );
+const transcriptScrollCoordinatorSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useTranscriptScrollCoordinator.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 const messages: AgentSessionItemView[] = [
   {
@@ -128,6 +135,118 @@ assert.equal(
   'transcript prefix cache should preserve unchanged prefix entries when only a later row measurement changes.',
 );
 
+const prependedMessages: AgentSessionItemView[] = [
+  {
+    agentSessionId: 'session-1',
+    id: 'user-older',
+    role: 'user',
+    content: 'older history',
+    createdAt: '2026-04-20T23:59:59.000Z',
+  },
+  ...messages,
+];
+const shiftedAssistantMessageKey = resolveTranscriptMessageKey(prependedMessages[2], 2);
+assert.equal(
+  shiftedAssistantMessageKey,
+  assistantMessageKey,
+  'prepending transcript history must not change the identity of an existing message.',
+);
+
+const prependedPrefixCache = reconcileTranscriptPrefixHeightsCache({
+  measuredHeights: new Map<string, number>([[assistantMessageKey, 400]]),
+  messages: prependedMessages,
+  previousCache: updatedPrefixCache,
+});
+assert.equal(
+  prependedPrefixCache.entries[2]?.height,
+  400,
+  'prepending transcript history must retain measured heights for messages shifted to a new row index.',
+);
+assert.equal(
+  prependedPrefixCache.entries[2],
+  updatedPrefixCache.entries[1],
+  'prepending transcript history should reuse the cached entry for an unchanged message identity.',
+);
+assert.deepEqual(
+  prependedPrefixCache.prefixHeights,
+  [0, 116, 232, 632],
+  'prepending transcript history must rebuild spacer prefixes from the earliest changed height.',
+);
+
+const removedLeadingMessageCache = reconcileTranscriptPrefixHeightsCache({
+  measuredHeights: new Map<string, number>([[assistantMessageKey, 400]]),
+  messages: [messages[1]],
+  previousCache: updatedPrefixCache,
+});
+assert.deepEqual(
+  removedLeadingMessageCache.prefixHeights,
+  [0, 400],
+  'removing a leading row must rebuild prefixes from the moved measured message.',
+);
+assert.equal(
+  removedLeadingMessageCache.entries[0],
+  updatedPrefixCache.entries[1],
+  'removing a leading row should retain the unchanged measured entry by stable identity.',
+);
+assert.equal(
+  removedLeadingMessageCache.messageIndexesByKey.has(resolveTranscriptMessageKey(messages[0], 0)),
+  false,
+  'removing a row must prune its key from the current key index.',
+);
+
+const streamingIdentityMessage: AgentSessionItemView = {
+  sessionId: 'session-streaming-identity',
+  id: 'provider-item-7',
+  role: 'tool',
+  content: 'partial',
+  metadata: { agentItemSequence: '0007' },
+  createdAt: '2026-04-21T00:00:00.000Z',
+};
+const completedIdentityMessage: AgentSessionItemView = {
+  ...streamingIdentityMessage,
+  role: 'assistant',
+  content: 'partial response completed with substantially more content',
+  metadata: { agentItemSequence: 7 },
+};
+assert.equal(
+  resolveTranscriptMessageKey(streamingIdentityMessage, 4),
+  resolveTranscriptMessageKey(completedIdentityMessage, 19),
+  'streamed content and projected role updates must preserve canonical transcript message identity.',
+);
+
+const repeatedIdentityMessage: AgentSessionItemView = {
+  ...streamingIdentityMessage,
+  metadata: { agentItemSequence: 8 },
+};
+assert.notEqual(
+  resolveTranscriptMessageKey(streamingIdentityMessage, 4),
+  resolveTranscriptMessageKey(repeatedIdentityMessage, 4),
+  'stable provider sequence metadata must disambiguate otherwise identical repeated message ids.',
+);
+
+const provisionalUserMessage: AgentSessionItemView = {
+  sessionId: 'session-provisional',
+  id: '',
+  turnId: 'turn-provisional',
+  role: 'user',
+  content: 'draft',
+  createdAt: '2026-04-21T00:00:03.000Z',
+};
+const updatedProvisionalUserMessage: AgentSessionItemView = {
+  ...provisionalUserMessage,
+  content: 'draft with streamed content',
+};
+assert.equal(
+  resolveTranscriptMessageKey(provisionalUserMessage, 2),
+  resolveTranscriptMessageKey(updatedProvisionalUserMessage, 22),
+  'provisional blank-id rows must keep identity across prepend and content updates.',
+);
+assert.notEqual(
+  resolveTranscriptMessageKey(provisionalUserMessage, 2),
+  resolveTranscriptMessageKey({ ...provisionalUserMessage, role: 'assistant' }, 2),
+  'provisional blank-id rows must include their stable role discriminator.',
+);
+
 const duplicateIdMessages: AgentSessionItemView[] = [
   {
     agentSessionId: 'session-duplicates',
@@ -150,7 +269,7 @@ const secondDuplicateKey = resolveTranscriptMessageKey(duplicateIdMessages[1], 1
 assert.notEqual(
   firstDuplicateKey,
   secondDuplicateKey,
-  'transcript virtualization must include row position in its measurement key so duplicate provider message ids cannot overwrite each other.',
+  'transcript virtualization must use stable message fields to keep duplicate provider ids distinct without binding identity to row position.',
 );
 
 assert.deepEqual(
@@ -214,10 +333,16 @@ assert.doesNotMatch(
   'Measurement scope changes must not synchronize viewport state through an effect.',
 );
 
-assert.match(
+assert.doesNotMatch(
   virtualizationSource,
-  /useLayoutEffect\(\(\) => \{[\s\S]*const scrollContainer = scrollContainerRef\.current;[\s\S]*scrollContainer\.scrollTop = 0;[\s\S]*\}, \[normalizedMeasurementScopeKey, scrollContainerRef\]\);/s,
-  'useVirtualizedTranscriptWindow must reset the real transcript scroll container on scope changes so the next viewport publish cannot reintroduce the previous session scrollTop.',
+  /scrollContainer\.scrollTop\s*=/,
+  'useVirtualizedTranscriptWindow must not compete with the transcript coordinator for DOM scroll writes during scope changes.',
+);
+
+assert.match(
+  transcriptScrollCoordinatorSource,
+  /const didChangeScope = currentScopeKeyRef\.current !== normalizedScopeKey;[\s\S]*shouldStickToBottomRef\.current = true;[\s\S]*pendingOperationRef\.current = null;[\s\S]*performScrollOperation\(\{[\s\S]*kind: 'bottom',[\s\S]*scopeKey: normalizedScopeKey,[\s\S]*\}\);/s,
+  'The shared transcript coordinator must own real viewport alignment when the visible session scope changes.',
 );
 
 assert.match(

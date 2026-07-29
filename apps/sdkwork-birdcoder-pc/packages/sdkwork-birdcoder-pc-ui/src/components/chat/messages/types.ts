@@ -38,6 +38,7 @@ export interface ChatMessageEnvironment {
   onOpenDriveAttachment?: (nodeId: string, title: string) => void;
   resolveDriveAttachmentPreviewUrl?: (nodeId: string) => Promise<string | undefined>;
   onOpenFile?: (path: string) => void;
+  onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onViewChanges?: (file: FileChange) => void;

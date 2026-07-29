@@ -13,6 +13,11 @@ export interface BuildSidebarGlobalSessionsOptions {
   sortBy: ProjectExplorerSortBy;
 }
 
+export interface SidebarSessionProviderGroup {
+  providerId: string;
+  sessions: AgentSessionView[];
+}
+
 export function buildSidebarGlobalSessions({
   matches,
   projects,
@@ -42,6 +47,24 @@ export function buildSidebarGlobalSessions({
     deduplicateAgentSessionsForRender(candidates),
     sortBy,
   );
+}
+
+export function groupSortedSidebarSessionsByProvider(
+  sessions: readonly AgentSessionView[],
+): SidebarSessionProviderGroup[] {
+  const groups = new Map<string, SidebarSessionProviderGroup>();
+  for (const session of sessions) {
+    const providerId = session.providerId.trim() || 'unknown';
+    const group = groups.get(providerId);
+    if (group) {
+      group.sessions.push(session);
+      continue;
+    }
+    groups.set(providerId, { providerId, sessions: [session] });
+  }
+  // Map insertion order preserves the first occurrence from the globally
+  // sorted inbox, so provider grouping cannot demote a busy or newer group.
+  return [...groups.values()];
 }
 
 export function canRequestMoreSidebarProjectSessions(project: AgentProjectView): boolean {

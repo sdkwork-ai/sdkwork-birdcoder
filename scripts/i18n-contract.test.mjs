@@ -76,6 +76,30 @@ for (const [locale, expectedLabel] of [
   );
 }
 
+for (const [locale, expectedTitle, expectedDescription] of [
+  [
+    'en',
+    'Delete Session',
+    'Are you sure you want to delete this session? This action cannot be undone.',
+  ],
+  [
+    'zh',
+    '\u5220\u9664\u4f1a\u8bdd',
+    '\u786e\u5b9a\u8981\u5220\u9664\u6b64\u4f1a\u8bdd\u5417\uff1f\u6b64\u64cd\u4f5c\u65e0\u6cd5\u64a4\u9500\u3002',
+  ],
+]) {
+  assert.equal(
+    resources[locale]?.translation?.code?.deleteSessionTitle,
+    expectedTitle,
+    `${locale} delete Session dialog must use the localized title.`,
+  );
+  assert.equal(
+    resources[locale]?.translation?.code?.deleteSessionDescription,
+    expectedDescription,
+    `${locale} delete Session dialog must use the localized confirmation message.`,
+  );
+}
+
 for (const locale of ['en', 'zh']) {
   assert.equal(
     resources[locale]?.translation?.app?.menu?.file,
@@ -150,6 +174,7 @@ const forbiddenProductUiLiterals = [
   'Select a workspace before creating a project from a template.',
   'Project not found',
   'Project folder path is unavailable:',
+  'Are you sure you want to delete this',
   'Preview is available once the file has visible content.',
   'Rendering Markdown preview...',
   'Rendering structured data preview...',

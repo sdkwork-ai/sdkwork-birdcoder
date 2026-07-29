@@ -893,6 +893,7 @@ describe('Session Inbox', () => {
       transportKind: undefined,
       providerSessionId: undefined,
       runtimeStatus: 'unknown' as const,
+      title: 'Provider synchronized title',
       lastTurnAt: createdAt,
       lastMessageAt: createdAt,
       lastRuntimeEventAt: createdAt,
@@ -901,7 +902,7 @@ describe('Session Inbox', () => {
       lastReadItemSequence: '0',
       pinned: false,
       unread: false,
-      serverVersion: '2',
+      serverVersion: '3',
     };
 
     const projects = upsertAgentSessionIntoCollection(
@@ -922,6 +923,7 @@ describe('Session Inbox', () => {
       transportKind: 'sdk-stream',
       providerSessionId: 'provider.current',
       runtimeStatus: 'streaming',
+      title: 'Provider synchronized title',
       lastTurnAt: activityAt,
       lastMessageAt: activityAt,
       lastRuntimeEventAt: activityAt,

@@ -17,6 +17,12 @@ const codeSurfaceSource = read(
 const editorPanelSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
 );
+const studioPageSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
+);
+const studioSidebarSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx',
+);
 const refreshHookSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSessionRefreshActions.ts',
 );
@@ -47,16 +53,26 @@ assert.match(
   'A completed remote transcript request must not clear another Session request state.',
 );
 const sessionChangeEffect = chatSource.match(
-  /useEffect\(\(\) => \{\s*pendingRemotePrependRef\.current = null;([\s\S]*?)\}, \[sessionId\]\);/,
+  /useLayoutEffect\(\(\) => \{\s*pendingRemotePrependRef\.current = null;([\s\S]*?)\}, \[sessionId\]\);/,
 );
 assert.ok(
   sessionChangeEffect,
-  'UniversalChat must reset the pending remote prepend anchor when the Session changes.',
+  'UniversalChat must reset the pending remote prepend anchor before layout repair when the Session changes.',
 );
 assert.doesNotMatch(
   sessionChangeEffect[1],
   /set[A-Z][A-Za-z0-9]*\(/,
   'The Session-change cleanup effect must not write React state and trigger an update loop.',
+);
+assert.match(
+  chatSource,
+  /pendingPrepend\.sessionId !== sessionId[\s\S]*pendingRemotePrependRef\.current = null/,
+  'A pending remote prepend anchor must never be applied to another Session.',
+);
+assert.match(
+  chatSource,
+  /pendingPrepend\.messageCount === messages\.length[\s\S]*pendingPrepend\.firstMessageId === firstMessageId[\s\S]*!isLoadingMoreRemoteMessages && !isRequestingRemoteMessages[\s\S]*pendingRemotePrependRef\.current = null/,
+  'An empty or duplicate-only remote page must clear its pending prepend anchor after loading settles.',
 );
 assert.match(
   chatSource,
@@ -138,9 +154,24 @@ assert.match(
   'The editor sidebar must forward all transcript continuation props to UniversalChat.',
 );
 assert.match(
+  studioPageSource,
+  /handleLoadEarlierSelectedAgentSessionItems[\s\S]*hasMoreRemoteMessages=\{Boolean\(selectedSession\?\.itemPageInfo\?\.hasMore\)\}[\s\S]*isLoadingMoreRemoteMessages=\{isLoadingEarlierSelectedAgentSessionItems\}[\s\S]*onLoadMoreRemoteMessages=\{handleLoadEarlierSelectedAgentSessionItems\}/,
+  'Studio must expose canonical Session history continuation state and action to its chat sidebar.',
+);
+assert.match(
+  studioSidebarSource,
+  /<DeferredUniversalChat[\s\S]*hasMoreRemoteMessages=\{hasMoreRemoteMessages\}[\s\S]*isLoadingMoreRemoteMessages=\{isLoadingMoreRemoteMessages\}[\s\S]*onLoadMoreRemoteMessages=\{onLoadMoreRemoteMessages\}/,
+  'Studio chat must forward all transcript continuation props to UniversalChat.',
+);
+assert.match(
   refreshHookSource,
-  /activeEarlierItemsRequestRef[\s\S]*activeRequest\?\.scopeKey === scopeKey[\s\S]*controller\.abort/,
-  'Transcript continuation requests must deduplicate by Session scope and cancel superseded work.',
+  /const cancelActiveEarlierItemsRequest = useCallback\(\(\) => \{[\s\S]*activeEarlierItemsRequestRef\.current = null;[\s\S]*activeRequest\?\.controller\.abort[\s\S]*setLoadingEarlierAgentSessionScope\(null\);/,
+  'Transcript continuation cancellation must abort superseded work and clear its visible loading state.',
+);
+assert.match(
+  refreshHookSource,
+  /activeRequest\?\.scopeKey === scopeKey[\s\S]*return activeRequest\.promise;[\s\S]*cancelActiveEarlierItemsRequest\(\);/,
+  'Transcript continuation requests must deduplicate by Session scope and cancel a different active scope.',
 );
 assert.doesNotMatch(
   chatSource,

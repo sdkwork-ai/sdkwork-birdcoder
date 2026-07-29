@@ -24,6 +24,9 @@ export interface AgentSessionPageRequest {
   page?: number;
   pageSize?: number;
   projectId?: string;
+}
+
+export interface AgentSessionItemPageRequest extends AgentSessionPageRequest {
   sort?: 'sequence' | '-sequence';
 }
 
@@ -65,6 +68,11 @@ export interface AgentSessionReadOptions {
   timeoutMs?: number;
 }
 
+export interface AgentSessionIdentity {
+  agentId: string;
+  sessionId: string;
+}
+
 export interface AgentSessionPage<TItem> {
   items: TItem[];
   pageInfo: PageInfo;
@@ -102,7 +110,6 @@ export interface AgentTurnStreamDelta {
 }
 
 export interface SubmitAgentTurnOptions extends AgentSessionReadOptions {
-  agentId: string;
   onAccepted?: () => void;
   onDelta?: (delta: Readonly<AgentTurnStreamDelta>) => void;
   onDeliveryUncertain?: () => void;
@@ -127,7 +134,10 @@ export interface AgentInteractionClaim {
  */
 export interface IAgentSessionService {
   createSession(input: CreateAgentSessionInput): Promise<AgentSessionRecord>;
-  getSession(sessionId: string, options?: AgentSessionReadOptions): Promise<AgentSessionRecord>;
+  getSession(
+    identity: AgentSessionIdentity,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionRecord>;
   listSessionActivitySummaries(
     request?: AgentSessionActivityPageRequest,
     options?: AgentSessionReadOptions,
@@ -149,71 +159,74 @@ export interface IAgentSessionService {
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRecord>>;
   updateSession(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request: AppUpdateAgentSessionRequest,
   ): Promise<AgentSessionRecord>;
-  closeSession(sessionId: string, expectedVersion: string): Promise<AgentSessionRecord>;
-  deleteSession(sessionId: string): Promise<void>;
+  closeSession(
+    identity: AgentSessionIdentity,
+    expectedVersion: string,
+  ): Promise<AgentSessionRecord>;
+  deleteSession(identity: AgentSessionIdentity): Promise<void>;
   listSessionItems(
-    sessionId: string,
-    request?: AgentSessionPageRequest,
+    identity: AgentSessionIdentity,
+    request?: AgentSessionItemPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionItemRecord>>;
   listTurns(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentTurnRecord>>;
   submitTurn(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     input: SubmitAgentTurnInput,
     options: SubmitAgentTurnOptions,
   ): Promise<AgentTurnCompletion>;
   listInteractions(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request?: AgentInteractionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentInteractionRecord>>;
   getInteraction(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     interactionId: string,
     options?: AgentSessionReadOptions,
   ): Promise<AgentInteractionRecord>;
   claimInteraction(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     interactionId: string,
     request: ClaimAgentInteractionRequest,
   ): Promise<AgentInteractionClaim>;
   approveInteraction(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     interactionId: string,
     request: ApproveAgentInteractionRequest,
   ): Promise<AgentInteractionRecord>;
   answerInteraction(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     interactionId: string,
     request: AnswerAgentInteractionRequest,
   ): Promise<AgentInteractionRecord>;
   listRuntimeBindings(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRuntimeBindingRecord>>;
   createRuntimeBinding(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request: CreateAgentSessionRuntimeBindingRequest,
   ): Promise<AgentSessionRuntimeBindingRecord>;
   listCheckpoints(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionCheckpointRecord>>;
   getSessionUserStates(
-    sessionIds: readonly string[],
+    identities: readonly AgentSessionIdentity[],
     options?: AgentSessionReadOptions,
   ): Promise<ReadonlyMap<string, AgentResourceUserStateRecord>>;
   updateSessionUserState(
-    sessionId: string,
+    identity: AgentSessionIdentity,
     request: UpdateAgentSessionUserStateRequest,
   ): Promise<AgentResourceUserStateRecord>;
 }

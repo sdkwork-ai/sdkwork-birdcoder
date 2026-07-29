@@ -41,6 +41,10 @@ export default defineLocaleModule('studio/workspace', {
     sessionMessagesRefreshed: '\u5df2\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\uff1a{{name}}',
     failedToRefreshProjectSessions: '\u5237\u65b0\u9879\u76ee\u4f1a\u8bdd\u5931\u8d25',
     failedToRefreshSessionMessages: '\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\u5931\u8d25',
+    sessionMessagesLoadFailedTitle: '\u4f1a\u8bdd\u6d88\u606f\u52a0\u8f7d\u5931\u8d25',
+    sessionMessagesLoadFailedDescription:
+      '\u4f1a\u8bdd\u4ecd\u7136\u5b58\u5728\uff0c\u4f46\u6682\u65f6\u65e0\u6cd5\u540c\u6b65\u5b8c\u6574\u6d88\u606f\u3002',
+    retrySessionMessages: '\u91cd\u8bd5',
     restoredFiles: '\u5df2\u5c06\u6587\u4ef6\u6062\u590d\u5230\u4e4b\u524d\u7684\u72b6\u6001',
     messageDeleted: '\u6d88\u606f\u5220\u9664\u6210\u529f',
     failedToDeleteMessage: '\u5220\u9664\u6d88\u606f\u5931\u8d25',

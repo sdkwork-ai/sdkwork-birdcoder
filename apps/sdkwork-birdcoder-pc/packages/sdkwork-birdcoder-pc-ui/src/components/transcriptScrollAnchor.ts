@@ -8,6 +8,11 @@ export interface TranscriptScrollAnchorSnapshot {
   viewportOffsetTop: number;
 }
 
+export interface TranscriptElementScrollAnchorSnapshot {
+  messageKey: string;
+  viewportOffsetTop: number;
+}
+
 function resolveTranscriptAnchorMessageIdentity(message: AgentSessionItemView): string {
   const messageId = message.id.trim();
   if (messageId) {
@@ -27,6 +32,73 @@ function resolveTranscriptScrollAnchorElement(
 ): HTMLElement {
   return messageElement.querySelector<HTMLElement>('[data-chat-transcript-track="true"]')
     ?? messageElement;
+}
+
+function listTranscriptMessageElements(
+  scrollContainer: HTMLDivElement,
+): HTMLElement[] {
+  return Array.from(
+    scrollContainer.querySelectorAll<HTMLElement>('[data-transcript-message-key]'),
+  );
+}
+
+/**
+ * Captures a visual anchor by stable row identity. This remains valid when
+ * history is prepended and every transcript index changes.
+ */
+export function captureTranscriptElementScrollAnchor(
+  scrollContainer: HTMLDivElement,
+): TranscriptElementScrollAnchorSnapshot | null {
+  const messageElements = listTranscriptMessageElements(scrollContainer);
+  if (messageElements.length === 0) {
+    return null;
+  }
+
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const anchorElement = messageElements.find(
+    (element) => element.getBoundingClientRect().bottom >= containerRect.top,
+  ) ?? messageElements[0];
+  const messageKey = anchorElement?.dataset.transcriptMessageKey?.trim() ?? '';
+  if (!anchorElement || !messageKey) {
+    return null;
+  }
+
+  return {
+    messageKey,
+    viewportOffsetTop:
+      resolveTranscriptScrollAnchorElement(anchorElement).getBoundingClientRect().top
+      - containerRect.top,
+  };
+}
+
+/**
+ * Resolves the scrollTop required to keep a stable row at its captured visual
+ * offset. The caller owns the eventual DOM write so competing scroll sources
+ * can be coalesced into one frame.
+ */
+export function resolveTranscriptElementAnchorScrollTop(
+  scrollContainer: HTMLDivElement,
+  anchor: TranscriptElementScrollAnchorSnapshot | null,
+): number | null {
+  if (!anchor) {
+    return null;
+  }
+
+  const anchorElement = listTranscriptMessageElements(scrollContainer).find(
+    (element) => element.dataset.transcriptMessageKey === anchor.messageKey,
+  );
+  if (!anchorElement) {
+    return null;
+  }
+
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const nextViewportOffsetTop =
+    resolveTranscriptScrollAnchorElement(anchorElement).getBoundingClientRect().top
+    - containerRect.top;
+  return Math.max(
+    0,
+    scrollContainer.scrollTop + nextViewportOffsetTop - anchor.viewportOffsetTop,
+  );
 }
 
 export function findTranscriptScrollAnchorMessageIndex(
@@ -92,37 +164,4 @@ export function captureTranscriptScrollAnchor(
     occurrence,
     viewportOffsetTop: visualAnchorElement.getBoundingClientRect().top - containerRect.top,
   };
-}
-
-export function restoreTranscriptScrollAnchor(
-  scrollContainer: HTMLDivElement,
-  messages: readonly AgentSessionItemView[],
-  anchor: TranscriptScrollAnchorSnapshot | null,
-): boolean {
-  if (!anchor) {
-    return true;
-  }
-
-  const messageIndex = findTranscriptScrollAnchorMessageIndex(messages, anchor);
-  if (messageIndex < 0) {
-    return true;
-  }
-
-  const anchorElement = scrollContainer.querySelector<HTMLElement>(
-    `[data-transcript-message-index="${messageIndex}"]`,
-  );
-  if (!anchorElement) {
-    return false;
-  }
-
-  const containerRect = scrollContainer.getBoundingClientRect();
-  const visualAnchorElement = resolveTranscriptScrollAnchorElement(anchorElement);
-  const nextViewportOffsetTop =
-    visualAnchorElement.getBoundingClientRect().top - containerRect.top;
-  const offsetDelta = nextViewportOffsetTop - anchor.viewportOffsetTop;
-  if (Math.abs(offsetDelta) > 1) {
-    scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + offsetDelta);
-  }
-
-  return true;
 }

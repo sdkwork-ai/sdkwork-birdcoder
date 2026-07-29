@@ -48,6 +48,42 @@ export interface WorkspaceSessionInboxUpdate {
   summaries: readonly AgentSessionActivitySummaryRecord[];
 }
 
+export function mergeWorkspaceSessionInboxUpdates(
+  updates: readonly WorkspaceSessionInboxUpdate[],
+): WorkspaceSessionInboxUpdate {
+  if (updates.length === 0) {
+    return { hasMore: false, summaries: [] };
+  }
+
+  const summaries: AgentSessionActivitySummaryRecord[] = [];
+  const seenSessionKeys = new Set<string>();
+  for (let index = 0; index < updates.length; index += 1) {
+    const update = updates[index]!;
+    const previous = updates[index - 1];
+    if (previous && update.cursor !== previous.nextCursor) {
+      throw new Error('Agents Session activity continuation does not match the prior cursor.');
+    }
+    for (const summary of update.summaries) {
+      const projectId = summary.session.projectId?.trim() ?? '';
+      const sessionId = summary.session.sessionId.trim();
+      const key = buildScopedSessionKey(projectId, sessionId);
+      if (seenSessionKeys.has(key)) {
+        throw new Error('Agents Session activity snapshot contains a duplicate Session identity.');
+      }
+      seenSessionKeys.add(key);
+      summaries.push(summary);
+    }
+  }
+
+  const lastUpdate = updates.at(-1)!;
+  return {
+    cursor: updates[0]!.cursor,
+    hasMore: lastUpdate.hasMore,
+    nextCursor: lastUpdate.nextCursor,
+    summaries,
+  };
+}
+
 function buildScopedSessionKey(projectId: string, sessionId: string): string {
   return `${projectId}\u0001${sessionId}`;
 }

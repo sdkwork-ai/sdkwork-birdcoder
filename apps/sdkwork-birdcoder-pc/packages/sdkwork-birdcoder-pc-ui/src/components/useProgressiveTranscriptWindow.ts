@@ -2,22 +2,17 @@ import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/
 import type { RefObject } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  computeTranscriptRepairScrollTop,
-  type TranscriptScrollMetrics,
-} from './chatScrollBehavior';
+import type { TranscriptScrollMetrics } from './chatScrollBehavior';
 import {
   isTranscriptWithinTopLoadThreshold,
   resolveEarlierTranscriptStartIndex,
   resolveInitialVisibleTranscriptStartIndex,
   shouldLoadEarlierTranscriptPage,
 } from './transcriptPagination';
-import {
-  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
-  captureTranscriptScrollAnchor,
-  restoreTranscriptScrollAnchor,
-  type TranscriptScrollAnchorSnapshot,
-} from './transcriptScrollAnchor';
+import type {
+  TranscriptPrependTransaction,
+  TranscriptScrollCoordinator,
+} from './useTranscriptScrollCoordinator';
 
 interface ProgressiveTranscriptWindowState {
   isLoadingEarlierMessages: boolean;
@@ -89,16 +84,15 @@ export function useProgressiveTranscriptWindow(
   isActive = true,
   transcriptScopeKey = '',
   remoteHistory?: ProgressiveTranscriptRemoteHistory,
+  scrollCoordinator?: Pick<
+    TranscriptScrollCoordinator,
+    'beginPrepend' | 'cancelPrepend' | 'completePrepend'
+  >,
 ) {
   const firstMessageId = messages[0]?.id ?? '';
   const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
   const transcriptIdentity = normalizedTranscriptScopeKey || firstMessageId;
-  const pendingPrependedScrollMetricsRef = useRef<{
-    anchor: TranscriptScrollAnchorSnapshot | null;
-    metrics: TranscriptScrollMetrics;
-    transcriptIdentity: string;
-  } | null>(null);
-  const prependAnchorRepairAnimationFrameRef = useRef<number | null>(null);
+  const pendingPrependTransactionRef = useRef<TranscriptPrependTransaction | null>(null);
   const isTranscriptPointerDragActiveRef = useRef(false);
   const pendingTopLoadIntentRef = useRef(false);
   const pendingTopLoadAfterPointerReleaseRef = useRef(false);
@@ -163,7 +157,8 @@ export function useProgressiveTranscriptWindow(
     }
 
     if (messages.length === 0 && visibleTranscriptStartIndex !== 0) {
-      pendingPrependedScrollMetricsRef.current = null;
+      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+      pendingPrependTransactionRef.current = null;
       setTranscriptWindowState({
         isLoadingEarlierMessages: false,
         transcriptIdentity,
@@ -174,7 +169,8 @@ export function useProgressiveTranscriptWindow(
 
     const maxVisibleTranscriptStartIndex = resolveInitialVisibleTranscriptStartIndex(messages.length);
     if (visibleTranscriptStartIndex > maxVisibleTranscriptStartIndex) {
-      pendingPrependedScrollMetricsRef.current = null;
+      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+      pendingPrependTransactionRef.current = null;
       setTranscriptWindowState({
         isLoadingEarlierMessages: false,
         transcriptIdentity,
@@ -255,7 +251,7 @@ export function useProgressiveTranscriptWindow(
     };
     const requestEarlierTranscriptPage = () => {
       if (
-        pendingPrependedScrollMetricsRef.current
+        pendingPrependTransactionRef.current
         || isLoadingEarlierMessages
         || remoteHistoryRef.current?.isLoadingMessages
         || remoteLoadRequestRef.current
@@ -280,11 +276,11 @@ export function useProgressiveTranscriptWindow(
         return;
       }
 
-      pendingPrependedScrollMetricsRef.current = {
-        anchor: captureTranscriptScrollAnchor(scrollContainer, renderedMessages),
-        metrics: scrollMetrics,
-        transcriptIdentity,
-      };
+      const prependTransaction = scrollCoordinator?.beginPrepend() ?? null;
+      if (!prependTransaction) {
+        return;
+      }
+      pendingPrependTransactionRef.current = prependTransaction;
       const nextVisibleTranscriptStartIndex = resolveEarlierTranscriptStartIndex(
         visibleTranscriptStartIndex,
       );
@@ -307,7 +303,7 @@ export function useProgressiveTranscriptWindow(
       });
     };
     const scheduleEarlierTranscriptPageRequest = () => {
-      if (pendingPrependedScrollMetricsRef.current || isLoadingEarlierMessages) {
+      if (pendingPrependTransactionRef.current || isLoadingEarlierMessages) {
         return;
       }
 
@@ -332,11 +328,8 @@ export function useProgressiveTranscriptWindow(
       }
     };
     const cancelPrependAnchorRepairForUserInput = () => {
-      pendingPrependedScrollMetricsRef.current = null;
-      if (prependAnchorRepairAnimationFrameRef.current !== null) {
-        window.cancelAnimationFrame(prependAnchorRepairAnimationFrameRef.current);
-        prependAnchorRepairAnimationFrameRef.current = null;
-      }
+      scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+      pendingPrependTransactionRef.current = null;
     };
     const markPendingTopLoadIntent = (event?: Event) => {
       if (
@@ -455,6 +448,7 @@ export function useProgressiveTranscriptWindow(
     remoteTopLoadRearmVersion,
     transcriptIdentity,
     visibleTranscriptStartIndex,
+    scrollCoordinator,
   ]);
 
   useLayoutEffect(() => {
@@ -462,17 +456,19 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    const pendingPrepend = pendingPrependedScrollMetricsRef.current;
-    if (!pendingPrepend || pendingPrepend.transcriptIdentity !== transcriptIdentity) {
+    const pendingPrepend = pendingPrependTransactionRef.current;
+    if (!pendingPrepend || pendingPrepend.scopeKey !== transcriptIdentity) {
       if (pendingPrepend) {
-        pendingPrependedScrollMetricsRef.current = null;
+        scrollCoordinator?.cancelPrepend(pendingPrepend);
+        pendingPrependTransactionRef.current = null;
       }
       return;
     }
 
     const scrollContainer = resolveTranscriptScrollContainer(messagesEndRef);
     if (!scrollContainer) {
-      pendingPrependedScrollMetricsRef.current = null;
+      scrollCoordinator?.cancelPrepend(pendingPrepend);
+      pendingPrependTransactionRef.current = null;
       setTranscriptWindowState((previousState) => (
         previousState.transcriptIdentity === transcriptIdentity
           ? { ...previousState, isLoadingEarlierMessages: false }
@@ -481,41 +477,15 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    const nextScrollTop = computeTranscriptRepairScrollTop(
-      pendingPrepend.metrics,
-      {
-        clientHeight: scrollContainer.clientHeight,
-        scrollHeight: scrollContainer.scrollHeight,
-        scrollTop: scrollContainer.scrollTop,
-      },
-    );
-
-    if (Math.abs(scrollContainer.scrollTop - nextScrollTop) > 1) {
-      scrollContainer.scrollTop = nextScrollTop;
-    }
-
     const finishAnchorRepair = () => {
-      pendingPrependedScrollMetricsRef.current = null;
-      prependAnchorRepairAnimationFrameRef.current = null;
+      scrollCoordinator?.completePrepend(pendingPrepend);
+      pendingPrependTransactionRef.current = null;
       if (pendingRemoteTopLoadAfterLocalExpansionRef.current) {
         pendingRemoteTopLoadAfterLocalExpansionRef.current = false;
         setRemoteTopLoadContinuationVersion((version) => version + 1);
       }
     };
-    restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor);
-    let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;
-    const settleAnchor = () => {
-      prependAnchorRepairAnimationFrameRef.current = null;
-      restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor);
-      remainingFrames -= 1;
-      if (remainingFrames <= 0) {
-        finishAnchorRepair();
-        return;
-      }
-
-      prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
-    };
-    prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
+    finishAnchorRepair();
 
     setTranscriptWindowState((previousState) => (
       previousState.transcriptIdentity === transcriptIdentity
@@ -526,18 +496,14 @@ export function useProgressiveTranscriptWindow(
     isActive,
     messagesEndRef,
     renderedMessages.length,
+    scrollCoordinator,
     transcriptIdentity,
   ]);
 
   useEffect(() => () => {
-    if (
-      prependAnchorRepairAnimationFrameRef.current !== null
-      && typeof window !== 'undefined'
-    ) {
-      window.cancelAnimationFrame(prependAnchorRepairAnimationFrameRef.current);
-      prependAnchorRepairAnimationFrameRef.current = null;
-    }
-  }, []);
+    scrollCoordinator?.cancelPrepend(pendingPrependTransactionRef.current);
+    pendingPrependTransactionRef.current = null;
+  }, [scrollCoordinator]);
 
   return {
     hasEarlierMessages: visibleTranscriptStartIndex > 0,

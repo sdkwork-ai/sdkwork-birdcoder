@@ -4,8 +4,10 @@ import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-
 import { useAuth } from '../context/AuthContext.ts';
 import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import {
+  buildProjectsStoreScopeKey,
+  getAgentSessionTranscriptRevision,
   upsertAgentSessionIntoProjectsStore,
-  upsertProjectIntoProjectsStore,
+  upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged,
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import type { HydrateImportedProjectFromAuthorityResult } from '../workbench/importedProjectHydration.ts';
@@ -126,6 +128,7 @@ export function useSessionRefreshActions({
       'Agents session history request was superseded.',
       'AbortError',
     ));
+    setLoadingEarlierAgentSessionScope(null);
   }, []);
 
   const cancelActiveAgentSessionRefreshRequest = useCallback(() => {
@@ -239,16 +242,40 @@ export function useSessionRefreshActions({
     if (activeUserScopeRef.current !== userScope) {
       return;
     }
-    const normalizedProjectId = projectId?.trim() ?? '';
-    const preservedSelection = getPreservedSelectionRef.current();
-    const agentSessionTitle = resolveAgentSessionTitle(agentSessionId, normalizedProjectId);
-    const resolvedLocation = normalizedProjectId
-      ? resolveAgentSessionLocation?.(agentSessionId, normalizedProjectId) ?? null
-      : null;
-    if (normalizedProjectId && !resolvedLocation) {
+    const normalizedAgentSessionId = agentSessionId.trim();
+    if (!normalizedAgentSessionId) {
       addToast(messages.failedToRefreshSessionMessages, 'error');
       return;
     }
+    const preservedSelection = getPreservedSelectionRef.current();
+    const requestedProjectId = projectId?.trim() ?? '';
+    const selectedProjectId =
+      preservedSelection.agentSessionId?.trim() === normalizedAgentSessionId
+        ? preservedSelection.projectId.trim()
+        : '';
+    const locationProjectId = requestedProjectId || selectedProjectId;
+    if (!locationProjectId) {
+      addToast(messages.failedToRefreshSessionMessages, 'error');
+      return;
+    }
+    const resolvedLocation = resolveAgentSessionLocation?.(
+      normalizedAgentSessionId,
+      locationProjectId,
+    ) ?? null;
+    const normalizedProjectId = locationProjectId;
+    if (
+      !resolvedLocation
+      || !normalizedProjectId
+      || resolvedLocation.project.projectId.trim() !== normalizedProjectId
+      || resolvedLocation.agentSession.id.trim() !== normalizedAgentSessionId
+    ) {
+      addToast(messages.failedToRefreshSessionMessages, 'error');
+      return;
+    }
+    const agentSessionTitle = resolveAgentSessionTitle(
+      normalizedAgentSessionId,
+      normalizedProjectId,
+    );
 
     cancelActiveAgentSessionRefreshRequest();
     const requestGeneration = ++agentSessionRefreshGenerationRef.current;
@@ -266,9 +293,9 @@ export function useSessionRefreshActions({
     try {
       const result = await refreshAgentSessionItems({
         agentSessionService,
-        agentSessionId,
+        agentSessionId: normalizedAgentSessionId,
         signal: controller.signal,
-        ...(resolvedLocation ? { resolvedLocation } : {}),
+        resolvedLocation,
       });
       if (
         agentSessionRefreshGenerationRef.current !== requestGeneration
@@ -298,11 +325,8 @@ export function useSessionRefreshActions({
           return;
         }
 
-        if (synchronizedProject) {
-          upsertProjectIntoProjectsStore(synchronizedProject, userScope);
-        }
         const workspaceId =
-          synchronizedProject?.workspaceId ?? resolvedLocation?.project.workspaceId ?? '';
+          synchronizedProject?.workspaceId ?? resolvedLocation.project.workspaceId;
         if (workspaceId) {
           upsertAgentSessionIntoProjectsStore(
             result.projectId,
@@ -313,6 +337,7 @@ export function useSessionRefreshActions({
               itemMergeMode: result.replaceLoadedAuthorityWindow
                 ? 'authority-window-reset'
                 : 'latest',
+              projectMetadata: synchronizedProject ?? resolvedLocation.project,
             },
           );
         }
@@ -381,10 +406,7 @@ export function useSessionRefreshActions({
     if (activeRequest?.scopeKey === scopeKey) {
       return activeRequest.promise;
     }
-    activeRequest?.controller.abort(new DOMException(
-      'Agents session history request was superseded.',
-      'AbortError',
-    ));
+    cancelActiveEarlierItemsRequest();
 
     const resolvedLocation = resolveAgentSessionLocation?.(
       normalizedAgentSessionId,
@@ -393,6 +415,17 @@ export function useSessionRefreshActions({
     if (!resolvedLocation?.agentSession.itemPageInfo?.hasMore) {
       return Promise.resolve();
     }
+    const expectedTranscript = {
+      agentId: resolvedLocation.agentSession.agentId,
+      hasMore: resolvedLocation.agentSession.itemPageInfo.hasMore,
+      page: resolvedLocation.agentSession.itemPageInfo.page,
+      pageSize: resolvedLocation.agentSession.itemPageInfo.pageSize,
+      revision: getAgentSessionTranscriptRevision(
+        buildProjectsStoreScopeKey(userScope, resolvedLocation.project.workspaceId),
+        normalizedProjectId,
+        normalizedAgentSessionId,
+      ),
+    };
 
     const controller = new AbortController();
     setLoadingEarlierAgentSessionScope({
@@ -419,11 +452,12 @@ export function useSessionRefreshActions({
           return;
         }
         if (result.status === 'loaded') {
-          upsertAgentSessionIntoProjectsStore(
+          upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
             result.projectId,
             result.agentSession,
             resolvedLocation.project.workspaceId,
             userScope,
+            expectedTranscript,
             { itemMergeMode: 'ordered-window' },
           );
         }
@@ -445,6 +479,7 @@ export function useSessionRefreshActions({
   }, [
     addToast,
     agentSessionService,
+    cancelActiveEarlierItemsRequest,
     messages.failedToRefreshSessionMessages,
     resolveAgentSessionLocation,
     userScope,

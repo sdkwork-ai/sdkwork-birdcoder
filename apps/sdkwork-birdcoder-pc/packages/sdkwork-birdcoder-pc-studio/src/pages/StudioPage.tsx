@@ -57,7 +57,10 @@ import { StudioChatSidebar } from './StudioChatSidebar';
 import { StudioMainContent } from './StudioMainContent';
 import { analyzeStudioCode } from './studioCodeAnalysis';
 import { useStudioAgentSessionSync } from './useStudioAgentSessionSync';
-import { StudioSessionTranscriptLoadingState } from './StudioSessionTranscriptLoadingState';
+import {
+  StudioSessionTranscriptErrorState,
+  StudioSessionTranscriptLoadingState,
+} from './StudioSessionTranscriptLoadingState';
 import { useStudioExecutionActions } from './useStudioExecutionActions';
 import { useStudioProjectInventoryReconciliation } from './useStudioProjectInventoryReconciliation';
 import { useStudioWorkbenchEventBindings } from './useStudioWorkbenchEventBindings';
@@ -119,6 +122,8 @@ function StudioPageComponent({
   const [sessionId, setSessionId] = useState<string>('');
   const [selectedSessionProjectId, setSelectedSessionProjectId] = useState<string | null>(null);
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
+  const [failedAgentSessionItemsLoadId, setFailedAgentSessionItemsLoadId] =
+    useState<string | null>(null);
   const pendingProjectChangeIdRef = useRef<string | null>(null);
   const pendingLocalAgentSessionSelectionKeyRef = useRef<string | null>(null);
   const [menuActiveProjectId, setMenuActiveProjectId] = useState<string>('');
@@ -624,6 +629,19 @@ function StudioPageComponent({
   }, [currentProject?.name, currentProjectId, isVisible, mountRecoveryState]);
 
   const isSelectedAgentSessionTranscriptVisible = isVisible && isSidebarVisible;
+  const handleSelectedAgentSessionItemsLoadFailed = useCallback((agentSessionId: string) => {
+    if (agentSessionId === sessionId) {
+      setFailedAgentSessionItemsLoadId(agentSessionId);
+    }
+  }, [sessionId]);
+  const handleSelectedAgentSessionItemsLoaded = useCallback((agentSessionId: string) => {
+    setFailedAgentSessionItemsLoadId((failedSessionId) =>
+      failedSessionId === agentSessionId ? null : failedSessionId,
+    );
+  }, []);
+  const handleRetrySelectedAgentSessionItems = useCallback(() => {
+    setSelectionRefreshToken((previousState) => previousState + 1);
+  }, []);
   const handleSelectedAgentSessionUnavailable = useCallback((
     unavailableAgentSessionId: string,
     unavailableProjectId: string,
@@ -637,26 +655,37 @@ function StudioPageComponent({
     pendingLocalAgentSessionSelectionKeyRef.current = fallbackProjectId
       ? buildAgentSessionProjectScopedKey(fallbackProjectId, '')
       : null;
-    onAgentSessionChange?.('', fallbackProjectId || undefined);
-  }, [currentProjectId, onAgentSessionChange, sessionId]);
+  }, [currentProjectId, sessionId]);
   const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems({
     agentSessionService,
     isActive: isSelectedAgentSessionTranscriptVisible,
+    onAgentSessionItemsLoadFailed: handleSelectedAgentSessionItemsLoadFailed,
+    onAgentSessionItemsLoaded: handleSelectedAgentSessionItemsLoaded,
     onAgentSessionUnavailable: handleSelectedAgentSessionUnavailable,
     projectService,
     selectionRefreshToken,
     selectedAgentSession: selectedSession,
     selectedAgentSessionId: sessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
+    synchronizeProjectSessions: synchronizeImportedProject,
   });
   const isSelectedAgentSessionHydrating = Boolean(
     sessionId &&
     isSelectedAgentSessionItemsLoading &&
     selectedSessionMessages.length === 0
   );
+  const hasSelectedAgentSessionItemsLoadError = Boolean(
+    sessionId
+    && failedAgentSessionItemsLoadId === sessionId
+    && selectedSessionMessages.length === 0
+    && !isSelectedAgentSessionItemsLoading
+  );
   const {
+    handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
+    loadingEarlierAgentSessionId,
+    loadingEarlierAgentSessionProjectId,
     refreshingAgentSessionId,
     refreshingProjectId,
   } = useSessionRefreshActions({
@@ -685,25 +714,52 @@ function StudioPageComponent({
     restoreSelectionAfterRefresh,
     synchronizeProjectSessions: synchronizeImportedProject,
   });
+  const handleLoadEarlierSelectedAgentSessionItems = useCallback(() => {
+    const targetAgentSessionId = sessionId.trim();
+    const targetProjectId = selectedSession?.projectId.trim() || currentProjectId.trim();
+    if (!targetAgentSessionId || !targetProjectId) {
+      return Promise.resolve();
+    }
+    return handleLoadEarlierAgentSessionItems(targetAgentSessionId, targetProjectId);
+  }, [
+    currentProjectId,
+    handleLoadEarlierAgentSessionItems,
+    selectedSession?.projectId,
+    sessionId,
+  ]);
+  const isLoadingEarlierSelectedAgentSessionItems = Boolean(
+    sessionId
+    && loadingEarlierAgentSessionId === sessionId
+    && loadingEarlierAgentSessionProjectId === selectedSession?.projectId,
+  );
   const pendingInteractionRefreshToken = useMemo(() => [
     currentProjectId,
+    selectedSession?.agentId ?? '',
     selectedSession?.id ?? '',
     selectedSession?.runtimeStatus ?? '',
     selectedSession?.updatedAt ?? '',
     selectedSession?.lastTurnAt ?? '',
     selectedSession?.transcriptUpdatedAt ?? '',
   ].join('\u0001'), [currentProjectId, selectedSession]);
+  const pendingInteractionIdentity =
+    selectedSession?.id === sessionId
+      ? { agentId: selectedSession.agentId, sessionId: selectedSession.id }
+      : null;
   const pendingInteractionScopeKey =
-    currentProjectId && sessionId
-      ? `${currentProjectId}\u0001${sessionId}`
-      : sessionId || null;
+    currentProjectId && pendingInteractionIdentity
+      ? [
+          currentProjectId,
+          pendingInteractionIdentity.agentId,
+          pendingInteractionIdentity.sessionId,
+        ].join('\u0001')
+      : null;
   const {
     approvals: pendingApprovals,
     questions: pendingUserQuestions,
     submitApprovalDecision,
     submitQuestionAnswer,
   } = useAgentSessionPendingInteractions(
-    sessionId || null,
+    pendingInteractionIdentity,
     pendingInteractionRefreshToken,
     pendingInteractionScopeKey,
     currentProjectId,
@@ -714,18 +770,18 @@ function StudioPageComponent({
   ) => {
     await submitApprovalDecision(approvalId, request);
     if (sessionId) {
-      await handleRefreshAgentSessionItems(sessionId);
+      await handleRefreshAgentSessionItems(sessionId, currentProjectId);
     }
-  }, [handleRefreshAgentSessionItems, sessionId, submitApprovalDecision]);
+  }, [currentProjectId, handleRefreshAgentSessionItems, sessionId, submitApprovalDecision]);
   const handleSubmitUserQuestionAnswer = useCallback(async (
     questionId: string,
     request: AgentQuestionAnswerInput,
   ) => {
     await submitQuestionAnswer(questionId, request);
     if (sessionId) {
-      await handleRefreshAgentSessionItems(sessionId);
+      await handleRefreshAgentSessionItems(sessionId, currentProjectId);
     }
-  }, [handleRefreshAgentSessionItems, sessionId, submitQuestionAnswer]);
+  }, [currentProjectId, handleRefreshAgentSessionItems, sessionId, submitQuestionAnswer]);
 
   useEffect(() => {
     if (!isRunConfigVisible) {
@@ -1125,8 +1181,24 @@ function StudioPageComponent({
   ]);
 
   const studioChatEmptyState = useMemo(
-    () => (isSelectedAgentSessionHydrating ? <StudioSessionTranscriptLoadingState /> : undefined),
-    [isSelectedAgentSessionHydrating],
+    () => hasSelectedAgentSessionItemsLoadError
+      ? (
+        <StudioSessionTranscriptErrorState
+          description={t('studio.sessionMessagesLoadFailedDescription')}
+          onRetry={handleRetrySelectedAgentSessionItems}
+          retryLabel={t('studio.retrySessionMessages')}
+          title={t('studio.sessionMessagesLoadFailedTitle')}
+        />
+      )
+      : isSelectedAgentSessionHydrating
+        ? <StudioSessionTranscriptLoadingState />
+        : undefined,
+    [
+      handleRetrySelectedAgentSessionItems,
+      hasSelectedAgentSessionItemsLoadError,
+      isSelectedAgentSessionHydrating,
+      t,
+    ],
   );
   const handleStudioViewChanges = useCallback((file: FileChange) => {
     setViewingDiff(file);
@@ -1244,6 +1316,8 @@ function StudioPageComponent({
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
+        hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
+        isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
         pendingApprovals={pendingApprovals}
         pendingUserQuestions={pendingUserQuestions}
         emptyState={studioChatEmptyState}
@@ -1264,6 +1338,7 @@ function StudioPageComponent({
         onCreateProject={handleCreateSidebarProject}
         onLoadMoreProjects={loadMoreProjects}
         onLoadMoreProjectSessions={loadMoreProjectSessions}
+        onLoadMoreRemoteMessages={handleLoadEarlierSelectedAgentSessionItems}
         onCreateAgentSession={createStudioAgentSessionInProject}
         onRefreshProjectSessions={handleRefreshProjectSessions}
         onRefreshAgentSessionItems={handleRefreshAgentSessionItems}

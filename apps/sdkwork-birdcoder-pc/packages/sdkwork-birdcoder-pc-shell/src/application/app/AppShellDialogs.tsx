@@ -7,24 +7,20 @@ interface AppShellDialogsProps {
   projectToRemoveName: string | null;
   showAboutModal: boolean;
   showWhatsNewModal: boolean;
-  showShortcutsModal: boolean;
   onCloseProjectRemove: () => void;
   onConfirmProjectRemove: () => void | Promise<void>;
   onCloseAbout: () => void;
   onCloseWhatsNew: () => void;
-  onCloseShortcuts: () => void;
 }
 
 export const AppShellDialogs = memo(function AppShellDialogs({
   projectToRemoveName,
   showAboutModal,
   showWhatsNewModal,
-  showShortcutsModal,
   onCloseProjectRemove,
   onConfirmProjectRemove,
   onCloseAbout,
   onCloseWhatsNew,
-  onCloseShortcuts,
 }: AppShellDialogsProps) {
   const { t } = useTranslation();
 
@@ -93,57 +89,6 @@ export const AppShellDialogs = memo(function AppShellDialogs({
         </div>
       ) : null}
 
-      {showShortcutsModal ? (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-2xl w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-white mb-4">{t('app.keyboardShortcutsTitle')}</h3>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">{t('app.shortcutsGeneral')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.newSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+N</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.openFolder')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+O</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.settings')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+,</kbd></div>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">{t('app.shortcutsEditor')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.save')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+S</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.saveAll')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+S</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.find')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+F</kbd></div>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">{t('app.shortcutsView')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.toggleSidebar')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+B</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.toggleTerminal')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+J</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.toggleDiffPanel')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Alt+Ctrl+B</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.toggleFullScreen')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">F11</kbd></div>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">{t('app.shortcutsNavigation')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.goToFile')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+P</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.previousAgentSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+[</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.nextAgentSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+]</kbd></div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                variant="default"
-                onClick={onCloseShortcuts}
-                className="bg-blue-600 hover:bg-blue-500 text-white border-transparent"
-              >
-                {t('app.close')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 });

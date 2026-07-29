@@ -87,12 +87,16 @@ describe('resolveProjectTerminalRuntimeLocationId', () => {
     });
 
     await expect(resolveProjectTerminalRuntimeLocationId(service, {
+      agentId: 'agent.intelligence.codex',
       agentSessionId: 'session.selected',
       projectId: 'project.one',
     })).resolves.toBe('runtime.selected');
     expect(listSessionsByProject).not.toHaveBeenCalled();
     expect(listRuntimeBindings).toHaveBeenCalledWith(
-      'session.selected',
+      {
+        agentId: 'agent.intelligence.codex',
+        sessionId: 'session.selected',
+      },
       { page: 1, pageSize: 20 },
       { signal: undefined },
     );
@@ -136,7 +140,10 @@ describe('resolveProjectTerminalRuntimeLocationId', () => {
       status: 'active',
     }, { signal: undefined });
     expect(listRuntimeBindings).toHaveBeenCalledWith(
-      'session.latest',
+      {
+        agentId: 'agent.birdcoder',
+        sessionId: 'session.latest',
+      },
       { page: 1, pageSize: 20 },
       { signal: undefined },
     );
@@ -162,8 +169,20 @@ describe('resolveProjectTerminalRuntimeLocationId', () => {
     });
 
     await expect(resolveProjectTerminalRuntimeLocationId(service, {
+      agentId: 'agent.intelligence.opencode',
       agentSessionId: 'session.selected',
       projectId: 'project.one',
     })).resolves.toBeNull();
+  });
+
+  it('does not guess an Agent for a selected Session', async () => {
+    const listRuntimeBindings = vi.fn<IAgentSessionService['listRuntimeBindings']>();
+    const service = createAgentSessionService({ listRuntimeBindings });
+
+    await expect(resolveProjectTerminalRuntimeLocationId(service, {
+      agentSessionId: 'session.selected',
+      projectId: 'project.one',
+    })).rejects.toThrow('Agent ID is required');
+    expect(listRuntimeBindings).not.toHaveBeenCalled();
   });
 });

@@ -27,6 +27,7 @@ export interface ProjectsStoreSnapshot {
 
 export interface ProjectsStore {
   agentSessionTombstones: Map<string, string>;
+  agentSessionTranscriptRevisions: Map<string, number>;
   inventoryVersion: number;
   inflight: Promise<AgentProjectView[]> | null;
   inflightKey: string | null;
@@ -44,7 +45,33 @@ export interface AgentSessionStoreUpsertOptions {
   itemMergeMode?: AgentSessionItemMergeMode;
 }
 
+export interface AgentSessionProjectsStoreUpsertOptions
+  extends AgentSessionStoreUpsertOptions {
+  projectMetadata?: AgentProjectView;
+}
+
+export interface AgentSessionTranscriptRevisionSnapshot {
+  agentId: string;
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+  revision: number;
+}
+
+export type AgentSessionStoreRemovalResult =
+  | 'identity-mismatch'
+  | 'invalid'
+  | 'not-found'
+  | 'removed';
+
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
+
+function buildAgentSessionTranscriptRevisionKey(
+  projectId: string,
+  agentSessionId: string,
+): string {
+  return `${projectId}\u0001${agentSessionId}`;
+}
 
 export function peekProjectsStore(scopeKey: string): ProjectsStore | null {
   return projectStoresByScopeKey.get(scopeKey) ?? null;
@@ -620,7 +647,9 @@ export function mergeAgentSessionProjectionForStore(
     runtimeLocationId: retainExistingActivity
       ? existing.runtimeLocationId
       : incoming.runtimeLocationId,
-    title: retainExistingActivity || retainExistingSession ? existing.title : incoming.title,
+    // Activity can legitimately be newer than a plain inventory projection,
+    // but the inventory still carries the latest provider/user-state title.
+    title: retainExistingSession ? existing.title : incoming.title,
     status: retainExistingSession ? existing.status : incoming.status,
     hostMode: retainExistingActivity ? existing.hostMode : incoming.hostMode,
     engineId: retainExistingActivity ? existing.engineId : incoming.engineId,
@@ -657,10 +686,12 @@ export function mergeAgentSessionProjectionForStore(
         : incoming.archived,
     unread,
     displayTime: retainExistingActivity ? existing.displayTime : incoming.displayTime,
-    itemPageInfo: mergeMonotonicSessionItemPageInfo(
-      existing.itemPageInfo,
-      incoming.itemPageInfo,
-    ),
+    itemPageInfo: options.itemMergeMode === 'authority-window-reset'
+      ? incoming.itemPageInfo
+      : mergeMonotonicSessionItemPageInfo(
+          existing.itemPageInfo,
+          incoming.itemPageInfo,
+        ),
     items: options.itemMergeMode === 'authority-window-reset'
       ? mergeResetAgentSessionItemWindow(existing.items, incoming.items)
       : incoming.items.length === 0
@@ -1017,13 +1048,20 @@ export function upsertAgentSessionIntoCollection(
 
 function finalizeAgentSessionForStore(
   agentSession: AgentSessionView,
+  existingAgentSession?: AgentSessionView,
 ): AgentSessionView {
-  const items = normalizeAgentSessionItemsForStore(
+  const normalizedItems = normalizeAgentSessionItemsForStore(
     agentSession.id,
     agentSession.items,
   );
+  const items = existingAgentSession && areAgentSessionItemCollectionsEquivalent(
+    existingAgentSession.items,
+    normalizedItems,
+  )
+    ? existingAgentSession.items
+    : normalizedItems;
   const sortTimestamp = resolveAgentSessionViewSortTimestampString(agentSession);
-  return {
+  const nextAgentSession = {
     ...agentSession,
     items,
     sortTimestamp,
@@ -1032,6 +1070,11 @@ function finalizeAgentSessionForStore(
       sortTimestamp,
     }),
   };
+  return existingAgentSession
+    && areAgentSessionScalarsEqual(existingAgentSession, nextAgentSession)
+    && existingAgentSession.items === nextAgentSession.items
+    ? existingAgentSession
+    : nextAgentSession;
 }
 
 export function updateAgentSessionInCollection(
@@ -1054,11 +1097,20 @@ export function updateAgentSessionInCollection(
   }
 
   const currentAgentSession = project.agentSessions[currentAgentSessionIndex]!;
+  const projectScopedAgentSession = normalizeAgentSessionProjectScope(
+    currentAgentSession,
+    projectId,
+  );
+  const updatedAgentSession = updater(projectScopedAgentSession);
+  if (updatedAgentSession === projectScopedAgentSession) {
+    return projects as AgentProjectView[];
+  }
   const nextAgentSession = finalizeAgentSessionForStore(
     normalizeAgentSessionProjectScope(
-      updater(normalizeAgentSessionProjectScope(currentAgentSession, projectId)),
+      updatedAgentSession,
       projectId,
     ),
+    currentAgentSession,
   );
   let unsortedAgentSessions: readonly AgentSessionView[];
   if (project.agentSessions[currentAgentSessionIndex] === nextAgentSession) {
@@ -1123,11 +1175,58 @@ export function removeAgentSessionFromCollection(
   );
 }
 
+/**
+ * Evict a Session only from the authenticated Workspace store that observed
+ * its confirmed 404. An optional Agent guard prevents an older request from
+ * deleting a newer Session projection with the same Session id.
+ */
+export function removeAgentSessionFromProjectsStore(
+  scopeKey: string,
+  projectId: string,
+  agentSessionId: string,
+  expectedAgentId?: string,
+): AgentSessionStoreRemovalResult {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSessionId = agentSessionId.trim();
+  const normalizedAgentId = expectedAgentId?.trim() ?? '';
+  if (!scopeKey || !normalizedProjectId || !normalizedSessionId) {
+    return 'invalid';
+  }
+  const store = peekProjectsStore(scopeKey);
+  const currentSession = store?.snapshot.projects
+    .find((project) => project.projectId === normalizedProjectId)
+    ?.agentSessions
+    .find((session) => session.id === normalizedSessionId);
+  if (!store || !currentSession) {
+    return 'not-found';
+  }
+  if (normalizedAgentId && currentSession.agentId !== normalizedAgentId) {
+    return 'identity-mismatch';
+  }
+  const revisionKey = buildAgentSessionTranscriptRevisionKey(
+    normalizedProjectId,
+    normalizedSessionId,
+  );
+  mutateProjectsStoreByScopeKey(scopeKey, (projects) => {
+    store.agentSessionTranscriptRevisions.set(
+      revisionKey,
+      (store.agentSessionTranscriptRevisions.get(revisionKey) ?? 0) + 1,
+    );
+    return removeAgentSessionFromCollection(
+      projects,
+      normalizedProjectId,
+      normalizedSessionId,
+    );
+  });
+  return 'removed';
+}
+
 export function getProjectsStore(scopeKey: string): ProjectsStore {
   let store = projectStoresByScopeKey.get(scopeKey);
   if (!store) {
     store = {
       agentSessionTombstones: new Map(),
+      agentSessionTranscriptRevisions: new Map(),
       inventoryVersion: 0,
       inflight: null,
       inflightKey: null,
@@ -1307,30 +1406,150 @@ export function upsertAgentSessionIntoProjectsStore(
   agentSession: AgentSessionView,
   workspaceId: string,
   userScope?: string,
-  options: AgentSessionStoreUpsertOptions = {},
+  options: AgentSessionProjectsStoreUpsertOptions = {},
 ): void {
   const normalizedWorkspaceId = workspaceId.trim();
   if (!projectId.trim() || !normalizedWorkspaceId) {
     return;
   }
 
+  const projectMetadata = options.projectMetadata;
+  if (
+    projectMetadata
+    && (
+      projectMetadata.projectId.trim() !== projectId.trim()
+      || projectMetadata.workspaceId.trim() !== normalizedWorkspaceId
+      || projectMetadata.status === 'deleted'
+    )
+  ) {
+    throw new Error('Agents Session project metadata does not match the Store target.');
+  }
+
   const scopeKey = buildProjectsStoreScopeKey(
     normalizeProjectsStoreUserScope(userScope),
     normalizedWorkspaceId,
   );
+  const store = getProjectsStore(scopeKey);
   if (!canCommitAgentSessionToProjectsStore(scopeKey, projectId, agentSession)) {
     return;
   }
-
-  mutateProjectsStoreByScopeKey(
-    scopeKey,
-    (projects) => upsertAgentSessionIntoCollection(
-      projects,
-      projectId,
-      agentSession,
-      options,
-    ),
+  const normalizedProjectId = projectId.trim();
+  const normalizedSessionId = agentSession.id.trim();
+  const revisionKey = buildAgentSessionTranscriptRevisionKey(
+    normalizedProjectId,
+    normalizedSessionId,
   );
+  mutateProjectsStoreByScopeKey(scopeKey, (projects) => {
+    const projectsWithMetadata = projectMetadata
+      ? upsertProjectIntoCollection(projects, {
+          ...projectMetadata,
+          // Project activity pages are bounded; their Session rows cannot
+          // replace the Store's complete inventory during a transcript commit.
+          agentSessions: [],
+        })
+      : projects;
+    const previousSession = projectsWithMetadata
+      .find((project) => project.projectId === normalizedProjectId)
+      ?.agentSessions
+      .find((session) => session.id === normalizedSessionId);
+    const nextProjects = upsertAgentSessionIntoCollection(
+      projectsWithMetadata,
+      normalizedProjectId,
+      agentSession,
+      { itemMergeMode: options.itemMergeMode },
+    );
+    const nextSession = nextProjects
+      .find((project) => project.projectId === normalizedProjectId)
+      ?.agentSessions
+      .find((session) => session.id === normalizedSessionId);
+    const authorityWindowWasReset = (
+      options.itemMergeMode === 'authority-window-reset'
+      && nextSession !== undefined
+    );
+    const transcriptWindowChanged = nextSession !== previousSession && (
+      options.itemMergeMode === 'ordered-window'
+      || nextSession?.agentId !== previousSession?.agentId
+      || nextSession?.itemPageInfo?.hasMore !== previousSession?.itemPageInfo?.hasMore
+      || nextSession?.itemPageInfo?.page !== previousSession?.itemPageInfo?.page
+      || nextSession?.itemPageInfo?.pageSize !== previousSession?.itemPageInfo?.pageSize
+    );
+    if (authorityWindowWasReset || transcriptWindowChanged) {
+      store.agentSessionTranscriptRevisions.set(
+        revisionKey,
+        (store.agentSessionTranscriptRevisions.get(revisionKey) ?? 0) + 1,
+      );
+    }
+    return nextProjects;
+  });
+}
+
+export function getAgentSessionTranscriptRevision(
+  scopeKey: string,
+  projectId: string,
+  agentSessionId: string,
+): number {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSessionId = agentSessionId.trim();
+  if (!scopeKey || !normalizedProjectId || !normalizedSessionId) {
+    return 0;
+  }
+  return peekProjectsStore(scopeKey)?.agentSessionTranscriptRevisions.get(
+    buildAgentSessionTranscriptRevisionKey(normalizedProjectId, normalizedSessionId),
+  ) ?? 0;
+}
+
+export function upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
+  projectId: string,
+  agentSession: AgentSessionView,
+  workspaceId: string,
+  userScope: string,
+  expected: AgentSessionTranscriptRevisionSnapshot,
+  options: AgentSessionStoreUpsertOptions = {},
+): boolean {
+  const normalizedProjectId = projectId.trim();
+  const normalizedWorkspaceId = workspaceId.trim();
+  const normalizedSessionId = agentSession.id.trim();
+  const incomingPageInfo = agentSession.itemPageInfo;
+  if (!normalizedProjectId || !normalizedWorkspaceId || !normalizedSessionId) {
+    return false;
+  }
+  const scopeKey = buildProjectsStoreScopeKey(
+    normalizeProjectsStoreUserScope(userScope),
+    normalizedWorkspaceId,
+  );
+  const store = peekProjectsStore(scopeKey);
+  const currentSession = store?.snapshot.projects
+    .find((project) => project.projectId === normalizedProjectId)
+    ?.agentSessions
+    .find((session) => session.id === normalizedSessionId);
+  if (
+    !currentSession
+    || agentSession.projectId.trim() !== normalizedProjectId
+    || agentSession.agentId !== expected.agentId
+    || !expected.hasMore
+    || !incomingPageInfo
+    || incomingPageInfo.page <= expected.page
+    || incomingPageInfo.pageSize !== expected.pageSize
+    || currentSession.agentId !== expected.agentId
+    || currentSession.itemPageInfo?.hasMore !== expected.hasMore
+    || currentSession.itemPageInfo?.page !== expected.page
+    || currentSession.itemPageInfo?.pageSize !== expected.pageSize
+    || getAgentSessionTranscriptRevision(
+      scopeKey,
+      normalizedProjectId,
+      normalizedSessionId,
+    ) !== expected.revision
+  ) {
+    return false;
+  }
+  upsertAgentSessionIntoProjectsStore(
+    normalizedProjectId,
+    agentSession,
+    normalizedWorkspaceId,
+    userScope,
+    options,
+  );
+  return true;
 }
 
 export function removeProjectFromProjectsStore(scopeKey: string, projectId: string): void {

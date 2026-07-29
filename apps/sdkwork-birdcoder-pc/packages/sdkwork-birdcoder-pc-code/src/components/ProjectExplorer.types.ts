@@ -28,7 +28,10 @@ export interface ProjectExplorerProps {
   onOpenFolder?: () => void;
   onNewAgentSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
   onRefreshProjectSessions?: (id: string) => Promise<void> | void;
-  onRefreshAgentSessionItems?: (id: string) => Promise<void> | void;
+  onRefreshAgentSessionItems?: (
+    id: string,
+    projectId?: string | null,
+  ) => Promise<void> | void;
   onArchiveProject?: (id: string) => void;
   onCopyWorkingDirectory?: (id: string) => void;
   onCopyProjectPath?: (id: string) => void;

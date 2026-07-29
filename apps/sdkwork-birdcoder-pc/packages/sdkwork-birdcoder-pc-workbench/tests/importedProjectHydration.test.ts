@@ -117,6 +117,15 @@ function summary(
 }
 
 function service(items: AgentSessionActivitySummaryRecord[]) {
+  const listSessionsByProject = vi.fn(async () => ({
+    items: [],
+    pageInfo: {
+      hasMore: items.length > 1,
+      mode: 'offset' as const,
+      page: 1,
+      pageSize: 1,
+    },
+  }));
   const listSessionActivitySummaries = vi.fn(async () => ({
     items,
     pageInfo: {
@@ -128,7 +137,11 @@ function service(items: AgentSessionActivitySummaryRecord[]) {
   }));
   return {
     listSessionActivitySummaries,
-    value: { listSessionActivitySummaries } as unknown as IAgentSessionService,
+    listSessionsByProject,
+    value: {
+      listSessionActivitySummaries,
+      listSessionsByProject,
+    } as unknown as IAgentSessionService,
   };
 }
 
@@ -153,6 +166,11 @@ describe('hydrateImportedProjectFromAuthority', () => {
     });
 
     expect(agentSessionService.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
+    expect(agentSessionService.listSessionsByProject).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 1,
+      projectId,
+    }, { signal: expect.any(AbortSignal) });
     expect(agentSessionService.listSessionActivitySummaries).toHaveBeenCalledWith({
       pageSize: 200,
       projectId,

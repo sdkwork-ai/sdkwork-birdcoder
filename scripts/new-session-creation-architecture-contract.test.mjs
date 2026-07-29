@@ -147,8 +147,13 @@ assert.equal(
 );
 assert.match(
   projects,
-  /listTurns\(agentSessionId,\s*\{[\s\S]*?page:\s*1,[\s\S]*?pageSize:\s*1,[\s\S]*?sort:\s*'-sequence',[\s\S]*?\}\)[\s\S]*?parentTurnPage\.items\[0\]/,
-  "Forking a Session must read only the latest Turn through descending bounded pagination.",
+  /listTurns\(parentIdentity,\s*\{\s*page:\s*1,\s*pageSize:\s*1,?\s*\}\)[\s\S]*?parentTurnPage\.items\[0\]/,
+  "Forking a Session must use the canonical latest-first Turn page with bounded pagination.",
+);
+assert.doesNotMatch(
+  projects,
+  /listTurns\([^)]*\{[^}]*\bsort\s*:/,
+  "Forking a Session must not pass an unsupported Turn sort parameter.",
 );
 assert.doesNotMatch(
   projects,

@@ -1,3 +1,5 @@
+import type { VoiceRecognitionLanguageSetting } from './voiceRecognition.ts';
+
 export const TERMINAL_APPROVAL_POLICY_SETTINGS = [
   "AutoAllow",
   "OnRequest",
@@ -94,6 +96,9 @@ export interface AppSettings {
   followUpBehavior: string;
   turnCompletionNotification: string;
   enablePermissionNotifications: boolean;
+  voiceRecognitionLanguage: VoiceRecognitionLanguageSetting;
+  voiceContinuousListening: boolean;
+  voiceShortcutEnabled: boolean;
   theme: string;
   usePointerCursor: boolean;
   uiFontSize: string;
@@ -135,6 +140,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   followUpBehavior: "Queue",
   turnCompletionNotification: "Only when app is unfocused",
   enablePermissionNotifications: true,
+  voiceRecognitionLanguage: "Auto",
+  voiceContinuousListening: false,
+  voiceShortcutEnabled: false,
   theme: "Dark",
   usePointerCursor: false,
   uiFontSize: "12",
@@ -176,6 +184,7 @@ const APP_SETTING_ENUMS: Partial<Record<keyof AppSettings, readonly string[]>> =
   sessionDetails: ['Steps with code commands', 'All steps', 'Minimal'],
   followUpBehavior: ['Queue', 'Guide'],
   turnCompletionNotification: ['Only when app is unfocused', 'Always', 'Never'],
+  voiceRecognitionLanguage: ['Auto', 'Chinese', 'English'],
   theme: ['Light', 'Dark', 'System'],
   codeSnippetStyle: ['Auto', 'Concise', 'Detailed comments', 'Code only'],
   envNodeVersion: ['v20.x (LTS)', 'v22.x (Latest)', 'v18.x'],

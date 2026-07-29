@@ -10,6 +10,7 @@ import { ProjectExplorerSessionRow } from '../apps/sdkwork-birdcoder-pc/packages
 import {
   buildSidebarGlobalSessions,
   canRequestMoreSidebarProjectSessions,
+  groupSortedSidebarSessionsByProvider,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/sessionSidebarPresentation.ts';
 import { StudioSessionMenuRow } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioSessionMenuRow.tsx';
 import {
@@ -511,5 +512,31 @@ assert.deepEqual(
 );
 assert.equal(globallySortedSessions.length, project.agentSessions.length);
 assert.equal(canRequestMoreSidebarProjectSessions(project), false);
+
+const providerGroups = groupSortedSidebarSessionsByProvider([
+  createSession('openai-busy', 'streaming', {
+    providerId: 'openai',
+    updatedAt: '2026-07-27T08:10:00.000Z',
+  }),
+  createSession('anthropic-idle', 'ready', {
+    providerId: 'anthropic',
+    updatedAt: '2026-07-27T08:50:00.000Z',
+  }),
+  createSession('openai-idle', 'ready', {
+    providerId: 'openai',
+    updatedAt: '2026-07-27T08:00:00.000Z',
+  }),
+]);
+assert.deepEqual(
+  providerGroups.map((group) => [
+    group.providerId,
+    group.sessions.map((session) => session.id),
+  ]),
+  [
+    ['openai', ['openai-busy', 'openai-idle']],
+    ['anthropic', ['anthropic-idle']],
+  ],
+  'Provider grouping must preserve the globally sorted group head instead of alphabetic order.',
+);
 
 console.log('session list presentation contract passed.');

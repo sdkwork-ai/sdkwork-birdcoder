@@ -12,6 +12,7 @@ export interface ChatTranscriptSurfaceProps {
   index: number;
   isUser: boolean;
   layout: ChatMessageLayout;
+  messageKey: string;
   messageRef?: (element: HTMLDivElement | null) => void;
   providerProfile?: ChatProviderPresentationProfile;
   turn: ChatTranscriptTurnPresentation;
@@ -22,6 +23,7 @@ export function ChatTranscriptSurface({
   index,
   isUser,
   layout,
+  messageKey,
   messageRef,
   providerProfile,
   turn,
@@ -37,6 +39,7 @@ export function ChatTranscriptSurface({
     'data-chat-turn-position': turn.position,
     'data-chat-turn-start': turn.isStart ? 'true' : undefined,
     'data-transcript-message-index': index,
+    'data-transcript-message-key': messageKey,
     ref: messageRef,
     style: buildTranscriptSurfaceStyle(
       resolveTranscriptSurfaceIntrinsicSize(layout, isUser),

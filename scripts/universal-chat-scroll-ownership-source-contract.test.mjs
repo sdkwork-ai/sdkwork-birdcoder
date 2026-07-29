@@ -4,147 +4,117 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
-const universalChatSource = fs.readFileSync(
-  path.join(
-    rootDir,
-    'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-    
-    'sdkwork-birdcoder-pc-ui',
-    'src',
-    'components',
-    'UniversalChat.tsx',
-  ),
-  'utf8',
+const componentRoot = path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
 );
-const progressiveTranscriptHookSource = fs.readFileSync(
-  path.join(
-    rootDir,
-    'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-    
-    'sdkwork-birdcoder-pc-ui',
-    'src',
-    'components',
-    'useProgressiveTranscriptWindow.ts',
-  ),
+const readComponent = (relativePath) => fs.readFileSync(
+  path.join(componentRoot, relativePath),
   'utf8',
 );
 
-assert.match(
-  universalChatSource,
-  /const scrollTranscriptToBottom = useCallback\(\(\) => \{/,
-  'UniversalChat must centralize all programmatic transcript bottom alignment in one scroll owner.',
-);
+const universalChatSource = readComponent('UniversalChat.tsx');
+const coordinatorSource = readComponent('useTranscriptScrollCoordinator.ts');
+const progressiveTranscriptSource = readComponent('useProgressiveTranscriptWindow.ts');
+const virtualizedTranscriptSource = readComponent('useVirtualizedTranscriptWindow.ts');
+const anchorSource = readComponent('transcriptScrollAnchor.ts');
 
 assert.match(
   universalChatSource,
-  /shouldShowTranscriptJumpToLatest\(scrollMetrics\)[\s\S]*shouldStickTranscriptToBottomRef\.current = !shouldShowJumpAffordance;[\s\S]*syncTranscriptJumpAffordance\(shouldShowJumpAffordance\);/s,
-  'UniversalChat must derive the jump-to-latest affordance from the same metrics that own sticky scrolling.',
+  /useTranscriptScrollCoordinator\(\{[\s\S]*scrollContainerRef: transcriptScrollContainerRef,[\s\S]*\}\)/s,
+  'UniversalChat must delegate transcript scroll state and writes to the shared coordinator.',
 );
-
 assert.match(
   universalChatSource,
-  /const scrollTranscriptToTurn = useCallback[\s\S]*shouldStickTranscriptToBottomRef\.current = false;[\s\S]*syncTranscriptJumpAffordance\(true\);[\s\S]*behavior: 'auto'/s,
-  'Conversation-map navigation must relinquish sticky bottom ownership and avoid a smooth-scroll first-frame bottom misclassification.',
+  /ref=\{transcriptScrollCoordinator\.contentRef\}[\s\S]*data-chat-transcript-content="true"/s,
+  'UniversalChat must expose one measurable transcript content root to the coordinator.',
 );
+
+const ownedScrollTopWrites = coordinatorSource.match(/scrollContainer\.scrollTop\s*=/gu) ?? [];
+assert.equal(
+  ownedScrollTopWrites.length,
+  1,
+  'The transcript coordinator must have exactly one scrollTop write site.',
+);
+for (const [name, source] of [
+  ['UniversalChat', universalChatSource],
+  ['progressive transcript', progressiveTranscriptSource],
+  ['virtualized transcript', virtualizedTranscriptSource],
+  ['anchor helper', anchorSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /scrollContainer\.scrollTop\s*=/u,
+    `${name} must submit scroll intent instead of writing scrollTop directly.`,
+  );
+}
 
 assert.match(
-  universalChatSource,
-  /<ChatTranscriptJumpToLatestButton[\s\S]*onClick=\{handleJumpToLatestMessage\}[\s\S]*visible=\{isTranscriptJumpToLatestVisible\}/s,
-  'UniversalChat must expose a keyboard-operable route back to the latest message.',
+  coordinatorSource,
+  /pendingOperationRef[\s\S]*scrollAnimationFrameRef[\s\S]*requestAnimationFrame\(flushScheduledOperation\)/s,
+  'All asynchronous scroll requests must coalesce through one pending operation and one RAF gate.',
 );
-
 assert.match(
-  universalChatSource,
-  /const handleJumpToLatestMessage = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(userTranscriptScrollSettleTimerRef\.current\);[\s\S]*window\.cancelAnimationFrame\(userTranscriptScrollAnimationFrameRef\.current\);[\s\S]*scrollTranscriptToBottom\(\);/s,
-  'Jumping to the latest message must cancel stale user-scroll settlement work before restoring sticky-bottom ownership.',
+  coordinatorSource,
+  /resolveOperationPriority\(operation\)[\s\S]*resolveOperationPriority\(pendingOperation\)/s,
+  'Anchor and explicit navigation requests must take precedence over bottom-follow requests.',
 );
-
 assert.match(
-  universalChatSource,
-  /computeTranscriptBottomScrollTop\(\{[\s\S]*clientHeight:\s*scrollContainer\.clientHeight,[\s\S]*scrollHeight:\s*scrollContainer\.scrollHeight,[\s\S]*scrollTop:\s*scrollContainer\.scrollTop,[\s\S]*\}\)/s,
-  'UniversalChat must align initial hydration by writing the scroll container bottom scrollTop directly.',
+  coordinatorSource,
+  /!shouldStickToBottomRef\.current[\s\S]*isUserControllingScrollRef\.current[\s\S]*activeAnchorRef\.current[\s\S]*return;/s,
+  'Bottom following must stop while the user reads history or a prepend anchor transaction is active.',
 );
-
 assert.match(
-  universalChatSource,
-  /shouldDeferTranscriptAutoScrollForUserIntent\(\{[\s\S]*isUserInteracting:\s*isUserControllingTranscriptScrollRef\.current,[\s\S]*lastUserScrollAt:\s*lastUserTranscriptScrollAtRef\.current,[\s\S]*now:\s*readTranscriptScrollClock\(\),[\s\S]*\}\)/s,
-  'UniversalChat must gate autoscroll while native user scroll input is active or settling.',
+  coordinatorSource,
+  /new ResizeObserver\([\s\S]*resizeObserver\.observe\(scrollContainer\);[\s\S]*resizeObserver\.observe\(content\);/s,
+  'One ResizeObserver must cover the viewport and transcript content root.',
 );
-
-assert.match(
-  universalChatSource,
-  /activeTranscriptSessionIdRef\.current !== normalizedTranscriptScopeKey[\s\S]*lastScrollSnapshotRef\.current = null;[\s\S]*shouldStickTranscriptToBottomRef\.current = true;/s,
-  'UniversalChat must reset transcript scroll runtime state during the layout autoscroll pass when the visible transcript scope changes, so a previous session scroll position cannot block the new session from opening at the latest message.',
-);
-
-assert.match(
-  universalChatSource,
-  /scrollContainer\.addEventListener\('pointerdown',\s*markTranscriptPointerScrollIntent,\s*\{\s*passive:\s*true\s*\}\);/s,
-  'UniversalChat must treat scrollbar pointer drags as explicit user scroll ownership.',
-);
-
-assert.match(
-  universalChatSource,
-  /const isTranscriptPointerScrollActiveRef = useRef\(false\);/,
-  'UniversalChat must track active transcript scrollbar pointer drags separately from the settle timer.',
-);
-
-assert.match(
-  universalChatSource,
-  /if \(isTranscriptPointerScrollActiveRef\.current\) \{[\s\S]*userTranscriptScrollSettleTimerRef\.current = window\.setTimeout\([\s\S]*releaseUserTranscriptScrollControl,[\s\S]*CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,[\s\S]*\);[\s\S]*return;[\s\S]*\}/s,
-  'UniversalChat must not release transcript scroll ownership while the pointer is still dragging the scrollbar.',
-);
-
-assert.match(
-  universalChatSource,
-  /window\.addEventListener\('pointerup',\s*releaseTranscriptPointerScrollIntent,\s*\{\s*passive:\s*true\s*\}\);[\s\S]*window\.addEventListener\('pointercancel',\s*releaseTranscriptPointerScrollIntent,\s*\{\s*passive:\s*true\s*\}\);/s,
-  'UniversalChat must release active transcript pointer scroll ownership from global pointerup and pointercancel events.',
-);
-
-assert.match(
-  universalChatSource,
-  /const resizeObserver = new ResizeObserver\(\(\) => \{[\s\S]*shouldStickTranscriptToBottomRef\.current[\s\S]*!isUserControllingTranscriptScrollRef\.current[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*updateTranscriptStickiness\(\);[\s\S]*resizeObserver\.observe\(scrollContainer\);/s,
-  'Transcript container resizing must preserve sticky-bottom ownership without overriding a user who is reading history.',
-);
-
 assert.doesNotMatch(
-  universalChatSource,
-  /messagesEndRef\.current\?\.scrollIntoView\(/,
-  'UniversalChat must not use scrollIntoView for transcript following because it can fight native scrollbar dragging and parent scroll containers.',
+  `${universalChatSource}\n${coordinatorSource}`,
+  /MutationObserver/u,
+  'Transcript following must not scan the message subtree with MutationObserver.',
 );
 
 assert.match(
-  progressiveTranscriptHookSource,
-  /isTranscriptPointerDragActiveRef/,
-  'Progressive transcript pagination must know when a pointer drag is active so older-page materialization does not move the scrollbar thumb mid-drag.',
+  progressiveTranscriptSource,
+  /scrollCoordinator\?\.beginPrepend\(\)[\s\S]*scrollCoordinator\?\.completePrepend\(pendingPrepend\)/s,
+  'Local progressive history expansion must use the shared prepend transaction.',
 );
-
-assert.match(
-  progressiveTranscriptHookSource,
-  /pendingTopLoadAfterPointerReleaseRef/,
-  'Progressive transcript pagination must defer top-load requests until after an active scrollbar pointer drag releases.',
-);
-
-assert.match(
-  progressiveTranscriptHookSource,
-  /const cancelPrependAnchorRepairForUserInput = \(\) => \{[\s\S]*pendingPrependedScrollMetricsRef\.current = null;[\s\S]*window\.cancelAnimationFrame\(prependAnchorRepairAnimationFrameRef\.current\);[\s\S]*\};[\s\S]*const markPendingTopLoadIntent = \(event\?: Event\) => \{[\s\S]*cancelPrependAnchorRepairForUserInput\(\);/s,
-  'Explicit scroll input must cancel local prepend anchor settlement so it cannot override the user after history appears.',
-);
-
 assert.match(
   universalChatSource,
-  /const \{[\s\S]*measurementVersion,[\s\S]*\} = useVirtualizedTranscriptWindow\(/s,
-  'UniversalChat must consume transcript row measurement changes so asynchronous message layout can finish bottom alignment.',
+  /const transaction = beginPrepend\(\);[\s\S]*pendingRemotePrependRef\.current = \{[\s\S]*transaction,/s,
+  'Remote history loading must begin and retain a coordinator-owned prepend transaction.',
+);
+assert.match(
+  universalChatSource,
+  /const pendingPrepend = pendingRemotePrependRef\.current;[\s\S]*completePrepend\(pendingPrepend\.transaction\);[\s\S]*pendingRemotePrependRef\.current = null;/s,
+  'Remote history rendering must complete the retained transaction through the coordinator.',
+);
+assert.match(
+  coordinatorSource,
+  /markUserScrollIntent[\s\S]*cancelPrepend\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);/s,
+  'Explicit user input must cancel stale prepend and bottom-follow work immediately.',
 );
 
 assert.match(
   universalChatSource,
-  /useLayoutEffect\(\(\) => \{[\s\S]*shouldStickToBottomRef\.current[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*\}, \[[\s\S]*measurementVersion,/s,
-  'UniversalChat must rerun sticky bottom alignment after transcript row measurements change without overriding user-owned scroll.',
+  /transcriptScrollCoordinator\.jumpToLatest\(\)[\s\S]*focus\(\{ preventScroll: true \}\)/s,
+  'Jump-to-latest must restore following through the coordinator and preserve transcript focus.',
+);
+assert.match(
+  universalChatSource,
+  /transcriptScrollCoordinator\.scrollToOffset\(/s,
+  'Conversation-map navigation must route through the same scroll writer.',
+);
+assert.match(
+  universalChatSource,
+  /previousProps\.hasMoreRemoteMessages !== nextProps\.hasMoreRemoteMessages[\s\S]*previousProps\.isLoadingMoreRemoteMessages !== nextProps\.isLoadingMoreRemoteMessages[\s\S]*previousProps\.onLoadMoreRemoteMessages !== nextProps\.onLoadMoreRemoteMessages/s,
+  'Transcript memoization must invalidate for remote pagination state and callback changes.',
 );
 
 console.log('universal chat scroll ownership source contract passed.');

@@ -10,6 +10,7 @@ import {
   applyWorkspaceSessionInboxUpdate,
   canSynchronizeWorkspaceSessionInbox,
   loadWorkspaceSessionInboxUpdate,
+  mergeWorkspaceSessionInboxUpdates,
   resolveWorkspaceSessionInboxRefreshDelay,
 } from './workspaceSessionInboxSync.ts';
 import {
@@ -202,23 +203,18 @@ function synchronizeEntry(
       undefined,
       controller.signal,
     );
-    if (!commitWorkspaceSessionInboxPage(entry, generation, controller, head)) {
-      return;
+    const updates = [head];
+    if (head.hasMore) {
+      updates.push(await loadWorkspaceSessionInboxUpdate(
+        entry.service,
+        entry.scope.workspaceId,
+        getProjectsStore(entry.scopeKey).snapshot.projects,
+        head.nextCursor,
+        controller.signal,
+      ));
     }
-
-    if (!head.hasMore) {
-      entry.failures = 0;
-      return;
-    }
-
-    const continuation = await loadWorkspaceSessionInboxUpdate(
-      entry.service,
-      entry.scope.workspaceId,
-      getProjectsStore(entry.scopeKey).snapshot.projects,
-      head.nextCursor,
-      controller.signal,
-    );
-    if (!commitWorkspaceSessionInboxPage(entry, generation, controller, continuation)) {
+    const update = mergeWorkspaceSessionInboxUpdates(updates);
+    if (!commitWorkspaceSessionInboxPage(entry, generation, controller, update)) {
       return;
     }
     entry.failures = 0;

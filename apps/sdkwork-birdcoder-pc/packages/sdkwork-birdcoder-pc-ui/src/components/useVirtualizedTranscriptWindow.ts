@@ -1,10 +1,9 @@
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { RefObject } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   hasTranscriptMessageKey,
   reconcileTranscriptPrefixHeightsCache,
-  resolveTranscriptMessageKey,
   resolveVirtualizedTranscriptWindow,
   type TranscriptPrefixHeightsCache,
   type TranscriptViewport,
@@ -114,25 +113,29 @@ export function useVirtualizedTranscriptWindow(
     isActiveRef.current = isActive;
   }, [isActive]);
 
-  useLayoutEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer || scrollContainer.scrollTop === 0) {
-      return;
-    }
-
-    scrollContainer.scrollTop = 0;
-  }, [normalizedMeasurementScopeKey, scrollContainerRef]);
+  const prefixHeightsCache = useMemo(
+    () =>
+      reconcileTranscriptPrefixHeightsCache({
+        invalidatedMessageIds: measurementState.changedMessageIds,
+        measuredHeights: measuredHeightsRef.current,
+        messages,
+        options: { layout, engineId },
+        previousCache: prefixHeightsCacheRef.current,
+      }),
+    [engineId, layout, measurementState, messages, normalizedMeasurementScopeKey],
+  );
+  const messageIndexesByKey = prefixHeightsCache.messageIndexesByKey;
 
   useEffect(() => {
     for (const messageId of measuredHeightsRef.current.keys()) {
-      if (hasTranscriptMessageKey(messages, messageId)) {
+      if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
       measuredHeightsRef.current.delete(messageId);
     }
 
     for (const [messageId, element] of observedElementsRef.current.entries()) {
-      if (hasTranscriptMessageKey(messages, messageId)) {
+      if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
       resizeObserverRef.current?.unobserve(element);
@@ -141,12 +144,12 @@ export function useVirtualizedTranscriptWindow(
     }
 
     for (const messageId of messageRefCallbackMapRef.current.keys()) {
-      if (hasTranscriptMessageKey(messages, messageId)) {
+      if (hasTranscriptMessageKey(messageIndexesByKey, messageId)) {
         continue;
       }
       messageRefCallbackMapRef.current.delete(messageId);
     }
-  }, [messages, normalizedMeasurementScopeKey]);
+  }, [messageIndexesByKey, normalizedMeasurementScopeKey]);
 
   useEffect(() => {
     if (!isActive || typeof ResizeObserver !== 'function') {
@@ -245,17 +248,6 @@ export function useVirtualizedTranscriptWindow(
     [publishMeasurementChange, updateMeasuredTranscriptElementHeight],
   );
 
-  const prefixHeightsCache = useMemo(
-    () =>
-      reconcileTranscriptPrefixHeightsCache({
-        invalidatedMessageIds: measurementState.changedMessageIds,
-        measuredHeights: measuredHeightsRef.current,
-        messages,
-        options: { layout, engineId },
-        previousCache: prefixHeightsCacheRef.current,
-      }),
-    [engineId, layout, measurementState, messages, normalizedMeasurementScopeKey],
-  );
   useEffect(() => {
     prefixHeightsCacheRef.current = prefixHeightsCache;
   }, [prefixHeightsCache]);

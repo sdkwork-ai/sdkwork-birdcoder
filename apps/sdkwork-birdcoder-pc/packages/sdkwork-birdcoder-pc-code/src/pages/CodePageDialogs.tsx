@@ -54,10 +54,13 @@ export const CodePageDialogs = memo(function CodePageDialogs({
 }: CodePageDialogsProps) {
   const { t } = useTranslation();
   const isProjectRemoval = deleteConfirmation?.type === 'project';
-  const deleteDialogTitle = `${t('app.delete')} ${
-    deleteConfirmation?.type.charAt(0).toUpperCase() ?? ''
-  }${deleteConfirmation?.type.slice(1) ?? ''}`;
-  const deleteDialogDescription = `Are you sure you want to delete this ${deleteConfirmation?.type}? This action cannot be undone.`;
+  const isMessageRemoval = deleteConfirmation?.type === 'message';
+  const deleteDialogTitle = isMessageRemoval
+    ? t('code.deleteMessageTitle')
+    : t('code.deleteSessionTitle');
+  const deleteDialogDescription = isMessageRemoval
+    ? t('code.deleteMessageDescription')
+    : t('code.deleteSessionDescription');
   const deleteDialogActionLabel = t('app.delete');
 
   return (

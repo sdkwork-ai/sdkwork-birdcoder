@@ -1,15 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  AgentProjectView,
+  AgentSessionView,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../src/services/interfaces/IProjectService.ts';
-import type { AgentSessionActivitySummaryRecord } from '../src/services/agentSessionViewModels.ts';
+import type {
+  AgentSessionActivitySummaryRecord,
+  AgentSessionItemRecord,
+  AgentSessionRecord,
+} from '../src/services/agentSessionViewModels.ts';
 import {
   buildProjectsStoreScopeKey,
   deleteProjectsStore,
 } from '../src/stores/projectsStore.ts';
 import {
   applyProjectSessionActivityRefresh,
+  loadEarlierAgentSessionItems,
+  refreshAgentSessionItems,
   refreshProjectSessions,
 } from '../src/workbench/sessionRefresh.ts';
 
@@ -131,7 +140,7 @@ function services(
 }
 
 describe('manual Project Session refresh', () => {
-  it('loads one bounded canonical activity head page and never calls the legacy inventory path', async () => {
+  it('triggers one bounded provider inventory probe before loading the canonical activity head', async () => {
     const page = cursorPage([
       summary('session.codex'),
       summary('session.claude'),
@@ -152,7 +161,12 @@ describe('manual Project Session refresh', () => {
       pageSize: 200,
       projectId: PROJECT_ID,
     }, { signal: expect.any(AbortSignal) });
-    expect(dependencies.listSessionsByProject).not.toHaveBeenCalled();
+    expect(dependencies.listSessionsByProject).toHaveBeenCalledTimes(1);
+    expect(dependencies.listSessionsByProject).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 1,
+      projectId: PROJECT_ID,
+    }, { signal: expect.any(AbortSignal) });
     expect(result.status).toBe('refreshed');
     expect(result.sessionIds).toEqual(['session.codex', 'session.claude']);
     expect(result.projects?.[0]?.agentSessions.map((candidate) => candidate.id)).toEqual([
@@ -160,7 +174,394 @@ describe('manual Project Session refresh', () => {
       'session.claude',
     ]);
   });
+});
 
+describe('Agent Session transcript pagination', () => {
+  it('loads the latest 50 items first and reaches all 105 items through upward pagination', async () => {
+    const agentId = 'agent.intelligence.codex';
+    const sessionId = 'session.provider.codex.test';
+    const createdAt = '2026-07-27T08:00:00.000Z';
+    const updatedAt = '2026-07-27T10:00:00.000Z';
+    const selectedSession: AgentSessionView = {
+      agentId,
+      createdAt,
+      displayTime: '10:00',
+      engineId: 'codex',
+      hostMode: 'web',
+      id: sessionId,
+      items: [],
+      modelId: 'auto',
+      projectId: PROJECT_ID,
+      providerId: 'codex',
+      runtimeStatus: 'ready',
+      status: 'active',
+      title: 'Codex transcript',
+      updatedAt,
+    };
+    const selectedProject = project({ agentSessions: [selectedSession] });
+    const sessionRecord = {
+      agentId,
+      createdAt,
+      lastItemAt: updatedAt,
+      lastItemSequence: '105',
+      organizationId: ORGANIZATION_ID,
+      ownerUserId: OWNER_USER_ID,
+      projectId: PROJECT_ID,
+      sessionId,
+      status: 'active',
+      tenantId: TENANT_ID,
+      title: 'Codex transcript',
+      updatedAt,
+      version: '105',
+    } as AgentSessionRecord;
+    const item = (sequence: number): AgentSessionItemRecord => ({
+      content: `message ${sequence}`,
+      createdAt,
+      itemId: `item.${sequence}`,
+      kind: 'user_input',
+      sequence: String(sequence),
+      sessionId,
+      status: 'completed',
+    } as AgentSessionItemRecord);
+    const pageItems = (page: number) => {
+      const high = page === 1 ? 105 : page === 2 ? 55 : 5;
+      const low = page === 1 ? 56 : page === 2 ? 6 : 1;
+      return Array.from({ length: high - low + 1 }, (_, index) => item(high - index));
+    };
+    const listSessionItems = vi.fn(async (
+      identity: { agentId: string; sessionId: string },
+      request: { page?: number; pageSize?: number; sort?: string },
+    ) => {
+      const page = request.page ?? 1;
+      return {
+        items: pageItems(page),
+        pageInfo: {
+          hasMore: page < 3,
+          mode: 'offset',
+          page,
+          pageSize: 50,
+        },
+      };
+    });
+    const agentSessionService = {
+      getSession: vi.fn(async () => sessionRecord),
+      getSessionUserStates: vi.fn(async () => new Map()),
+      listRuntimeBindings: vi.fn(async () => ({
+        items: [],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset',
+          page: 1,
+          pageSize: 20,
+        },
+      })),
+      listSessionItems,
+    } as unknown as IAgentSessionService;
+
+    const latest = await refreshAgentSessionItems({
+      agentSessionId: sessionId,
+      agentSessionService,
+      resolvedLocation: {
+        agentSession: selectedSession,
+        project: selectedProject,
+      },
+    });
+
+    expect(latest.status).toBe('refreshed');
+    expect(latest.agentSession?.items).toHaveLength(50);
+    expect(latest.agentSession?.items.at(0)?.id).toBe('item.56');
+    expect(latest.agentSession?.items.at(-1)?.id).toBe('item.105');
+    expect(latest.agentSession?.itemPageInfo).toEqual({
+      hasMore: true,
+      page: 1,
+      pageSize: 50,
+    });
+
+    const secondPage = await loadEarlierAgentSessionItems({
+      agentSession: latest.agentSession!,
+      agentSessionService,
+    });
+    expect(secondPage.agentSession.items).toHaveLength(100);
+    expect(secondPage.agentSession.items.at(0)?.id).toBe('item.6');
+    expect(secondPage.agentSession.itemPageInfo?.page).toBe(2);
+
+    const thirdPage = await loadEarlierAgentSessionItems({
+      agentSession: secondPage.agentSession,
+      agentSessionService,
+    });
+    expect(thirdPage.agentSession.items).toHaveLength(105);
+    expect(thirdPage.agentSession.items.at(0)?.id).toBe('item.1');
+    expect(thirdPage.agentSession.items.at(-1)?.id).toBe('item.105');
+    expect(thirdPage.agentSession.itemPageInfo).toEqual({
+      hasMore: false,
+      page: 3,
+      pageSize: 50,
+    });
+
+    const complete = await loadEarlierAgentSessionItems({
+      agentSession: thirdPage.agentSession,
+      agentSessionService,
+    });
+    expect(complete.status).toBe('complete');
+    expect(complete.loadedItemCount).toBe(0);
+    expect(listSessionItems).toHaveBeenCalledTimes(3);
+    expect(listSessionItems.mock.calls.map(([identity, request]) => ({
+      identity,
+      page: request.page,
+      pageSize: request.pageSize,
+      sort: request.sort,
+    }))).toEqual([
+      {
+        identity: { agentId, sessionId },
+        page: 1,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      {
+        identity: { agentId, sessionId },
+        page: 2,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      {
+        identity: { agentId, sessionId },
+        page: 3,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+    ]);
+  });
+});
+
+describe('Agent Session transcript refresh errors', () => {
+  function createRefreshHarness() {
+    const agentId = 'agent.intelligence.codex';
+    const sessionId = 'session.provider.codex.not-found';
+    const createdAt = '2026-07-27T08:00:00.000Z';
+    const updatedAt = '2026-07-27T10:00:00.000Z';
+    const agentSession: AgentSessionView = {
+      agentId,
+      createdAt,
+      displayTime: '10:00',
+      engineId: 'codex',
+      hostMode: 'web',
+      id: sessionId,
+      items: [],
+      modelId: 'auto',
+      projectId: PROJECT_ID,
+      providerId: 'codex',
+      runtimeStatus: 'ready',
+      status: 'active',
+      title: 'Codex transcript',
+      updatedAt,
+    };
+    const sessionRecord = {
+      agentId,
+      createdAt,
+      lastItemAt: updatedAt,
+      lastItemSequence: '0',
+      organizationId: ORGANIZATION_ID,
+      ownerUserId: OWNER_USER_ID,
+      projectId: PROJECT_ID,
+      sessionId,
+      status: 'active',
+      tenantId: TENANT_ID,
+      title: 'Codex transcript',
+      updatedAt,
+      version: '1',
+    } as AgentSessionRecord;
+    const getSession = vi.fn().mockResolvedValue(sessionRecord);
+    const getSessionUserStates = vi.fn().mockResolvedValue(new Map());
+    const listRuntimeBindings = vi.fn().mockResolvedValue({
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 20,
+      },
+    });
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 50,
+      },
+    });
+    const agentSessionService = {
+      getSession,
+      getSessionUserStates,
+      listRuntimeBindings,
+      listSessionItems,
+    } as unknown as IAgentSessionService;
+    return {
+      agentId,
+      agentSession,
+      agentSessionService,
+      getSession,
+      getSessionUserStates,
+      listRuntimeBindings,
+      listSessionItems,
+      project: project({ agentSessions: [agentSession] }),
+      sessionId,
+    };
+  }
+
+  function sdkNotFoundError() {
+    return Object.assign(new Error('Resource not found'), {
+      code: 'NOT_FOUND',
+      httpStatus: 404,
+      name: 'NotFoundError',
+      problem: { status: 404 },
+    });
+  }
+
+  function refreshTranscript(harness: ReturnType<typeof createRefreshHarness>) {
+    return refreshAgentSessionItems({
+      agentSessionId: harness.sessionId,
+      agentSessionService: harness.agentSessionService,
+      resolvedLocation: {
+        agentSession: harness.agentSession,
+        project: harness.project,
+      },
+    });
+  }
+
+  it('treats only the canonical getSession 404 as Session absence', async () => {
+    const harness = createRefreshHarness();
+    const error = sdkNotFoundError();
+    harness.getSession.mockRejectedValueOnce(error);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('not-found');
+    expect(harness.listSessionItems).not.toHaveBeenCalled();
+    expect(harness.listRuntimeBindings).not.toHaveBeenCalled();
+    expect(harness.getSessionUserStates).not.toHaveBeenCalled();
+  });
+
+  it('rethrows an SDK listSessionItems 404 after getSession succeeds', async () => {
+    const harness = createRefreshHarness();
+    const error = sdkNotFoundError();
+    harness.listSessionItems.mockRejectedValueOnce(error);
+
+    await expect(refreshTranscript(harness)).rejects.toBe(error);
+
+    const identity = {
+      agentId: harness.agentId,
+      sessionId: harness.sessionId,
+    };
+    expect(harness.getSession).toHaveBeenCalledWith(
+      identity,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(harness.listSessionItems).toHaveBeenCalledWith(
+      identity,
+      {
+        page: 1,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it('keeps transcript data when runtime binding metadata returns 404', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const harness = createRefreshHarness();
+    const error = sdkNotFoundError();
+    Object.assign(harness.agentSession, {
+      providerBindingId: 'provider-binding.codex',
+      providerSessionId: 'provider-session.codex',
+      runtimeBindingId: 'runtime-binding.codex',
+    });
+    harness.listRuntimeBindings.mockRejectedValueOnce(error);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(result.agentSession).toMatchObject({
+      providerBindingId: 'provider-binding.codex',
+      providerSessionId: 'provider-session.codex',
+      runtimeBindingId: 'runtime-binding.codex',
+    });
+    expect(harness.listRuntimeBindings).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
+      { page: 1, pageSize: 20 },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(consoleWarn).toHaveBeenCalledWith(
+      'Failed to load Agents Session runtime bindings; preserving available transcript data',
+      error,
+    );
+    consoleWarn.mockRestore();
+  });
+
+  it('keeps transcript data and prior user state when user state metadata returns 404', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const harness = createRefreshHarness();
+    const error = sdkNotFoundError();
+    Object.assign(harness.agentSession, {
+      pinned: true,
+      title: 'Pinned custom title',
+      unread: true,
+    });
+    harness.getSessionUserStates.mockRejectedValueOnce(error);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(result.agentSession).toMatchObject({
+      pinned: true,
+      title: 'Pinned custom title',
+      unread: true,
+    });
+    expect(harness.getSessionUserStates).toHaveBeenCalledWith(
+      [{
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      }],
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(consoleWarn).toHaveBeenCalledWith(
+      'Failed to load Agents Session user state; preserving available transcript data',
+      error,
+    );
+    consoleWarn.mockRestore();
+  });
+
+  it('rethrows a non-404 SDK failure', async () => {
+    const harness = createRefreshHarness();
+    const error = Object.assign(new Error('Internal server error'), {
+      code: 'INTERNAL_SERVER_ERROR',
+      httpStatus: 500,
+      name: 'SdkError',
+      problem: { status: 500 },
+    });
+    harness.listSessionItems.mockRejectedValueOnce(error);
+
+    await expect(refreshTranscript(harness)).rejects.toBe(error);
+    expect(harness.listSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
+      {
+        page: 1,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+});
+
+describe('manual Project Session refresh consistency', () => {
   it('returns Session tombstones separately instead of mapping them into active rows', async () => {
     const deleted = summary('session.deleted', {
       presentationPhase: 'deleted',

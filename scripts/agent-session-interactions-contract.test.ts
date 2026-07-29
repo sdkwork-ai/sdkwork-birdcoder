@@ -11,6 +11,11 @@ import {
 
 type AgentInteraction = Parameters<typeof mapAgentSessionPendingInteractions>[0][number];
 
+const sessionIdentity = {
+  agentId: 'agent.intelligence.codex',
+  sessionId: 'agent-session-interactions-contract',
+} as const;
+
 function buildInteraction(
   overrides: Partial<AgentInteraction> & Pick<AgentInteraction, 'interactionId' | 'kind'>,
 ): AgentInteraction {
@@ -102,7 +107,7 @@ const scopedService = {
 assert.deepEqual(
   await loadAgentSessionPendingInteractions(
     scopedService,
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'project-1',
   ),
   mapAgentSessionPendingInteractions([question, approval]),
@@ -110,7 +115,7 @@ assert.deepEqual(
 await assert.rejects(
   loadAgentSessionPendingInteractions(
     scopedService,
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'another-project',
   ),
   /does not belong to project another-project/u,
@@ -125,12 +130,12 @@ const pendingInteractionReadRequests: Array<{
   status?: string;
 }> = [];
 const multiPageService = {
-  async getSession(_sessionId: string, options?: { signal?: AbortSignal }) {
+  async getSession(_identity: typeof sessionIdentity, options?: { signal?: AbortSignal }) {
     assert.equal(options?.signal, pendingInteractionReadController.signal);
     return { projectId: 'project-1' };
   },
   async listInteractions(
-    _sessionId: string,
+    _identity: typeof sessionIdentity,
     request: { page?: number; pageSize?: number; status?: string },
     options?: { signal?: AbortSignal },
   ) {
@@ -150,7 +155,7 @@ const multiPageService = {
 assert.deepEqual(
   await loadAgentSessionPendingInteractions(
     multiPageService,
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'project-1',
     pendingInteractionReadController.signal,
   ),
@@ -184,7 +189,7 @@ function createMalformedPendingInteractionService(
       return { projectId: 'project-1' };
     },
     async listInteractions(
-      _sessionId: string,
+      _identity: typeof sessionIdentity,
       request: { page?: number },
     ) {
       const page = request.page ?? 1;
@@ -204,7 +209,7 @@ function createMalformedPendingInteractionService(
 await assert.rejects(
   loadAgentSessionPendingInteractions(
     createMalformedPendingInteractionService([[question], [question]]),
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'project-1',
   ),
   /duplicate question-1/u,
@@ -219,7 +224,7 @@ await assert.rejects(
         sessionId: 'another-session',
       }),
     ]]),
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'project-1',
   ),
   /unexpected resource/u,
@@ -234,7 +239,7 @@ await assert.rejects(
         status: 'resolved',
       }),
     ]]),
-    'agent-session-interactions-contract',
+    sessionIdentity,
     'project-1',
   ),
   /unexpected resource/u,
@@ -281,7 +286,7 @@ const paginatedService = new BirdCoderAgentSessionService({ client: paginatedCli
 const paginatedReadController = new AbortController();
 
 assert.deepEqual(
-  await paginatedService.listInteractions('agent-session-interactions-contract', {
+  await paginatedService.listInteractions(sessionIdentity, {
     page: 1,
     pageSize: 50,
     status: 'pending',
@@ -308,7 +313,7 @@ assert.deepEqual(requestedInteractionReadOptions, [{
 }]);
 assert.equal(
   await paginatedService.getInteraction(
-    'agent-session-interactions-contract',
+    sessionIdentity,
     approval.interactionId,
   ),
   approval,
@@ -343,7 +348,7 @@ const interactionMutationIdentity = {
 
 await assert.rejects(
   mutationService.approveInteraction(
-    'agent-session-interactions-contract',
+    sessionIdentity,
     approval.interactionId,
     {
       ...interactionMutationIdentity,
@@ -356,7 +361,7 @@ await assert.rejects(
 );
 await assert.rejects(
   mutationService.answerInteraction(
-    'agent-session-interactions-contract',
+    sessionIdentity,
     question.interactionId,
     {
       ...interactionMutationIdentity,
@@ -368,7 +373,7 @@ await assert.rejects(
 );
 await assert.rejects(
   mutationService.answerInteraction(
-    'agent-session-interactions-contract',
+    sessionIdentity,
     question.interactionId,
     {
       ...interactionMutationIdentity,

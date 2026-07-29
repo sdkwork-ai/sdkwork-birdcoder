@@ -107,6 +107,7 @@ interface UseCodePageSurfacePropsOptions {
   selectedFile?: string | null;
   selectedModelId: string;
   selectedSessionLastTurnAt?: string | null;
+  selectedSessionAgentId: string | null;
   selectedSessionTitle?: string;
   selectedSessionEngineId?: string;
   selectedSessionModelId?: string;
@@ -258,6 +259,7 @@ export function useCodePageSurfaceProps({
   selectedSessionLastTurnAt,
   selectedSessionTitle,
   selectedSessionEngineId,
+  selectedSessionAgentId,
   selectedSessionModelId,
   selectedSessionRuntimeLocationId,
   selectedSessionRuntimeStatus,
@@ -351,11 +353,12 @@ export function useCodePageSurfaceProps({
   const editorChatMessages =
     activeTab === 'editor' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
   const transcriptSessionScopeKey =
-    currentProjectId && sessionId
-      ? `${currentProjectId}\u0001${sessionId}`
-      : sessionId || undefined;
+    selectedSessionAgentId && sessionId
+      ? `${currentProjectId}\u0001${selectedSessionAgentId}\u0001${sessionId}`
+      : undefined;
   const pendingInteractionRefreshToken = useMemo(() => {
     return [
+      selectedSessionAgentId ?? '',
       sessionId ?? '',
       selectedSessionRuntimeStatus ?? '',
       selectedSessionUpdatedAt ?? '',
@@ -365,6 +368,7 @@ export function useCodePageSurfaceProps({
     ].join('\u0001');
   }, [
     isChatBusy,
+    selectedSessionAgentId,
     selectedSessionLastTurnAt,
     selectedSessionRuntimeStatus,
     selectedSessionTranscriptUpdatedAt,
@@ -378,6 +382,7 @@ export function useCodePageSurfaceProps({
     pendingApprovals,
     pendingUserQuestions,
   } = useCodePendingInteractions({
+    agentId: selectedSessionAgentId,
     onRefreshAgentSessionItems,
     projectId: currentProjectId,
     refreshToken: pendingInteractionRefreshToken,

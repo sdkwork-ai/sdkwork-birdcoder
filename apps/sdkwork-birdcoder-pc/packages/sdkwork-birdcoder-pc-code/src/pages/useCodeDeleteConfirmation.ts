@@ -12,7 +12,7 @@ interface AgentSessionLocation {
 interface UseCodeDeleteConfirmationOptions {
   addToast: (message: string, tone: ToastTone) => void;
   currentProjectId: string;
-  deleteAgentSession: (projectId: string, agentSessionId: string) => Promise<void>;
+  deleteAgentSession: (projectId: string, agentSessionId: string) => Promise<boolean>;
   deleteAgentSessionItem: (
     projectId: string,
     agentSessionId: string,
@@ -97,7 +97,11 @@ export function useCodeDeleteConfirmation({
     if (confirmation.type === 'session') {
       const project = resolveSession(confirmation.id, confirmation.projectId)?.project;
       if (project) {
-        await deleteAgentSession(project.projectId, confirmation.id);
+        const deleted = await deleteAgentSession(project.projectId, confirmation.id);
+        if (!deleted) {
+          setDeleteConfirmation(null);
+          return;
+        }
         if (sessionId === confirmation.id && currentProjectId === project.projectId) {
           setSelectedSessionId(null);
           setSelectedSessionProjectId(project.projectId);

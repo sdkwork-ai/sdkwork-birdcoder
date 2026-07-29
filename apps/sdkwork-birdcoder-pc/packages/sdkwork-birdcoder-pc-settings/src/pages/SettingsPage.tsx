@@ -7,11 +7,12 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
 import {
-  SettingsTab,
   SettingsSidebar,
   GeneralSettings,
   CodeEngineSettings,
   AppearanceSettings,
+  VoiceSettings,
+  KeyboardShortcutsSettings,
   ConfigSettings,
   PersonalizationSettings,
   MCPSettings,
@@ -21,22 +22,30 @@ import {
   ArchivedSettings,
   LegalComplianceSettings,
   type AppSettings,
+  type SettingsTab,
   type UpdateSetting,
 } from '../components';
 
 interface SettingsPageProps {
+  activeTab?: SettingsTab;
   currentProjectId?: string;
   currentProjectName?: string;
+  onActiveTabChange?: (tab: SettingsTab) => void;
   onBack?: () => void;
+  workspaceId: string;
 }
 
 export function SettingsPage({
+  activeTab: controlledActiveTab,
   currentProjectId,
   currentProjectName,
+  onActiveTabChange,
   onBack,
+  workspaceId,
 }: SettingsPageProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  const [internalActiveTab, setInternalActiveTab] = useState<SettingsTab>('general');
+  const activeTab = controlledActiveTab ?? internalActiveTab;
   const { logout } = useAuth();
   const { isHydrated: areSettingsHydrated, settings, updateSettings } = useBirdcoderAppSettings();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
@@ -56,6 +65,11 @@ export function SettingsPage({
     updateSettings({
       [key]: value,
     } as Partial<AppSettings>);
+  };
+
+  const handleActiveTabChange = (tab: SettingsTab) => {
+    setInternalActiveTab(tab);
+    onActiveTabChange?.(tab);
   };
 
   const renderContent = () => {
@@ -78,6 +92,10 @@ export function SettingsPage({
         return <CodeEngineSettings {...props} />;
       case 'appearance':
         return <AppearanceSettings {...props} />;
+      case 'voice':
+        return <VoiceSettings {...props} />;
+      case 'shortcuts':
+        return <KeyboardShortcutsSettings />;
       case 'config':
         return <ConfigSettings {...props} />;
       case 'personalization':
@@ -91,7 +109,7 @@ export function SettingsPage({
       case 'worktree':
         return <WorktreeSettings {...props} />;
       case 'archived':
-        return <ArchivedSettings />;
+        return <ArchivedSettings workspaceId={workspaceId} />;
       case 'legal':
         return <LegalComplianceSettings />;
       default:
@@ -107,7 +125,7 @@ export function SettingsPage({
     <div className="flex h-full w-full bg-[#0e0e11]">
       <SettingsSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleActiveTabChange}
         onBack={onBack}
         onLogout={logout}
       />

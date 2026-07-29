@@ -111,6 +111,8 @@ interface StudioChatSidebarProps {
   menuActiveProjectId: string;
   projectSearchQuery: string;
   messages: AgentSessionItemView[];
+  hasMoreRemoteMessages: boolean;
+  isLoadingMoreRemoteMessages: boolean;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
   emptyState?: ReactNode;
@@ -147,13 +149,17 @@ interface StudioChatSidebarProps {
     hasMore?: boolean;
     loadedCount?: number;
   } | void;
+  onLoadMoreRemoteMessages: () => void | Promise<void>;
   onCreateAgentSession: (
     projectId: string,
     engineId?: string,
     modelId?: string,
   ) => Promise<AgentSessionView | null | void>;
   onRefreshProjectSessions: (projectId: string) => Promise<void>;
-  onRefreshAgentSessionItems: (agentSessionId: string) => Promise<void>;
+  onRefreshAgentSessionItems: (
+    agentSessionId: string,
+    projectId?: string | null,
+  ) => Promise<void>;
   refreshingProjectId: string | null;
   refreshingAgentSessionId: string | null;
   onOpenFile: (path: string) => void;
@@ -217,6 +223,8 @@ function areStudioChatSidebarPropsEqual(
     left.menuActiveProjectId === right.menuActiveProjectId &&
     left.projectSearchQuery === right.projectSearchQuery &&
     areStudioChatMessagesEqual(left.messages, right.messages) &&
+    left.hasMoreRemoteMessages === right.hasMoreRemoteMessages &&
+    left.isLoadingMoreRemoteMessages === right.isLoadingMoreRemoteMessages &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&
     left.emptyState === right.emptyState &&
@@ -237,6 +245,7 @@ function areStudioChatSidebarPropsEqual(
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
+    left.onLoadMoreRemoteMessages === right.onLoadMoreRemoteMessages &&
     left.onCreateAgentSession === right.onCreateAgentSession &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
     left.onRefreshAgentSessionItems === right.onRefreshAgentSessionItems &&
@@ -263,6 +272,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   menuActiveProjectId,
   projectSearchQuery,
   messages,
+  hasMoreRemoteMessages,
+  isLoadingMoreRemoteMessages,
   pendingApprovals,
   pendingUserQuestions,
   emptyState,
@@ -283,6 +294,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onCreateProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
+  onLoadMoreRemoteMessages,
   onCreateAgentSession,
   onRefreshProjectSessions,
   onRefreshAgentSessionItems,
@@ -666,7 +678,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
   const handleRefreshCurrentContext = () => {
     if (selectedAgentSessionId) {
-      void onRefreshAgentSessionItems(selectedAgentSessionId);
+      void onRefreshAgentSessionItems(selectedAgentSessionId, currentProjectId);
       return;
     }
     if (currentProjectId) {
@@ -1006,6 +1018,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             sessionId={selectedAgentSessionId || undefined}
             sessionScopeKey={transcriptSessionScopeKey}
             messages={messages}
+            hasMoreRemoteMessages={hasMoreRemoteMessages}
+            isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+            onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
             pendingApprovals={pendingApprovals}
             pendingUserQuestions={pendingUserQuestions}
             onSendMessage={onSendMessage}

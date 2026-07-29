@@ -84,6 +84,10 @@ export default defineLocaleModule('code/sidebar', {
     sessionMessagesRefreshed: '\u5df2\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\uff1a{{name}}',
     failedToRefreshProjectSessions: '\u5237\u65b0\u9879\u76ee\u4f1a\u8bdd\u5931\u8d25',
     failedToRefreshSessionMessages: '\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\u5931\u8d25',
+    sessionMessagesLoadFailedTitle: '\u4f1a\u8bdd\u6d88\u606f\u52a0\u8f7d\u5931\u8d25',
+    sessionMessagesLoadFailedDescription:
+      '\u4f1a\u8bdd\u4ecd\u7136\u5b58\u5728\uff0c\u4f46\u6682\u65f6\u65e0\u6cd5\u540c\u6b65\u5b8c\u6574\u6d88\u606f\u3002',
+    retrySessionMessages: '\u91cd\u8bd5',
     unpinSession: '\u53d6\u6d88\u7f6e\u9876\u4f1a\u8bdd',
     pinSession: '\u7f6e\u9876\u4f1a\u8bdd',
     renameSession: '\u91cd\u547d\u540d\u4f1a\u8bdd',

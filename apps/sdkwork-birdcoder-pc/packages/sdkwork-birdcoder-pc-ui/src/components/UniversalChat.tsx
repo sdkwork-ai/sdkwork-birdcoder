@@ -5,6 +5,7 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   composeAgentSessionTranscriptActivity,
   isAgentSessionItemVisibleInTranscript,
+  resolveAgentTurnActivityPresentation,
   resolveBirdCoderCodeEngineCommandInteractionState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -45,6 +46,14 @@ import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbe
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
 import {
+  getBrowserSpeechRecognitionConstructor,
+  isVoiceDictationShortcut,
+  resolveVoiceRecognitionLocale,
+  type BrowserSpeechRecognition,
+  type BrowserSpeechRecognitionEvent,
+  type BrowserSpeechRecognitionErrorEvent,
+} from '@sdkwork/birdcoder-pc-workbench';
+import {
   useComposerProviderCapabilities,
   type ComposerProviderCapabilityItem,
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useComposerProviderCapabilities';
@@ -71,22 +80,8 @@ import {
 } from './agentTurnInputRecovery';
 import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
-import {
-  CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
-  computeTranscriptBottomScrollTop,
-  computeTranscriptRepairScrollTop,
-  shouldDeferTranscriptAutoScrollForUserIntent,
-  shouldShowTranscriptJumpToLatest,
-  type TranscriptScrollMetrics,
-} from './chatScrollBehavior';
 import { ChatTranscriptJumpToLatestButton } from './ChatTranscriptJumpToLatestButton';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
-import {
-  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
-  captureTranscriptScrollAnchor,
-  restoreTranscriptScrollAnchor,
-  type TranscriptScrollAnchorSnapshot,
-} from './transcriptScrollAnchor';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import {
   UniversalChatNewSessionProviderSelector,
@@ -125,6 +120,11 @@ import { resolveChatProviderPresentationProfile } from './chat/messages/presenta
 import { buildChatTranscriptTurnPresentations } from './chat/messages/presentation/transcriptTurnPresentation.ts';
 import { resolveChatTurnProcessPresentations } from './chat/messages/presentation/turnProcessPresentation.ts';
 import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
+import {
+  useTranscriptScrollCoordinator,
+  type TranscriptPrependTransaction,
+  type TranscriptScrollCoordinator,
+} from './useTranscriptScrollCoordinator';
 import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
 export interface ChatSkill {
@@ -207,7 +207,6 @@ const MAX_IMAGE_UPLOAD_FILES = 8;
 const MAX_COMPOSER_ATTACHMENTS = 24;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
 const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
-const TERMINAL_TRANSCRIPT_LAYOUT_SETTLEMENT_FRAME_LIMIT = 60;
 
 export interface UniversalChatProps {
   sessionId?: string;
@@ -366,15 +365,19 @@ interface UniversalChatTranscriptProps {
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
   isLive: boolean;
-  isUserControllingScrollRef: React.MutableRefObject<boolean>;
   layout: 'sidebar' | 'main';
   localeKey: string;
   messages: readonly AgentSessionItemView[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-  scrollTranscriptToBottom: () => void;
+  scrollCoordinator: Pick<
+    TranscriptScrollCoordinator,
+    | 'beginPrepend'
+    | 'cancelPrepend'
+    | 'completePrepend'
+    | 'pauseFollowing'
+  >;
   sessionId: string;
-  shouldStickToBottomRef: React.MutableRefObject<boolean>;
   onLoadMoreRemoteMessages?: () => void | Promise<void>;
 }
 
@@ -440,46 +443,6 @@ function resolveVisibleSessionMessages(
   return filteredMessages ?? messages;
 }
 
-type ChatScrollSnapshot = {
-  contentLength: number;
-  messageCount: number;
-  messageId: string;
-};
-
-interface TranscriptJumpAffordanceState {
-  scopeKey: string;
-  visible: boolean;
-}
-
-type ChatScrollTiming = 'frame' | 'layout';
-
-function resolveChatScrollTiming(
-  previousSnapshot: ChatScrollSnapshot | null,
-  nextSnapshot: ChatScrollSnapshot,
-): ChatScrollTiming {
-  if (!previousSnapshot || previousSnapshot.messageCount === 0 || nextSnapshot.messageCount === 0) {
-    return 'layout';
-  }
-
-  if (
-    previousSnapshot.messageId === nextSnapshot.messageId &&
-    previousSnapshot.contentLength !== nextSnapshot.contentLength
-  ) {
-    return 'layout';
-  }
-
-  return 'frame';
-}
-
-function readTranscriptScrollClock(): number {
-  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-    return performance.now();
-  }
-
-  return Date.now();
-}
-
-
 const UniversalChatTranscript = memo(function UniversalChatTranscript({
   emptyState,
   engineId,
@@ -489,17 +452,21 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   isActive,
   isLoadingMoreRemoteMessages,
   isLive,
-  isUserControllingScrollRef,
   layout,
   localeKey: _localeKey,
   messages,
   messagesEndRef,
   onLoadMoreRemoteMessages,
   scrollContainerRef,
-  scrollTranscriptToBottom,
+  scrollCoordinator,
   sessionId,
-  shouldStickToBottomRef,
 }: UniversalChatTranscriptProps) {
+  const {
+    beginPrepend,
+    cancelPrepend,
+    completePrepend,
+    pauseFollowing,
+  } = scrollCoordinator;
   const [transcriptDisclosureState, setTranscriptDisclosureState] =
     useState<TranscriptDisclosureState>(() => ({
       keys: EMPTY_TRANSCRIPT_DISCLOSURE_KEYS,
@@ -509,18 +476,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     transcriptDisclosureState.sessionId === sessionId
       ? transcriptDisclosureState.keys
       : EMPTY_TRANSCRIPT_DISCLOSURE_KEYS;
-  const fileCardDisclosureScrollTimerRef = useRef<number | null>(null);
-  const terminalFileCardHydrationRef = useRef({
-    isPending: true,
-    sessionId,
-  });
   const toggleDisclosure = useCallback((key: string) => {
     const isFileCardDisclosure = key.endsWith('\u0001turn-file-changes');
-    const shouldFollowFileCardDisclosure =
-      isFileCardDisclosure
-      && shouldStickToBottomRef.current;
     if (!isFileCardDisclosure) {
-      shouldStickToBottomRef.current = false;
+      pauseFollowing();
     }
     setTranscriptDisclosureState((previousState) => {
       const previousKeys =
@@ -538,25 +497,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
         sessionId,
       };
     });
-    if (!shouldFollowFileCardDisclosure || typeof window === 'undefined') {
-      return;
-    }
-
-    if (fileCardDisclosureScrollTimerRef.current !== null) {
-      window.clearTimeout(fileCardDisclosureScrollTimerRef.current);
-    }
-    fileCardDisclosureScrollTimerRef.current = window.setTimeout(() => {
-      fileCardDisclosureScrollTimerRef.current = null;
-      if (!isUserControllingScrollRef.current) {
-        scrollTranscriptToBottom();
-      }
-    }, CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS);
-  }, [
-    isUserControllingScrollRef,
-    scrollTranscriptToBottom,
-    sessionId,
-    shouldStickToBottomRef,
-  ]);
+  }, [pauseFollowing, sessionId]);
   const [remoteMessageRequestState, setRemoteMessageRequestState] =
     useState<RemoteMessageRequestState>(() => ({
       isRequesting: false,
@@ -566,85 +507,49 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     remoteMessageRequestState.sessionId === sessionId
     && remoteMessageRequestState.isRequesting;
   const pendingRemotePrependRef = useRef<{
-    anchor: TranscriptScrollAnchorSnapshot | null;
     firstMessageId: string;
     messageCount: number;
-    metrics: TranscriptScrollMetrics;
+    sessionId: string;
+    transaction: TranscriptPrependTransaction;
   } | null>(null);
-  const remotePrependAnchorRepairAnimationFrameRef = useRef<number | null>(null);
   const firstMessageId = messages[0]?.id ?? '';
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    cancelPrepend(pendingRemotePrependRef.current?.transaction);
     pendingRemotePrependRef.current = null;
-    if (remotePrependAnchorRepairAnimationFrameRef.current !== null) {
-      window.cancelAnimationFrame(remotePrependAnchorRepairAnimationFrameRef.current);
-      remotePrependAnchorRepairAnimationFrameRef.current = null;
-    }
-  }, [sessionId]);
+  }, [cancelPrepend, sessionId]);
 
   useLayoutEffect(() => {
     const pendingPrepend = pendingRemotePrependRef.current;
+    if (!pendingPrepend) {
+      return;
+    }
+    if (!isActive || pendingPrepend.sessionId !== sessionId) {
+      cancelPrepend(pendingPrepend.transaction);
+      pendingRemotePrependRef.current = null;
+      return;
+    }
     if (
-      !isActive ||
-      !pendingPrepend ||
-      (
-        pendingPrepend.messageCount === messages.length &&
-        pendingPrepend.firstMessageId === firstMessageId
-      )
+      pendingPrepend.messageCount === messages.length
+      && pendingPrepend.firstMessageId === firstMessageId
     ) {
+      if (!isLoadingMoreRemoteMessages && !isRequestingRemoteMessages) {
+        cancelPrepend(pendingPrepend.transaction);
+        pendingRemotePrependRef.current = null;
+      }
       return;
     }
-
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) {
-      pendingRemotePrependRef.current = null;
-      return;
-    }
-    const nextScrollTop = computeTranscriptRepairScrollTop(
-      pendingPrepend.metrics,
-      {
-        clientHeight: scrollContainer.clientHeight,
-        scrollHeight: scrollContainer.scrollHeight,
-        scrollTop: scrollContainer.scrollTop,
-      },
-    );
-    if (Math.abs(scrollContainer.scrollTop - nextScrollTop) > 1) {
-      scrollContainer.scrollTop = nextScrollTop;
-    }
-    const finishAnchorRepair = () => {
-      pendingRemotePrependRef.current = null;
-      remotePrependAnchorRepairAnimationFrameRef.current = null;
-    };
-    restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor);
-    let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;
-    const settleAnchor = () => {
-      remotePrependAnchorRepairAnimationFrameRef.current = null;
-      if (isUserControllingScrollRef.current) {
-        finishAnchorRepair();
-        return;
-      }
-      restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor);
-      remainingFrames -= 1;
-      if (remainingFrames <= 0) {
-        finishAnchorRepair();
-        return;
-      }
-
-      remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
-        settleAnchor,
-      );
-    };
-    remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
-      settleAnchor,
-    );
-    shouldStickToBottomRef.current = false;
+    completePrepend(pendingPrepend.transaction);
+    pendingRemotePrependRef.current = null;
   }, [
+    cancelPrepend,
+    completePrepend,
     firstMessageId,
     isActive,
-    isUserControllingScrollRef,
+    isLoadingMoreRemoteMessages,
+    isRequestingRemoteMessages,
     messages.length,
-    scrollContainerRef,
-    shouldStickToBottomRef,
+    sessionId,
   ]);
 
   const handleLoadMoreRemoteMessages = useCallback(async (): Promise<void> => {
@@ -655,21 +560,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     ) {
       return;
     }
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) {
+    const transaction = beginPrepend();
+    if (!transaction) {
       return;
     }
     pendingRemotePrependRef.current = {
-      anchor: captureTranscriptScrollAnchor(scrollContainer, messages),
       firstMessageId,
       messageCount: messages.length,
-      metrics: {
-        clientHeight: scrollContainer.clientHeight,
-        scrollHeight: scrollContainer.scrollHeight,
-        scrollTop: scrollContainer.scrollTop,
-      },
+      sessionId,
+      transaction,
     };
-    shouldStickToBottomRef.current = false;
     setRemoteMessageRequestState({
       isRequesting: true,
       sessionId,
@@ -686,29 +586,20 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       ));
     }
   }, [
+    beginPrepend,
     firstMessageId,
     isLoadingMoreRemoteMessages,
     isRequestingRemoteMessages,
     messages.length,
     onLoadMoreRemoteMessages,
-    scrollContainerRef,
     sessionId,
-    shouldStickToBottomRef,
   ]);
-
-  useEffect(() => {
-    return () => {
-      if (fileCardDisclosureScrollTimerRef.current !== null) {
-        window.clearTimeout(fileCardDisclosureScrollTimerRef.current);
-        fileCardDisclosureScrollTimerRef.current = null;
-      }
-    };
-  }, [sessionId]);
 
   const {
     hasEarlierMessages,
     isLoadingEarlierMessages,
     renderedMessages,
+    visibleTranscriptStartIndex,
   } = useProgressiveTranscriptWindow(
     messages,
     messagesEndRef,
@@ -719,6 +610,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       isLoadingMessages: isLoadingMoreRemoteMessages || isRequestingRemoteMessages,
       onLoadMoreMessages: handleLoadMoreRemoteMessages,
     },
+    scrollCoordinator,
   );
   const turnFileChangesPresentations = useMemo(
     () => resolveTurnFileChangesMessagePresentations(renderedMessages, {
@@ -726,18 +618,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     }),
     [isLive, renderedMessages],
   );
-  const turnFileChangesCardSignature = useMemo(
-    () => turnFileChangesPresentations
-      .flatMap((presentation, messageIndex) => (
-        presentation.card
-          ? [`${messageIndex}:${presentation.card.fileChanges.length}:${presentation.card.scopeKey}`]
-          : []
-      ))
-      .join('\u0001'),
-    [turnFileChangesPresentations],
-  );
   const {
-    measurementVersion,
     paddingBottom,
     paddingTop,
     registerMessageElement,
@@ -773,165 +654,52 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     [engineId],
   );
 
-  useLayoutEffect(() => {
-    if (
-      !isActive ||
-      !shouldStickToBottomRef.current ||
-      isUserControllingScrollRef.current
-    ) {
-      return;
+  const messageEnvironment = useMemo<ChatMessageRenderContext['environment']>(() => {
+    const snapshot = environmentRef.current;
+    if (!snapshot) {
+      return null;
     }
 
-    scrollTranscriptToBottom();
-  }, [
-    isActive,
-    isLive,
-    isUserControllingScrollRef,
-    measurementVersion,
-    paddingBottom,
-    paddingTop,
-    renderedMessages.length,
-    scrollTranscriptToBottom,
-    shouldStickToBottomRef,
-    visibleMessages.length,
-    visibleStartIndex,
-  ]);
-
-  useLayoutEffect(() => {
-    let hydrationState = terminalFileCardHydrationRef.current;
-    if (hydrationState.sessionId !== sessionId) {
-      hydrationState = {
-        isPending: true,
-        sessionId,
-      };
-      terminalFileCardHydrationRef.current = hydrationState;
-    }
-
-    if (!isActive || (!turnFileChangesCardSignature && !isLive)) {
-      return undefined;
-    }
-
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) {
-      return undefined;
-    }
-
-    let animationFrame = 0;
-    let lastObservedScrollHeight = -1;
-    let remainingSettlementFrames = 0;
-    let stableSettlementFrames = 0;
-    let isTerminalTargetVisible = false;
-    const updateTerminalTargetVisibility = () => {
-      const terminalTargets = scrollContainer.querySelectorAll<HTMLElement>(
-        '[data-chat-turn-file-toggle="true"], [data-chat-turn-active-tail="true"]',
-      );
-      const terminalTarget = terminalTargets[terminalTargets.length - 1];
-      if (!terminalTarget) {
-        isTerminalTargetVisible = false;
-        return;
-      }
-
-      const targetRect = terminalTarget.getBoundingClientRect();
-      const transcriptRect = scrollContainer.getBoundingClientRect();
-      isTerminalTargetVisible =
-        targetRect.top >= transcriptRect.top - 1
-        && targetRect.bottom <= transcriptRect.bottom + 1;
+    return {
+      addToast: (...args) => environmentRef.current?.addToast(...args),
+      beginEditingMessage: snapshot.beginEditingMessage
+        ? (...args) => environmentRef.current?.beginEditingMessage?.(...args)
+        : undefined,
+      onDeleteMessage: snapshot.onDeleteMessage
+        ? (...args) => environmentRef.current?.onDeleteMessage?.(...args)
+        : undefined,
+      onOpenDriveAttachment: snapshot.onOpenDriveAttachment
+        ? (...args) => environmentRef.current?.onOpenDriveAttachment?.(...args)
+        : undefined,
+      resolveDriveAttachmentPreviewUrl: snapshot.resolveDriveAttachmentPreviewUrl
+        ? (...args) => environmentRef.current?.resolveDriveAttachmentPreviewUrl?.(...args)
+          ?? Promise.resolve(undefined)
+        : undefined,
+      onOpenFile: snapshot.onOpenFile
+        ? (...args) => environmentRef.current?.onOpenFile?.(...args)
+        : undefined,
+      onOpenUrl: snapshot.onOpenUrl
+        ? (...args) => environmentRef.current?.onOpenUrl?.(...args)
+        : undefined,
+      onRegenerateMessage: snapshot.onRegenerateMessage
+        ? () => environmentRef.current?.onRegenerateMessage?.()
+        : undefined,
+      onRestore: snapshot.onRestore
+        ? (...args) => environmentRef.current?.onRestore?.(...args)
+        : undefined,
+      onViewChanges: snapshot.onViewChanges
+        ? (...args) => environmentRef.current?.onViewChanges?.(...args)
+        : undefined,
+      skills: snapshot.skills,
+      t: (key, options) => environmentRef.current?.t(key, options) ?? key,
     };
-    updateTerminalTargetVisibility();
-    let shouldFollowFileCardResize =
-      hydrationState.isPending || shouldStickToBottomRef.current;
-    hydrationState.isPending = false;
-    const settleFileCardAtBottom = () => {
-      animationFrame = 0;
-      if (isUserControllingScrollRef.current) {
-        shouldFollowFileCardResize = false;
-        return;
-      }
+  }, [environmentRef, environmentSignature]);
 
-      scrollTranscriptToBottom();
-      updateTerminalTargetVisibility();
-      const nextScrollHeight = scrollContainer.scrollHeight;
-      const nextBottomGap = Math.max(
-        0,
-        nextScrollHeight - scrollContainer.clientHeight - scrollContainer.scrollTop,
-      );
-      stableSettlementFrames =
-        nextScrollHeight === lastObservedScrollHeight
-          && nextBottomGap <= 1
-          && isTerminalTargetVisible
-          ? stableSettlementFrames + 1
-          : 0;
-      lastObservedScrollHeight = nextScrollHeight;
-      remainingSettlementFrames -= 1;
-
-      if (remainingSettlementFrames > 0 && stableSettlementFrames < 2) {
-        animationFrame = window.requestAnimationFrame(settleFileCardAtBottom);
-        return;
-      }
-
-      shouldFollowFileCardResize = false;
-    };
-    const scheduleScrollAfterFileCardLayout = () => {
-      shouldFollowFileCardResize =
-        shouldFollowFileCardResize
-        || shouldStickToBottomRef.current;
-      if (!shouldFollowFileCardResize) {
-        return;
-      }
-
-      lastObservedScrollHeight = -1;
-      remainingSettlementFrames = TERMINAL_TRANSCRIPT_LAYOUT_SETTLEMENT_FRAME_LIMIT;
-      stableSettlementFrames = 0;
-      if (animationFrame === 0) {
-        animationFrame = window.requestAnimationFrame(settleFileCardAtBottom);
-      }
-    };
-
-    const resizeObserver = typeof ResizeObserver === 'function'
-      ? new ResizeObserver(scheduleScrollAfterFileCardLayout)
-      : null;
-    const observeCurrentLayoutTargets = () => {
-      const layoutTargets = scrollContainer.querySelectorAll<HTMLElement>(
-        '[data-transcript-message-index], [data-chat-turn-file-changes="true"]',
-      );
-      layoutTargets.forEach((layoutTarget) => resizeObserver?.observe(layoutTarget));
-    };
-    const mutationObserver = typeof MutationObserver === 'function'
-      ? new MutationObserver(() => {
-          observeCurrentLayoutTargets();
-          scheduleScrollAfterFileCardLayout();
-        })
-      : null;
-    resizeObserver?.observe(scrollContainer);
-    observeCurrentLayoutTargets();
-    mutationObserver?.observe(scrollContainer, { childList: true, subtree: true });
-    scrollContainer.addEventListener('scroll', updateTerminalTargetVisibility, { passive: true });
-    scheduleScrollAfterFileCardLayout();
-
-    return () => {
-      mutationObserver?.disconnect();
-      resizeObserver?.disconnect();
-      scrollContainer.removeEventListener('scroll', updateTerminalTargetVisibility);
-      if (animationFrame !== 0) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [
-    isActive,
-    isLive,
-    isUserControllingScrollRef,
-    scrollContainerRef,
-    scrollTranscriptToBottom,
-    sessionId,
-    shouldStickToBottomRef,
-    turnFileChangesCardSignature,
-  ]);
-
-  const renderMarkdownContent = (
+  const renderMarkdownContent = useCallback((
     content: string,
     mode: 'basic' | 'rich' = 'rich',
   ) => {
-    if (!shouldUseRichChatMarkdown(content, mode, environmentRef.current?.skills ?? [])) {
+    if (!shouldUseRichChatMarkdown(content, mode, messageEnvironment?.skills ?? [])) {
       return <PlainMessageContent content={content} />;
     }
 
@@ -939,19 +707,19 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       <Suspense fallback={<PlainMessageContent content={content} />}>
         <UniversalChatMarkdown
           content={content}
-          onOpenFile={environmentRef.current?.onOpenFile}
-          onOpenUrl={environmentRef.current?.onOpenUrl}
-          openFileLabel={environmentRef.current?.t('chat.openFileInEditor') ?? 'Open file in editor'}
-          openUrlLabel={environmentRef.current?.t('chat.openLinkPreview') ?? 'Open link preview'}
-          skills={environmentRef.current?.skills ?? []}
+          onOpenFile={messageEnvironment?.onOpenFile}
+          onOpenUrl={messageEnvironment?.onOpenUrl}
+          openFileLabel={messageEnvironment?.t('chat.openFileInEditor') ?? 'Open file in editor'}
+          openUrlLabel={messageEnvironment?.t('chat.openLinkPreview') ?? 'Open link preview'}
+          skills={messageEnvironment?.skills ?? []}
           mode={mode}
-          unknownSkillDescription={environmentRef.current?.t('chat.skillDetailsUnavailable') ?? 'Skill details unavailable'}
+          unknownSkillDescription={messageEnvironment?.t('chat.skillDetailsUnavailable') ?? 'Skill details unavailable'}
         />
       </Suspense>
     );
-  };
+  }, [messageEnvironment]);
 
-  const copyMessageToClipboard = (content: string) => {
+  const copyMessageToClipboard = useCallback((content: string) => {
     const environment = environmentRef.current;
     void copyTextToClipboard(content).then((didCopy) => {
       if (!environment) {
@@ -963,14 +731,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
         environment.addToast(environment.t('chat.copyFailed'), 'error');
       }
     });
-  };
+  }, [environmentRef]);
 
   const messageRenderContext = useMemo<ChatMessageRenderContext>(() => ({
     layout,
     index: 0,
     sessionId,
     engineId,
-    environment: environmentRef.current,
+    environment: messageEnvironment,
     allMessages: renderedMessages,
     actionTarget: null,
     showMessageActions: false,
@@ -991,7 +759,9 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     engineId,
     expandedDisclosureKeys,
     layout,
+    messageEnvironment,
     providerProfile,
+    renderMarkdownContent,
     renderedMessages,
     sessionId,
     toggleDisclosure,
@@ -1076,6 +846,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           ) : null}
           {visibleMessages.map((msg, idx) => {
             const messageIndex = visibleStartIndex + idx;
+            const transcriptMessageIndex = visibleTranscriptStartIndex + messageIndex;
             const messageMeasurementKey = resolveTranscriptMessageKey(msg, messageIndex);
             const messageRenderKey = `${sessionId}\u0001${messageMeasurementKey}`;
             const messageRef = registerMessageElement(messageMeasurementKey);
@@ -1085,12 +856,19 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             const turnPresentation = transcriptTurnPresentations[messageIndex]
               ?? messageRenderContext.turn;
             const turnProcessPresentation = turnProcessPresentations[messageIndex];
+            const activitySummary = resolveAgentTurnActivityPresentation(
+              renderedMessages,
+              msg,
+              { engineId },
+            );
 
             return (
               <ChatTranscriptMessage
+                activitySummary={activitySummary}
                 key={messageRenderKey}
                 message={msg}
                 index={messageIndex}
+                transcriptIndex={transcriptMessageIndex}
                 sessionId={sessionId}
                 layout={layout}
                 engineId={engineId}
@@ -1099,7 +877,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                 context={{
                   ...messageRenderContext,
                   index: messageIndex,
-                  environment: environmentRef.current,
+                  environment: messageEnvironment,
                   actionTarget,
                   showMessageActions,
                   turn: turnPresentation,
@@ -1132,7 +910,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.localeKey !== nextProps.localeKey ||
     previousProps.sessionId !== nextProps.sessionId ||
     previousProps.engineId !== nextProps.engineId ||
-    previousProps.environmentSignature !== nextProps.environmentSignature
+    previousProps.environmentSignature !== nextProps.environmentSignature ||
+    previousProps.emptyState !== nextProps.emptyState ||
+    previousProps.hasMoreRemoteMessages !== nextProps.hasMoreRemoteMessages ||
+    previousProps.isLoadingMoreRemoteMessages !== nextProps.isLoadingMoreRemoteMessages ||
+    previousProps.onLoadMoreRemoteMessages !== nextProps.onLoadMoreRemoteMessages ||
+    previousProps.scrollCoordinator !== nextProps.scrollCoordinator
   ) {
     return false;
   }
@@ -1143,10 +926,6 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
   if (previousProps.messages !== nextProps.messages) {
     return false;
-  }
-
-  if (previousProps.messages.length === 0) {
-    return previousProps.emptyState === nextProps.emptyState;
   }
 
   return true;
@@ -1215,11 +994,6 @@ export const UniversalChat = memo(function UniversalChat({
   const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
   const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
   const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
-  const [transcriptJumpAffordanceState, setTranscriptJumpAffordanceState] =
-    useState<TranscriptJumpAffordanceState>(() => ({
-      scopeKey: normalizedTranscriptScopeKey,
-      visible: false,
-    }));
   const [sessionPromptHistoryState, setSessionPromptHistoryState] =
     useState<SessionPromptHistoryState>(() => ({
       entries: [],
@@ -1230,8 +1004,27 @@ export const UniversalChat = memo(function UniversalChat({
       ? sessionPromptHistoryState.entries
       : EMPTY_PROMPT_ENTRIES;
   const transcriptEnvironmentSignature = useMemo(
-    () => skills.map((skill) => skill.id).join('\u0001'),
-    [skills],
+    () => JSON.stringify({
+      canDelete: !disabled && Boolean(onDeleteMessage),
+      canEdit: !disabled && Boolean(onEditMessage),
+      canRegenerate: !disabled && Boolean(onRegenerateMessage),
+      canRestore: !disabled && Boolean(onRestore),
+      canViewChanges: Boolean(onViewChanges),
+      canOpenFile: Boolean(onOpenFile),
+      canOpenUrl: Boolean(onOpenUrl),
+      skills: skills.map(({ desc, icon, id, name }) => ({ desc, icon, id, name })),
+    }),
+    [
+      disabled,
+      onDeleteMessage,
+      onEditMessage,
+      onOpenFile,
+      onOpenUrl,
+      onRegenerateMessage,
+      onRestore,
+      onViewChanges,
+      skills,
+    ],
   );
   const {
     clearDraftValue: clearSessionDraftValue,
@@ -1569,24 +1362,34 @@ export const UniversalChat = memo(function UniversalChat({
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
   const transcriptEnvironmentRef = useRef<UniversalChatTranscriptEnvironment | null>(null);
-  const activeTranscriptSessionIdRef = useRef(normalizedTranscriptScopeKey);
-  const lastScrollSnapshotRef = useRef<ChatScrollSnapshot | null>(null);
   const transcriptScrollContainerRef = useRef<HTMLDivElement>(null);
-  const shouldStickTranscriptToBottomRef = useRef(true);
-  const isProgrammaticTranscriptScrollRef = useRef(false);
-  const isUserControllingTranscriptScrollRef = useRef(false);
-  const isTranscriptPointerScrollActiveRef = useRef(false);
-  const lastUserTranscriptScrollAtRef = useRef(0);
-  const userTranscriptScrollSettleTimerRef = useRef<number | null>(null);
-  const userTranscriptScrollAnimationFrameRef = useRef<number | null>(null);
+  const transcriptScrollCoordinator = useTranscriptScrollCoordinator({
+    isActive,
+    latestMessageContentLength: lastMessageContentLength,
+    latestMessageIdentity: lastMessage
+      ? `${lastMessage.id}\u0001${lastMessage.createdAt}`
+      : '',
+    messageCount: normalizedMessages.length,
+    scopeKey: normalizedTranscriptScopeKey,
+    scrollContainerRef: transcriptScrollContainerRef,
+  });
+  const transcriptPrependCoordinator = useMemo(() => ({
+    beginPrepend: transcriptScrollCoordinator.beginPrepend,
+    cancelPrepend: transcriptScrollCoordinator.cancelPrepend,
+    completePrepend: transcriptScrollCoordinator.completePrepend,
+    pauseFollowing: transcriptScrollCoordinator.pauseFollowing,
+  }), [
+    transcriptScrollCoordinator.beginPrepend,
+    transcriptScrollCoordinator.cancelPrepend,
+    transcriptScrollCoordinator.completePrepend,
+    transcriptScrollCoordinator.pauseFollowing,
+  ]);
   const focusedNewSessionScopeRef = useRef('');
   const shouldPresentNewSessionComposer =
     isNewSession && normalizedMessages.length === 0 && layout === 'main';
   const isTranscriptJumpToLatestVisible =
-    isActive
-    && normalizedMessages.length > 0
-    && transcriptJumpAffordanceState.scopeKey === normalizedTranscriptScopeKey
-    && transcriptJumpAffordanceState.visible;
+    normalizedMessages.length > 0
+    && transcriptScrollCoordinator.jumpToLatestVisible;
 
   useEffect(() => {
     if (!isActive || !isNewSession || disabled || hideComposer) {
@@ -1936,181 +1739,10 @@ export const UniversalChat = memo(function UniversalChat({
     queuedTurnFlushGateRef.current = createWorkbenchAgentTurnInputQueueFlushGateState();
   }, [clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey]);
 
-  const readTranscriptScrollMetrics = useCallback((): TranscriptScrollMetrics | null => {
-    const scrollContainer = transcriptScrollContainerRef.current;
-    if (!scrollContainer) {
-      return null;
-    }
-
-    return {
-      clientHeight: scrollContainer.clientHeight,
-      scrollHeight: scrollContainer.scrollHeight,
-      scrollTop: scrollContainer.scrollTop,
-    };
-  }, []);
-
-  const syncTranscriptJumpAffordance = useCallback((visible: boolean) => {
-    setTranscriptJumpAffordanceState((previousState) => (
-      previousState.scopeKey === normalizedTranscriptScopeKey
-      && previousState.visible === visible
-        ? previousState
-        : {
-            scopeKey: normalizedTranscriptScopeKey,
-            visible,
-          }
-    ));
-  }, [normalizedTranscriptScopeKey]);
-
-  const updateTranscriptStickiness = useCallback(() => {
-    const scrollMetrics = readTranscriptScrollMetrics();
-    if (!scrollMetrics) {
-      return;
-    }
-
-    const shouldShowJumpAffordance = shouldShowTranscriptJumpToLatest(scrollMetrics);
-    shouldStickTranscriptToBottomRef.current = !shouldShowJumpAffordance;
-    syncTranscriptJumpAffordance(shouldShowJumpAffordance);
-  }, [readTranscriptScrollMetrics, syncTranscriptJumpAffordance]);
-
-  const scrollTranscriptToBottom = useCallback(() => {
-    const scrollContainer = transcriptScrollContainerRef.current;
-    if (!scrollContainer) {
-      return;
-    }
-
-    const nextScrollTop = computeTranscriptBottomScrollTop({
-      clientHeight: scrollContainer.clientHeight,
-      scrollHeight: scrollContainer.scrollHeight,
-      scrollTop: scrollContainer.scrollTop,
-    });
-    if (Math.abs(scrollContainer.scrollTop - nextScrollTop) <= 1) {
-      shouldStickTranscriptToBottomRef.current = true;
-      syncTranscriptJumpAffordance(false);
-      return;
-    }
-
-    isProgrammaticTranscriptScrollRef.current = true;
-    scrollContainer.scrollTop = nextScrollTop;
-    shouldStickTranscriptToBottomRef.current = true;
-    syncTranscriptJumpAffordance(false);
-
-    if (typeof window === 'undefined') {
-      isProgrammaticTranscriptScrollRef.current = false;
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      if (
-        shouldStickTranscriptToBottomRef.current
-        && !isUserControllingTranscriptScrollRef.current
-        && !isTranscriptPointerScrollActiveRef.current
-      ) {
-        const settledScrollTop = computeTranscriptBottomScrollTop({
-          clientHeight: scrollContainer.clientHeight,
-          scrollHeight: scrollContainer.scrollHeight,
-          scrollTop: scrollContainer.scrollTop,
-        });
-        if (Math.abs(scrollContainer.scrollTop - settledScrollTop) > 1) {
-          scrollContainer.scrollTop = settledScrollTop;
-        }
-      }
-      isProgrammaticTranscriptScrollRef.current = false;
-      updateTranscriptStickiness();
-    });
-  }, [syncTranscriptJumpAffordance, updateTranscriptStickiness]);
-
   const handleJumpToLatestMessage = useCallback(() => {
-    if (userTranscriptScrollSettleTimerRef.current !== null && typeof window !== 'undefined') {
-      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
-      userTranscriptScrollSettleTimerRef.current = null;
-    }
-    if (userTranscriptScrollAnimationFrameRef.current !== null && typeof window !== 'undefined') {
-      window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
-      userTranscriptScrollAnimationFrameRef.current = null;
-    }
-    isTranscriptPointerScrollActiveRef.current = false;
-    isUserControllingTranscriptScrollRef.current = false;
-    lastUserTranscriptScrollAtRef.current = 0;
-    scrollTranscriptToBottom();
+    transcriptScrollCoordinator.jumpToLatest();
     transcriptScrollContainerRef.current?.focus({ preventScroll: true });
-  }, [scrollTranscriptToBottom]);
-
-  const releaseUserTranscriptScrollControl = useCallback(() => {
-    userTranscriptScrollSettleTimerRef.current = null;
-    if (isTranscriptPointerScrollActiveRef.current) {
-      if (typeof window === 'undefined') {
-        return;
-      }
-
-      userTranscriptScrollSettleTimerRef.current = window.setTimeout(
-        releaseUserTranscriptScrollControl,
-        CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
-      );
-      return;
-    }
-
-    isUserControllingTranscriptScrollRef.current = false;
-    updateTranscriptStickiness();
-  }, [updateTranscriptStickiness]);
-
-  const markTranscriptUserScrollIntent = useCallback(() => {
-    lastUserTranscriptScrollAtRef.current = readTranscriptScrollClock();
-    isUserControllingTranscriptScrollRef.current = true;
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    if (userTranscriptScrollSettleTimerRef.current !== null) {
-      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
-    }
-
-    userTranscriptScrollSettleTimerRef.current = window.setTimeout(
-      releaseUserTranscriptScrollControl,
-      CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
-    );
-  }, [releaseUserTranscriptScrollControl]);
-
-  const scheduleTranscriptUserScrollSync = useCallback(() => {
-    if (typeof window === 'undefined') {
-      markTranscriptUserScrollIntent();
-      updateTranscriptStickiness();
-      return;
-    }
-
-    if (userTranscriptScrollAnimationFrameRef.current !== null) {
-      return;
-    }
-
-    userTranscriptScrollAnimationFrameRef.current = window.requestAnimationFrame(() => {
-      userTranscriptScrollAnimationFrameRef.current = null;
-      markTranscriptUserScrollIntent();
-      updateTranscriptStickiness();
-    });
-  }, [markTranscriptUserScrollIntent, updateTranscriptStickiness]);
-
-  const markTranscriptPointerScrollIntent = useCallback((event: PointerEvent) => {
-    const pointerTarget = event.target;
-    if (
-      event.pointerType === 'mouse'
-      && pointerTarget instanceof Element
-      && pointerTarget.closest('[data-chat-turn-file-toggle="true"]')
-    ) {
-      return;
-    }
-
-    isTranscriptPointerScrollActiveRef.current = true;
-    markTranscriptUserScrollIntent();
-  }, [markTranscriptUserScrollIntent]);
-
-  const releaseTranscriptPointerScrollIntent = useCallback(() => {
-    if (!isTranscriptPointerScrollActiveRef.current) {
-      return;
-    }
-
-    isTranscriptPointerScrollActiveRef.current = false;
-    markTranscriptUserScrollIntent();
-  }, [markTranscriptUserScrollIntent]);
+  }, [transcriptScrollCoordinator.jumpToLatest]);
 
   useEffect(() => {
     if (!isActive) {
@@ -2146,7 +1778,6 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     hydratedSessionPromptHistoryIdRef.current = normalizedSessionStateScopeKey;
-    lastScrollSnapshotRef.current = null;
     sessionChatInputHistoryRef.current = [];
     if (!normalizedSessionStateScopeKey) {
       return;
@@ -2215,135 +1846,6 @@ export const UniversalChat = memo(function UniversalChat({
       isMounted = false;
     };
   }, [isActive, normalizedSessionStateScopeKey]);
-
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    shouldStickTranscriptToBottomRef.current = true;
-    isProgrammaticTranscriptScrollRef.current = false;
-    isUserControllingTranscriptScrollRef.current = false;
-    isTranscriptPointerScrollActiveRef.current = false;
-    lastUserTranscriptScrollAtRef.current = 0;
-    if (userTranscriptScrollSettleTimerRef.current !== null) {
-      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
-      userTranscriptScrollSettleTimerRef.current = null;
-    }
-    if (userTranscriptScrollAnimationFrameRef.current !== null) {
-      window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
-      userTranscriptScrollAnimationFrameRef.current = null;
-    }
-
-    const scrollContainer = transcriptScrollContainerRef.current;
-    if (!scrollContainer) {
-      return;
-    }
-
-    const handleTranscriptScroll = () => {
-      if (isProgrammaticTranscriptScrollRef.current) {
-        return;
-      }
-
-      if (
-        !isUserControllingTranscriptScrollRef.current
-        && !isTranscriptPointerScrollActiveRef.current
-      ) {
-        if (!shouldStickTranscriptToBottomRef.current) {
-          updateTranscriptStickiness();
-        }
-        return;
-      }
-
-      scheduleTranscriptUserScrollSync();
-    };
-    const handleTranscriptKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key === 'ArrowDown' ||
-        event.key === 'ArrowUp' ||
-        event.key === 'End' ||
-        event.key === 'Home' ||
-        event.key === 'PageDown' ||
-        event.key === 'PageUp' ||
-        event.key === ' '
-      ) {
-        markTranscriptUserScrollIntent();
-      }
-    };
-
-    updateTranscriptStickiness();
-    scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
-    scrollContainer.addEventListener('wheel', markTranscriptUserScrollIntent, { passive: true });
-    scrollContainer.addEventListener('touchstart', markTranscriptUserScrollIntent, { passive: true });
-    scrollContainer.addEventListener('touchmove', markTranscriptUserScrollIntent, { passive: true });
-    scrollContainer.addEventListener('pointerdown', markTranscriptPointerScrollIntent, { passive: true });
-    scrollContainer.addEventListener('keydown', handleTranscriptKeyDown);
-    window.addEventListener('pointerup', releaseTranscriptPointerScrollIntent, { passive: true });
-    window.addEventListener('pointercancel', releaseTranscriptPointerScrollIntent, { passive: true });
-
-    return () => {
-      scrollContainer.removeEventListener('scroll', handleTranscriptScroll);
-      scrollContainer.removeEventListener('wheel', markTranscriptUserScrollIntent);
-      scrollContainer.removeEventListener('touchstart', markTranscriptUserScrollIntent);
-      scrollContainer.removeEventListener('touchmove', markTranscriptUserScrollIntent);
-      scrollContainer.removeEventListener('pointerdown', markTranscriptPointerScrollIntent);
-      scrollContainer.removeEventListener('keydown', handleTranscriptKeyDown);
-      window.removeEventListener('pointerup', releaseTranscriptPointerScrollIntent);
-      window.removeEventListener('pointercancel', releaseTranscriptPointerScrollIntent);
-      if (userTranscriptScrollSettleTimerRef.current !== null) {
-        window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
-        userTranscriptScrollSettleTimerRef.current = null;
-      }
-      if (userTranscriptScrollAnimationFrameRef.current !== null) {
-        window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
-        userTranscriptScrollAnimationFrameRef.current = null;
-      }
-      isUserControllingTranscriptScrollRef.current = false;
-      isTranscriptPointerScrollActiveRef.current = false;
-    };
-  }, [
-    isActive,
-    markTranscriptPointerScrollIntent,
-    markTranscriptUserScrollIntent,
-    normalizedSessionId,
-    releaseTranscriptPointerScrollIntent,
-    scheduleTranscriptUserScrollSync,
-    updateTranscriptStickiness,
-  ]);
-
-  useEffect(() => {
-    if (!isActive || typeof ResizeObserver !== 'function') {
-      return;
-    }
-
-    const scrollContainer = transcriptScrollContainerRef.current;
-    if (!scrollContainer) {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (
-        shouldStickTranscriptToBottomRef.current
-        && !isUserControllingTranscriptScrollRef.current
-        && !isTranscriptPointerScrollActiveRef.current
-      ) {
-        scrollTranscriptToBottom();
-        return;
-      }
-
-      updateTranscriptStickiness();
-    });
-    resizeObserver.observe(scrollContainer);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [
-    isActive,
-    normalizedSessionId,
-    scrollTranscriptToBottom,
-    updateTranscriptStickiness,
-  ]);
 
   const formatTime = (ts: number) => {
     const d = new Date(ts);
@@ -2669,7 +2171,7 @@ export const UniversalChat = memo(function UniversalChat({
     composerAttachmentsRef.current = [];
   }, []);
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recognitionEnvironmentRef = useRef({
     addToast,
     setInputValue,
@@ -2686,17 +2188,21 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = getBrowserSpeechRecognitionConstructor(window);
     if (!SpeechRecognition) {
       return;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = appSettings.voiceContinuousListening;
     recognition.interimResults = true;
+    recognition.lang = resolveVoiceRecognitionLocale(
+      appSettings.voiceRecognitionLanguage,
+      appSettings.language,
+      navigator.language,
+    );
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
       let finalTranscript = '';
 
       for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -2716,7 +2222,7 @@ export const UniversalChat = memo(function UniversalChat({
       );
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
       const environment = recognitionEnvironmentRef.current;
       console.error('Speech recognition error', event.error);
       setIsListening(false);
@@ -2747,7 +2253,12 @@ export const UniversalChat = memo(function UniversalChat({
         recognitionRef.current = null;
       }
     };
-  }, [isActive]);
+  }, [
+    appSettings.language,
+    appSettings.voiceContinuousListening,
+    appSettings.voiceRecognitionLanguage,
+    isActive,
+  ]);
 
   useEffect(() => {
     if (isActive) {
@@ -2759,12 +2270,12 @@ export const UniversalChat = memo(function UniversalChat({
     );
   }, [isActive]);
 
-  const toggleVoiceInput = () => {
+  const toggleVoiceInput = useCallback(() => {
     if (!recognitionRef.current) {
       addToast(t('chat.voiceInputUnsupported'), 'error');
       return;
     }
-    
+
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -2777,7 +2288,25 @@ export const UniversalChat = memo(function UniversalChat({
         console.error('Failed to start speech recognition', e);
       }
     }
-  };
+  }, [addToast, isListening, t]);
+
+  useEffect(() => {
+    if (!isActive || !appSettings.voiceShortcutEnabled) {
+      return;
+    }
+
+    const handleVoiceShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !isVoiceDictationShortcut(event)) {
+        return;
+      }
+
+      event.preventDefault();
+      toggleVoiceInput();
+    };
+
+    window.addEventListener('keydown', handleVoiceShortcut);
+    return () => window.removeEventListener('keydown', handleVoiceShortcut);
+  }, [appSettings.voiceShortcutEnabled, isActive, toggleVoiceInput]);
 
   const [sessionPromptNavigationState, setSessionPromptNavigationState] =
     useState<SessionPromptNavigationState>(() => ({
@@ -3262,85 +2791,6 @@ export const UniversalChat = memo(function UniversalChat({
     queuedTurnFlushGateVersion,
   ]);
 
-  useLayoutEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    if (activeTranscriptSessionIdRef.current !== normalizedTranscriptScopeKey) {
-      activeTranscriptSessionIdRef.current = normalizedTranscriptScopeKey;
-      lastScrollSnapshotRef.current = null;
-      shouldStickTranscriptToBottomRef.current = true;
-      isProgrammaticTranscriptScrollRef.current = false;
-      isUserControllingTranscriptScrollRef.current = false;
-      isTranscriptPointerScrollActiveRef.current = false;
-      lastUserTranscriptScrollAtRef.current = 0;
-      if (userTranscriptScrollSettleTimerRef.current !== null && typeof window !== 'undefined') {
-        window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
-        userTranscriptScrollSettleTimerRef.current = null;
-      }
-      if (
-        userTranscriptScrollAnimationFrameRef.current !== null
-        && typeof window !== 'undefined'
-      ) {
-        window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
-        userTranscriptScrollAnimationFrameRef.current = null;
-      }
-    }
-
-    if (normalizedMessages.length === 0) {
-      lastScrollSnapshotRef.current = null;
-      shouldStickTranscriptToBottomRef.current = true;
-      return;
-    }
-
-    const nextSnapshot: ChatScrollSnapshot = {
-      contentLength: lastMessageContentLength,
-      messageCount: normalizedMessages.length,
-      messageId: lastMessage?.id ?? '',
-    };
-    const previousSnapshot = lastScrollSnapshotRef.current;
-    const shouldAutoScroll =
-      previousSnapshot === null ||
-      shouldStickTranscriptToBottomRef.current;
-    const shouldDeferAutoScrollForUserIntent =
-      shouldDeferTranscriptAutoScrollForUserIntent({
-        isUserInteracting: isUserControllingTranscriptScrollRef.current,
-        lastUserScrollAt: lastUserTranscriptScrollAtRef.current,
-        now: readTranscriptScrollClock(),
-      });
-    lastScrollSnapshotRef.current = nextSnapshot;
-
-    if (!shouldAutoScroll || shouldDeferAutoScrollForUserIntent) {
-      return;
-    }
-
-    const scrollTiming = resolveChatScrollTiming(
-      previousSnapshot,
-      nextSnapshot,
-    );
-    if (previousSnapshot === null || scrollTiming === 'layout' || typeof window === 'undefined') {
-      scrollTranscriptToBottom();
-      return;
-    }
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      scrollTranscriptToBottom();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, [
-    isActive,
-    lastMessage?.createdAt,
-    lastMessage?.id,
-    lastMessageContentLength,
-    normalizedMessages.length,
-    normalizedTranscriptScopeKey,
-    scrollTranscriptToBottom,
-  ]);
-
   useEffect(() => {
     if (!isActive) {
       return;
@@ -3551,17 +3001,13 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    shouldStickTranscriptToBottomRef.current = false;
-    syncTranscriptJumpAffordance(true);
-
     const renderedMessage = scrollContainer.querySelector<HTMLDivElement>(
       `[data-transcript-message-index="${messageIndex}"]`,
     );
     if (renderedMessage) {
-      scrollContainer.scrollTo({
-        behavior: 'auto',
-        top: Math.max(0, renderedMessage.offsetTop - 16),
-      });
+      transcriptScrollCoordinator.scrollToOffset(
+        Math.max(0, renderedMessage.offsetTop - 16),
+      );
       return;
     }
 
@@ -3570,11 +3016,10 @@ export const UniversalChat = memo(function UniversalChat({
       0,
       Math.min(normalizedMessages.length - 1, messageIndex),
     );
-    scrollContainer.scrollTo({
-      behavior: 'auto',
-      top: maxScrollTop * (messagePosition / Math.max(1, normalizedMessages.length - 1)),
-    });
-  }, [normalizedMessages.length, syncTranscriptJumpAffordance]);
+    transcriptScrollCoordinator.scrollToOffset(
+      maxScrollTop * (messagePosition / Math.max(1, normalizedMessages.length - 1)),
+    );
+  }, [normalizedMessages.length, transcriptScrollCoordinator.scrollToOffset]);
 
   return (
     <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
@@ -3645,26 +3090,30 @@ export const UniversalChat = memo(function UniversalChat({
           style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
           tabIndex={0}
         >
-          <UniversalChatTranscript
-            emptyState={emptyState}
-            engineId={transcriptEngineId}
-            environmentSignature={transcriptEnvironmentSignature}
-            environmentRef={transcriptEnvironmentRef}
-            hasMoreRemoteMessages={hasMoreRemoteMessages}
-            isActive={isActive}
-            isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
-            isLive={isBusy || isEngineBusy}
-            isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
-            layout={layout}
-            localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
-            messages={normalizedMessages}
-            messagesEndRef={messagesEndRef}
-            onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
-            scrollContainerRef={transcriptScrollContainerRef}
-            scrollTranscriptToBottom={scrollTranscriptToBottom}
-            sessionId={normalizedTranscriptScopeKey}
-            shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
-          />
+          <div
+            ref={transcriptScrollCoordinator.contentRef}
+            className={`flex min-h-full min-w-0 flex-col ${layout === 'sidebar' ? 'gap-4' : ''}`}
+            data-chat-transcript-content="true"
+          >
+            <UniversalChatTranscript
+              emptyState={emptyState}
+              engineId={transcriptEngineId}
+              environmentSignature={transcriptEnvironmentSignature}
+              environmentRef={transcriptEnvironmentRef}
+              hasMoreRemoteMessages={hasMoreRemoteMessages}
+              isActive={isActive}
+              isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+              isLive={isBusy || isEngineBusy}
+              layout={layout}
+              localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
+              messages={normalizedMessages}
+              messagesEndRef={messagesEndRef}
+              onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
+              scrollContainerRef={transcriptScrollContainerRef}
+              scrollCoordinator={transcriptPrependCoordinator}
+              sessionId={normalizedTranscriptScopeKey}
+            />
+          </div>
         </div>
         {layout === 'main' ? (
           <ChatTranscriptAnchorRail

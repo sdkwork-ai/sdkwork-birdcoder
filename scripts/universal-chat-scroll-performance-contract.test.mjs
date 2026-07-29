@@ -1,101 +1,108 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
 
-const rootDir = process.cwd();
-const universalChatSource = fs.readFileSync(
-  path.join(
-    rootDir,
-    'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-    
-    'sdkwork-birdcoder-pc-ui',
-    'src',
-    'components',
-    'UniversalChat.tsx',
-  ),
+const componentRoot = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/',
+  import.meta.url,
+);
+const readComponent = (relativePath) => fs.readFileSync(
+  new URL(relativePath, componentRoot),
   'utf8',
 );
 
-assert.match(
-  universalChatSource,
-  /type ChatScrollSnapshot = \{/,
-  'UniversalChat must describe scroll snapshots explicitly so transcript autoscroll behavior can distinguish initial hydration, streamed token growth, and appended messages.',
-);
+const universalChatSource = readComponent('UniversalChat.tsx');
+const coordinatorSource = readComponent('useTranscriptScrollCoordinator.ts');
+const progressiveTranscriptSource = readComponent('useProgressiveTranscriptWindow.ts');
+const virtualizedTranscriptSource = readComponent('useVirtualizedTranscriptWindow.ts');
 
 assert.match(
   universalChatSource,
-  /function resolveChatScrollTiming\(/,
-  'UniversalChat must centralize transcript autoscroll timing policy in a dedicated helper instead of hard-coding frame scheduling for every update.',
+  /const lastMessage = normalizedMessages\[normalizedMessages\.length - 1\];[\s\S]*latestMessageContentLength: lastMessageContentLength,[\s\S]*latestMessageIdentity: lastMessage[\s\S]*messageCount: normalizedMessages\.length,[\s\S]*scopeKey: normalizedTranscriptScopeKey,/s,
+  'UniversalChat must drive following from semantic transcript updates so appended messages and streamed token growth share one coordinator path.',
 );
 
 assert.match(
-  universalChatSource,
-  /previousSnapshot\.messageId === nextSnapshot\.messageId &&[\s\S]*previousSnapshot\.contentLength !== nextSnapshot\.contentLength[\s\S]*return 'layout';/s,
-  'UniversalChat must switch streamed token growth to same-layout scroll updates so repeated assistant output does not schedule overlapping scroll work.',
+  coordinatorSource,
+  /useLayoutEffect\(\(\) => \{[\s\S]*shouldStickToBottomRef\.current[\s\S]*performScrollOperation\(\{[\s\S]*kind: 'bottom',[\s\S]*scopeKey: normalizedScopeKey,[\s\S]*\}\);[\s\S]*\}, \[[\s\S]*latestMessageContentLength,[\s\S]*latestMessageIdentity,[\s\S]*messageCount,[\s\S]*normalizedScopeKey,/s,
+  'Initial hydration, appends, and streamed growth must converge on the coordinator layout pass rather than independent effects.',
 );
 
 assert.match(
-  universalChatSource,
-  /const animationFrame = window\.requestAnimationFrame\(\(\) => \{[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*\}\);/s,
-  'UniversalChat must batch non-initial transcript autoscroll onto animation frames so layout work does not run synchronously inside React commit bursts.',
+  coordinatorSource,
+  /const scheduleOperation = useCallback\([\s\S]*pendingOperationRef\.current = operation;[\s\S]*scrollAnimationFrameRef\.current !== null[\s\S]*requestAnimationFrame\(flushScheduledOperation\)/s,
+  'Resize and follow requests must coalesce into one pending operation behind a single animation-frame gate.',
 );
 
 assert.match(
-  universalChatSource,
-  /const userTranscriptScrollAnimationFrameRef = useRef<number \| null>\(null\);/,
-  'UniversalChat must keep a dedicated animation-frame gate for user scroll ownership updates.',
+  coordinatorSource,
+  /resolveOperationPriority\(operation\) >= resolveOperationPriority\(pendingOperation\)/,
+  'A queued anchor or explicit navigation request must not be overwritten by lower-priority bottom following.',
 );
 
 assert.match(
-  universalChatSource,
-  /const scheduleTranscriptUserScrollSync = useCallback\(\(\) => \{[\s\S]*userTranscriptScrollAnimationFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*markTranscriptUserScrollIntent\(\);[\s\S]*updateTranscriptStickiness\(\);[\s\S]*\}\);[\s\S]*\}/s,
-  'UniversalChat must batch transcript user-scroll stickiness reads onto animation frames so scroll events do not force repeated layout reads.',
+  coordinatorSource,
+  /const resizeObserver = new ResizeObserver\([\s\S]*activeAnchorRef\.current[\s\S]*scheduleOperation\(\{[\s\S]*kind: 'anchor',[\s\S]*requestBottomFollow\(\);[\s\S]*resizeObserver\.observe\(scrollContainer\);[\s\S]*resizeObserver\.observe\(content\);/s,
+  'One observer must preserve an active prepend anchor before considering bottom follow, and observe only the viewport plus content root.',
 );
 
-const transcriptScrollHandlerMatch = universalChatSource.match(
-  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\r?\n    \};\r?\n    const handleTranscriptKeyDown/,
+assert.match(
+  coordinatorSource,
+  /const markUserScrollIntent = \(\) => \{[\s\S]*cancelPrepend\(\);[\s\S]*cancelBottomFollow\(\);[\s\S]*clearScrollAnimationFrame\(\);/s,
+  'Explicit user input must cancel queued programmatic scroll work before the browser moves the viewport.',
+);
+
+assert.match(
+  coordinatorSource,
+  /readTranscriptScrollClock\(\) - lastProgrammaticScroll\.at < 80[\s\S]*Math\.abs\(scrollContainer\.scrollTop - lastProgrammaticScroll\.top\) <= 1[\s\S]*return;/s,
+  'Programmatic scroll events must be recognized so they cannot feed back into user-owned scroll state.',
+);
+
+assert.match(
+  coordinatorSource,
+  /const scheduleAnchorRead = useCallback\([\s\S]*scrollAnchorReadAnimationFrameRef\.current !== null[\s\S]*requestAnimationFrame\([\s\S]*flushScheduledAnchorRead/s,
+  'Visual-anchor reads must have their own animation-frame gate so rapid native scroll events cause at most one row scan per frame.',
+);
+const nativeScrollHandler = coordinatorSource.match(
+  /const handleScroll = \(\) => \{([\s\S]*?)\r?\n    \};\r?\n    const handlePointerDown/,
 );
 assert.ok(
-  transcriptScrollHandlerMatch,
-  'UniversalChat must keep transcript scroll ownership in a dedicated handleTranscriptScroll listener.',
+  nativeScrollHandler,
+  'The coordinator must keep native scroll handling in one inspectable listener.',
 );
-const transcriptScrollHandlerBody = transcriptScrollHandlerMatch[1] ?? '';
 assert.match(
-  transcriptScrollHandlerBody,
-  /scheduleTranscriptUserScrollSync\(\);/,
-  'UniversalChat scroll listeners must schedule user scroll synchronization instead of doing it inline.',
+  nativeScrollHandler[1] ?? '',
+  /updateStickiness\(\);[\s\S]*scheduleAnchorRead\(\);/s,
+  'Native scroll events must queue visual-anchor capture after publishing cheap stickiness state.',
 );
 assert.doesNotMatch(
-  transcriptScrollHandlerBody,
-  /markTranscriptUserScrollIntent\(\);[\s\S]*updateTranscriptStickiness\(\);/s,
-  'UniversalChat scroll listeners must not synchronously read transcript layout on every native scroll event.',
+  nativeScrollHandler[1] ?? '',
+  /updateReadingAnchor\(\)|captureTranscriptElementScrollAnchor\(/,
+  'Native scroll events must not synchronously scan message rows or force their layout.',
 );
 
-assert.match(
-  universalChatSource,
-  /window\.cancelAnimationFrame\(userTranscriptScrollAnimationFrameRef\.current\);/,
-  'UniversalChat must cancel pending user-scroll animation frames during listener cleanup.',
+const coordinatorWrites = coordinatorSource.match(/scrollContainer\.scrollTop\s*=/gu) ?? [];
+assert.equal(
+  coordinatorWrites.length,
+  1,
+  'The coordinator must retain one guarded DOM write site regardless of how many update sources request scrolling.',
 );
 
-assert.match(
-  universalChatSource,
-  /previousSnapshot === null[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*return;/s,
-  'UniversalChat must align the initial hydrated transcript to the bottom during layout instead of waiting for a post-paint smooth scroll.',
-);
-
-assert.match(
-  universalChatSource,
-  /scrollContainer\.scrollTop = nextScrollTop;/,
-  'UniversalChat must write the transcript scroll container directly instead of using scrollIntoView against a sentinel node.',
-);
+for (const [name, source] of [
+  ['UniversalChat', universalChatSource],
+  ['progressive transcript', progressiveTranscriptSource],
+  ['virtualized transcript', virtualizedTranscriptSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /scrollContainer\.scrollTop\s*=/u,
+    `${name} must not compete with the coordinator for transcript scroll writes.`,
+  );
+}
 
 assert.doesNotMatch(
-  universalChatSource,
-  /messagesEndRef\.current\?\.scrollIntoView\(/,
-  'UniversalChat must not use scrollIntoView for transcript following because it can fight native scrollbar dragging and parent scroll containers.',
+  `${universalChatSource}\n${coordinatorSource}`,
+  /MutationObserver|scrollIntoView|TRANSCRIPT_SCROLL_SETTLEMENT_FRAME_LIMIT|settleTranscriptBottomScroll/u,
+  'Transcript following must not restore subtree mutation scans, sentinel scrolling, or multi-frame settlement loops.',
 );
 
 console.log('universal chat scroll performance contract passed.');

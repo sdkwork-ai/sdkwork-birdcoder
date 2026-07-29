@@ -47,6 +47,20 @@ function session(
 }
 
 describe('Agent turn item reconciliation', () => {
+  it('reuses a long transcript array when the latest authority window is unchanged', () => {
+    const existingItems = Array.from({ length: 1_000 }, (_, index) =>
+      item(`item.${index}`, index % 2 === 0 ? 'user' : 'assistant', {
+        turnId: `turn.${Math.floor(index / 2)}`,
+      }),
+    );
+    const unchangedLatestWindow = existingItems.slice(-50).map((existingItem) => ({
+      ...existingItem,
+    }));
+
+    expect(mergeLatestAgentSessionItems(existingItems, unchangedLatestWindow))
+      .toBe(existingItems);
+  });
+
   it('replaces stale optimistic and stream items with authoritative items from the same turn', () => {
     const turnId = 'turn.test';
     const historyItem = item('item.history', 'assistant');
@@ -235,6 +249,7 @@ describe('Agent turn item reconciliation', () => {
 
   it('does not restore a disconnected authority tail when the latest window resets', () => {
     const current = session({
+      itemPageInfo: { hasMore: false, page: 10, pageSize: 50 },
       items: [
         item('item.stale', 'user'),
         item('item.concurrent', 'assistant', {
@@ -244,30 +259,45 @@ describe('Agent turn item reconciliation', () => {
       ],
     });
     const refreshed = session({
+      itemPageInfo: { hasMore: true, page: 5, pageSize: 50 },
       items: [item('item.authority', 'user')],
     });
 
-    expect(mergeRefreshedAgentSessionIntoCurrent(
+    const refreshedMerge = mergeRefreshedAgentSessionIntoCurrent(
       current,
       refreshed,
       { replaceLoadedAuthorityWindow: true },
-    ).items.map((entry) => entry.id)).toEqual([
+    );
+    expect(refreshedMerge.itemPageInfo).toEqual({
+      hasMore: true,
+      page: 5,
+      pageSize: 50,
+    });
+    expect(refreshedMerge.items.map((entry) => entry.id)).toEqual([
       'item.authority',
       'item.concurrent',
     ]);
-    expect(mergeAgentSessionProjectionForStore(
+    const storeMerge = mergeAgentSessionProjectionForStore(
       current,
       refreshed,
       { itemMergeMode: 'authority-window-reset' },
-    ).items.map((entry) => entry.id)).toEqual([
+    );
+    expect(storeMerge.itemPageInfo).toEqual({
+      hasMore: true,
+      page: 5,
+      pageSize: 50,
+    });
+    expect(storeMerge.items.map((entry) => entry.id)).toEqual([
       'item.authority',
       'item.concurrent',
     ]);
-    expect(mergeAgentSessionProjectionForStore(
+    const emptyStoreMerge = mergeAgentSessionProjectionForStore(
       current,
-      session({ items: [] }),
+      session({ itemPageInfo: undefined, items: [] }),
       { itemMergeMode: 'authority-window-reset' },
-    ).items.map((entry) => entry.id)).toEqual(['item.concurrent']);
+    );
+    expect(emptyStoreMerge.itemPageInfo).toBeUndefined();
+    expect(emptyStoreMerge.items.map((entry) => entry.id)).toEqual(['item.concurrent']);
   });
 
   it('preserves items appended while an older non-empty transcript refresh is committing', () => {
@@ -295,13 +325,20 @@ describe('Agent turn item reconciliation', () => {
         const sequence = start + index;
         return item(`item-${sequence}`, sequence % 2 === 0 ? 'assistant' : 'user');
       });
-    const firstPage = session({ items: buildItemWindow(26, 45) });
+    const firstPage = session({
+      itemPageInfo: { hasMore: true, page: 1, pageSize: 20 },
+      items: buildItemWindow(26, 45),
+    });
     const secondPage = mergeAgentSessionProjectionForStore(
       firstPage,
-      session({ items: buildItemWindow(6, 45) }),
+      session({
+        itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+        items: buildItemWindow(6, 45),
+      }),
       { itemMergeMode: 'ordered-window' },
     );
 
+    expect(secondPage.itemPageInfo).toEqual({ hasMore: true, page: 2, pageSize: 20 });
     expect(secondPage.items.map((entry) => entry.id)).toEqual(
       buildItemWindow(6, 45).map((entry) => entry.id),
     );
@@ -310,12 +347,17 @@ describe('Agent turn item reconciliation', () => {
     const thirdPage = mergeAgentSessionProjectionForStore(
       {
         ...secondPage,
+        itemPageInfo: { hasMore: false, page: 3, pageSize: 20 },
         items: [...secondPage.items, concurrentLatestItem],
       },
-      session({ items: buildItemWindow(1, 45) }),
+      session({
+        itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+        items: buildItemWindow(1, 45),
+      }),
       { itemMergeMode: 'ordered-window' },
     );
 
+    expect(thirdPage.itemPageInfo).toEqual({ hasMore: false, page: 3, pageSize: 20 });
     expect(thirdPage.items.map((entry) => entry.id)).toEqual(
       buildItemWindow(1, 46).map((entry) => entry.id),
     );

@@ -42,8 +42,8 @@ assert.match(
 
 assert.match(
   progressiveTranscriptSource,
-  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*remoteHistory\?: ProgressiveTranscriptRemoteHistory,\s*\)/s,
-  'useProgressiveTranscriptWindow must accept an activity flag so transcript repair work can be disabled while hidden.',
+  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*remoteHistory\?: ProgressiveTranscriptRemoteHistory,\s*scrollCoordinator\?: Pick<[\s\S]*'beginPrepend' \| 'cancelPrepend' \| 'completePrepend'[\s\S]*>,\s*\)/s,
+  'useProgressiveTranscriptWindow must accept activity gating and a restricted prepend coordinator instead of owning scroll writes.',
 );
 
 assert.match(

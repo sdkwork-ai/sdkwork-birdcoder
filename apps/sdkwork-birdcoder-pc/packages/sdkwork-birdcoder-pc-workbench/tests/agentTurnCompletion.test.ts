@@ -8,6 +8,7 @@ const completedAt = '2026-01-01T00:00:00.000Z';
 const agentId = 'agent.code-engine.codex';
 const runtimeBindingId = 'runtime-binding.codex';
 const sessionId = 'session.test';
+const identity = { agentId, sessionId };
 
 function createTurnCompletion(overrides: {
   agentId?: string;
@@ -175,7 +176,7 @@ describe('Agent turn streaming completion contract', () => {
     const onDelta = vi.fn();
     const controller = new AbortController();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: ' hello ',
       driveRefs: [{
         driveNodeId: ' node-design ',
@@ -186,7 +187,6 @@ describe('Agent turn streaming completion contract', () => {
       requestedModelId: ' codex-default ',
       turnMode: 'interactive',
     }, {
-      agentId,
       onAccepted,
       onDelta,
       signal: controller.signal,
@@ -244,11 +244,11 @@ describe('Agent turn streaming completion contract', () => {
     });
     const { service, stream } = createService([completionEvent(completion)]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn({ agentId: providerAgentId, sessionId }, {
       content: `use ${engineId}`,
       requestedModelId: modelId,
       runtimeBindingId: providerRuntimeBindingId,
-    }, { agentId: providerAgentId })).resolves.toBe(completion);
+    }, {})).resolves.toBe(completion);
     expect(stream).toHaveBeenCalledWith(
       providerAgentId,
       sessionId,
@@ -268,11 +268,10 @@ describe('Agent turn streaming completion contract', () => {
       completionEvent(completion),
     ]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
     }, {
-      agentId,
       onAccepted: () => {
         throw new Error('acceptance observer failed');
       },
@@ -286,26 +285,26 @@ describe('Agent turn streaming completion contract', () => {
     const { service } = createService([{ eventType: 'unexpected' }]);
     const onAccepted = vi.fn();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId, onAccepted })).rejects.toThrow('unsupported event type');
+    }, { onAccepted })).rejects.toThrow('unsupported event type');
     expect(onAccepted).not.toHaveBeenCalled();
   });
 
   it('rejects missing command identity before opening the stream', async () => {
     const { service, stream } = createService([completionEvent()]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
-    }, { agentId })).rejects.toThrow(
+    }, {})).rejects.toThrow(
       'Agent runtime binding ID is required for turn submission.',
     );
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn({ agentId: ' ', sessionId }, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId: ' ' })).rejects.toThrow(
-      'Agent ID is required for turn submission.',
+    }, {})).rejects.toThrow(
+      'require both Agent and Session identities',
     );
     expect(stream).not.toHaveBeenCalled();
   });
@@ -313,24 +312,24 @@ describe('Agent turn streaming completion contract', () => {
   it('rejects oversized turn input before opening the stream', async () => {
     const { service, stream } = createService([completionEvent()]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'x'.repeat(1_048_577),
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow('1048576 characters or fewer');
+    }, {})).rejects.toThrow('1048576 characters or fewer');
     expect(stream).not.toHaveBeenCalled();
   });
 
   it('rejects too many Drive references before opening the stream', async () => {
     const { service, stream } = createService([completionEvent()]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'review the attachments',
       driveRefs: Array.from({ length: 65 }, (_, index) => ({
         driveNodeId: `node-${index}`,
         driveSpaceId: 'space-test',
       })) as never,
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow('at most 64 Drive references');
+    }, {})).rejects.toThrow('at most 64 Drive references');
     expect(stream).not.toHaveBeenCalled();
   });
 
@@ -341,34 +340,57 @@ describe('Agent turn streaming completion contract', () => {
     ]);
     const onDelta = vi.fn();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'stream a bounded answer',
       runtimeBindingId,
-    }, { agentId, onDelta })).rejects.toThrow(
+    }, { onDelta })).rejects.toThrow(
       'stream exceeded the maximum Session Item size',
     );
     expect(onDelta).toHaveBeenCalledTimes(1);
     expect(onDelta.mock.calls[0]?.[0].content).toHaveLength(700_000);
   });
 
-  it('rejects an Agent mismatch remembered from the canonical Session', async () => {
-    const retrieve = vi.fn(async () => ({ agentId, sessionId }));
-    const stream = vi.fn(async () => createEventStream([completionEvent()]));
+  it('routes the same Session ID through each explicitly selected provider Agent', async () => {
+    const providerAgentIds = [
+      agentId,
+      'agent.code-engine.claude-code',
+      'agent.code-engine.opencode',
+    ] as const;
+    const retrieve = vi.fn(async (
+      requestedAgentId: string,
+      requestedSessionId: string,
+    ) => ({ agentId: requestedAgentId, sessionId: requestedSessionId }));
+    const stream = vi.fn(async (
+      requestedAgentId: string,
+      requestedSessionId: string,
+    ) => createEventStream([completionEvent(createTurnCompletion({
+      agentId: requestedAgentId,
+      sessionId: requestedSessionId,
+    }))]));
     const service = new BirdCoderAgentSessionService({
       agentId,
       client: {
         ai: { agents: { sessions: { retrieve }, turns: { stream } } },
       } as never,
     });
-    await service.getSession(sessionId);
 
-    await expect(service.submitTurn(sessionId, {
-      content: 'hello',
-      runtimeBindingId,
-    }, { agentId: 'agent.code-engine.claude-code' })).rejects.toThrow(
-      `Agent session ${sessionId} belongs to Agent "${agentId}"`,
+    for (const providerAgentId of providerAgentIds) {
+      const providerIdentity = { agentId: providerAgentId, sessionId };
+      await expect(service.getSession(providerIdentity)).resolves.toMatchObject(
+        providerIdentity,
+      );
+      await expect(service.submitTurn(providerIdentity, {
+        content: 'hello',
+        runtimeBindingId,
+      }, {})).resolves.toMatchObject({ session: providerIdentity });
+    }
+
+    expect(retrieve.mock.calls.map(([requestedAgentId]) => requestedAgentId)).toEqual(
+      providerAgentIds,
     );
-    expect(stream).not.toHaveBeenCalled();
+    expect(stream.mock.calls.map(([requestedAgentId]) => requestedAgentId)).toEqual(
+      providerAgentIds,
+    );
   });
 
   it('rejects a stream that ends without completion', async () => {
@@ -376,10 +398,10 @@ describe('Agent turn streaming completion contract', () => {
       { eventType: 'delta', index: 0, delta: 'hello' },
     ]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow(
+    }, {})).rejects.toThrow(
       'Agents turn stream ended without a completion event.',
     );
   });
@@ -395,10 +417,10 @@ describe('Agent turn streaming completion contract', () => {
   ])('rejects missing, duplicate, or out-of-order deltas %#', async ({ events }) => {
     const { service } = createService(events);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow(/missing or out of order/u);
+    }, {})).rejects.toThrow(/missing or out of order/u);
   });
 
   it.each([
@@ -412,10 +434,10 @@ describe('Agent turn streaming completion contract', () => {
   ])('rejects a malformed completion event %#', async (event) => {
     const { service } = createService([event]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow(/completion/u);
+    }, {})).rejects.toThrow(/completion/u);
   });
 
   it('rejects events emitted after completion', async () => {
@@ -424,10 +446,10 @@ describe('Agent turn streaming completion contract', () => {
       { eventType: 'delta', index: 0, delta: 'late' },
     ]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow(
+    }, {})).rejects.toThrow(
       'Agents turn stream emitted an event after completion.',
     );
   });
@@ -454,11 +476,11 @@ describe('Agent turn streaming completion contract', () => {
     });
     const onAccepted = vi.fn();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
       turnId: 'turn.non-stream',
-    }, { agentId, onAccepted })).resolves.toBe(completion);
+    }, { onAccepted })).resolves.toBe(completion);
 
     const streamedCommand = stream.mock.calls[0]?.[2];
     const replayedCommand = post.mock.calls[0]?.[1];
@@ -482,11 +504,11 @@ describe('Agent turn streaming completion contract', () => {
     const onAccepted = vi.fn();
     const onDelta = vi.fn();
 
-    await expect(recovery.service.submitTurn(sessionId, {
+    await expect(recovery.service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
       turnId: completion.turn.turnId,
-    }, { agentId, onAccepted, onDelta })).resolves.toEqual(completion);
+    }, { onAccepted, onDelta })).resolves.toEqual(completion);
 
     expect(recovery.retrieveTurn).toHaveBeenCalledTimes(2);
     expect(recovery.listItems).toHaveBeenCalledWith(
@@ -510,11 +532,11 @@ describe('Agent turn streaming completion contract', () => {
       stream,
     });
 
-    await expect(recovery.service.submitTurn(sessionId, {
+    await expect(recovery.service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
       turnId: completion.turn.turnId,
-    }, { agentId })).resolves.toEqual(completion);
+    }, {})).resolves.toEqual(completion);
   });
 
   it('preserves the original transport error when neither delivery path accepted the turn', async () => {
@@ -537,11 +559,11 @@ describe('Agent turn streaming completion contract', () => {
     });
     const onAccepted = vi.fn();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
       turnId: 'turn.not-accepted',
-    }, { agentId, onAccepted })).rejects.toThrow('Initial turn request failed.');
+    }, { onAccepted })).rejects.toThrow('Initial turn request failed.');
     expect(retrieve).toHaveBeenCalledTimes(5);
     expect(onAccepted).not.toHaveBeenCalled();
   });
@@ -567,12 +589,11 @@ describe('Agent turn streaming completion contract', () => {
     const onAccepted = vi.fn();
     const onDeliveryUncertain = vi.fn();
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
       turnId: 'turn.uncertain',
     }, {
-      agentId,
       onAccepted,
       onDeliveryUncertain,
     })).rejects.toThrow('delivery could not be confirmed');
@@ -588,10 +609,10 @@ describe('Agent turn streaming completion contract', () => {
   ])('rejects completion identity drift %#', async (completion) => {
     const { service } = createService([completionEvent(completion)]);
 
-    await expect(service.submitTurn(sessionId, {
+    await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
-    }, { agentId })).rejects.toThrow(/identity|another session|runtime binding/u);
+    }, {})).rejects.toThrow(/identity|another session|runtime binding/u);
   });
 });
 
@@ -627,14 +648,57 @@ describe('Agent session user-state resource bounds', () => {
     });
 
     await expect(service.getSessionUserStates(
-      Array.from({ length: 1_001 }, (_, index) => `session-${index}`),
+      Array.from({ length: 1_001 }, (_, index) => ({
+        agentId,
+        sessionId: `session-${index}`,
+      })),
     )).rejects.toThrow('at most 1000 Session ids');
     expect(list).not.toHaveBeenCalled();
 
     await expect(service.getSessionUserStates(
-      Array.from({ length: 500 }, (_, index) => `session-${index}`),
+      Array.from({ length: 500 }, (_, index) => ({
+        agentId,
+        sessionId: `session-${index}`,
+      })),
     )).resolves.toEqual(new Map());
     expect(list).toHaveBeenCalledTimes(5);
     expect(maximumConcurrentRequests).toBe(4);
+  });
+
+  it('batches user-state reads by each explicit provider Agent', async () => {
+    const list = vi.fn(async (_requestedAgentId: string) => ({
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 1,
+      },
+    }));
+    const service = new BirdCoderAgentSessionService({
+      agentId: 'agent.code-engine.default',
+      client: {
+        ai: { agents: { sessionUserStates: { list } } },
+      } as never,
+    });
+    const identities = [
+      { agentId, sessionId: 'session.codex' },
+      { agentId: 'agent.code-engine.claude-code', sessionId: 'session.claude' },
+      { agentId: 'agent.code-engine.opencode', sessionId: 'session.opencode' },
+    ];
+
+    await expect(service.getSessionUserStates(identities)).resolves.toEqual(new Map());
+
+    expect(list).toHaveBeenCalledTimes(3);
+    for (const providerIdentity of identities) {
+      expect(list).toHaveBeenCalledWith(
+        providerIdentity.agentId,
+        expect.objectContaining({ sessionIds: providerIdentity.sessionId }),
+        { signal: undefined, timeout: undefined },
+      );
+    }
+    expect(list.mock.calls.map(([requestedAgentId]) => requestedAgentId)).not.toContain(
+      'agent.code-engine.default',
+    );
   });
 });

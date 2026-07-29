@@ -36,10 +36,10 @@ assert.match(
   /resolveAgentSessionTerminalResume\(location\.agentSession\)/u,
   'Session terminal actions must resolve commands through the provider adapter.',
 );
-assert.doesNotMatch(
+assert.match(
   terminalActionsSource,
-  /sessionNativeIdUnavailable|missing-provider-session-id/u,
-  'Persisted provider Session identity must not be modeled as a transient readiness state.',
+  /t\('code\.providerSessionIdInvalid'\)/u,
+  'Invalid provider Session identity must use the canonical providerSessionId error branch.',
 );
 assert.match(
   terminalActionsSource,

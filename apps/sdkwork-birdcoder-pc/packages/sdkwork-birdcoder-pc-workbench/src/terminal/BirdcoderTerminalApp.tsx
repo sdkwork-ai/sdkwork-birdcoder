@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext.ts';
 
 export interface BirdcoderTerminalAppProps
   extends Omit<DesktopTerminalAppProps<TerminalCommandRequest>, 'children'> {
+  agentId?: string | null;
   agentSessionId?: string | null;
   projectId?: string;
   runtimeLocationId?: string | null;
@@ -41,11 +42,14 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
   const [webRuntimeSessionIntent, setWebRuntimeSessionIntent] =
     useState<WebRuntimeSessionIntent | null>(null);
   const webLaunchSequenceRef = useRef(0);
-  const agentSessionId = props.agentSessionId?.trim() || null;
+  const agentId = props.agentId?.trim() || props.launchRequest?.agentId?.trim() || null;
+  const agentSessionId =
+    props.agentSessionId?.trim() || props.launchRequest?.agentSessionId?.trim() || null;
   const projectId = props.projectId?.trim() || null;
   const boundRuntimeLocationId = props.runtimeLocationId?.trim() || null;
   const runtimeLocationScopeKey = [
     projectId ?? '',
+    agentId ?? '',
     agentSessionId ?? '',
     boundRuntimeLocationId ?? '',
   ].join('\u0000');
@@ -84,6 +88,7 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
       status: 'loading',
     });
     void resolveProjectRuntimeLocationId({
+      agentId,
       agentSessionId,
       projectId,
       signal: controller.signal,
@@ -114,6 +119,7 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
       controller.abort();
     };
   }, [
+    agentId,
     agentSessionId,
     boundRuntimeLocationId,
     desktop,

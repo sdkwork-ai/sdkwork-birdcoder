@@ -9,7 +9,10 @@ import {
   mergeLatestAgentSessionItems,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 export { mergeLatestAgentSessionItems } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type {
+  AgentSessionIdentity,
+  IAgentSessionService,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
@@ -40,6 +43,7 @@ const AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT = 5;
 const AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT = 10;
 const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
+const PROJECT_SESSION_INVENTORY_PROBE_PAGE_SIZE = 1;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
 
@@ -100,6 +104,7 @@ export interface LoadEarlierAgentSessionItemsResult {
 }
 
 export interface AgentSessionItemsRefreshScope {
+  agentId: string;
   agentSessionId: string;
   identityScope: string;
   projectId: string;
@@ -119,6 +124,7 @@ export function buildAgentSessionItemsRefreshScopeKey(
   return [
     normalizeRefreshScopePart(scope.identityScope, 'Identity scope'),
     normalizeRefreshScopePart(scope.projectId, 'Agents project id'),
+    normalizeRefreshScopePart(scope.agentId, 'Agent id'),
     normalizeRefreshScopePart(scope.agentSessionId, 'Agent session id'),
   ].join('\u0001');
 }
@@ -359,10 +365,12 @@ export function mergeRefreshedAgentSessionIntoCurrent(
       current.transcriptUpdatedAt,
       refreshed.transcriptUpdatedAt,
     ),
-    itemPageInfo: mergeMonotonicSessionItemPageInfo(
-      current.itemPageInfo,
-      refreshed.itemPageInfo,
-    ),
+    itemPageInfo: options.replaceLoadedAuthorityWindow
+      ? refreshed.itemPageInfo
+      : mergeMonotonicSessionItemPageInfo(
+          current.itemPageInfo,
+          refreshed.itemPageInfo,
+        ),
     items: options.replaceLoadedAuthorityWindow
       ? mergeResetSessionItemWindow(
           retainTransientSessionItems(current.items),
@@ -479,6 +487,7 @@ async function loadSessionView(
   items: readonly AgentSessionItemRecord[] = [],
   itemPageInfo?: AgentSessionPageInfoView,
   signal?: AbortSignal,
+  fallbackView?: AgentSessionView,
 ): Promise<AgentSessionView> {
   return loadAgentSessionView(
     service,
@@ -487,19 +496,24 @@ async function loadSessionView(
     items,
     itemPageInfo,
     signal,
+    undefined,
+    {
+      fallbackView,
+      tolerateAuxiliaryMetadataFailure: true,
+    },
   );
 }
 
 async function loadSessionItemPage(
   service: IAgentSessionService,
-  sessionId: string,
+  identity: AgentSessionIdentity,
   requestedPage: number,
   signal: AbortSignal,
 ): Promise<{
   items: AgentSessionItemRecord[];
   pageInfo: AgentSessionPageInfoView;
 }> {
-  const page = await service.listSessionItems(sessionId, {
+  const page = await service.listSessionItems(identity, {
     page: requestedPage,
     pageSize: AGENT_SESSION_ITEM_PAGE_SIZE,
     sort: '-sequence',
@@ -521,7 +535,7 @@ async function loadSessionItemPage(
   for (const item of page.items) {
     const itemId = typeof item.itemId === 'string' ? item.itemId.trim() : '';
     const itemSessionId = typeof item.sessionId === 'string' ? item.sessionId.trim() : '';
-    if (!itemId || itemSessionId !== sessionId) {
+    if (!itemId || itemSessionId !== identity.sessionId) {
       throw new Error('Agents session item list returned an invalid Session Item identity.');
     }
     if (itemIds.has(itemId)) {
@@ -585,12 +599,12 @@ function appendVisibleAuthorityConversationTurnKeys(
 
 async function loadLatestSessionItemWindow(
   service: IAgentSessionService,
-  sessionId: string,
+  identity: AgentSessionIdentity,
   existingItems: readonly AgentSessionItemView[],
   signal: AbortSignal,
 ): Promise<LatestSessionItemWindow> {
   const authorityItemIds = buildAuthoritySessionItemIds(existingItems);
-  const firstPage = await loadSessionItemPage(service, sessionId, 1, signal);
+  const firstPage = await loadSessionItemPage(service, identity, 1, signal);
   const pages = [firstPage];
   const loadedConversationTurnKeys = new Set<string>();
   appendVisibleAuthorityConversationTurnKeys(loadedConversationTurnKeys, firstPage.items);
@@ -612,7 +626,7 @@ async function loadLatestSessionItemWindow(
     signal.throwIfAborted();
     const nextPage = await loadSessionItemPage(
       service,
-      sessionId,
+      identity,
       pages.length + 1,
       signal,
     );
@@ -754,6 +768,13 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
+  await agentSessionService.listSessionsByProject({
+    page: 1,
+    pageSize: PROJECT_SESSION_INVENTORY_PROBE_PAGE_SIZE,
+    projectId: normalizedProjectId,
+  }, { signal });
+  signal?.throwIfAborted();
+
   const snapshot = await loadProjectSessionActivityHead(
     agentSessionService,
     project,
@@ -794,13 +815,20 @@ function isAgentSessionNotFoundError(error: unknown): boolean {
     return false;
   }
   const candidate = error as {
+    code?: unknown;
+    httpStatus?: unknown;
     message?: unknown;
+    problem?: { status?: unknown };
     response?: { status?: unknown };
     status?: unknown;
     statusCode?: unknown;
   };
-  const status = candidate.status ?? candidate.statusCode ?? candidate.response?.status;
-  if (status === 404) {
+  const status = candidate.httpStatus
+    ?? candidate.status
+    ?? candidate.statusCode
+    ?? candidate.response?.status
+    ?? candidate.problem?.status;
+  if (status === 404 || candidate.code === 'NOT_FOUND') {
     return true;
   }
   return (
@@ -838,9 +866,30 @@ async function refreshAgentSessionItemsWithoutTimeout({
   }
 
   const projectId = project.projectId.trim();
+  const existingAgentSession = (
+    resolvedLocation?.agentSession?.id.trim() === normalizedSessionId
+      ? resolvedLocation.agentSession
+      : project.agentSessions.find((candidate) => candidate.id.trim() === normalizedSessionId)
+  );
+  const agentId = existingAgentSession?.agentId.trim() ?? '';
+  if (
+    !projectId
+    || !existingAgentSession
+    || existingAgentSession.projectId.trim() !== projectId
+    || !agentId
+  ) {
+    return {
+      agentSessionId: normalizedSessionId,
+      itemCount: 0,
+      projectId,
+      source: 'agents',
+      status: 'not-found',
+    };
+  }
+  const identity = { agentId, sessionId: normalizedSessionId };
   let session: Awaited<ReturnType<IAgentSessionService['getSession']>>;
   try {
-    session = await agentSessionService.getSession(normalizedSessionId, { signal });
+    session = await agentSessionService.getSession(identity, { signal });
   } catch (error) {
     if (isAgentSessionNotFoundError(error)) {
       return {
@@ -853,7 +902,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
     }
     throw error;
   }
-  if (!projectId || session.projectId?.trim() !== projectId) {
+  if (session.projectId?.trim() !== projectId) {
     return {
       agentSessionId: normalizedSessionId,
       itemCount: 0,
@@ -863,10 +912,9 @@ async function refreshAgentSessionItemsWithoutTimeout({
     };
   }
 
-  const existingAgentSession = resolvedLocation?.agentSession;
   const latestItemWindow = await loadLatestSessionItemWindow(
     agentSessionService,
-    normalizedSessionId,
+    identity,
     existingAgentSession?.items ?? [],
     signal ?? new AbortController().signal,
   );
@@ -877,6 +925,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
     latestItemWindow.items,
     latestItemWindow.itemPageInfo,
     signal,
+    existingAgentSession,
   );
   const retainedExistingItems = existingAgentSession
     ? latestItemWindow.replaceLoadedAuthorityWindow
@@ -944,10 +993,12 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
   signal,
 }: Omit<LoadEarlierAgentSessionItemsOptions, 'refreshTimeoutMs'>): Promise<LoadEarlierAgentSessionItemsResult> {
   const normalizedSessionId = agentSession.id.trim();
+  const agentId = agentSession.agentId.trim();
   const projectId = agentSession.projectId.trim();
-  if (!normalizedSessionId || !projectId) {
-    throw new Error('Agents Session and Project ids are required to load earlier messages.');
+  if (!agentId || !normalizedSessionId || !projectId) {
+    throw new Error('Agent, Session, and Project ids are required to load earlier messages.');
   }
+  const identity = { agentId, sessionId: normalizedSessionId };
 
   const currentPageInfo = agentSession.itemPageInfo;
   if (!currentPageInfo || !currentPageInfo.hasMore) {
@@ -983,7 +1034,7 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
 
     const itemPage = await loadSessionItemPage(
       agentSessionService,
-      normalizedSessionId,
+      identity,
       requestedPage,
       requestSignal,
     );

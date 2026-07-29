@@ -6,12 +6,12 @@
     {
       "workspace": "sdkwork-agents-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_AGENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/ai",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-agents",
       "apiAuthority": "sdkwork-agents-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -22,11 +22,11 @@
       "workspace": "sdkwork-iam-app-sdk",
       "surface": "app-api",
       "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-iam",
       "apiAuthority": "sdkwork-iam-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -66,12 +66,12 @@
     {
       "workspace": "sdkwork-agents-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_AGENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/ai",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-agents",
       "apiAuthority": "sdkwork-agents-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -81,12 +81,12 @@
     {
       "workspace": "sdkwork-drive-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/drive",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-drive",
       "apiAuthority": "sdkwork-drive-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -97,16 +97,76 @@
       "workspace": "sdkwork-iam-app-sdk",
       "surface": "app-api",
       "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-iam",
       "apiAuthority": "sdkwork-iam-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
       "corePackage": "@sdkwork/birdcoder-h5-core",
       "source": "apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/specs/component.spec.json"
+    },
+    {
+      "workspace": "sdkwork-birdcoder-app-sdk",
+      "surface": "app-api",
+      "apiPrefix": "/app/v3/api",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": null,
+      "envKey": "VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL",
+      "forbidApplicationSameOriginFallback": false,
+      "sdkOwner": "sdkwork-birdcoder",
+      "apiAuthority": "sdkwork-birdcoder-app-api",
+      "consumerSdkOwner": "sdkwork-birdcoder",
+      "corePackage": "sdkwork-birdcoder-mp-core",
+      "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json"
+    },
+    {
+      "workspace": "sdkwork-agents-app-sdk",
+      "surface": "app-api",
+      "apiPrefix": "/app/v3/api/ai",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
+      "sdkOwner": "sdkwork-agents",
+      "apiAuthority": "sdkwork-agents-app-api",
+      "consumerSdkOwner": "sdkwork-birdcoder",
+      "corePackage": "sdkwork-birdcoder-mp-core",
+      "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json"
+    },
+    {
+      "workspace": "sdkwork-iam-app-sdk",
+      "surface": "app-api",
+      "apiPrefix": "/app/v3/api",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
+      "sdkOwner": "sdkwork-iam",
+      "apiAuthority": "sdkwork-iam-app-api",
+      "consumerSdkOwner": "sdkwork-birdcoder",
+      "corePackage": "sdkwork-birdcoder-mp-core",
+      "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json"
+    },
+    {
+      "workspace": "sdkwork-drive-app-sdk",
+      "surface": "app-api",
+      "apiPrefix": "/app/v3/api/drive",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
+      "sdkOwner": "sdkwork-drive",
+      "apiAuthority": "sdkwork-drive-app-api",
+      "consumerSdkOwner": "sdkwork-birdcoder",
+      "corePackage": "sdkwork-birdcoder-mp-core",
+      "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json"
     },
     {
       "workspace": "sdkwork-birdcoder-app-sdk",
@@ -126,12 +186,12 @@
     {
       "workspace": "sdkwork-drive-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/drive",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-drive",
       "apiAuthority": "sdkwork-drive-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -142,11 +202,11 @@
       "workspace": "sdkwork-iam-app-sdk",
       "surface": "app-api",
       "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-iam",
       "apiAuthority": "sdkwork-iam-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -171,12 +231,12 @@
     {
       "workspace": "sdkwork-agents-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_AGENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/ai",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-agents",
       "apiAuthority": "sdkwork-agents-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -186,12 +246,12 @@
     {
       "workspace": "sdkwork-documents-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/documents",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-documents",
       "apiAuthority": "sdkwork-documents-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -201,12 +261,12 @@
     {
       "workspace": "sdkwork-prompts-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/prompts",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-prompts",
       "apiAuthority": "sdkwork-prompts-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -216,12 +276,12 @@
     {
       "workspace": "sdkwork-skills-app-sdk",
       "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_SKILLS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
+      "apiPrefix": "/app/v3/api/skills",
+      "connectivityPlane": "application",
+      "runtimeMode": "same-origin-embedded",
+      "mountStatus": "verified",
+      "envKey": null,
+      "forbidApplicationSameOriginFallback": false,
       "sdkOwner": "sdkwork-skills",
       "apiAuthority": "sdkwork-skills-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
@@ -264,7 +324,7 @@
     "inheritedManifests": [
       {
         "workspace": "sdkwork-agents-app-sdk",
-        "manifestRef": "../sdkwork-agents/specs/iam.module.manifest.json",
+        "manifestRef": "../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
         "inheritPermissions": true
       },
       {
@@ -279,7 +339,7 @@
       },
       {
         "workspace": "sdkwork-agents-app-sdk",
-        "manifestRef": "../sdkwork-agents/specs/iam.module.manifest.json",
+        "manifestRef": "../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
         "inheritPermissions": true
       },
       {
@@ -298,6 +358,26 @@
         "inheritPermissions": true
       },
       {
+        "workspace": "sdkwork-agents-app-sdk",
+        "manifestRef": "../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+        "inheritPermissions": true
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "manifestRef": "../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+        "inheritPermissions": true
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "manifestRef": "../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+        "inheritPermissions": true
+      },
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "manifestRef": "specs/iam.module.manifest.json",
+        "inheritPermissions": true
+      },
+      {
         "workspace": "sdkwork-drive-app-sdk",
         "manifestRef": "../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
         "inheritPermissions": true
@@ -309,7 +389,7 @@
       },
       {
         "workspace": "sdkwork-agents-app-sdk",
-        "manifestRef": "../sdkwork-agents/specs/iam.module.manifest.json",
+        "manifestRef": "../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
         "inheritPermissions": true
       },
       {
@@ -532,6 +612,7 @@
         "sdkDependencies": [
           {
             "workspace": "sdkwork-agents-app-sdk",
+            "permissionModuleId": "ai",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -1020,6 +1101,7 @@
           },
           {
             "workspace": "sdkwork-agents-app-sdk",
+            "permissionModuleId": "ai",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api"
           },
@@ -1150,6 +1232,267 @@
         "dependencyApiSurfaces": []
       },
       {
+        "name": "sdkwork-birdcoder-mp-commons",
+        "type": "typescript-package",
+        "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-commons",
+        "domain": "intelligence",
+        "capability": "commons",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-commons/specs/component.spec.json",
+        "layerRole": "frontend-commons",
+        "publicExports": [
+          "."
+        ],
+        "providedPorts": [
+          {
+            "name": "viewState",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [],
+        "sdkDependencies": [],
+        "routeManifest": null,
+        "runtimeEntrypoints": [],
+        "dependencyApiSurfaces": []
+      },
+      {
+        "name": "sdkwork-birdcoder-mp-core",
+        "type": "typescript-package",
+        "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core",
+        "domain": "intelligence",
+        "capability": "core",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json",
+        "layerRole": "frontend-core",
+        "publicExports": [
+          "."
+        ],
+        "providedPorts": [
+          {
+            "name": "runtimeConfig",
+            "export": "."
+          },
+          {
+            "name": "sessionScope",
+            "export": "."
+          },
+          {
+            "name": "sdkPorts",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [],
+        "sdkDependencies": [
+          {
+            "workspace": "sdkwork-birdcoder-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-agents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-iam-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-drive-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          }
+        ],
+        "routeManifest": null,
+        "runtimeEntrypoints": [],
+        "dependencyApiSurfaces": []
+      },
+      {
+        "name": "sdkwork-birdcoder-mp-host",
+        "type": "typescript-package",
+        "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-host",
+        "domain": "intelligence",
+        "capability": "host",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-host/specs/component.spec.json",
+        "layerRole": "frontend-host",
+        "publicExports": [
+          "."
+        ],
+        "providedPorts": [
+          {
+            "name": "weixinHost",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [],
+        "sdkDependencies": [],
+        "routeManifest": null,
+        "runtimeEntrypoints": [],
+        "dependencyApiSurfaces": []
+      },
+      {
+        "name": "sdkwork-birdcoder-mp-shell",
+        "type": "typescript-package",
+        "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-shell",
+        "domain": "intelligence",
+        "capability": "shell",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-shell/specs/component.spec.json",
+        "layerRole": "frontend-shell",
+        "publicExports": [
+          ".",
+          "@sdkwork/birdcoder-mp-workbench"
+        ],
+        "providedPorts": [
+          {
+            "name": "routeCatalog",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [
+          {
+            "name": "workbenchRoutes",
+            "export": "@sdkwork/birdcoder-mp-workbench"
+          }
+        ],
+        "sdkDependencies": [],
+        "routeManifest": null,
+        "runtimeEntrypoints": [],
+        "dependencyApiSurfaces": []
+      },
+      {
+        "name": "sdkwork-birdcoder-mp-workbench",
+        "type": "mini-program-ui-package",
+        "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-workbench",
+        "domain": "intelligence",
+        "capability": "coding-workbench",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-workbench/specs/component.spec.json",
+        "layerRole": "frontend-feature",
+        "publicExports": [
+          ".",
+          "@sdkwork/birdcoder-mp-core"
+        ],
+        "providedPorts": [
+          {
+            "name": "workbenchRoute",
+            "export": "."
+          },
+          {
+            "name": "workbenchController",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [
+          {
+            "name": "birdCoderWorkbenchSdk",
+            "export": "@sdkwork/birdcoder-mp-core"
+          }
+        ],
+        "sdkDependencies": [
+          {
+            "workspace": "sdkwork-birdcoder-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          }
+        ],
+        "routeManifest": null,
+        "runtimeEntrypoints": [],
+        "dependencyApiSurfaces": []
+      },
+      {
+        "name": "sdkwork-birdcoder-mini-program",
+        "type": "mini-program-app-root",
+        "root": "apps/sdkwork-birdcoder-mini-program",
+        "domain": "intelligence",
+        "capability": "coding-workbench",
+        "surface": "app",
+        "languages": [
+          "typescript"
+        ],
+        "source": "apps/sdkwork-birdcoder-mini-program/specs/component.spec.json",
+        "layerRole": "runtime-composition",
+        "publicExports": [
+          "@sdkwork/birdcoder-app-sdk",
+          "@sdkwork/agents-app-sdk",
+          "@sdkwork/iam-app-sdk",
+          "@sdkwork/drive-app-sdk"
+        ],
+        "providedPorts": [],
+        "requiredPorts": [
+          {
+            "name": "birdCoderAppSdk",
+            "export": "@sdkwork/birdcoder-app-sdk"
+          },
+          {
+            "name": "agentsAppSdk",
+            "export": "@sdkwork/agents-app-sdk"
+          },
+          {
+            "name": "iamAppSdk",
+            "export": "@sdkwork/iam-app-sdk"
+          },
+          {
+            "name": "driveAppSdk",
+            "export": "@sdkwork/drive-app-sdk"
+          }
+        ],
+        "sdkDependencies": [
+          {
+            "workspace": "sdkwork-birdcoder-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-agents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-iam-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-drive-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          }
+        ],
+        "routeManifest": null,
+        "runtimeEntrypoints": [
+          "package.json#scripts.dev",
+          "package.json#scripts.build"
+        ],
+        "dependencyApiSurfaces": []
+      },
+      {
         "name": "@sdkwork/birdcoder-pc-admin-core",
         "type": "typescript-package",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core",
@@ -1272,15 +1615,32 @@
           {
             "name": "codeFeature",
             "export": "."
+          },
+          {
+            "name": "sessionListPresentation",
+            "export": "."
+          },
+          {
+            "name": "applicationPublishExperience",
+            "export": "."
           }
         ],
-        "requiredPorts": [],
+        "requiredPorts": [
+          {
+            "name": "applicationPublishService",
+            "export": ".",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure-runtime",
+            "sourceExport": "./defaultIdeServices"
+          }
+        ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
           "package.json#scripts.dev",
           "package.json#scripts.build",
-          "package.json#scripts.typecheck"
+          "package.json#scripts.typecheck",
+          "src/components/TopBar.tsx",
+          "src/components/publish/ApplicationPublishDialog.tsx"
         ],
         "dependencyApiSurfaces": []
       },
@@ -1450,6 +1810,7 @@
           },
           {
             "workspace": "sdkwork-agents-app-sdk",
+            "permissionModuleId": "ai",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api"
           },
@@ -1652,8 +2013,8 @@
         "type": "react-package",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n",
         "domain": "platform",
-        "capability": "component",
-        "surface": null,
+        "capability": "i18n",
+        "surface": "app",
         "languages": [
           "typescript",
           "react"
@@ -1665,14 +2026,16 @@
         ],
         "providedPorts": [
           {
-            "name": "localizationRuntime",
+            "name": "birdcoderPcLocaleCatalog",
             "export": "."
           }
         ],
         "requiredPorts": [],
         "sdkDependencies": [],
         "routeManifest": null,
-        "runtimeEntrypoints": [],
+        "runtimeEntrypoints": [
+          "src/index.ts"
+        ],
         "dependencyApiSurfaces": []
       },
       {
@@ -1731,8 +2094,24 @@
             "export": "./defaultIdeServices"
           },
           {
+            "name": "applicationPublishService",
+            "export": "./defaultIdeServices"
+          },
+          {
             "name": "sdkConnectivityPlaneRuntime",
             "export": "."
+          },
+          {
+            "name": "membershipCheckoutPort",
+            "export": "./membershipSdkBootstrap"
+          },
+          {
+            "name": "pointsRechargePort",
+            "export": "./membershipSdkBootstrap"
+          },
+          {
+            "name": "couponRedemptionPort",
+            "export": "./membershipSdkBootstrap"
           }
         ],
         "requiredPorts": [
@@ -1741,12 +2120,37 @@
             "export": "./defaultIdeServices",
             "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
             "sourceExport": "./services/dependencyAppSdkClients"
+          },
+          {
+            "name": "applicationPublishService",
+            "export": "./defaultIdeServices",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+            "sourceExport": "./services/impl/ApplicationPublishService"
+          },
+          {
+            "name": "membershipCheckoutPort",
+            "export": "./membershipSdkBootstrap",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+            "sourceExport": "./services/membershipSdkBootstrap"
+          },
+          {
+            "name": "pointsRechargePort",
+            "export": "./membershipSdkBootstrap",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+            "sourceExport": "./services/membershipSdkBootstrap"
+          },
+          {
+            "name": "couponRedemptionPort",
+            "export": "./membershipSdkBootstrap",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+            "sourceExport": "./services/membershipSdkBootstrap"
           }
         ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
-          "src/defaultIdeServices.ts"
+          "src/defaultIdeServices.ts",
+          "src/membershipSdkBootstrap.ts"
         ],
         "dependencyApiSurfaces": []
       },
@@ -1768,6 +2172,8 @@
           "./services/defaultIdeServices",
           "./services/defaultIdeServicesRuntime",
           "./services/defaultIdeServicesShared",
+          "./services/applicationPublishHost",
+          "./services/applicationPublishSdk",
           "./services/dependencyAppSdkClients",
           "./platform/openLocalFolder",
           "./services/interfaces/IPromptService",
@@ -1776,8 +2182,11 @@
           "./services/interfaces/IDocumentService",
           "./services/interfaces/IFileSystemService",
           "./services/interfaces/IProjectRuntimeLocationService",
+          "./services/interfaces/IApplicationPublishService",
+          "./services/impl/ApplicationPublishService",
           "./services/interfaces/IGitService",
           "./services/interfaces/IProjectService",
+          "./services/interfaces/IWorkspaceService",
           "./services/interfaces/IVipMembershipService",
           "./services/skillsSdkClient",
           "./services/impl/PromptsSdkPromptService",
@@ -1803,6 +2212,10 @@
             "export": "./services/defaultIdeServicesRuntime"
           },
           {
+            "name": "applicationPublishService",
+            "export": "./services/impl/ApplicationPublishService"
+          },
+          {
             "name": "agentsSessionAdapter",
             "export": "./services/agentsSessionService"
           },
@@ -1825,6 +2238,18 @@
           {
             "name": "dependencyAppSdkClientFactory",
             "export": "./services/dependencyAppSdkClients"
+          },
+          {
+            "name": "membershipCheckoutPort",
+            "export": "./services/membershipSdkBootstrap"
+          },
+          {
+            "name": "pointsRechargePort",
+            "export": "./services/membershipSdkBootstrap"
+          },
+          {
+            "name": "couponRedemptionPort",
+            "export": "./services/membershipSdkBootstrap"
           }
         ],
         "requiredPorts": [
@@ -1853,6 +2278,12 @@
           },
           {
             "workspace": "sdkwork-birdcoder-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-deployments-app-sdk",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -1909,7 +2340,9 @@
         "routeManifest": null,
         "runtimeEntrypoints": [
           "src/services/defaultIdeServicesRuntime.ts",
+          "src/services/impl/ApplicationPublishService.ts",
           "src/services/iamRuntime.ts",
+          "src/services/membershipSdkBootstrap.ts",
           "src/bootstrap/appSessionPersistenceBinding.ts"
         ],
         "dependencyApiSurfaces": []
@@ -2052,6 +2485,10 @@
           {
             "name": "studioFeature",
             "export": "."
+          },
+          {
+            "name": "sessionListPresentationSurface",
+            "export": "."
           }
         ],
         "requiredPorts": [],
@@ -2116,6 +2553,10 @@
           {
             "name": "codingWorkbenchUi",
             "export": "."
+          },
+          {
+            "name": "sessionRuntimeStatusPresentation",
+            "export": "."
           }
         ],
         "requiredPorts": [],
@@ -2150,7 +2591,38 @@
             "export": "."
           }
         ],
-        "requiredPorts": [],
+        "requiredPorts": [
+          {
+            "name": "membershipSubscriptionCatalog",
+            "export": ".",
+            "package": "@sdkwork/membership-pc-subscription"
+          },
+          {
+            "name": "membershipCheckoutPort",
+            "export": ".",
+            "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+          },
+          {
+            "name": "pointsRechargePort",
+            "export": ".",
+            "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+          },
+          {
+            "name": "couponRedemptionPort",
+            "export": ".",
+            "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+          },
+          {
+            "name": "orderCheckoutDialog",
+            "export": ".",
+            "package": "@sdkwork/order-pc-checkout"
+          },
+          {
+            "name": "orderRechargeDialogs",
+            "export": ".",
+            "package": "@sdkwork/order-pc-recharge"
+          }
+        ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
@@ -2289,6 +2761,14 @@
           {
             "name": "transientTerminalGovernanceDiagnostics",
             "export": "./terminal/governanceDiagnostics"
+          },
+          {
+            "name": "projectGitOverviewSubscription",
+            "export": "./workbench/projectGitOverviewSubscription"
+          },
+          {
+            "name": "sessionActivityInboxProjection",
+            "export": "./workbench/workspaceSessionInboxCoordinator"
           }
         ],
         "requiredPorts": [
@@ -2332,12 +2812,19 @@
           },
           {
             "workspace": "sdkwork-agents-app-sdk",
+            "permissionModuleId": "ai",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
           },
           {
             "workspace": "sdkwork-documents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-deployments-app-sdk",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -2412,6 +2899,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
           },
           {
@@ -2422,10 +2912,26 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
             ]
+          },
+          {
+            "workspace": "sdkwork-deployments-app-sdk",
+            "sdkFamily": "sdkwork-deployments-app-sdk",
+            "apiAuthority": "sdkwork-deploy-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
           },
           {
             "workspace": "sdkwork-drive-app-sdk",
@@ -2435,6 +2941,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
@@ -2448,6 +2957,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
@@ -2462,6 +2974,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
@@ -2475,6 +2990,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
@@ -2488,6 +3006,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
@@ -2501,6 +3022,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
             "optionalBaseUrlKeys": [
               "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
@@ -2514,6 +3038,9 @@
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "external-via-platform-surface",
             "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
             "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
           }
         ]
@@ -2531,13 +3058,38 @@
         "source": "crates/sdkwork-api-birdcoder-assembly/specs/component.spec.json",
         "layerRole": "runtime-composition",
         "publicExports": [
-          "."
+          ".",
+          "sdkwork_api_birdcoder_assembly::assemble_api_router",
+          "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check",
+          "sdkwork_api_agents_assembly::assemble_app_business_runtime",
+          "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
         ],
-        "providedPorts": [],
-        "requiredPorts": [],
+        "providedPorts": [
+          {
+            "name": "birdcoderApiAssembly",
+            "export": "sdkwork_api_birdcoder_assembly::assemble_api_router"
+          },
+          {
+            "name": "birdcoderDependencyReadiness",
+            "export": "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check"
+          }
+        ],
+        "requiredPorts": [
+          {
+            "name": "agentsAppBusinessRuntime",
+            "export": "sdkwork_api_agents_assembly::assemble_app_business_runtime"
+          },
+          {
+            "name": "agentsReadinessCheck",
+            "export": "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
+          }
+        ],
         "sdkDependencies": [],
         "routeManifest": "assembly-manifest.json",
-        "runtimeEntrypoints": [],
+        "runtimeEntrypoints": [
+          "src/bootstrap.rs#assemble_api_router",
+          "src/application_bootstrap/mod.rs#build_application"
+        ],
         "dependencyApiSurfaces": []
       },
       {
@@ -2554,14 +3106,23 @@
         "layerRole": "runtime-gateway",
         "publicExports": [
           ".",
+          "sdkwork_api_birdcoder_assembly::assemble_api_router",
           "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
-          "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
+          "sdkwork_api_birdcoder_standalone_gateway::build_app",
+          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
+          "sdkwork_api_iam_assembly::assemble_app_api_contribution",
+          "sdkwork_api_agents_assembly::assemble_app_api_contribution",
+          "sdkwork_api_documents_assembly::assemble_app_api_contribution",
+          "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+          "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+          "sdkwork_api_order_assembly::assemble_app_api_contribution",
+          "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
+          "sdkwork_api_skills_assembly::assemble_app_api_contribution"
         ],
         "providedPorts": [
           {
             "name": "standaloneGatewayAppBuilder",
-            "export": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app"
+            "export": "sdkwork_api_birdcoder_standalone_gateway::build_app"
           },
           {
             "name": "standaloneGatewayServer",
@@ -2571,7 +3132,39 @@
         "requiredPorts": [
           {
             "name": "birdcoderApiAssembly",
-            "export": "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router"
+            "export": "sdkwork_api_birdcoder_assembly::assemble_api_router"
+          },
+          {
+            "name": "iamAppApiContribution",
+            "export": "sdkwork_api_iam_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "agentsAppApiContribution",
+            "export": "sdkwork_api_agents_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "documentsAppApiContribution",
+            "export": "sdkwork_api_documents_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "driveAppApiContribution",
+            "export": "sdkwork_api_drive_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "membershipAppApiContribution",
+            "export": "sdkwork_api_membership_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "orderAppApiContribution",
+            "export": "sdkwork_api_order_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "promptsAppApiContribution",
+            "export": "sdkwork_api_prompts_assembly::assemble_app_api_contribution"
+          },
+          {
+            "name": "skillsAppApiContribution",
+            "export": "sdkwork_api_skills_assembly::assemble_app_api_contribution"
           }
         ],
         "sdkDependencies": [],
@@ -2579,10 +3172,156 @@
         "runtimeEntrypoints": [
           "src/main.rs#main",
           "src/main.rs#run",
+          "sdkwork_api_birdcoder_standalone_gateway::build_app",
           "src/server/listen.rs#serve",
           "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
         ],
-        "dependencyApiSurfaces": []
+        "dependencyApiSurfaces": [
+          {
+            "workspace": "sdkwork-iam",
+            "sdkFamily": "sdkwork-iam-app-sdk",
+            "apiAuthority": "sdkwork-iam-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-iam-assembly",
+            "embeddedExecutableExport": "sdkwork_api_iam_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-agents",
+            "sdkFamily": "sdkwork-agents-app-sdk",
+            "apiAuthority": "sdkwork-agents-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/ai",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-agents-assembly",
+            "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-documents",
+            "sdkFamily": "sdkwork-documents-app-sdk",
+            "apiAuthority": "sdkwork-documents-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/documents",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-documents-assembly",
+            "embeddedExecutableExport": "sdkwork_api_documents_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-drive",
+            "sdkFamily": "sdkwork-drive-app-sdk",
+            "apiAuthority": "sdkwork-drive-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/drive",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-drive-assembly",
+            "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-membership",
+            "sdkFamily": "sdkwork-membership-app-sdk",
+            "apiAuthority": "sdkwork-membership-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/memberships",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-membership-assembly",
+            "embeddedExecutableExport": "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-order",
+            "sdkFamily": "sdkwork-order-app-sdk",
+            "apiAuthority": "sdkwork-order-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/orders",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-order-assembly",
+            "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-prompts",
+            "sdkFamily": "sdkwork-prompts-app-sdk",
+            "apiAuthority": "sdkwork-prompts-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/prompts",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-prompts-assembly",
+            "embeddedExecutableExport": "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          },
+          {
+            "workspace": "sdkwork-skills",
+            "sdkFamily": "sdkwork-skills-app-sdk",
+            "apiAuthority": "sdkwork-skills-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api/skills",
+            "runtimeMode": "same-origin",
+            "sameOriginAllowed": true,
+            "cargoDependency": "sdkwork-api-skills-assembly",
+            "embeddedExecutableExport": "sdkwork_api_skills_assembly::assemble_app_api_contribution",
+            "profileCoverage": [
+              "standalone"
+            ],
+            "coverageEvidence": [
+              "src/profile.rs",
+              "tests/bootstrap_smoke.rs"
+            ]
+          }
+        ]
       },
       {
         "name": "sdkwork-birdcoder-errors",
@@ -2669,26 +3408,19 @@
         "publicExports": [
           ".",
           "sdkwork_birdcoder_router_context::WebRequestContext",
-          "sdkwork_birdcoder_router_context::RequiredIamContext",
-          "sdkwork_birdcoder_router_context::StrictOffsetListQuery",
-          "sdkwork_birdcoder_router_context::strict_offset_list_params",
-          "sdkwork_birdcoder_router_context::workspace_context",
-          "sdkwork_birdcoder_router_context::project_context"
+          "sdkwork_birdcoder_router_context::IamAppContext",
+          "sdkwork_birdcoder_router_context::RequiredIamContext"
         ],
         "providedPorts": [
           {
             "name": "authenticatedRouteContext",
             "export": "sdkwork_birdcoder_router_context::RequiredIamContext"
-          },
-          {
-            "name": "strictOffsetListPagination",
-            "export": "sdkwork_birdcoder_router_context::StrictOffsetListQuery"
           }
         ],
         "requiredPorts": [
           {
-            "name": "iamWebRequestContext",
-            "export": "."
+            "name": "iamAppContext",
+            "export": "sdkwork_birdcoder_router_context::IamAppContext"
           }
         ],
         "sdkDependencies": [],
@@ -2752,9 +3484,15 @@
           "request_embedded_api_shutdown",
           "desktop_runtime_location_install_identity",
           "desktop_runtime_location_create_root_locator",
+          "project_device_mount_find",
           "secure_app_session_read",
           "secure_app_session_write",
-          "secure_app_session_delete"
+          "secure_app_session_delete",
+          "application_publish_discover",
+          "application_publish_preflight",
+          "application_publish_build_package",
+          "application_publish_read_artifact_range",
+          "application_publish_artifact_discard"
         ],
         "providedPorts": [
           {
@@ -2781,6 +3519,17 @@
               "secure_app_session_write",
               "secure_app_session_delete"
             ]
+          },
+          {
+            "name": "applicationPublishHostBridge",
+            "export": "application_publish_discover",
+            "operations": [
+              "application_publish_discover",
+              "application_publish_preflight",
+              "application_publish_build_package",
+              "application_publish_read_artifact_range",
+              "application_publish_artifact_discard"
+            ]
           }
         ],
         "requiredPorts": [
@@ -2799,9 +3548,19 @@
           "src/host/state.rs#open_device_state",
           "src/commands/local_store_commands.rs#desktop_runtime_location_install_identity",
           "src/commands/local_store_commands.rs#desktop_runtime_location_create_root_locator",
+          "src/commands/local_store_commands.rs#project_device_mount_find",
           "src/commands/secure_app_session_commands.rs#secure_app_session_read",
           "src/commands/secure_app_session_commands.rs#secure_app_session_write",
           "src/commands/secure_app_session_commands.rs#secure_app_session_delete",
+          "src/application_publish/mod.rs",
+          "src/application_publish/discovery.rs",
+          "src/application_publish/manifest.rs",
+          "src/application_publish/packaging.rs",
+          "src/application_publish/path_safety.rs",
+          "src/application_publish/runtime.rs",
+          "src/application_publish/state.rs",
+          "src/application_publish/types.rs",
+          "src/commands/application_publish_commands.rs",
           "src/adapters/secure_app_session_store.rs",
           "src/commands/mod.rs",
           "Cargo.toml"
@@ -3258,6 +4017,41 @@
           "role": "shell"
         },
         {
+          "appRoot": "apps/sdkwork-birdcoder-mini-program",
+          "architecture": "mp",
+          "directoryName": "sdkwork-birdcoder-mp-commons",
+          "name": "@sdkwork/birdcoder-mp-commons",
+          "role": "commons"
+        },
+        {
+          "appRoot": "apps/sdkwork-birdcoder-mini-program",
+          "architecture": "mp",
+          "directoryName": "sdkwork-birdcoder-mp-core",
+          "name": "@sdkwork/birdcoder-mp-core",
+          "role": "core"
+        },
+        {
+          "appRoot": "apps/sdkwork-birdcoder-mini-program",
+          "architecture": "mp",
+          "directoryName": "sdkwork-birdcoder-mp-host",
+          "name": "@sdkwork/birdcoder-mp-host",
+          "role": "host"
+        },
+        {
+          "appRoot": "apps/sdkwork-birdcoder-mini-program",
+          "architecture": "mp",
+          "directoryName": "sdkwork-birdcoder-mp-shell",
+          "name": "@sdkwork/birdcoder-mp-shell",
+          "role": "shell"
+        },
+        {
+          "appRoot": "apps/sdkwork-birdcoder-mini-program",
+          "architecture": "mp",
+          "directoryName": "sdkwork-birdcoder-mp-workbench",
+          "name": "@sdkwork/birdcoder-mp-workbench",
+          "role": "capability"
+        },
+        {
           "appRoot": "apps/sdkwork-birdcoder-pc",
           "architecture": "pc",
           "directoryName": "sdkwork-birdcoder-pc-admin-core",
@@ -3474,15 +4268,10 @@
           "manifest": "crates/sdkwork-api-birdcoder-assembly/Cargo.toml",
           "dependencies": [
             "axum",
-            "tokio",
             "serde-json",
-            "tracing",
             "sdkwork-web-bootstrap",
-            "sdkwork-web-axum",
             "sdkwork-web-core",
             "sdkwork-web-contract",
-            "sdkwork-iam-web-adapter",
-            "sdkwork-api-agents-assembly",
             "sdkwork-routes-system-app-api",
             "tower"
           ]
@@ -3494,9 +4283,22 @@
             "axum",
             "tokio",
             "tracing",
-            "sdkwork-web-bootstrap",
-            "sdkwork-api-birdcoder-assembly",
             "serde-json",
+            "sdkwork-web-bootstrap",
+            "sdkwork-web-axum",
+            "sdkwork-web-core",
+            "sdkwork-web-contract",
+            "sdkwork-iam-web-adapter",
+            "sdkwork-api-birdcoder-assembly",
+            "sdkwork-api-iam-assembly",
+            "sdkwork-api-agents-assembly",
+            "sdkwork-agents-runtime-facade",
+            "sdkwork-api-documents-assembly",
+            "sdkwork-api-drive-assembly",
+            "sdkwork-api-membership-assembly",
+            "sdkwork-api-order-assembly",
+            "sdkwork-api-prompts-assembly",
+            "sdkwork-api-skills-assembly",
             "tokio",
             "tower"
           ]
@@ -3526,7 +4328,6 @@
           "dependencies": [
             "axum",
             "sdkwork-iam-context-service",
-            "sdkwork-iam-web-adapter",
             "sdkwork-web-core",
             "sdkwork-birdcoder-errors",
             "sdkwork-utils-rust"
@@ -3552,6 +4353,7 @@
             "uuid",
             "hex",
             "sha2",
+            "zip",
             "tauri",
             "rusqlite",
             "keyring",
@@ -3560,6 +4362,7 @@
             "notify",
             "rfd",
             "sdkwork-api-birdcoder-standalone-gateway",
+            "sdkwork-agents-runtime-facade",
             "sdkwork-birdcoder-git",
             "sdkwork-terminal-control-plane",
             "sdkwork-terminal-pty-runtime",
@@ -3585,21 +4388,59 @@
           ]
         },
         {
+          "packageName": "codex-agent-graph-store",
+          "manifest": "external/codex/codex-rs/agent-graph-store/Cargo.toml",
+          "dependencies": [
+            "codex-protocol",
+            "codex-state",
+            "serde",
+            "thiserror",
+            "codex-utils-absolute-path",
+            "pretty-assertions",
+            "serde-json",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-agent-identity",
+          "manifest": "external/codex/codex-rs/agent-identity/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "base64",
+            "chrono",
+            "codex-http-client",
+            "codex-protocol",
+            "crypto-box",
+            "ed25519-dalek",
+            "http",
+            "jsonwebtoken",
+            "rand",
+            "serde",
+            "serde-json",
+            "sha2",
+            "pretty-assertions"
+          ]
+        },
+        {
           "packageName": "codex-analytics",
           "manifest": "external/codex/codex-rs/analytics/Cargo.toml",
           "dependencies": [
             "codex-app-server-protocol",
             "codex-git-utils",
             "codex-login",
+            "codex-model-provider",
             "codex-plugin",
             "codex-protocol",
+            "codex-state",
             "os-info",
             "serde",
+            "serde-json",
             "sha1",
             "tokio",
             "tracing",
-            "pretty-assertions",
-            "serde-json"
+            "codex-utils-absolute-path",
+            "pretty-assertions"
           ]
         },
         {
@@ -3618,10 +4459,14 @@
             "codex-app-server",
             "codex-app-server-protocol",
             "codex-arg0",
+            "codex-config",
             "codex-core",
             "codex-exec-server",
             "codex-feedback",
             "codex-protocol",
+            "codex-uds",
+            "codex-utils-absolute-path",
+            "codex-utils-rustls-provider",
             "futures",
             "serde",
             "serde-json",
@@ -3632,7 +4477,29 @@
             "url",
             "pretty-assertions",
             "serde-json",
+            "tempfile",
             "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-app-server-daemon",
+          "manifest": "external/codex/codex-rs/app-server-daemon/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "codex-app-server-protocol",
+            "codex-app-server-transport",
+            "codex-http-client",
+            "codex-utils-home-dir",
+            "codex-uds",
+            "futures",
+            "libc",
+            "serde",
+            "serde-json",
+            "sha2",
+            "tokio",
+            "tokio-tungstenite",
+            "pretty-assertions",
+            "tempfile"
           ]
         },
         {
@@ -3642,10 +4509,11 @@
             "anyhow",
             "clap",
             "codex-experimental-api-macros",
-            "codex-git-utils",
+            "codex-extension-items",
             "codex-protocol",
             "codex-shell-command",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "schemars",
             "serde",
             "serde-json",
@@ -3682,82 +4550,149 @@
             "tracing-subscriber",
             "tungstenite",
             "url",
-            "uuid"
+            "uuid",
+            "pretty-assertions"
           ]
         },
         {
-          "packageName": "codex-app-server-test-notify-capture",
+          "packageName": "codex-app-server-transport",
+          "manifest": "external/codex/codex-rs/app-server-transport/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "axum",
+            "base64",
+            "clap",
+            "codex-api",
+            "codex-app-server-protocol",
+            "codex-core",
+            "codex-login",
+            "codex-model-provider",
+            "codex-state",
+            "codex-uds",
+            "codex-utils-absolute-path",
+            "codex-utils-rustls-provider",
+            "constant-time-eq",
+            "futures",
+            "gethostname",
+            "hmac",
+            "httpdate",
+            "jsonwebtoken",
+            "owo-colors",
+            "rand",
+            "serde",
+            "serde-json",
+            "sha2",
+            "time",
+            "tokio",
+            "tokio-tungstenite",
+            "tokio-util",
+            "tracing",
+            "url",
+            "uuid",
+            "chrono",
+            "codex-config",
+            "codex-protocol",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "exec-server",
           "manifest": "external/codex/codex-rs/app-server/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "async-trait",
             "base64",
             "axum",
             "codex-analytics",
+            "codex-agent-extension",
             "codex-arg0",
-            "codex-cloud-requirements",
+            "codex-cloud-config",
+            "codex-code-mode",
             "codex-config",
+            "codex-connectors",
             "codex-core",
+            "codex-core-plugins",
+            "codex-home",
             "codex-exec-server",
+            "codex-extension-api",
+            "codex-external-agent-migration",
             "codex-features",
+            "codex-goal-extension",
+            "codex-git-attribution",
+            "codex-guardian",
             "codex-git-utils",
+            "codex-file-watcher",
+            "codex-hooks",
+            "codex-http-client",
             "codex-otel",
+            "codex-plugin",
             "codex-shell-command",
+            "codex-skills",
+            "codex-skills-extension",
             "codex-utils-cli",
             "codex-utils-pty",
             "codex-backend-client",
             "codex-file-search",
             "codex-chatgpt",
             "codex-login",
+            "codex-image-generation-extension",
+            "codex-memories-extension",
+            "codex-web-search-extension",
+            "codex-memories-write",
             "codex-mcp",
+            "codex-mcp-extension",
+            "codex-model-provider",
             "codex-models-manager",
             "codex-protocol",
             "codex-app-server-protocol",
+            "codex-app-server-transport",
             "codex-feedback",
             "codex-rmcp-client",
             "codex-rollout",
             "codex-sandboxing",
             "codex-state",
+            "codex-thread-store",
             "codex-tools",
             "codex-utils-absolute-path",
             "codex-utils-json-to-toml",
-            "codex-utils-rustls-provider",
+            "codex-utils-path-uri",
             "chrono",
             "clap",
-            "constant-time-eq",
             "futures",
-            "gethostname",
-            "hmac",
-            "jsonwebtoken",
-            "owo-colors",
             "serde",
             "serde-json",
-            "sha2",
             "tempfile",
+            "thiserror",
             "time",
             "toml",
+            "toml-edit",
             "tokio",
             "tokio-util",
-            "tokio-tungstenite",
             "tracing",
             "tracing-subscriber",
             "url",
             "uuid",
             "app-test-support",
-            "base64",
             "axum",
-            "core-test-support",
+            "base64",
+            "codex-model-provider-info",
             "codex-utils-cargo-bin",
+            "core-test-support",
+            "flate2",
+            "hmac",
             "opentelemetry",
             "opentelemetry-sdk",
             "pretty-assertions",
             "reqwest",
             "rmcp",
             "serial-test",
+            "sha2",
+            "shlex",
+            "tar",
             "tokio-tungstenite",
             "tracing-opentelemetry",
-            "wiremock",
-            "shlex"
+            "wiremock"
           ]
         },
         {
@@ -3770,6 +4705,7 @@
             "codex-app-server-protocol",
             "codex-config",
             "codex-core",
+            "codex-exec-server",
             "codex-features",
             "codex-login",
             "codex-models-manager",
@@ -3777,11 +4713,15 @@
             "codex-utils-cargo-bin",
             "serde",
             "serde-json",
+            "tempfile",
             "tokio",
+            "tokio-util",
+            "url",
             "uuid",
             "wiremock",
             "core-test-support",
-            "shlex"
+            "shlex",
+            "pretty-assertions"
           ]
         },
         {
@@ -3791,6 +4731,7 @@
             "anyhow",
             "codex-exec-server",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "similar",
             "thiserror",
             "tokio",
@@ -3810,6 +4751,7 @@
             "anyhow",
             "codex-apply-patch",
             "codex-exec-server",
+            "codex-install-context",
             "codex-linux-sandbox",
             "codex-sandboxing",
             "codex-shell-escalation",
@@ -3817,17 +4759,32 @@
             "codex-utils-home-dir",
             "dotenvy",
             "tempfile",
-            "tokio"
+            "tokio",
+            "pretty-assertions"
           ]
         },
         {
           "packageName": "codex-async-utils",
           "manifest": "external/codex/codex-rs/async-utils/Cargo.toml",
           "dependencies": [
-            "async-trait",
             "tokio",
             "tokio-util",
             "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-aws-auth",
+          "manifest": "external/codex/codex-rs/aws-auth/Cargo.toml",
+          "dependencies": [
+            "aws-config",
+            "aws-credential-types",
+            "aws-sigv4",
+            "aws-types",
+            "bytes",
+            "http",
+            "thiserror",
+            "pretty-assertions",
+            "tokio"
           ]
         },
         {
@@ -3837,12 +4794,25 @@
             "anyhow",
             "serde",
             "serde-json",
-            "reqwest",
+            "http",
+            "url",
             "codex-backend-openapi-models",
-            "codex-client",
+            "codex-api",
+            "codex-http-client",
             "codex-login",
+            "codex-model-provider",
             "codex-protocol",
-            "pretty-assertions"
+            "pretty-assertions",
+            "tokio",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "bwrap",
+          "manifest": "external/codex/codex-rs/bwrap/Cargo.toml",
+          "dependencies": [
+            "cc",
+            "pkg-config"
           ]
         },
         {
@@ -3852,10 +4822,11 @@
             "anyhow",
             "clap",
             "codex-connectors",
-            "codex-config",
             "codex-core",
             "codex-git-utils",
             "codex-login",
+            "codex-model-provider",
+            "codex-plugin",
             "codex-utils-cli",
             "serde",
             "tokio",
@@ -3873,58 +4844,86 @@
             "clap",
             "clap-complete",
             "codex-app-server",
+            "codex-app-server-daemon",
             "codex-app-server-protocol",
             "codex-app-server-test-client",
             "codex-arg0",
+            "codex-api",
             "codex-chatgpt",
             "codex-cloud-tasks",
             "codex-utils-cli",
             "codex-config",
             "codex-core",
+            "codex-core-plugins",
+            "codex-home",
+            "codex-http-client",
             "codex-exec",
             "codex-exec-server",
             "codex-execpolicy",
+            "codex-extension-api",
             "codex-features",
+            "codex-git-attribution",
+            "codex-git-utils",
+            "codex-install-context",
             "codex-login",
+            "codex-memories-write",
             "codex-mcp",
             "codex-mcp-server",
+            "codex-model-provider",
+            "codex-models-manager",
+            "codex-plugin",
             "codex-protocol",
             "codex-responses-api-proxy",
             "codex-rmcp-client",
+            "codex-rollout",
+            "codex-rollout-trace",
             "codex-sandboxing",
             "codex-state",
             "codex-stdio-to-uds",
             "codex-terminal-detection",
             "codex-tui",
+            "codex-utils-absolute-path",
             "codex-utils-path",
+            "crossterm",
+            "http",
             "libc",
+            "os-info",
             "owo-colors",
             "regex-lite",
+            "serde",
             "serde-json",
             "supports-color",
+            "sys-locale",
             "tempfile",
             "tokio",
             "toml",
             "tracing",
             "tracing-appender",
             "tracing-subscriber",
+            "unicode-segmentation",
+            "url",
+            "which",
+            "app-test-support",
             "assert-cmd",
             "assert-matches",
             "codex-utils-cargo-bin",
+            "insta",
             "predicates",
             "pretty-assertions",
-            "sqlx"
+            "sqlx",
+            "wiremock",
+            "zstd"
           ]
         },
         {
-          "packageName": "codex-cloud-requirements",
-          "manifest": "external/codex/codex-rs/cloud-requirements/Cargo.toml",
+          "packageName": "codex-cloud-config",
+          "manifest": "external/codex/codex-rs/cloud-config/Cargo.toml",
           "dependencies": [
-            "async-trait",
             "base64",
             "chrono",
             "codex-backend-client",
             "codex-config",
+            "codex-http-client",
             "codex-core",
             "codex-login",
             "codex-otel",
@@ -3935,8 +4934,8 @@
             "sha2",
             "thiserror",
             "tokio",
-            "toml",
             "tracing",
+            "codex-agent-identity",
             "pretty-assertions",
             "tempfile",
             "tokio"
@@ -3947,10 +4946,11 @@
           "manifest": "external/codex/codex-rs/cloud-tasks-client/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "async-trait",
             "chrono",
+            "codex-api",
             "codex-backend-client",
             "codex-git-utils",
+            "codex-http-client",
             "serde",
             "serde-json",
             "thiserror"
@@ -3960,7 +4960,6 @@
           "packageName": "codex-cloud-tasks-mock-client",
           "manifest": "external/codex/codex-rs/cloud-tasks-mock-client/Cargo.toml",
           "dependencies": [
-            "async-trait",
             "chrono",
             "codex-cloud-tasks-client",
             "diffy"
@@ -3971,21 +4970,21 @@
           "manifest": "external/codex/codex-rs/cloud-tasks/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "base64",
             "chrono",
             "clap",
-            "codex-client",
+            "codex-http-client",
             "codex-cloud-tasks-client",
             "codex-cloud-tasks-mock-client",
             "codex-core",
             "codex-git-utils",
             "codex-login",
+            "codex-model-provider",
             "codex-tui",
             "codex-utils-cli",
             "crossterm",
+            "http",
             "owo-colors",
             "ratatui",
-            "reqwest",
             "serde",
             "serde-json",
             "supports-color",
@@ -3998,32 +4997,77 @@
           ]
         },
         {
-          "packageName": "codex-code-mode",
-          "manifest": "external/codex/codex-rs/code-mode/Cargo.toml",
+          "packageName": "codex-code-mode-host",
+          "manifest": "external/codex/codex-rs/code-mode-host/Cargo.toml",
           "dependencies": [
-            "async-trait",
+            "anyhow",
+            "axum",
+            "clap",
+            "codex-code-mode",
+            "codex-code-mode-protocol",
+            "futures",
+            "tokio",
+            "tokio-util",
+            "tracing",
+            "tracing-subscriber",
+            "codex-protocol",
+            "codex-utils-cargo-bin",
+            "pretty-assertions",
+            "serde-json",
+            "tempfile",
+            "tokio-tungstenite"
+          ]
+        },
+        {
+          "packageName": "codex-code-mode-protocol",
+          "manifest": "external/codex/codex-rs/code-mode-protocol/Cargo.toml",
+          "dependencies": [
+            "codex-protocol",
             "serde",
             "serde-json",
             "tokio",
             "tokio-util",
+            "pretty-assertions",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-code-mode",
+          "manifest": "external/codex/codex-rs/code-mode/Cargo.toml",
+          "dependencies": [
+            "codex-code-mode-protocol",
+            "codex-http-client",
+            "codex-protocol",
+            "codex-websocket-client",
+            "deno-core-icudata",
+            "futures",
+            "serde-json",
+            "tokio",
+            "tokio-tungstenite",
+            "tokio-util",
             "tracing",
             "v8",
-            "pretty-assertions"
+            "pretty-assertions",
+            "tokio"
           ]
         },
         {
           "packageName": "codex-api",
           "manifest": "external/codex/codex-rs/codex-api/Cargo.toml",
           "dependencies": [
-            "async-trait",
+            "async-channel",
             "base64",
             "bytes",
             "chrono",
             "codex-client",
+            "codex-http-client",
             "codex-protocol",
             "codex-utils-rustls-provider",
+            "codex-websocket-client",
             "futures",
             "http",
+            "reqwest",
+            "schemars",
             "serde",
             "serde-json",
             "thiserror",
@@ -4035,6 +5079,7 @@
             "regex-lite",
             "tokio-util",
             "url",
+            "uuid",
             "anyhow",
             "assert-matches",
             "pretty-assertions",
@@ -4056,30 +5101,12 @@
           "packageName": "codex-client",
           "manifest": "external/codex/codex-rs/codex-client/Cargo.toml",
           "dependencies": [
-            "async-trait",
-            "bytes",
+            "codex-http-client",
             "eventsource-stream",
             "futures",
             "http",
-            "opentelemetry",
             "rand",
-            "reqwest",
-            "rustls",
-            "rustls-native-certs",
-            "rustls-pki-types",
-            "serde",
-            "serde-json",
-            "thiserror",
-            "tokio",
-            "tracing",
-            "tracing-opentelemetry",
-            "codex-utils-rustls-provider",
-            "zstd",
-            "codex-utils-cargo-bin",
-            "opentelemetry-sdk",
-            "pretty-assertions",
-            "tempfile",
-            "tracing-subscriber"
+            "tokio"
           ]
         },
         {
@@ -4092,20 +5119,38 @@
           ]
         },
         {
+          "packageName": "codex-home",
+          "manifest": "external/codex/codex-rs/codex-home/Cargo.toml",
+          "dependencies": [
+            "codex-extension-api",
+            "codex-utils-absolute-path",
+            "tokio",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
           "packageName": "codex-mcp",
           "manifest": "external/codex/codex-rs/codex-mcp/Cargo.toml",
           "dependencies": [
             "anyhow",
+            "arc-swap",
             "async-channel",
             "codex-async-utils",
+            "codex-api",
             "codex-config",
+            "codex-connectors",
+            "codex-exec-server",
             "codex-login",
+            "codex-model-provider",
             "codex-otel",
-            "codex-plugin",
             "codex-protocol",
             "codex-rmcp-client",
+            "codex-utils-path-uri",
             "codex-utils-plugins",
             "futures",
+            "lru",
             "regex-lite",
             "rmcp",
             "serde",
@@ -4116,6 +5161,8 @@
             "tokio-util",
             "tracing",
             "url",
+            "codex-exec-server-test-support",
+            "codex-plugin",
             "pretty-assertions",
             "rmcp",
             "tempfile"
@@ -4127,23 +5174,31 @@
           "dependencies": []
         },
         {
-          "packageName": "codex-config",
+          "packageName": "generate-proto",
           "manifest": "external/codex/codex-rs/config/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "codex-app-server-protocol",
+            "base64",
             "codex-execpolicy",
             "codex-features",
+            "codex-file-system",
             "codex-git-utils",
             "codex-model-provider-info",
             "codex-network-proxy",
             "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-path",
+            "codex-utils-path-uri",
             "dunce",
             "futures",
+            "gethostname",
+            "indexmap",
             "multimap",
+            "prost",
+            "regex-lite",
             "schemars",
             "serde",
+            "serde-ignored",
             "serde-json",
             "serde-path-to-error",
             "sha2",
@@ -4151,11 +5206,16 @@
             "tokio",
             "toml",
             "toml-edit",
+            "tonic",
+            "tonic-prost",
             "tracing",
             "wildmatch",
             "pretty-assertions",
             "tempfile",
-            "tokio"
+            "tokio",
+            "tokio-stream",
+            "tonic",
+            "tonic-prost-build"
           ]
         },
         {
@@ -4163,11 +5223,104 @@
           "manifest": "external/codex/codex-rs/connectors/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "codex-app-server-protocol",
+            "arc-swap",
+            "codex-config",
+            "codex-login",
+            "codex-otel",
+            "codex-plugin",
+            "codex-protocol",
+            "indexmap",
             "serde",
+            "serde-json",
+            "sha1",
+            "tempfile",
+            "tokio",
+            "tracing",
             "urlencoding",
+            "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-context-fragments",
+          "manifest": "external/codex/codex-rs/context-fragments/Cargo.toml",
+          "dependencies": [
+            "codex-protocol",
+            "codex-utils-string"
+          ]
+        },
+        {
+          "packageName": "codex-core-api",
+          "manifest": "external/codex/codex-rs/core-api/Cargo.toml",
+          "dependencies": [
+            "codex-app-server-protocol",
+            "codex-arg0",
+            "codex-analytics",
+            "codex-config",
+            "codex-core",
+            "codex-extension-api",
+            "codex-home",
+            "codex-image-generation-extension",
+            "codex-exec-server",
+            "codex-features",
+            "codex-login",
+            "codex-model-provider-info",
+            "codex-models-manager",
+            "codex-protocol",
+            "codex-state",
+            "codex-utils-absolute-path"
+          ]
+        },
+        {
+          "packageName": "codex-core-plugins",
+          "manifest": "external/codex/codex-rs/core-plugins/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "codex-analytics",
+            "codex-app-server-protocol",
+            "codex-config",
+            "codex-connectors",
+            "codex-core-skills",
+            "codex-exec-server",
+            "codex-git-utils",
+            "codex-hooks",
+            "codex-http-client",
+            "codex-login",
+            "codex-mcp",
+            "codex-model-provider",
+            "codex-otel",
+            "codex-plugin",
+            "codex-protocol",
+            "codex-skills",
+            "codex-shell-command",
+            "codex-tools",
+            "codex-utils-absolute-path",
+            "codex-utils-path",
+            "codex-utils-path-uri",
+            "codex-utils-plugins",
+            "chrono",
+            "dirs",
+            "flate2",
+            "http",
+            "regex",
+            "semver",
+            "serde",
+            "serde-json",
+            "serde-yaml",
+            "tar",
+            "tempfile",
+            "thiserror",
+            "tokio",
+            "toml",
+            "tracing",
+            "url",
+            "zip",
+            "codex-exec-server-test-support",
+            "libc",
             "pretty-assertions",
-            "tokio"
+            "tempfile",
+            "tracing-subscriber",
+            "tracing-test",
+            "wiremock"
           ]
         },
         {
@@ -4176,17 +5329,22 @@
           "dependencies": [
             "anyhow",
             "codex-analytics",
-            "codex-app-server-protocol",
             "codex-config",
-            "codex-instructions",
+            "codex-context-fragments",
+            "codex-exec-server",
             "codex-login",
+            "codex-model-provider",
             "codex-otel",
             "codex-protocol",
+            "codex-shell-command",
             "codex-skills",
             "codex-utils-absolute-path",
+            "codex-utils-output-truncation",
+            "codex-utils-path-uri",
             "codex-utils-plugins",
             "dirs",
             "dunce",
+            "futures",
             "serde",
             "serde-json",
             "serde-yaml",
@@ -4206,24 +5364,30 @@
             "anyhow",
             "arc-swap",
             "async-channel",
-            "async-trait",
             "base64",
             "bm25",
             "chrono",
             "clap",
             "codex-analytics",
+            "codex-agent-graph-store",
             "codex-api",
             "codex-app-server-protocol",
             "codex-apply-patch",
             "codex-async-utils",
             "codex-code-mode",
             "codex-connectors",
+            "codex-context-fragments",
             "codex-config",
+            "codex-core-plugins",
             "codex-core-skills",
             "codex-exec-server",
+            "codex-extension-api",
+            "codex-extension-items",
             "codex-features",
             "codex-feedback",
+            "codex-file-system",
             "codex-login",
+            "codex-memories-read",
             "codex-mcp",
             "codex-model-provider-info",
             "codex-models-manager",
@@ -4231,17 +5395,23 @@
             "codex-execpolicy",
             "codex-git-utils",
             "codex-hooks",
-            "codex-instructions",
+            "codex-http-client",
+            "codex-install-context",
             "codex-network-proxy",
             "codex-otel",
             "codex-plugin",
+            "codex-model-provider",
             "codex-protocol",
             "codex-response-debug-context",
+            "codex-prompts",
             "codex-rollout",
+            "codex-rollout-trace",
             "codex-rmcp-client",
             "codex-sandboxing",
+            "codex-skills",
             "codex-state",
             "codex-terminal-detection",
+            "codex-thread-store",
             "codex-tools",
             "codex-utils-absolute-path",
             "codex-utils-cache",
@@ -4249,18 +5419,14 @@
             "codex-utils-home-dir",
             "codex-utils-output-truncation",
             "codex-utils-path",
+            "codex-utils-path-uri",
             "codex-utils-plugins",
             "codex-utils-pty",
-            "codex-utils-readiness",
-            "codex-secrets",
             "codex-utils-string",
             "codex-utils-stream-parser",
-            "codex-utils-template",
             "codex-windows-sandbox",
-            "csv",
             "dirs",
             "dunce",
-            "env-flags",
             "eventsource-stream",
             "futures",
             "http",
@@ -4268,7 +5434,6 @@
             "image",
             "indexmap",
             "libc",
-            "notify",
             "once-cell",
             "rand",
             "regex-lite",
@@ -4279,8 +5444,8 @@
             "sha1",
             "shlex",
             "similar",
+            "symphonia",
             "tempfile",
-            "test-log",
             "thiserror",
             "tokio",
             "tokio-util",
@@ -4292,12 +5457,16 @@
             "uuid",
             "which",
             "whoami",
-            "zip",
             "assert-cmd",
             "assert-matches",
-            "codex-arg0",
+            "codex-exec-server-test-support",
+            "codex-image-generation-extension",
+            "codex-home",
             "codex-otel",
+            "codex-skills-extension",
+            "codex-test-binary-support",
             "codex-utils-cargo-bin",
+            "codex-web-search-extension",
             "core-test-support",
             "ctor",
             "insta",
@@ -4309,6 +5478,7 @@
             "opentelemetry-sdk",
             "serial-test",
             "tempfile",
+            "test-log",
             "tracing-opentelemetry",
             "tracing-subscriber",
             "tracing-test",
@@ -4325,15 +5495,20 @@
             "assert-cmd",
             "base64",
             "codex-arg0",
+            "codex-config",
             "codex-core",
+            "codex-extension-api",
             "codex-exec-server",
+            "codex-home",
             "codex-features",
+            "codex-hooks",
             "codex-login",
             "codex-model-provider-info",
             "codex-models-manager",
             "codex-protocol",
             "codex-utils-absolute-path",
             "codex-utils-cargo-bin",
+            "codex-utils-path-uri",
             "ctor",
             "futures",
             "notify",
@@ -4341,6 +5516,7 @@
             "opentelemetry-sdk",
             "regex-lite",
             "serde-json",
+            "similar",
             "tempfile",
             "tokio",
             "tokio-tungstenite",
@@ -4351,17 +5527,20 @@
             "wiremock",
             "shlex",
             "zstd",
-            "pretty-assertions",
-            "reqwest"
+            "codex-http-client",
+            "pretty-assertions"
           ]
         },
         {
-          "packageName": "codex-debug-client",
-          "manifest": "external/codex/codex-rs/debug-client/Cargo.toml",
+          "packageName": "codex-exec-server-protocol",
+          "manifest": "external/codex/codex-rs/exec-server-protocol/Cargo.toml",
           "dependencies": [
-            "anyhow",
-            "clap",
-            "codex-app-server-protocol",
+            "base64",
+            "codex-file-system",
+            "codex-network-proxy",
+            "codex-protocol",
+            "codex-shell-command",
+            "codex-utils-path-uri",
             "serde",
             "serde-json",
             "pretty-assertions"
@@ -4372,25 +5551,61 @@
           "manifest": "external/codex/codex-rs/exec-server/Cargo.toml",
           "dependencies": [
             "arc-swap",
-            "async-trait",
+            "axum",
             "base64",
-            "clap",
-            "codex-app-server-protocol",
+            "bytes",
+            "clatter",
+            "codex-api",
+            "codex-http-client",
+            "codex-exec-server-protocol",
+            "codex-file-system",
+            "codex-network-proxy",
+            "codex-otel",
             "codex-protocol",
+            "codex-sandboxing",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "codex-utils-pty",
+            "codex-utils-rustls-provider",
+            "codex-websocket-client",
             "futures",
+            "http",
+            "prost",
             "serde",
             "serde-json",
             "thiserror",
+            "toml",
             "tokio",
+            "tokio-util",
             "tokio-tungstenite",
             "tracing",
+            "url",
+            "uuid",
             "anyhow",
-            "codex-utils-cargo-bin",
+            "codex-exec-server-test-support",
+            "codex-test-binary-support",
+            "ctor",
+            "http",
+            "opentelemetry",
+            "opentelemetry-sdk",
             "pretty-assertions",
+            "rcgen",
+            "rustls",
+            "serial-test",
             "tempfile",
-            "test-case"
+            "test-case",
+            "tokio",
+            "tracing-opentelemetry",
+            "tracing-subscriber",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "codex-exec-server-test-support",
+          "manifest": "external/codex/codex-rs/exec-server/tests/support/Cargo.toml",
+          "dependencies": [
+            "codex-exec-server",
+            "codex-http-client"
           ]
         },
         {
@@ -4402,7 +5617,8 @@
             "codex-arg0",
             "codex-app-server-client",
             "codex-app-server-protocol",
-            "codex-cloud-requirements",
+            "codex-cloud-config",
+            "codex-config",
             "codex-core",
             "codex-feedback",
             "codex-git-utils",
@@ -4413,6 +5629,7 @@
             "codex-utils-absolute-path",
             "codex-utils-cli",
             "codex-utils-oss",
+            "codex-utils-sandbox-summary",
             "owo-colors",
             "serde",
             "serde-json",
@@ -4439,26 +5656,6 @@
           ]
         },
         {
-          "packageName": "codex-execpolicy-legacy",
-          "manifest": "external/codex/codex-rs/execpolicy-legacy/Cargo.toml",
-          "dependencies": [
-            "allocative",
-            "anyhow",
-            "clap",
-            "derive-more",
-            "env-logger",
-            "log",
-            "multimap",
-            "path-absolutize",
-            "regex-lite",
-            "serde",
-            "serde-json",
-            "serde-with",
-            "starlark",
-            "tempfile"
-          ]
-        },
-        {
           "packageName": "codex-execpolicy",
           "manifest": "external/codex/codex-rs/execpolicy/Cargo.toml",
           "dependencies": [
@@ -4470,9 +5667,262 @@
             "serde-json",
             "shlex",
             "starlark",
+            "tempfile",
             "thiserror",
+            "tokio",
+            "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-agent-extension",
+          "manifest": "external/codex/codex-rs/ext/agent/Cargo.toml",
+          "dependencies": [
+            "codex-core",
+            "codex-protocol",
+            "anyhow",
+            "core-test-support",
             "pretty-assertions",
-            "tempfile"
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-connectors-extension",
+          "manifest": "external/codex/codex-rs/ext/connectors/Cargo.toml",
+          "dependencies": [
+            "codex-connectors",
+            "codex-core-plugins",
+            "codex-plugin",
+            "codex-utils-path-uri",
+            "serde-json",
+            "thiserror",
+            "tracing"
+          ]
+        },
+        {
+          "packageName": "codex-extension-api",
+          "manifest": "external/codex/codex-rs/ext/extension-api/Cargo.toml",
+          "dependencies": [
+            "codex-config",
+            "codex-context-fragments",
+            "codex-exec-server-protocol",
+            "codex-mcp",
+            "codex-protocol",
+            "codex-tools",
+            "codex-utils-absolute-path",
+            "serde-json",
+            "pretty-assertions",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-git-attribution",
+          "manifest": "external/codex/codex-rs/ext/git-attribution/Cargo.toml",
+          "dependencies": [
+            "codex-backend-client",
+            "codex-extension-api",
+            "codex-http-client",
+            "codex-login",
+            "serde-json",
+            "tokio",
+            "tokio",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "codex-goal-extension",
+          "manifest": "external/codex/codex-rs/ext/goal/Cargo.toml",
+          "dependencies": [
+            "codex-analytics",
+            "codex-core",
+            "codex-extension-api",
+            "codex-otel",
+            "codex-protocol",
+            "codex-state",
+            "codex-tools",
+            "codex-utils-template",
+            "serde",
+            "serde-json",
+            "tokio",
+            "tracing",
+            "anyhow",
+            "chrono",
+            "codex-utils-absolute-path",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-guardian",
+          "manifest": "external/codex/codex-rs/ext/guardian/Cargo.toml",
+          "dependencies": [
+            "codex-core",
+            "codex-extension-api",
+            "codex-protocol"
+          ]
+        },
+        {
+          "packageName": "codex-image-generation-extension",
+          "manifest": "external/codex/codex-rs/ext/image-generation/Cargo.toml",
+          "dependencies": [
+            "base64",
+            "codex-api",
+            "codex-core",
+            "codex-exec-server",
+            "codex-extension-api",
+            "codex-extension-items",
+            "codex-login",
+            "codex-model-provider",
+            "codex-model-provider-info",
+            "codex-protocol",
+            "codex-tools",
+            "codex-utils-absolute-path",
+            "codex-utils-image",
+            "codex-utils-path-uri",
+            "http",
+            "schemars",
+            "serde",
+            "serde-json",
+            "tracing",
+            "pretty-assertions",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-extension-items",
+          "manifest": "external/codex/codex-rs/ext/items/Cargo.toml",
+          "dependencies": [
+            "codex-utils-absolute-path",
+            "schemars",
+            "serde",
+            "serde-json",
+            "ts-rs",
+            "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-mcp-extension",
+          "manifest": "external/codex/codex-rs/ext/mcp/Cargo.toml",
+          "dependencies": [
+            "codex-core",
+            "codex-core-plugins",
+            "codex-config",
+            "codex-connectors",
+            "codex-connectors-extension",
+            "codex-exec-server",
+            "codex-extension-api",
+            "codex-features",
+            "codex-mcp",
+            "codex-plugin",
+            "codex-protocol",
+            "codex-utils-absolute-path",
+            "codex-utils-path-uri",
+            "serde-json",
+            "thiserror",
+            "tracing",
+            "tokio",
+            "codex-login",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-memories-extension",
+          "manifest": "external/codex/codex-rs/ext/memories/Cargo.toml",
+          "dependencies": [
+            "codex-core",
+            "codex-extension-api",
+            "codex-features",
+            "codex-otel",
+            "codex-tools",
+            "codex-utils-absolute-path",
+            "codex-utils-output-truncation",
+            "codex-utils-template",
+            "schemars",
+            "serde",
+            "serde-json",
+            "thiserror",
+            "tokio",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-skills-extension",
+          "manifest": "external/codex/codex-rs/ext/skills/Cargo.toml",
+          "dependencies": [
+            "codex-core-skills",
+            "codex-exec-server",
+            "codex-extension-api",
+            "codex-mcp",
+            "codex-otel",
+            "codex-protocol",
+            "codex-skills",
+            "codex-tools",
+            "codex-utils-path-uri",
+            "codex-utils-string",
+            "futures",
+            "schemars",
+            "serde",
+            "serde-json",
+            "tokio",
+            "tracing",
+            "url",
+            "codex-models-manager",
+            "codex-utils-absolute-path",
+            "pretty-assertions",
+            "tokio"
+          ]
+        },
+        {
+          "packageName": "codex-web-search-extension",
+          "manifest": "external/codex/codex-rs/ext/web-search/Cargo.toml",
+          "dependencies": [
+            "codex-api",
+            "codex-core",
+            "codex-extension-api",
+            "codex-extension-items",
+            "codex-login",
+            "codex-model-provider",
+            "codex-model-provider-info",
+            "codex-otel",
+            "codex-protocol",
+            "codex-tools",
+            "http",
+            "schemars",
+            "serde-json",
+            "url",
+            "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-external-agent-migration",
+          "manifest": "external/codex/codex-rs/external-agent-migration/Cargo.toml",
+          "dependencies": [
+            "chrono",
+            "codex-analytics",
+            "codex-config",
+            "codex-core",
+            "codex-core-plugins",
+            "codex-hooks",
+            "codex-memories-write",
+            "codex-otel",
+            "codex-plugin",
+            "codex-protocol",
+            "codex-rollout",
+            "codex-utils-output-truncation",
+            "serde",
+            "serde-json",
+            "serde-yaml",
+            "sha2",
+            "toml",
+            "tracing",
+            "codex-app-server-protocol",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
           ]
         },
         {
@@ -4495,6 +5945,7 @@
             "anyhow",
             "codex-login",
             "codex-protocol",
+            "mime-guess",
             "sentry",
             "tracing",
             "tracing-subscriber",
@@ -4518,21 +5969,50 @@
           ]
         },
         {
+          "packageName": "codex-file-system",
+          "manifest": "external/codex/codex-rs/file-system/Cargo.toml",
+          "dependencies": [
+            "bytes",
+            "codex-protocol",
+            "codex-utils-absolute-path",
+            "codex-utils-path-uri",
+            "futures",
+            "serde"
+          ]
+        },
+        {
+          "packageName": "codex-file-watcher",
+          "manifest": "external/codex/codex-rs/file-watcher/Cargo.toml",
+          "dependencies": [
+            "notify",
+            "tokio",
+            "tracing",
+            "pretty-assertions",
+            "tempfile"
+          ]
+        },
+        {
           "packageName": "codex-git-utils",
           "manifest": "external/codex/codex-rs/git-utils/Cargo.toml",
           "dependencies": [
+            "anyhow",
+            "chrono",
+            "codex-file-system",
+            "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "futures",
+            "gix",
             "once-cell",
             "regex",
             "schemars",
             "serde",
+            "similar",
             "tempfile",
             "thiserror",
             "tokio",
             "ts-rs",
             "walkdir",
-            "assert-matches",
             "pretty-assertions"
           ]
         },
@@ -4543,25 +6023,60 @@
             "anyhow",
             "chrono",
             "codex-config",
+            "codex-plugin",
             "codex-protocol",
+            "codex-utils-absolute-path",
+            "codex-utils-output-truncation",
             "futures",
             "regex",
             "schemars",
             "serde",
             "serde-json",
             "tokio",
+            "tracing",
+            "uuid",
             "pretty-assertions",
             "tempfile",
             "tokio"
           ]
         },
         {
-          "packageName": "codex-instructions",
-          "manifest": "external/codex/codex-rs/instructions/Cargo.toml",
+          "packageName": "codex-http-client",
+          "manifest": "external/codex/codex-rs/http-client/Cargo.toml",
           "dependencies": [
-            "codex-protocol",
+            "bytes",
+            "codex-utils-rustls-provider",
+            "futures",
+            "http",
+            "opentelemetry",
+            "reqwest",
+            "rustls",
+            "rustls-native-certs",
+            "rustls-pki-types",
             "serde",
-            "pretty-assertions"
+            "serde-json",
+            "sha2",
+            "thiserror",
+            "tokio",
+            "tracing",
+            "tracing-opentelemetry",
+            "zstd",
+            "codex-utils-cargo-bin",
+            "opentelemetry-sdk",
+            "pretty-assertions",
+            "rcgen",
+            "tempfile",
+            "tracing-subscriber"
+          ]
+        },
+        {
+          "packageName": "codex-install-context",
+          "manifest": "external/codex/codex-rs/install-context/Cargo.toml",
+          "dependencies": [
+            "codex-utils-absolute-path",
+            "codex-utils-home-dir",
+            "pretty-assertions",
+            "tempfile"
           ]
         },
         {
@@ -4575,18 +6090,15 @@
         {
           "packageName": "codex-linux-sandbox",
           "manifest": "external/codex/codex-rs/linux-sandbox/Cargo.toml",
-          "dependencies": [
-            "cc",
-            "pkg-config"
-          ]
+          "dependencies": []
         },
         {
           "packageName": "codex-lmstudio",
           "manifest": "external/codex/codex-rs/lmstudio/Cargo.toml",
           "dependencies": [
             "codex-core",
+            "codex-http-client",
             "codex-model-provider-info",
-            "reqwest",
             "serde-json",
             "tokio",
             "tracing",
@@ -4599,23 +6111,22 @@
           "packageName": "codex-login",
           "manifest": "external/codex/codex-rs/login/Cargo.toml",
           "dependencies": [
-            "async-trait",
             "base64",
             "chrono",
-            "codex-app-server-protocol",
-            "codex-api",
-            "codex-client",
+            "codex-agent-identity",
+            "codex-http-client",
             "codex-config",
             "codex-keyring-store",
             "codex-model-provider-info",
             "codex-otel",
             "codex-protocol",
+            "codex-secrets",
             "codex-terminal-detection",
             "codex-utils-template",
+            "http",
             "once-cell",
             "os-info",
             "rand",
-            "reqwest",
             "serde",
             "serde-json",
             "sha2",
@@ -4628,11 +6139,13 @@
             "webbrowser",
             "anyhow",
             "core-test-support",
+            "jsonwebtoken",
             "keyring",
             "pretty-assertions",
             "regex-lite",
             "serial-test",
             "tempfile",
+            "tracing-subscriber",
             "wiremock"
           ]
         },
@@ -4644,10 +6157,12 @@
             "codex-arg0",
             "codex-config",
             "codex-core",
+            "codex-home",
+            "codex-image-generation-extension",
             "codex-exec-server",
-            "codex-features",
+            "codex-extension-api",
+            "codex-git-attribution",
             "codex-login",
-            "codex-models-manager",
             "codex-protocol",
             "codex-utils-cli",
             "codex-utils-json-to-toml",
@@ -4659,6 +6174,8 @@
             "tokio",
             "tracing",
             "tracing-subscriber",
+            "app-test-support",
+            "codex-utils-absolute-path",
             "codex-shell-command",
             "core-test-support",
             "mcp-test-support",
@@ -4680,7 +6197,6 @@
             "rmcp",
             "os-info",
             "pretty-assertions",
-            "serde",
             "serde-json",
             "tokio",
             "wiremock",
@@ -4689,11 +6205,73 @@
           ]
         },
         {
+          "packageName": "codex-memories-read",
+          "manifest": "external/codex/codex-rs/memories/read/Cargo.toml",
+          "dependencies": [
+            "codex-protocol",
+            "codex-shell-command",
+            "codex-utils-absolute-path",
+            "pretty-assertions"
+          ]
+        },
+        {
+          "packageName": "codex-memories-write",
+          "manifest": "external/codex/codex-rs/memories/write/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "chrono",
+            "codex-backend-client",
+            "codex-core",
+            "codex-config",
+            "codex-features",
+            "codex-git-utils",
+            "codex-login",
+            "codex-model-provider",
+            "codex-otel",
+            "codex-protocol",
+            "codex-rollout",
+            "codex-rollout-trace",
+            "codex-secrets",
+            "codex-state",
+            "codex-terminal-detection",
+            "codex-utils-absolute-path",
+            "codex-utils-output-truncation",
+            "codex-utils-template",
+            "futures",
+            "serde",
+            "serde-json",
+            "tokio",
+            "tracing",
+            "uuid",
+            "codex-model-provider-info",
+            "codex-models-manager",
+            "core-test-support",
+            "pretty-assertions",
+            "tempfile",
+            "tokio",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "codex-message-history",
+          "manifest": "external/codex/codex-rs/message-history/Cargo.toml",
+          "dependencies": [
+            "codex-config",
+            "memchr",
+            "serde",
+            "serde-json",
+            "tokio",
+            "tracing",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
+          ]
+        },
+        {
           "packageName": "codex-model-provider-info",
           "manifest": "external/codex/codex-rs/model-provider-info/Cargo.toml",
           "dependencies": [
             "codex-api",
-            "codex-app-server-protocol",
             "codex-protocol",
             "http",
             "schemars",
@@ -4706,36 +6284,48 @@
           ]
         },
         {
+          "packageName": "codex-model-provider",
+          "manifest": "external/codex/codex-rs/model-provider/Cargo.toml",
+          "dependencies": [
+            "codex-api",
+            "codex-agent-identity",
+            "codex-aws-auth",
+            "codex-http-client",
+            "codex-feedback",
+            "codex-login",
+            "codex-model-provider-info",
+            "codex-models-manager",
+            "codex-otel",
+            "codex-protocol",
+            "codex-response-debug-context",
+            "http",
+            "tokio",
+            "tracing",
+            "pretty-assertions",
+            "serde-json",
+            "tokio",
+            "wiremock"
+          ]
+        },
+        {
           "packageName": "codex-models-manager",
           "manifest": "external/codex/codex-rs/models-manager/Cargo.toml",
           "dependencies": [
             "chrono",
-            "codex-api",
-            "codex-app-server-protocol",
             "codex-collaboration-mode-templates",
-            "codex-config",
-            "codex-feedback",
+            "codex-http-client",
             "codex-login",
-            "codex-model-provider-info",
             "codex-otel",
             "codex-protocol",
-            "codex-response-debug-context",
             "codex-utils-output-truncation",
             "codex-utils-template",
-            "http",
             "serde",
             "serde-json",
             "tokio",
             "tracing",
-            "base64",
-            "codex-utils-absolute-path",
-            "core-test-support",
             "pretty-assertions",
             "serde-json",
-            "tempfile",
-            "tracing",
-            "tracing-subscriber",
-            "wiremock"
+            "tempfile"
           ]
         },
         {
@@ -4743,13 +6333,14 @@
           "manifest": "external/codex/codex-rs/network-proxy/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "async-trait",
+            "base64",
             "clap",
             "chrono",
             "codex-utils-absolute-path",
             "codex-utils-home-dir",
             "codex-utils-rustls-provider",
             "globset",
+            "rand",
             "serde",
             "serde-json",
             "thiserror",
@@ -4764,6 +6355,8 @@
             "rama-socks5",
             "rama-tcp",
             "rama-tls-rustls",
+            "rustls-native-certs",
+            "sha2",
             "pretty-assertions",
             "tempfile"
           ]
@@ -4777,6 +6370,7 @@
             "codex-core",
             "codex-model-provider-info",
             "futures",
+            "memchr",
             "reqwest",
             "semver",
             "serde-json",
@@ -4795,7 +6389,6 @@
             "codex-utils-absolute-path",
             "codex-utils-string",
             "codex-api",
-            "codex-app-server-protocol",
             "codex-protocol",
             "eventsource-stream",
             "gethostname",
@@ -4824,9 +6417,13 @@
           "packageName": "codex-plugin",
           "manifest": "external/codex/codex-rs/plugin/Cargo.toml",
           "dependencies": [
+            "codex-config",
+            "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "codex-utils-plugins",
-            "thiserror"
+            "thiserror",
+            "pretty-assertions"
           ]
         },
         {
@@ -4838,6 +6435,20 @@
           ]
         },
         {
+          "packageName": "codex-prompts",
+          "manifest": "external/codex/codex-rs/prompts/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "codex-context-fragments",
+            "codex-git-utils",
+            "codex-execpolicy",
+            "codex-protocol",
+            "codex-utils-absolute-path",
+            "codex-utils-template",
+            "pretty-assertions"
+          ]
+        },
+        {
           "packageName": "codex-protocol",
           "manifest": "external/codex/codex-rs/protocol/Cargo.toml",
           "dependencies": [
@@ -4845,13 +6456,14 @@
             "chrono",
             "codex-async-utils",
             "codex-execpolicy",
-            "codex-git-utils",
+            "codex-extension-items",
             "codex-network-proxy",
             "codex-utils-absolute-path",
             "codex-utils-image",
+            "codex-utils-path-uri",
             "codex-utils-string",
-            "codex-utils-template",
             "encoding-rs",
+            "globset",
             "icu-decimal",
             "icu-locale-core",
             "icu-provider",
@@ -4869,18 +6481,11 @@
             "tracing",
             "ts-rs",
             "uuid",
+            "wildmatch",
             "anyhow",
             "http",
             "pretty-assertions",
             "tempfile"
-          ]
-        },
-        {
-          "packageName": "codex-realtime-webrtc",
-          "manifest": "external/codex/codex-rs/realtime-webrtc/Cargo.toml",
-          "dependencies": [
-            "thiserror",
-            "tokio"
           ]
         },
         {
@@ -4917,14 +6522,21 @@
           "dependencies": [
             "anyhow",
             "axum",
-            "codex-client",
+            "base64",
+            "codex-api",
             "codex-config",
+            "codex-exec-server",
+            "codex-http-client",
             "codex-keyring-store",
             "codex-protocol",
+            "codex-secrets",
+            "codex-utils-path-uri",
             "codex-utils-pty",
             "codex-utils-home-dir",
+            "bytes",
             "futures",
             "keyring",
+            "memchr",
             "oauth2",
             "reqwest",
             "rmcp",
@@ -4942,6 +6554,23 @@
             "codex-utils-cargo-bin",
             "pretty-assertions",
             "serial-test",
+            "tempfile",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "codex-rollout-trace",
+          "manifest": "external/codex/codex-rs/rollout-trace/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "codex-code-mode",
+            "codex-protocol",
+            "http",
+            "serde",
+            "serde-json",
+            "tracing",
+            "uuid",
+            "pretty-assertions",
             "tempfile"
           ]
         },
@@ -4950,41 +6579,50 @@
           "manifest": "external/codex/codex-rs/rollout/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "async-trait",
             "chrono",
+            "codex-extension-items",
             "codex-file-search",
             "codex-git-utils",
-            "codex-login",
             "codex-otel",
             "codex-protocol",
             "codex-state",
+            "codex-utils-absolute-path",
             "codex-utils-path",
-            "codex-utils-string",
+            "regex",
             "serde",
             "serde-json",
+            "tempfile",
             "time",
             "tokio",
             "tracing",
             "uuid",
-            "pretty-assertions",
-            "tempfile"
+            "zstd",
+            "codex-utils-absolute-path",
+            "pretty-assertions"
           ]
         },
         {
           "packageName": "codex-sandboxing",
           "manifest": "external/codex/codex-rs/sandboxing/Cargo.toml",
           "dependencies": [
+            "anyhow",
             "codex-network-proxy",
             "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
+            "codex-utils-pty",
+            "codex-windows-sandbox",
             "dunce",
             "libc",
             "serde-json",
+            "regex-lite",
             "tracing",
             "url",
             "which",
+            "anyhow",
             "pretty-assertions",
-            "tempfile"
+            "tempfile",
+            "tokio"
           ]
         },
         {
@@ -5015,6 +6653,7 @@
             "base64",
             "codex-protocol",
             "codex-utils-absolute-path",
+            "libc",
             "once-cell",
             "regex",
             "serde",
@@ -5033,7 +6672,6 @@
           "manifest": "external/codex/codex-rs/shell-escalation/Cargo.toml",
           "dependencies": [
             "anyhow",
-            "async-trait",
             "clap",
             "codex-protocol",
             "codex-utils-absolute-path",
@@ -5053,7 +6691,9 @@
           "packageName": "codex-skills",
           "manifest": "external/codex/codex-rs/skills/Cargo.toml",
           "dependencies": [
+            "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "include-dir",
             "thiserror"
           ]
@@ -5066,7 +6706,9 @@
             "chrono",
             "clap",
             "codex-protocol",
+            "codex-utils-absolute-path",
             "dirs",
+            "libsqlite3-sys",
             "log",
             "owo-colors",
             "serde",
@@ -5078,7 +6720,8 @@
             "tracing-subscriber",
             "uuid",
             "codex-git-utils",
-            "pretty-assertions"
+            "pretty-assertions",
+            "scopeguard"
           ]
         },
         {
@@ -5086,6 +6729,8 @@
           "manifest": "external/codex/codex-rs/stdio-to-uds/Cargo.toml",
           "dependencies": [
             "anyhow",
+            "codex-uds",
+            "tokio",
             "codex-utils-cargo-bin",
             "pretty-assertions",
             "tempfile"
@@ -5100,19 +6745,76 @@
           ]
         },
         {
+          "packageName": "codex-test-binary-support",
+          "manifest": "external/codex/codex-rs/test-binary-support/Cargo.toml",
+          "dependencies": [
+            "codex-arg0",
+            "tempfile"
+          ]
+        },
+        {
+          "packageName": "codex-thread-manager-sample",
+          "manifest": "external/codex/codex-rs/thread-manager-sample/Cargo.toml",
+          "dependencies": [
+            "anyhow",
+            "clap",
+            "serde-json",
+            "codex-core-api",
+            "tracing"
+          ]
+        },
+        {
+          "packageName": "codex-thread-store",
+          "manifest": "external/codex/codex-rs/thread-store/Cargo.toml",
+          "dependencies": [
+            "chrono",
+            "codex-app-server-protocol",
+            "codex-git-utils",
+            "codex-install-context",
+            "codex-otel",
+            "codex-protocol",
+            "codex-rollout",
+            "codex-state",
+            "codex-utils-absolute-path",
+            "codex-utils-path",
+            "futures",
+            "pulldown-cmark",
+            "serde",
+            "serde-json",
+            "sqlx",
+            "thiserror",
+            "tokio",
+            "tracing",
+            "codex-utils-absolute-path",
+            "pretty-assertions",
+            "tempfile",
+            "tokio",
+            "uuid",
+            "zstd"
+          ]
+        },
+        {
           "packageName": "codex-tools",
           "manifest": "external/codex/codex-rs/tools/Cargo.toml",
           "dependencies": [
-            "codex-app-server-protocol",
             "codex-code-mode",
+            "codex-connectors",
             "codex-features",
+            "codex-file-system",
+            "codex-extension-items",
             "codex-protocol",
             "codex-utils-absolute-path",
+            "codex-utils-output-truncation",
             "codex-utils-pty",
+            "codex-utils-string",
+            "jsonptr",
             "rmcp",
             "serde",
             "serde-json",
+            "thiserror",
             "tracing",
+            "urlencoding",
+            "codex-utils-cargo-bin",
             "pretty-assertions"
           ]
         },
@@ -5128,22 +6830,26 @@
             "codex-app-server-client",
             "codex-app-server-protocol",
             "codex-arg0",
-            "codex-chatgpt",
-            "codex-cloud-requirements",
+            "codex-install-context",
+            "codex-cloud-config",
             "codex-config",
-            "codex-core",
+            "codex-connectors",
+            "codex-core-plugins",
             "codex-exec-server",
             "codex-features",
             "codex-feedback",
             "codex-file-search",
             "codex-git-utils",
             "codex-login",
+            "codex-message-history",
+            "codex-model-provider",
             "codex-model-provider-info",
             "codex-models-manager",
             "codex-otel",
+            "codex-plugin",
             "codex-protocol",
-            "codex-realtime-webrtc",
             "codex-rollout",
+            "codex-sandboxing",
             "codex-shell-command",
             "codex-state",
             "codex-terminal-detection",
@@ -5152,7 +6858,11 @@
             "codex-utils-cli",
             "codex-utils-elapsed",
             "codex-utils-fuzzy-match",
+            "codex-utils-home-dir",
             "codex-utils-oss",
+            "codex-utils-path",
+            "codex-utils-path-uri",
+            "codex-utils-plugins",
             "codex-utils-sandbox-summary",
             "codex-utils-sleep-inhibitor",
             "codex-utils-string",
@@ -5175,6 +6885,7 @@
             "rmcp",
             "serde",
             "serde-json",
+            "sha2",
             "shlex",
             "strum",
             "strum-macros",
@@ -5198,19 +6909,32 @@
             "uuid",
             "codex-windows-sandbox",
             "tokio-util",
+            "app-test-support",
             "codex-cli",
-            "codex-core",
             "codex-mcp",
+            "core-test-support",
             "codex-utils-cargo-bin",
-            "codex-utils-pty",
             "assert-matches",
             "chrono",
+            "futures",
             "insta",
             "pretty-assertions",
             "rand",
             "serial-test",
+            "tokio-tungstenite",
             "vt100",
-            "uuid"
+            "uuid",
+            "wiremock"
+          ]
+        },
+        {
+          "packageName": "codex-uds",
+          "manifest": "external/codex/codex-rs/uds/Cargo.toml",
+          "dependencies": [
+            "tokio",
+            "pretty-assertions",
+            "tempfile",
+            "tokio"
           ]
         },
         {
@@ -5218,6 +6942,7 @@
           "manifest": "external/codex/codex-rs/utils/absolute-path/Cargo.toml",
           "dependencies": [
             "dirs",
+            "dunce",
             "schemars",
             "serde",
             "ts-rs",
@@ -5258,6 +6983,7 @@
           "dependencies": [
             "clap",
             "codex-protocol",
+            "codex-shell-command",
             "serde",
             "toml",
             "pretty-assertions"
@@ -5277,6 +7003,7 @@
           "packageName": "codex-utils-home-dir",
           "manifest": "external/codex/codex-rs/utils/home-dir/Cargo.toml",
           "dependencies": [
+            "codex-utils-absolute-path",
             "dirs",
             "pretty-assertions",
             "tempfile"
@@ -5292,6 +7019,7 @@
             "mime-guess",
             "thiserror",
             "tokio",
+            "divan",
             "image"
           ]
         },
@@ -5324,6 +7052,22 @@
           ]
         },
         {
+          "packageName": "codex-utils-path-uri",
+          "manifest": "external/codex/codex-rs/utils/path-uri/Cargo.toml",
+          "dependencies": [
+            "base64",
+            "codex-utils-absolute-path",
+            "schemars",
+            "serde",
+            "thiserror",
+            "ts-rs",
+            "url",
+            "urlencoding",
+            "pretty-assertions",
+            "serde-json"
+          ]
+        },
+        {
           "packageName": "codex-utils-path",
           "manifest": "external/codex/codex-rs/utils/path-utils/Cargo.toml",
           "dependencies": [
@@ -5338,10 +7082,14 @@
           "packageName": "codex-utils-plugins",
           "manifest": "external/codex/codex-rs/utils/plugins/Cargo.toml",
           "dependencies": [
-            "codex-login",
+            "codex-exec-server",
+            "codex-exec-server-protocol",
+            "codex-utils-absolute-path",
+            "codex-utils-path-uri",
             "serde",
             "serde-json",
-            "tempfile"
+            "tempfile",
+            "tokio"
           ]
         },
         {
@@ -5358,7 +7106,6 @@
           "packageName": "codex-utils-readiness",
           "manifest": "external/codex/codex-rs/utils/readiness/Cargo.toml",
           "dependencies": [
-            "async-trait",
             "thiserror",
             "time",
             "tokio",
@@ -5377,9 +7124,8 @@
           "packageName": "codex-utils-sandbox-summary",
           "manifest": "external/codex/codex-rs/utils/sandbox-summary/Cargo.toml",
           "dependencies": [
-            "codex-core",
-            "codex-model-provider-info",
             "codex-protocol",
+            "codex-utils-absolute-path",
             "codex-utils-absolute-path",
             "pretty-assertions"
           ]
@@ -5403,6 +7149,8 @@
           "manifest": "external/codex/codex-rs/utils/string/Cargo.toml",
           "dependencies": [
             "regex-lite",
+            "serde",
+            "serde-json",
             "pretty-assertions"
           ]
         },
@@ -5422,6 +7170,23 @@
           ]
         },
         {
+          "packageName": "codex-websocket-client",
+          "manifest": "external/codex/codex-rs/websocket-client/Cargo.toml",
+          "dependencies": [
+            "codex-http-client",
+            "futures",
+            "rustls",
+            "tokio",
+            "tokio-rustls",
+            "tokio-tungstenite",
+            "url",
+            "codex-utils-rustls-provider",
+            "pretty-assertions",
+            "rcgen",
+            "tokio"
+          ]
+        },
+        {
           "packageName": "codex-windows-sandbox",
           "manifest": "external/codex/codex-rs/windows-sandbox-rs/Cargo.toml",
           "dependencies": [
@@ -5431,14 +7196,16 @@
             "codex-utils-pty",
             "codex-utils-absolute-path",
             "codex-utils-string",
+            "codex-otel",
             "dunce",
+            "glob",
             "serde",
             "serde-json",
             "tempfile",
             "tokio",
+            "tracing-appender",
             "windows",
-            "pretty-assertions",
-            "winres"
+            "pretty-assertions"
           ]
         },
         {
@@ -5448,59 +7215,6 @@
             "clippy-utils",
             "dylint-linting",
             "dylint-testing"
-          ]
-        },
-        {
-          "packageName": "opencode-desktop",
-          "manifest": "external/opencode/packages/desktop/src-tauri/Cargo.toml",
-          "dependencies": [
-            "tauri-build",
-            "tauri",
-            "tauri-plugin-opener",
-            "tauri-plugin-deep-link",
-            "tauri-plugin-shell",
-            "tauri-plugin-dialog",
-            "tauri-plugin-updater",
-            "tauri-plugin-process",
-            "tauri-plugin-store",
-            "tauri-plugin-window-state",
-            "tauri-plugin-clipboard-manager",
-            "tauri-plugin-http",
-            "tauri-plugin-notification",
-            "tauri-plugin-single-instance",
-            "serde",
-            "serde-json",
-            "tokio",
-            "listeners",
-            "tauri-plugin-os",
-            "futures",
-            "semver",
-            "reqwest",
-            "uuid",
-            "tauri-plugin-decorum",
-            "comrak",
-            "specta",
-            "specta-typescript",
-            "tauri-specta",
-            "dirs",
-            "tracing",
-            "tracing-subscriber",
-            "tracing-appender",
-            "chrono",
-            "tokio-stream",
-            "process-wrap"
-          ]
-        },
-        {
-          "packageName": "sdkwork-birdcoder-app-sdk",
-          "manifest": "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/generated/server-openapi/.sdkwork/manual-backups/Cargo.toml",
-          "dependencies": [
-            "reqwest",
-            "serde",
-            "serde-json",
-            "thiserror",
-            "http",
-            "tokio"
           ]
         },
         {
@@ -5554,6 +7268,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
         },
         {
@@ -5566,10 +7283,28 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
           ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-deployments-app-sdk",
+          "sdkFamily": "sdkwork-deployments-app-sdk",
+          "apiAuthority": "sdkwork-deploy-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
         },
         {
           "component": "sdkwork-birdcoder-pc",
@@ -5581,6 +7316,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
@@ -5596,6 +7334,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
@@ -5612,6 +7353,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
@@ -5627,6 +7371,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
@@ -5642,6 +7389,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
@@ -5657,6 +7407,9 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
@@ -5672,7 +7425,170 @@
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "external-via-platform-surface",
           "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-iam",
+          "sdkFamily": "sdkwork-iam-app-sdk",
+          "apiAuthority": "sdkwork-iam-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-iam-assembly",
+          "embeddedExecutableExport": "sdkwork_api_iam_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-agents",
+          "sdkFamily": "sdkwork-agents-app-sdk",
+          "apiAuthority": "sdkwork-agents-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/ai",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-agents-assembly",
+          "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-documents",
+          "sdkFamily": "sdkwork-documents-app-sdk",
+          "apiAuthority": "sdkwork-documents-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/documents",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-documents-assembly",
+          "embeddedExecutableExport": "sdkwork_api_documents_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-drive",
+          "sdkFamily": "sdkwork-drive-app-sdk",
+          "apiAuthority": "sdkwork-drive-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/drive",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-drive-assembly",
+          "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-membership",
+          "sdkFamily": "sdkwork-membership-app-sdk",
+          "apiAuthority": "sdkwork-membership-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/memberships",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-membership-assembly",
+          "embeddedExecutableExport": "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-order",
+          "sdkFamily": "sdkwork-order-app-sdk",
+          "apiAuthority": "sdkwork-order-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/orders",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-order-assembly",
+          "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-prompts",
+          "sdkFamily": "sdkwork-prompts-app-sdk",
+          "apiAuthority": "sdkwork-prompts-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/prompts",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-prompts-assembly",
+          "embeddedExecutableExport": "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
+        },
+        {
+          "component": "sdkwork-api-birdcoder-standalone-gateway",
+          "source": "crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json",
+          "workspace": "sdkwork-skills",
+          "sdkFamily": "sdkwork-skills-app-sdk",
+          "apiAuthority": "sdkwork-skills-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api/skills",
+          "runtimeMode": "same-origin",
+          "sameOriginAllowed": true,
+          "cargoDependency": "sdkwork-api-skills-assembly",
+          "embeddedExecutableExport": "sdkwork_api_skills_assembly::assemble_app_api_contribution",
+          "profileCoverage": [
+            "standalone"
+          ],
+          "coverageEvidence": [
+            "src/profile.rs",
+            "tests/bootstrap_smoke.rs"
+          ]
         },
         {
           "component": "sdkwork-birdcoder-tauri-host",

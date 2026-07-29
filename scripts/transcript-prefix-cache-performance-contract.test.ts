@@ -62,6 +62,34 @@ assert.deepEqual(
   'transcript prefix cache should only recompute the affected suffix while keeping the accumulated prefix correct.',
 );
 
+const streamedMessages: AgentSessionItemView[] = [
+  messages[0],
+  {
+    ...messages[1],
+    content: 'reply with an additional streamed delta',
+  },
+];
+const streamedCache = reconcileTranscriptPrefixHeightsCache({
+  measuredHeights: new Map<string, number>([[assistantMessageKey, 400]]),
+  messages: streamedMessages,
+  previousCache: updatedCache,
+});
+assert.equal(
+  streamedCache.prefixHeights,
+  updatedCache.prefixHeights,
+  'content-only streaming updates must retain the prefix array while measured heights are unchanged.',
+);
+assert.equal(
+  streamedCache.messageIndexesByKey,
+  updatedCache.messageIndexesByKey,
+  'content-only streaming updates must retain the stable key index.',
+);
+assert.equal(
+  streamedCache.entries[1]?.message,
+  streamedMessages[1],
+  'content-only streaming updates must still expose the latest message object through the cache entry.',
+);
+
 assert.match(
   virtualizationSource,
   /const prefixHeightsCacheRef = useRef<TranscriptPrefixHeightsCache \| null>\(null\);/,

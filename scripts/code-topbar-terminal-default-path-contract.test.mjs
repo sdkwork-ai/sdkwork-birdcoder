@@ -44,7 +44,7 @@ const projectContextTerminalStart = terminalActionsSource.indexOf(
   'const handleOpenInTerminal = useCallback',
 );
 const projectContextTerminalEnd = terminalActionsSource.indexOf(
-  'const handleCopySessionId = useCallback',
+  'const handleOpenAgentSessionInTerminal = useCallback',
   projectContextTerminalStart,
 );
 const projectContextTerminalSource = terminalActionsSource.slice(

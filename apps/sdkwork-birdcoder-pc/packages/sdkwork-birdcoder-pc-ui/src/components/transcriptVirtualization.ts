@@ -36,29 +36,68 @@ export interface VirtualizedTranscriptWindowState {
   visibleStartIndex: number;
 }
 
+function resolveTranscriptMessageSequence(
+  message: AgentSessionItemView | undefined,
+): string {
+  const sequence = message?.metadata?.agentItemSequence;
+  if (typeof sequence === 'bigint') {
+    return sequence.toString();
+  }
+  if (typeof sequence === 'number') {
+    return Number.isFinite(sequence) ? String(sequence) : '';
+  }
+  if (typeof sequence !== 'string') {
+    return '';
+  }
+
+  const normalizedSequence = sequence.trim();
+  if (!/^[0-9]+$/u.test(normalizedSequence)) {
+    return normalizedSequence;
+  }
+
+  return BigInt(normalizedSequence).toString();
+}
+
 export function resolveTranscriptMessageKey(
   message: AgentSessionItemView | undefined,
   index: number,
 ): string {
-  const normalizedMessageId = message?.id.trim() ?? '';
-  return `${index}\u0001${normalizedMessageId || 'message'}`;
+  const normalizedMessageId = message?.id?.trim() ?? '';
+  const normalizedSessionId = message?.sessionId?.trim() ?? '';
+  const normalizedTurnId = message?.turnId?.trim() ?? '';
+  const normalizedCreatedAt = message?.createdAt?.trim() ?? '';
+  const normalizedSequence = resolveTranscriptMessageSequence(message);
+
+  if (normalizedMessageId) {
+    return JSON.stringify([
+      'message',
+      normalizedSessionId,
+      normalizedMessageId,
+      normalizedSequence,
+      normalizedCreatedAt,
+    ]);
+  }
+
+  if (normalizedSequence || normalizedTurnId || normalizedCreatedAt) {
+    return JSON.stringify([
+      'message-fallback',
+      normalizedSessionId,
+      normalizedSequence,
+      normalizedTurnId,
+      message?.role ?? '',
+      normalizedCreatedAt,
+    ]);
+  }
+
+  return JSON.stringify(['message-index-fallback', index]);
 }
 
 export function hasTranscriptMessageKey(
-  messages: readonly AgentSessionItemView[],
+  messageKeys: Pick<ReadonlySet<string>, 'has'>,
   messageKey: string,
 ): boolean {
-  const separatorIndex = messageKey.indexOf('\u0001');
-  if (separatorIndex <= 0) {
-    return false;
-  }
-
-  const index = Number(messageKey.slice(0, separatorIndex));
-  if (!Number.isInteger(index) || index < 0 || index >= messages.length) {
-    return false;
-  }
-
-  return resolveTranscriptMessageKey(messages[index], index) === messageKey;
+  const normalizedMessageKey = messageKey.trim();
+  return normalizedMessageKey.length > 0 && messageKeys.has(normalizedMessageKey);
 }
 
 function estimateTranscriptMessageHeightForLayout(
@@ -315,71 +354,71 @@ export function reconcileTranscriptPrefixHeightsCache({
   );
   const nextEntries: TranscriptPrefixHeightCacheEntry[] = new Array(messages.length);
   const nextMessageIndexesByKey = new Map<string, number>();
-  let firstChangedIndex =
-    messages.length === previousCache.entries.length
-      ? messages.length
-      : Math.min(messages.length, previousCache.entries.length);
+  const didMessageCountChange = messages.length !== previousCache.entries.length;
+  let didEntriesChange = didMessageCountChange;
+  let didKeyIndexesChange = didMessageCountChange;
+  let firstChangedHeightIndex = didMessageCountChange
+    ? Math.min(messages.length, previousCache.entries.length)
+    : messages.length;
 
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
     const key = resolveTranscriptMessageKey(message, index);
     nextMessageIndexesByKey.set(key, index);
     const previousEntry = previousCache.entries[index];
+    const previousKeyedEntryIndex = previousCache.messageIndexesByKey.get(key);
+    const previousKeyedEntry = previousKeyedEntryIndex === undefined
+      ? undefined
+      : previousCache.entries[previousKeyedEntryIndex];
 
+    let nextEntry: TranscriptPrefixHeightCacheEntry;
     if (
-      previousEntry &&
-      previousEntry.key === key &&
-      previousEntry.message === message &&
+      previousKeyedEntry &&
+      previousKeyedEntry.message === message &&
       !invalidatedMessageKeySet.has(key)
     ) {
-      nextEntries[index] = previousEntry;
-      continue;
+      nextEntry = previousKeyedEntry;
+    } else {
+      nextEntry = {
+        height: resolveTranscriptMessageHeight(message, index, measuredHeights, options),
+        key,
+        message,
+      };
     }
+    nextEntries[index] = nextEntry;
 
-    const nextHeight = resolveTranscriptMessageHeight(message, index, measuredHeights, options);
-    if (
-      firstChangedIndex === messages.length &&
-      (
-        !previousEntry ||
-        previousEntry.key !== key ||
-        previousEntry.message !== message ||
-        previousEntry.height !== nextHeight
-      )
-    ) {
-      firstChangedIndex = index;
+    if (previousEntry !== nextEntry) {
+      didEntriesChange = true;
     }
-
-    nextEntries[index] = {
-      height: nextHeight,
-      key,
-      message,
-    };
+    if (previousEntry?.key !== key) {
+      didKeyIndexesChange = true;
+    }
+    if (previousEntry?.height !== nextEntry.height) {
+      firstChangedHeightIndex = Math.min(firstChangedHeightIndex, index);
+    }
   }
 
-  if (firstChangedIndex === messages.length) {
-    return {
-      entries: previousCache.entries,
-      messageIndexesByKey: previousCache.messageIndexesByKey,
-      messages,
-      prefixHeights: previousCache.prefixHeights,
-    };
-  }
-
-  const nextPrefixHeights =
-    firstChangedIndex > 0
-      ? previousCache.prefixHeights.slice(0, firstChangedIndex + 1)
+  let nextPrefixHeights: readonly number[] = previousCache.prefixHeights;
+  if (firstChangedHeightIndex < messages.length || didMessageCountChange) {
+    const mutablePrefixHeights = firstChangedHeightIndex > 0
+      ? previousCache.prefixHeights.slice(0, firstChangedHeightIndex + 1)
       : new Array<number>(messages.length + 1).fill(0);
-  nextPrefixHeights.length = messages.length + 1;
-  if (firstChangedIndex === 0) {
-    nextPrefixHeights[0] = 0;
-  }
-  for (let index = firstChangedIndex; index < nextEntries.length; index += 1) {
-    nextPrefixHeights[index + 1] = nextPrefixHeights[index] + nextEntries[index]!.height;
+    mutablePrefixHeights.length = messages.length + 1;
+    if (firstChangedHeightIndex === 0) {
+      mutablePrefixHeights[0] = 0;
+    }
+    for (let index = firstChangedHeightIndex; index < nextEntries.length; index += 1) {
+      mutablePrefixHeights[index + 1] =
+        mutablePrefixHeights[index]! + nextEntries[index]!.height;
+    }
+    nextPrefixHeights = mutablePrefixHeights;
   }
 
   return {
-    entries: nextEntries,
-    messageIndexesByKey: nextMessageIndexesByKey,
+    entries: didEntriesChange ? nextEntries : previousCache.entries,
+    messageIndexesByKey: didKeyIndexesChange
+      ? nextMessageIndexesByKey
+      : previousCache.messageIndexesByKey,
     messages,
     prefixHeights: nextPrefixHeights,
   };

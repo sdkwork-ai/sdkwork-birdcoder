@@ -24,7 +24,7 @@ semantics are not used for AI transcript items.
 ## Non-Goals
 
 - No H5-owned database, Session authority, transcript cache, or copied OpenAPI.
-- No provider SDK, native provider-session, raw HTTP, or manual auth headers in
+- No provider SDK, provider Session integration, raw HTTP, or manual auth headers in
   feature packages.
 - No assumption that a browser or Capacitor path is a server execution root.
 - No IM dependency unless a separate human communication feature is introduced.

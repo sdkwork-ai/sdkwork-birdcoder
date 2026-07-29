@@ -1,18 +1,14 @@
-import { Settings, User, Monitor, GitBranch, Terminal, Folder, Archive, ArrowLeft, Sun, LogOut, Cpu, Shield } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, LogOut, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export type SettingsTab =
-  | 'general'
-  | 'codeEngines'
-  | 'appearance'
-  | 'config'
-  | 'personalization'
-  | 'mcp'
-  | 'git'
-  | 'environment'
-  | 'worktree'
-  | 'archived'
-  | 'legal';
+import { SettingsSidebarItem } from './settings-sidebar/SettingsSidebarItem';
+import {
+  SETTINGS_NAVIGATION_GROUPS,
+  type SettingsTab,
+} from './settings-sidebar/settingsSidebarNavigation';
+
+export type { SettingsTab } from './settings-sidebar/settingsSidebarNavigation';
 
 interface SettingsSidebarProps {
   activeTab: SettingsTab;
@@ -23,118 +19,103 @@ interface SettingsSidebarProps {
 
 export function SettingsSidebar({ activeTab, setActiveTab, onBack, onLogout }: SettingsSidebarProps) {
   const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  const visibleGroups = useMemo(
+    () => SETTINGS_NAVIGATION_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        t(item.labelKey).toLocaleLowerCase().includes(normalizedSearchQuery),
+      ),
+    })).filter((group) => group.items.length > 0),
+    [normalizedSearchQuery, t],
+  );
 
   return (
-    <div className="w-64 flex flex-col border-r border-white/5 bg-[#0e0e11] text-sm relative h-full">
-      <div className="p-4 flex flex-col gap-2 flex-1 overflow-y-auto">
-        <div 
-          className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer px-2 py-1.5 rounded transition-colors mb-2 animate-in fade-in slide-in-from-left-4 fill-mode-both"
-          style={{ animationDelay: '0ms' }}
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>{t('common.backToApp')}</span>
-        </div>
-        
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'general' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '50ms' }}
-          onClick={() => setActiveTab('general')}
-        >
-          <Settings size={16} />
-          <span>{t('settings.general')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'codeEngines' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '75ms' }}
-          onClick={() => setActiveTab('codeEngines')}
-        >
-          <Cpu size={16} />
-          <span>{t('settings.sidebar.codeEngines')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'appearance' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '100ms' }}
-          onClick={() => setActiveTab('appearance')}
-        >
-          <Sun size={16} />
-          <span>{t('settings.sidebar.appearance')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'config' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '150ms' }}
-          onClick={() => setActiveTab('config')}
-        >
-          <Monitor size={16} />
-          <span>{t('settings.sidebar.config')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'personalization' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '200ms' }}
-          onClick={() => setActiveTab('personalization')}
-        >
-          <User size={16} />
-          <span>{t('settings.sidebar.personalization')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'mcp' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '250ms' }}
-          onClick={() => setActiveTab('mcp')}
-        >
-          <Monitor size={16} />
-          <span>{t('settings.sidebar.mcpServers')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'git' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '300ms' }}
-          onClick={() => setActiveTab('git')}
-        >
-          <GitBranch size={16} />
-          <span>{t('settings.sidebar.git')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'environment' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '350ms' }}
-          onClick={() => setActiveTab('environment')}
-        >
-          <Terminal size={16} />
-          <span>{t('settings.sidebar.environment')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'worktree' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '400ms' }}
-          onClick={() => setActiveTab('worktree')}
-        >
-          <Folder size={16} />
-          <span>{t('settings.sidebar.worktree')}</span>
-        </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'archived' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '450ms' }}
-          onClick={() => setActiveTab('archived')}
-        >
-          <Archive size={16} />
-          <span>{t('settings.sidebar.archivedSessions')}</span>
-        </div>
-        <div
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'legal' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '500ms' }}
-          onClick={() => setActiveTab('legal')}
-        >
-          <Shield size={16} />
-          <span>{t('settings.sidebar.legal')}</span>
+    <aside
+      className="relative flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[#1b1d21] text-sm xl:w-[292px]"
+      aria-label={t('settings.sidebar.navigationLabel')}
+    >
+      <div className="shrink-0 px-2 pb-2 pt-2">
+        {onBack ? (
+          <button
+            type="button"
+            className="mb-2 flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-[#a8aaae] outline-none transition-colors hover:bg-white/[0.055] hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400/70"
+            onClick={onBack}
+          >
+            <ArrowLeft aria-hidden="true" className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            <span className="truncate">{t('common.backToApp')}</span>
+          </button>
+        ) : null}
+
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#85878c]"
+            strokeWidth={1.8}
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label={t('settings.sidebar.searchPlaceholder')}
+            placeholder={t('settings.sidebar.searchPlaceholder')}
+            className="h-8 w-full rounded-md border border-white/[0.075] bg-white/[0.045] pl-8 pr-8 text-xs text-white outline-none placeholder:text-[#7d7f84] transition-colors hover:border-white/[0.12] focus:border-blue-400/60 focus:bg-white/[0.06] focus:ring-1 focus:ring-blue-400/30"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              aria-label={t('settings.sidebar.clearSearch')}
+              className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[#85878c] outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400/70"
+              onClick={() => setSearchQuery('')}
+            >
+              <X aria-hidden="true" className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
         </div>
       </div>
-      
-      <div className="p-4 border-t border-white/10 animate-in fade-in slide-in-from-bottom-4 fill-mode-both" style={{ animationDelay: '550ms' }}>
-        <button 
+
+      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" aria-label={t('settings.sidebar.navigationLabel')}>
+        {visibleGroups.map((group) => (
+          <section key={group.id} className="mt-2" aria-labelledby={`settings-group-${group.id}`}>
+            <h2
+              id={`settings-group-${group.id}`}
+              className="px-2 pb-1 pt-1 text-[11px] font-medium text-[#777a80]"
+            >
+              {t(group.labelKey)}
+            </h2>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <SettingsSidebarItem
+                  key={item.id}
+                  icon={item.icon}
+                  isActive={activeTab === item.id}
+                  label={t(item.labelKey)}
+                  onSelect={setActiveTab}
+                  tab={item.id}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {visibleGroups.length === 0 ? (
+          <div className="px-2 py-8 text-center text-xs text-[#85878c]">
+            {t('settings.sidebar.noResults')}
+          </div>
+        ) : null}
+      </nav>
+
+      <div className="shrink-0 border-t border-white/[0.06] p-2">
+        <button
+          type="button"
           onClick={onLogout}
-          className="w-full flex items-center gap-2 px-2 py-2 rounded cursor-pointer transition-colors text-red-400 hover:bg-red-900/20 hover:text-red-300"
+          className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-[#d2d3d6] outline-none transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:ring-2 focus-visible:ring-red-400/70"
         >
-          <LogOut size={16} />
-          <span>{t('common.signOut')}</span>
+          <LogOut aria-hidden="true" className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
+          <span className="truncate font-medium">{t('common.signOut')}</span>
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

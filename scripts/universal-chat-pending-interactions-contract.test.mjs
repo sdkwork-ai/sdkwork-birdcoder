@@ -111,8 +111,8 @@ assert.match(
 
 assert.match(
   codePendingInteractionsSource,
-  /useAgentSessionPendingInteractions\(\s*sessionId,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
-  'Code pending interaction hook must consume canonical Agents Interactions with scoped session and project keys.',
+  /useAgentSessionPendingInteractions\(\s*agentId && sessionId \? \{ agentId, sessionId \} : null,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
+  'Code pending interaction hook must consume canonical Agents Interactions with explicit agent/session identity and scoped project keys.',
 );
 
 assert.match(
@@ -147,8 +147,8 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useAgentSessionPendingInteractions\(\s*sessionId \|\| null,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
-  'StudioPage must consume canonical Agents approval and user-question interactions with scoped session and project keys.',
+  /const pendingInteractionIdentity =\s*selectedSession\?\.id === sessionId\s*\? \{ agentId: selectedSession\.agentId, sessionId: selectedSession\.id \}\s*: null;[\s\S]*useAgentSessionPendingInteractions\(\s*pendingInteractionIdentity,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
+  'StudioPage must consume canonical Agents approval and user-question interactions with explicit agent/session identity and scoped project keys.',
 );
 
 assert.match(

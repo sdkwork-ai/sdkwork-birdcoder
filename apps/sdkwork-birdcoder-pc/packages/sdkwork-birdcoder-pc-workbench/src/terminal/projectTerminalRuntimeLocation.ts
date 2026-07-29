@@ -1,5 +1,8 @@
 import { useCallback } from 'react';
-import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type {
+  AgentSessionIdentity,
+  IAgentSessionService,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import { useIDEServices } from '../context/IDEContext.ts';
 
@@ -10,6 +13,7 @@ type ProjectAgentSessionRecord = Awaited<
 >['items'][number];
 
 export interface ProjectTerminalRuntimeLocationRequest {
+  agentId?: string | null;
   agentSessionId?: string | null;
   projectId: string;
   signal?: AbortSignal;
@@ -55,25 +59,41 @@ export async function resolveProjectTerminalRuntimeLocationId(
     return null;
   }
 
-  let agentSessionId = request.agentSessionId?.trim() ?? '';
-  if (!agentSessionId) {
+  const requestedAgentId = request.agentId?.trim() ?? '';
+  const requestedSessionId = request.agentSessionId?.trim() ?? '';
+  let identity: AgentSessionIdentity | null = null;
+  if (requestedSessionId) {
+    if (!requestedAgentId) {
+      throw new Error('Agent ID is required to resolve a selected Session runtime location.');
+    }
+    identity = {
+      agentId: requestedAgentId,
+      sessionId: requestedSessionId,
+    };
+  } else {
     const sessionPage = await agentSessionService.listSessionsByProject({
       page: 1,
       pageSize: PROJECT_TERMINAL_SESSION_PAGE_SIZE,
       projectId,
       status: 'active',
     }, { signal: request.signal });
-    agentSessionId = resolveLatestProjectAgentSession(
+    const latestSession = resolveLatestProjectAgentSession(
       sessionPage.items,
       projectId,
-    )?.sessionId ?? '';
+    );
+    if (latestSession) {
+      identity = {
+        agentId: latestSession.agentId,
+        sessionId: latestSession.sessionId,
+      };
+    }
   }
-  if (!agentSessionId) {
+  if (!identity) {
     return null;
   }
 
   const runtimeBindingPage = await agentSessionService.listRuntimeBindings(
-    agentSessionId,
+    identity,
     { page: 1, pageSize: 20 },
     { signal: request.signal },
   );

@@ -19,12 +19,18 @@ export default defineLocaleModule('code/actions', {
     revealedInExplorer: 'Revealed in OS Explorer: {{path}}',
     newSessionCreated: 'New session created',
     failedToCreateSession: 'Failed to create session',
+    deleteSessionTitle: 'Delete Session',
+    deleteSessionDescription:
+      'Are you sure you want to delete this session? This action cannot be undone.',
     sessionDeleted: 'Session deleted successfully',
     projectDeleted: 'Project deleted successfully',
     projectCreated: 'Project created successfully',
     failedToCreateProject: 'Failed to create project',
     openedFolder: 'Opened folder: {{name}}',
     failedToOpenFolder: 'Failed to open folder',
+    deleteMessageTitle: 'Delete Message',
+    deleteMessageDescription:
+      'Are you sure you want to delete this message? This action cannot be undone.',
     messageDeleted: 'Message deleted successfully',
     restoredFiles: 'Restored files to previous state',
     noResultsFound: 'No results found',

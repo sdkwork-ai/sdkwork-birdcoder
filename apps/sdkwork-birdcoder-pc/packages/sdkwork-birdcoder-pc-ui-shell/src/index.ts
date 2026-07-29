@@ -26,6 +26,8 @@ export type {
 } from './components/providerVisualIdentity';
 
 export { SessionTranscriptLoadingState } from './components/SessionTranscriptLoadingState';
+export { SessionTranscriptErrorState } from './components/SessionTranscriptErrorState';
+export type { SessionTranscriptErrorStateProps } from './components/SessionTranscriptErrorState';
 
 export { ConfirmationDialog } from './components/ConfirmationDialog';
 export type { ConfirmationDialogProps } from './components/ConfirmationDialog';

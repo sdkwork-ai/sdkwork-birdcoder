@@ -1,5 +1,8 @@
 import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type {
+  AgentSessionIdentity,
+  IAgentSessionService,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export interface AgentSessionUserStateUpdate {
   archived?: boolean;
@@ -40,14 +43,14 @@ function buildAgentSessionUserStateUpdateRequest(
 
 export async function updateAgentSessionUserState(
   agentSessionService: IAgentSessionService,
-  sessionId: string,
+  identity: AgentSessionIdentity,
   session: Pick<AgentSessionView, 'lastItemSequence'>,
   updates: AgentSessionUserStateUpdate,
 ) {
-  const userStates = await agentSessionService.getSessionUserStates([sessionId]);
-  const currentUserState = userStates.get(sessionId);
+  const userStates = await agentSessionService.getSessionUserStates([identity]);
+  const currentUserState = userStates.get(identity.sessionId.trim());
   return agentSessionService.updateSessionUserState(
-    sessionId,
+    identity,
     buildAgentSessionUserStateUpdateRequest(
       session,
       updates,

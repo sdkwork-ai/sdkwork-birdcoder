@@ -14,7 +14,7 @@ another application while BirdCoder is displaying the same owner-scoped
 Session inventory. The durable Session record does not advance for every Turn,
 Interaction, Runtime Binding, or Session user-state change. Refreshing only
 when the Session version changes therefore leaves managed running Sessions
-shown as ready and can hide them behind idle Sessions. Provider-native
+shown as ready and can hide them behind idle Sessions. Provider Session runtime
 observation is a separate, query-time signal: by itself it cannot make an old
 Session enter the snapshot head.
 

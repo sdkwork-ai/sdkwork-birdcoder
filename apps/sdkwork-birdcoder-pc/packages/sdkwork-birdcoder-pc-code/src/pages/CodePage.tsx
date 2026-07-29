@@ -1097,6 +1097,21 @@ function CodePageComponent({
   });
   const isSelectedAgentSessionTranscriptVisible =
     isVisible && (activeTab === 'ai' || activeTab === 'editor');
+  const [failedAgentSessionItemsLoadId, setFailedAgentSessionItemsLoadId] =
+    useState<string | null>(null);
+  const handleSelectedAgentSessionItemsLoadFailed = useCallback((agentSessionId: string) => {
+    if (agentSessionId === visibleSessionId) {
+      setFailedAgentSessionItemsLoadId(agentSessionId);
+    }
+  }, [visibleSessionId]);
+  const handleSelectedAgentSessionItemsLoaded = useCallback((agentSessionId: string) => {
+    setFailedAgentSessionItemsLoadId((failedSessionId) =>
+      failedSessionId === agentSessionId ? null : failedSessionId,
+    );
+  }, []);
+  const handleRetrySelectedAgentSessionItems = useCallback(() => {
+    setSelectionRefreshToken((previousState) => previousState + 1);
+  }, [setSelectionRefreshToken]);
   const handleSelectedAgentSessionUnavailable = useCallback((
     unavailableAgentSessionId: string,
     unavailableProjectId: string,
@@ -1106,22 +1121,23 @@ function CodePageComponent({
     }
     const fallbackProjectId = unavailableProjectId.trim() || currentProjectId;
     selectProjectWithoutAgentSession(fallbackProjectId || null);
-    onAgentSessionChange?.('', fallbackProjectId || undefined);
   }, [
     currentProjectId,
-    onAgentSessionChange,
     selectProjectWithoutAgentSession,
     visibleSessionId,
   ]);
   const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems({
     agentSessionService,
     isActive: isSelectedAgentSessionTranscriptVisible,
+    onAgentSessionItemsLoadFailed: handleSelectedAgentSessionItemsLoadFailed,
+    onAgentSessionItemsLoaded: handleSelectedAgentSessionItemsLoaded,
     onAgentSessionUnavailable: handleSelectedAgentSessionUnavailable,
     projectService,
     selectionRefreshToken,
     selectedAgentSession,
     selectedAgentSessionId: visibleSessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
+    synchronizeProjectSessions: synchronizeImportedProject,
   });
   const selectedAgentSessionItems = useMemo(
     () => (isNewAgentSessionCreating ? [] : selectedAgentSession?.items ?? []),
@@ -1135,14 +1151,38 @@ function CodePageComponent({
       selectedAgentSessionItems.length === 0
     )
   );
+  const hasSelectedAgentSessionItemsLoadError = Boolean(
+    visibleSessionId
+    && failedAgentSessionItemsLoadId === visibleSessionId
+    && selectedAgentSessionItems.length === 0
+    && !isSelectedAgentSessionItemsLoading
+    && !isNewAgentSessionCreating
+  );
   const isSelectedAgentSessionNew =
-    !isSelectedAgentSessionHydrating && selectedAgentSessionItems.length === 0;
+    !isSelectedAgentSessionHydrating
+    && !hasSelectedAgentSessionItemsLoadError
+    && selectedAgentSessionItems.length === 0;
   const {
     mainChatEmptyState,
     editorChatEmptyState,
   } = useMemo(
-    () => createCodeChatEmptyStates(isSelectedAgentSessionHydrating),
-    [isSelectedAgentSessionHydrating],
+    () => createCodeChatEmptyStates(
+      isSelectedAgentSessionHydrating,
+      hasSelectedAgentSessionItemsLoadError
+        ? {
+          description: t('code.sessionMessagesLoadFailedDescription'),
+          onRetry: handleRetrySelectedAgentSessionItems,
+          retryLabel: t('code.retrySessionMessages'),
+          title: t('code.sessionMessagesLoadFailedTitle'),
+        }
+        : undefined,
+    ),
+    [
+      handleRetrySelectedAgentSessionItems,
+      hasSelectedAgentSessionItemsLoadError,
+      isSelectedAgentSessionHydrating,
+      t,
+    ],
   );
 
   const handleCreateRootFile = useCallback(() => {
@@ -1297,6 +1337,7 @@ function CodePageComponent({
     selectedAgentSessionItems,
     selectedFile,
     selectedSessionLastTurnAt: selectedAgentSession?.lastTurnAt,
+    selectedSessionAgentId: selectedAgentSession?.agentId ?? null,
     selectedSessionTitle: selectedAgentSession?.title,
     selectedSessionEngineId: selectedAgentSession?.engineId,
     selectedSessionModelId: selectedAgentSession?.modelId,

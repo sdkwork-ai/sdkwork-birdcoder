@@ -19,12 +19,18 @@ export default defineLocaleModule('code/actions', {
     revealedInExplorer: '\u5df2\u5728\u7cfb\u7edf\u8d44\u6e90\u7ba1\u7406\u5668\u4e2d\u663e\u793a\uff1a{{path}}',
     newSessionCreated: '\u65b0\u4f1a\u8bdd\u5df2\u521b\u5efa',
     failedToCreateSession: '\u521b\u5efa\u4f1a\u8bdd\u5931\u8d25',
+    deleteSessionTitle: '\u5220\u9664\u4f1a\u8bdd',
+    deleteSessionDescription:
+      '\u786e\u5b9a\u8981\u5220\u9664\u6b64\u4f1a\u8bdd\u5417\uff1f\u6b64\u64cd\u4f5c\u65e0\u6cd5\u64a4\u9500\u3002',
     sessionDeleted: '\u4f1a\u8bdd\u5df2\u6210\u529f\u5220\u9664',
     projectDeleted: '\u9879\u76ee\u5df2\u6210\u529f\u5220\u9664',
     projectCreated: '\u9879\u76ee\u5df2\u6210\u529f\u521b\u5efa',
     failedToCreateProject: '\u521b\u5efa\u9879\u76ee\u5931\u8d25',
     openedFolder: '\u5df2\u6253\u5f00\u6587\u4ef6\u5939\uff1a{{name}}',
     failedToOpenFolder: '\u6253\u5f00\u6587\u4ef6\u5939\u5931\u8d25',
+    deleteMessageTitle: '\u5220\u9664\u6d88\u606f',
+    deleteMessageDescription:
+      '\u786e\u5b9a\u8981\u5220\u9664\u6b64\u6d88\u606f\u5417\uff1f\u6b64\u64cd\u4f5c\u65e0\u6cd5\u64a4\u9500\u3002',
     messageDeleted: '\u6d88\u606f\u5df2\u6210\u529f\u5220\u9664',
     restoredFiles: '\u5df2\u5c06\u6587\u4ef6\u6062\u590d\u5230\u4e4b\u524d\u7684\u72b6\u6001',
     noResultsFound: '\u672a\u627e\u5230\u7ed3\u679c',

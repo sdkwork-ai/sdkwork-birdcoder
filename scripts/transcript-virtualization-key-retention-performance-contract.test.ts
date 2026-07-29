@@ -18,22 +18,26 @@ function buildMessage(index: number): AgentSessionItemView {
 
 const messages = Array.from({ length: 256 }, (_, index) => buildMessage(index));
 const retainedKey = resolveTranscriptMessageKey(messages[128], 128);
-const staleKey = resolveTranscriptMessageKey(messages[128], 127);
+const shiftedKey = resolveTranscriptMessageKey(messages[128], 127);
+const currentMessageKeys = new Set<string>();
+for (let index = 0; index < messages.length; index += 1) {
+  currentMessageKeys.add(resolveTranscriptMessageKey(messages[index], index));
+}
 
 assert.equal(
-  hasTranscriptMessageKey(messages, retainedKey),
+  shiftedKey,
+  retainedKey,
+  'Transcript message identity must remain stable when prepended history shifts an existing row index.',
+);
+assert.equal(
+  hasTranscriptMessageKey(currentMessageKeys, retainedKey),
   true,
-  'Transcript message key retention must resolve existing keyed messages without building a full key Set.',
+  'Transcript message key retention must resolve existing stable keys through the cached key lookup.',
 );
 assert.equal(
-  hasTranscriptMessageKey(messages, staleKey),
+  hasTranscriptMessageKey(currentMessageKeys, 'not-a-valid-key'),
   false,
-  'Transcript message key retention must reject stale keys when the index/id pair no longer matches.',
-);
-assert.equal(
-  hasTranscriptMessageKey(messages, 'not-a-valid-key'),
-  false,
-  'Transcript message key retention must reject malformed keys without scanning the transcript.',
+  'Transcript message key retention must reject unknown keys without scanning the transcript.',
 );
 
 const hookSource = fs.readFileSync(
@@ -43,18 +47,23 @@ const hookSource = fs.readFileSync(
 
 assert.match(
   hookSource,
-  /hasTranscriptMessageKey/,
-  'Virtualized transcript cleanup must use direct key retention checks instead of allocating a full message key Set.',
+  /const messageIndexesByKey = prefixHeightsCache\.messageIndexesByKey;/,
+  'Virtualized transcript cleanup must reuse the key index already maintained by the prefix-height cache.',
+);
+assert.match(
+  hookSource,
+  /hasTranscriptMessageKey\(messageIndexesByKey, messageId\)/,
+  'Virtualized transcript cleanup must perform constant-time retention checks against the cached key index.',
 );
 assert.doesNotMatch(
   hookSource,
   /new Set\(\s*messages\.map\(/,
-  'Virtualized transcript cleanup must not allocate a full Set from every message on append.',
+  'Virtualized transcript cleanup must not allocate a duplicate full key Set on every transcript update.',
 );
 assert.doesNotMatch(
   hookSource,
-  /messages\.map\(\(message, index\) => resolveTranscriptMessageKey/,
-  'Virtualized transcript cleanup must not map every transcript message just to prune observed element state.',
+  /hasTranscriptMessageKey\(messages,/,
+  'Virtualized transcript cleanup must not rescan the message array for every retained measurement or observer.',
 );
 
 console.log('transcript virtualization key retention performance contract passed.');

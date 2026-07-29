@@ -43,6 +43,7 @@ import { TaskSearchDialog } from './TaskSearchDialog';
 import {
   buildSidebarGlobalSessions,
   canRequestMoreSidebarProjectSessions,
+  groupSortedSidebarSessionsByProvider,
 } from './sessionSidebarPresentation';
 
 const SIDEBAR_CONTEXT_MENU_Z_INDEX = 2147483647;
@@ -1146,23 +1147,16 @@ export const Sidebar = React.memo(function Sidebar({
     if (organizeBy !== 'provider') {
       return [];
     }
-    const entries = new Map<string, SidebarProviderEntry>();
-    for (const session of chronologicalSessions) {
-      const providerId = session.providerId || 'unknown';
-      const existing = entries.get(providerId);
-      if (existing) {
-        existing.sessions.push(session);
-      } else {
-        entries.set(providerId, {
-          agentId: session.agentId,
-          engineId: session.engineId,
-          label: resolveSessionProviderPresentation(session).label,
-          providerId,
-          sessions: [session],
-        });
-      }
-    }
-    return [...entries.values()].sort((left, right) => left.label.localeCompare(right.label));
+    return groupSortedSidebarSessionsByProvider(chronologicalSessions).map((group) => {
+      const representative = group.sessions[0]!;
+      return {
+        agentId: representative.agentId,
+        engineId: representative.engineId,
+        label: resolveSessionProviderPresentation(representative).label,
+        providerId: group.providerId,
+        sessions: group.sessions,
+      };
+    });
   }, [chronologicalSessions, organizeBy]);
   const projectEntries = useMemo<SidebarProjectEntry[]>(
     () => {

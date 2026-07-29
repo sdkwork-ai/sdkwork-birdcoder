@@ -16,6 +16,7 @@ import {
 import { AuthShell } from '@sdkwork/birdcoder-pc-iam';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AppTab } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { SettingsTab } from '@sdkwork/birdcoder-pc-settings';
 import { useBirdcoderTerminalLaunchPlanResolver } from '@sdkwork/birdcoder-pc-workbench/terminal/useBirdcoderTerminalLaunchPlanResolver';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
@@ -42,7 +43,9 @@ interface AppMainBodyProps {
   projectName?: string;
   agentSessionId: string;
   runtimeLocationId?: string;
+  settingsTab: SettingsTab;
   onActiveTabChange: (tab: AppTab) => void;
+  onSettingsTabChange: (tab: SettingsTab) => void;
   onRequireAuth: (targetTab: AppTab) => void;
   onRequestProjectCreation: () => Promise<string | undefined>;
   onProjectChange: (projectId: string) => void;
@@ -80,7 +83,9 @@ export const AppMainBody = React.memo(function AppMainBody({
   projectName,
   agentSessionId,
   runtimeLocationId,
+  settingsTab,
   onActiveTabChange,
+  onSettingsTabChange,
   onRequireAuth,
   onRequestProjectCreation,
   onProjectChange,
@@ -257,9 +262,12 @@ export const AppMainBody = React.memo(function AppMainBody({
               onRecover={() => onActiveTabChange('code')}
             >
               <SettingsPage
+                activeTab={settingsTab}
                 currentProjectId={projectId || undefined}
                 currentProjectName={projectName}
+                onActiveTabChange={onSettingsTabChange}
                 onBack={() => onActiveTabChange('code')}
+                workspaceId={workspaceId}
               />
             </SurfaceErrorBoundaryWithTranslation>
           )}

@@ -230,7 +230,15 @@ const providerSession = await service.createSession({
   projectId: 'project.contract',
   title: 'Codex session',
 });
-await service.listRuntimeBindings(providerSession.sessionId);
+const providerSessionIdentity = {
+  agentId: providerSession.agentId,
+  sessionId: providerSession.sessionId,
+};
+const createdSessionIdentity = {
+  agentId: created.agentId,
+  sessionId: created.sessionId,
+};
+await service.listRuntimeBindings(providerSessionIdentity);
 assert.equal(createCalls[1]?.[1].agentId, 'agent.code-engine.codex');
 assert.deepEqual(runtimeBindingListCalls[0], [
   'agent.code-engine.codex',
@@ -239,9 +247,9 @@ assert.deepEqual(runtimeBindingListCalls[0], [
 
 const userStateAbortController = new AbortController();
 const userStates = await service.getSessionUserStates([
-  providerSession.sessionId,
-  providerSession.sessionId,
-  created.sessionId,
+  providerSessionIdentity,
+  providerSessionIdentity,
+  createdSessionIdentity,
 ], {
   signal: userStateAbortController.signal,
   timeoutMs: 2_000,
@@ -269,7 +277,7 @@ assert.deepEqual(sessionUserStateListCalls, [[
 ]]);
 
 missingSessionUserStateIds.add(providerSession.sessionId);
-const missingUserStates = await service.getSessionUserStates([providerSession.sessionId]);
+const missingUserStates = await service.getSessionUserStates([providerSessionIdentity]);
 assert.equal(missingUserStates.has(providerSession.sessionId), false);
 missingSessionUserStateIds.clear();
 
@@ -282,7 +290,10 @@ await assert.rejects(
   /instead of requested Agent "agent\.code-engine\.codex"/u,
 );
 createdSessionAgentIdOverride = '';
-await service.listRuntimeBindings('session.project-route-3');
+await service.listRuntimeBindings({
+  agentId: 'agent.birdcoder',
+  sessionId: 'session.project-route-3',
+});
 assert.deepEqual(runtimeBindingListCalls[1], [
   'agent.birdcoder',
   'session.project-route-3',
@@ -307,7 +318,7 @@ const runtimeBindingInput = {
   requestedAt: '2026-07-27T00:00:00.000Z',
 };
 const createdRuntimeBinding = await service.createRuntimeBinding(
-  providerSession.sessionId,
+  providerSessionIdentity,
   runtimeBindingInput,
 );
 assert.match(createdRuntimeBinding.runtimeBindingId, /^runtime_binding\.[0-9a-f-]+$/u);
@@ -329,7 +340,7 @@ recoveredRuntimeBinding = {
   isCurrent: true,
 };
 const replayedRuntimeBinding = await service.createRuntimeBinding(
-  providerSession.sessionId,
+  providerSessionIdentity,
   {
     ...runtimeBindingInput,
     runtimeBindingId: 'runtime_binding.recovered-contract',
@@ -347,7 +358,7 @@ recoveredRuntimeBinding = {
   modelId: 'different-model',
 };
 await assert.rejects(
-  service.createRuntimeBinding(providerSession.sessionId, {
+  service.createRuntimeBinding(providerSessionIdentity, {
     ...runtimeBindingInput,
     runtimeBindingId: 'runtime_binding.recovered-contract',
   }),
@@ -479,7 +490,12 @@ const batchedSessionIds = Array.from(
   { length: 101 },
   (_, index) => `session.user-state-batch-${index + 1}`,
 );
-const batchedUserStates = await batchingService.getSessionUserStates(batchedSessionIds);
+const batchedUserStates = await batchingService.getSessionUserStates(
+  batchedSessionIds.map((sessionId) => ({
+    agentId: 'agent.birdcoder',
+    sessionId,
+  })),
+);
 assert.equal(batchedUserStates.size, 101);
 assert.deepEqual(
   sessionUserStateListCalls.map(([agentId, params]) => ({
@@ -493,29 +509,30 @@ assert.deepEqual(
   ],
 );
 await assert.rejects(
-  batchingService.getSessionUserStates(['session.valid', ' ']),
-  /session ID is required/u,
+  batchingService.getSessionUserStates([
+    { agentId: 'agent.birdcoder', sessionId: 'session.valid' },
+    { agentId: 'agent.birdcoder', sessionId: ' ' },
+  ]),
+  /both Agent and Session identities/u,
 );
 
 const recoveryReadController = new AbortController();
-const recoveredSession = await service.getSession('session.recovery-target', {
+const recoveryIdentity = {
+  agentId: 'agent.code-engine.codex',
+  sessionId: 'session.recovery-target',
+};
+const recoveredSession = await service.getSession(recoveryIdentity, {
   signal: recoveryReadController.signal,
   timeoutMs: 2_000,
 });
 assert.equal(recoveredSession.agentId, 'agent.code-engine.codex');
 assert.deepEqual(sessionRetrieveCalls, [[
-  'agent.birdcoder',
-  'session.recovery-target',
-  { signal: recoveryReadController.signal, timeout: 2_000 },
-], [
   'agent.code-engine.codex',
   'session.recovery-target',
   { signal: recoveryReadController.signal, timeout: 2_000 },
 ]]);
-assert.deepEqual(codeEngineListCalls, [[
-  { signal: recoveryReadController.signal, timeout: 2_000 },
-]]);
-await service.listRuntimeBindings(recoveredSession.sessionId);
+assert.deepEqual(codeEngineListCalls, []);
+await service.listRuntimeBindings(recoveryIdentity);
 assert.deepEqual(runtimeBindingListCalls.at(-1), [
   'agent.code-engine.codex',
   recoveredSession.sessionId,

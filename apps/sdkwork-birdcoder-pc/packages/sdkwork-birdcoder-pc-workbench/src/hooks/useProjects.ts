@@ -1,4 +1,12 @@
-import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { randomString, uuid } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
@@ -608,6 +616,18 @@ function findAgentSessionInCollection(
   );
 }
 
+function requireAgentSessionInCollection(
+  projects: readonly AgentProjectView[],
+  projectId: string,
+  agentSessionId: string,
+): AgentSessionView {
+  const session = findAgentSessionInCollection(projects, projectId, agentSessionId);
+  if (!session) {
+    throw new Error(`Agent session ${agentSessionId} is not loaded for project ${projectId}.`);
+  }
+  return session;
+}
+
 function setProjectsStoreError(store: ProjectsStore, message: string): void {
   updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
     ...previousSnapshot,
@@ -802,11 +822,53 @@ export function useProjects(options?: UseProjectsOptions) {
   const storeScopeKey = baseStoreScopeKey && !isDefaultPagination
     ? `${baseStoreScopeKey}::page:${pageRequest.pageSize}:${pageRequest.page}`
     : baseStoreScopeKey;
-  const [storeSnapshot, setStoreSnapshot] = useState<ProjectsStoreSnapshot>(() =>
-    storeScopeKey
-      ? getProjectsStore(storeScopeKey).snapshot
-      : createProjectsStoreSnapshot(),
+  const inactiveStoreSnapshotRef = useRef<ProjectsStoreSnapshot>(
+    createProjectsStoreSnapshot(),
   );
+  const subscribedStore = useMemo(
+    () => (isActive && storeScopeKey ? getProjectsStore(storeScopeKey) : null),
+    [isActive, storeScopeKey],
+  );
+  const subscribeToProjectsStore = useCallback((onStoreChange: () => void) => {
+    if (!subscribedStore) {
+      return () => undefined;
+    }
+
+    const listener = () => onStoreChange();
+    subscribedStore.listeners.add(listener);
+    return () => {
+      subscribedStore.listeners.delete(listener);
+      if (storeScopeKey) {
+        disposeProjectsStoreIfUnused(storeScopeKey);
+      }
+    };
+  }, [storeScopeKey, subscribedStore]);
+  const readProjectsStoreSnapshot = useCallback(
+    () => subscribedStore?.snapshot ?? inactiveStoreSnapshotRef.current,
+    [subscribedStore],
+  );
+  const storeSnapshot = useSyncExternalStore(
+    subscribeToProjectsStore,
+    readProjectsStoreSnapshot,
+    readProjectsStoreSnapshot,
+  );
+  const setStoreSnapshot = useCallback((
+    updater:
+      | ProjectsStoreSnapshot
+      | ((previousSnapshot: ProjectsStoreSnapshot) => ProjectsStoreSnapshot),
+  ) => {
+    if (!storeScopeKey) {
+      return;
+    }
+    updateProjectsStoreSnapshot(
+      getProjectsStore(storeScopeKey),
+      (previousSnapshot) => (
+        typeof updater === 'function'
+          ? updater(previousSnapshot)
+          : updater
+      ),
+    );
+  }, [storeScopeKey]);
   useWorkspaceSessionInboxSynchronization({
     agentSessionService,
     isActive: isActive && isDefaultPagination && storeSnapshot.hasFetched,
@@ -836,31 +898,15 @@ export function useProjects(options?: UseProjectsOptions) {
   }, [isActive, storeScopeKey]);
 
   useEffect(() => {
-    if (!storeScopeKey) {
-      setStoreSnapshot(createProjectsStoreSnapshot());
-      return;
-    }
-
-    if (!isActive) {
-      setStoreSnapshot(createProjectsStoreSnapshot());
+    if (!storeScopeKey || !isActive) {
       return;
     }
 
     const store = getProjectsStore(storeScopeKey);
-    setStoreSnapshot(store.snapshot);
-
-    const handleStoreChange = (nextSnapshot: ProjectsStoreSnapshot) => {
-      startTransition(() => {
-        setStoreSnapshot(nextSnapshot);
-      });
-    };
-
-    const hadActiveListeners = store.listeners.size > 0;
-    store.listeners.add(handleStoreChange);
     if (
       shouldFetchOnMount &&
       (!store.snapshot.hasFetched ||
-        (!!store.snapshot.error && store.snapshot.projects.length === 0 && !hadActiveListeners)) &&
+        (!!store.snapshot.error && store.snapshot.projects.length === 0)) &&
       !store.inflight
     ) {
       void fetchProjects(
@@ -873,10 +919,6 @@ export function useProjects(options?: UseProjectsOptions) {
       });
     }
 
-    return () => {
-      store.listeners.delete(handleStoreChange);
-      disposeProjectsStoreIfUnused(storeScopeKey);
-    };
   }, [
     projectService,
     shouldFetchOnMount,
@@ -1323,7 +1365,10 @@ export function useProjects(options?: UseProjectsOptions) {
     options: CreateProjectAgentSessionOptions,
   ) => {
     try {
-      const project = storeSnapshot.projects.find(
+      const currentProjects = storeScopeKey
+        ? getProjectsStore(storeScopeKey).snapshot.projects
+        : storeSnapshot.projects;
+      const project = currentProjects.find(
         (candidate) => candidate.projectId === projectId,
       );
       if (!project) {
@@ -1338,7 +1383,10 @@ export function useProjects(options?: UseProjectsOptions) {
           title,
         }),
         createRuntimeBinding: (createdSession) =>
-          agentSessionService.createRuntimeBinding(createdSession.sessionId, {
+          agentSessionService.createRuntimeBinding({
+            agentId: createdSession.agentId,
+            sessionId: createdSession.sessionId,
+          }, {
             hostMode: options.hostMode ?? 'web',
             transportKind: 'sdk-stream',
             providerBindingId: options.providerBindingId,
@@ -1347,7 +1395,10 @@ export function useProjects(options?: UseProjectsOptions) {
             requestedAt: new Date().toISOString(),
           }),
         deleteCreatedSession: (createdSession) =>
-          agentSessionService.deleteSession(createdSession.sessionId),
+          agentSessionService.deleteSession({
+            agentId: createdSession.agentId,
+            sessionId: createdSession.sessionId,
+          }),
       });
       const agentSession = toAgentSessionView(session, {
         projectId: project.projectId,
@@ -1460,7 +1511,17 @@ export function useProjects(options?: UseProjectsOptions) {
     title: string,
   ) => {
     try {
-      const updatedSession = await agentSessionService.updateSession(agentSessionId, { title });
+      const loadedSession = requireAgentSessionInCollection(
+        storeScopeKey
+          ? getProjectsStore(storeScopeKey).snapshot.projects
+          : storeSnapshot.projects,
+        projectId,
+        agentSessionId,
+      );
+      const updatedSession = await agentSessionService.updateSession({
+        agentId: loadedSession.agentId,
+        sessionId: loadedSession.id,
+      }, { title });
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
@@ -1490,15 +1551,26 @@ export function useProjects(options?: UseProjectsOptions) {
       if (updates.hostMode !== undefined) {
         throw new Error('Session host mode is managed by the active Agents runtime binding.');
       }
-      let session = await agentSessionService.getSession(agentSessionId);
+      const loadedSession = requireAgentSessionInCollection(
+        storeScopeKey
+          ? getProjectsStore(storeScopeKey).snapshot.projects
+          : storeSnapshot.projects,
+        projectId,
+        agentSessionId,
+      );
+      const identity = {
+        agentId: loadedSession.agentId,
+        sessionId: loadedSession.id,
+      };
+      let session = await agentSessionService.getSession(identity);
       if (updates.title !== undefined) {
-        session = await agentSessionService.updateSession(agentSessionId, {
+        session = await agentSessionService.updateSession(identity, {
           expectedVersion: session.version,
           title: updates.title,
         });
       }
       if (updates.status === 'completed') {
-        session = await agentSessionService.closeSession(agentSessionId, session.version);
+        session = await agentSessionService.closeSession(identity, session.version);
       } else if (
         updates.status !== undefined &&
         updates.status !== 'active' &&
@@ -1514,7 +1586,7 @@ export function useProjects(options?: UseProjectsOptions) {
       ) {
         const userState = await updateAgentSessionUserState(
           agentSessionService,
-          agentSessionId,
+          identity,
           session,
           updates,
         );
@@ -1557,20 +1629,31 @@ export function useProjects(options?: UseProjectsOptions) {
     newTitle?: string,
   ) => {
     try {
-      const project = storeSnapshot.projects.find(
+      const currentProjects = storeScopeKey
+        ? getProjectsStore(storeScopeKey).snapshot.projects
+        : storeSnapshot.projects;
+      const project = currentProjects.find(
         (candidate) => candidate.projectId === projectId,
       );
       if (!project) {
         throw new Error(`Agents project ${projectId} is not loaded.`);
       }
+      const loadedParentSession = requireAgentSessionInCollection(
+        currentProjects,
+        projectId,
+        agentSessionId,
+      );
+      const parentIdentity = {
+        agentId: loadedParentSession.agentId,
+        sessionId: loadedParentSession.id,
+      };
       const [parentSession, parentTurnPage, runtimeBindingPage] = await Promise.all([
-        agentSessionService.getSession(agentSessionId),
-        agentSessionService.listTurns(agentSessionId, {
+        agentSessionService.getSession(parentIdentity),
+        agentSessionService.listTurns(parentIdentity, {
           page: 1,
           pageSize: 1,
-          sort: '-sequence',
         }),
-        agentSessionService.listRuntimeBindings(agentSessionId, { page: 1, pageSize: 20 }),
+        agentSessionService.listRuntimeBindings(parentIdentity, { page: 1, pageSize: 20 }),
       ]);
       const lastTurn = parentTurnPage.items[0];
       if (parentSession.projectId?.trim() !== project.projectId) {
@@ -1592,7 +1675,10 @@ export function useProjects(options?: UseProjectsOptions) {
         ? await createBoundAgentSession({
             createSession: createForkedSession,
             createRuntimeBinding: (createdSession) =>
-              agentSessionService.createRuntimeBinding(createdSession.sessionId, {
+              agentSessionService.createRuntimeBinding({
+                agentId: createdSession.agentId,
+                sessionId: createdSession.sessionId,
+              }, {
                 runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
                 hostMode: currentBinding.hostMode,
                 transportKind: currentBinding.transportKind,
@@ -1604,7 +1690,10 @@ export function useProjects(options?: UseProjectsOptions) {
                 requestedAt: new Date().toISOString(),
               }),
             deleteCreatedSession: (createdSession) =>
-              agentSessionService.deleteSession(createdSession.sessionId),
+              agentSessionService.deleteSession({
+                agentId: createdSession.agentId,
+                sessionId: createdSession.sessionId,
+              }),
           })
         : {
             runtimeBinding: null,
@@ -1647,13 +1736,27 @@ export function useProjects(options?: UseProjectsOptions) {
     }
   };
 
-  const deleteAgentSession = async (projectId: string, agentSessionId: string) => {
+  const deleteAgentSession = async (
+    projectId: string,
+    agentSessionId: string,
+  ): Promise<boolean> => {
     try {
-      await agentSessionService.deleteSession(agentSessionId);
+      const loadedSession = requireAgentSessionInCollection(
+        storeScopeKey
+          ? getProjectsStore(storeScopeKey).snapshot.projects
+          : storeSnapshot.projects,
+        projectId,
+        agentSessionId,
+      );
+      await agentSessionService.deleteSession({
+        agentId: loadedSession.agentId,
+        sessionId: loadedSession.id,
+      });
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         removeAgentSessionFromCollection(projects, projectId, agentSessionId),
       );
       void invalidateWorkspaceSessionInbox();
+      return true;
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1663,6 +1766,7 @@ export function useProjects(options?: UseProjectsOptions) {
         ...previousSnapshot,
         error: message,
       }));
+      return false;
     }
   };
 
@@ -1777,7 +1881,10 @@ export function useProjects(options?: UseProjectsOptions) {
       }),
     );
     try {
-      const completed = await agentSessionService.submitTurn(agentSessionId, {
+      const completed = await agentSessionService.submitTurn({
+        agentId: selectedSession.agentId,
+        sessionId: selectedSession.id,
+      }, {
         content,
         contentType: 'text/plain',
         ...(options?.driveRefs?.length ? { driveRefs: [...options.driveRefs] } : {}),
@@ -1788,7 +1895,6 @@ export function useProjects(options?: UseProjectsOptions) {
         turnId,
         turnMode: 'interactive',
       }, {
-        agentId: selectedSession.agentId,
         onAccepted: () => {
           didAuthorityAcceptTurn = true;
           shouldPreserveOptimisticTurn = true;

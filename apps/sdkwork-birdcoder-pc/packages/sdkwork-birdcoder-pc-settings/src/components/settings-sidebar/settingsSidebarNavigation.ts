@@ -1,0 +1,87 @@
+import {
+  Archive,
+  Cpu,
+  FolderGit2,
+  GitBranch,
+  MonitorCog,
+  Keyboard,
+  Mic2,
+  Palette,
+  PlugZap,
+  Scale,
+  Settings,
+  Sparkles,
+  TerminalSquare,
+  type LucideIcon,
+} from 'lucide-react';
+
+export type SettingsTab =
+  | 'general'
+  | 'codeEngines'
+  | 'appearance'
+  | 'voice'
+  | 'shortcuts'
+  | 'config'
+  | 'personalization'
+  | 'mcp'
+  | 'git'
+  | 'environment'
+  | 'worktree'
+  | 'archived'
+  | 'legal';
+
+export interface SettingsNavigationItem {
+  icon: LucideIcon;
+  id: SettingsTab;
+  labelKey: string;
+}
+
+export interface SettingsNavigationGroup {
+  id: 'personal' | 'integrations' | 'coding' | 'archive';
+  items: readonly SettingsNavigationItem[];
+  labelKey: string;
+}
+
+export const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
+  {
+    id: 'personal',
+    labelKey: 'settings.sidebar.groups.personal',
+    items: [
+      { id: 'general', icon: Settings, labelKey: 'settings.general' },
+      { id: 'appearance', icon: Palette, labelKey: 'settings.sidebar.appearance' },
+      { id: 'voice', icon: Mic2, labelKey: 'settings.sidebar.voice' },
+      { id: 'shortcuts', icon: Keyboard, labelKey: 'settings.sidebar.shortcuts' },
+      { id: 'config', icon: MonitorCog, labelKey: 'settings.sidebar.config' },
+      {
+        id: 'personalization',
+        icon: Sparkles,
+        labelKey: 'settings.sidebar.personalization',
+      },
+      { id: 'legal', icon: Scale, labelKey: 'settings.sidebar.legal' },
+    ],
+  },
+  {
+    id: 'integrations',
+    labelKey: 'settings.sidebar.groups.integrations',
+    items: [
+      { id: 'mcp', icon: PlugZap, labelKey: 'settings.sidebar.mcpServers' },
+    ],
+  },
+  {
+    id: 'coding',
+    labelKey: 'settings.sidebar.groups.coding',
+    items: [
+      { id: 'codeEngines', icon: Cpu, labelKey: 'settings.sidebar.codeEngines' },
+      { id: 'git', icon: GitBranch, labelKey: 'settings.sidebar.git' },
+      { id: 'environment', icon: TerminalSquare, labelKey: 'settings.sidebar.environment' },
+      { id: 'worktree', icon: FolderGit2, labelKey: 'settings.sidebar.worktree' },
+    ],
+  },
+  {
+    id: 'archive',
+    labelKey: 'settings.sidebar.groups.archive',
+    items: [
+      { id: 'archived', icon: Archive, labelKey: 'settings.sidebar.archivedSessions' },
+    ],
+  },
+] as const;

@@ -31,12 +31,15 @@ describe('Agent Session user-state updates', () => {
       pinnedAt: '2026-07-27T00:00:00.000Z',
     });
     const service = {
-      async getSessionUserStates(sessionIds: readonly string[]) {
-        expect(sessionIds).toEqual(['session.alpha']);
+      async getSessionUserStates(identities: readonly unknown[]) {
+        expect(identities).toEqual([{
+          agentId: 'agent.provider.codex',
+          sessionId: 'session.alpha',
+        }]);
         return new Map([['session.alpha', existingState]]);
       },
-      async updateSessionUserState(sessionId: string, request: unknown) {
-        requests.push({ request, sessionId });
+      async updateSessionUserState(identity: unknown, request: unknown) {
+        requests.push({ identity, request });
         return userState({
           version: '1',
           updatedAt: '2026-07-27T00:01:00.000Z',
@@ -46,17 +49,20 @@ describe('Agent Session user-state updates', () => {
 
     const updated = await updateAgentSessionUserState(
       service,
-      'session.alpha',
+      { agentId: 'agent.provider.codex', sessionId: 'session.alpha' },
       { lastItemSequence: '3' },
       { pinned: false },
     );
 
     expect(requests).toEqual([{
+      identity: {
+        agentId: 'agent.provider.codex',
+        sessionId: 'session.alpha',
+      },
       request: {
         expectedVersion: '0',
         pinned: false,
       },
-      sessionId: 'session.alpha',
     }]);
     expect(updated).toMatchObject({
       resourceId: 'session.alpha',
@@ -71,22 +77,25 @@ describe('Agent Session user-state updates', () => {
       async getSessionUserStates() {
         return new Map<string, AgentSessionUserStateRecord>();
       },
-      async updateSessionUserState(sessionId: string, request: unknown) {
-        requests.push({ request, sessionId });
+      async updateSessionUserState(identity: unknown, request: unknown) {
+        requests.push({ identity, request });
         return userState({ pinnedAt: '2026-07-27T00:00:00.000Z' });
       },
     } as unknown as IAgentSessionService;
 
     await updateAgentSessionUserState(
       service,
-      'session.alpha',
+      { agentId: 'agent.provider.opencode', sessionId: 'session.alpha' },
       { lastItemSequence: '0' },
       { pinned: true },
     );
 
     expect(requests).toEqual([{
+      identity: {
+        agentId: 'agent.provider.opencode',
+        sessionId: 'session.alpha',
+      },
       request: { pinned: true },
-      sessionId: 'session.alpha',
     }]);
   });
 });

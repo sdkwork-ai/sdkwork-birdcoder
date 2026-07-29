@@ -66,6 +66,17 @@ export interface ProjectAgentSessionPage {
   project: AgentProjectView;
 }
 
+interface LoadAgentSessionViewOptions {
+  fallbackView?: AgentSessionView;
+  reuseFallbackRuntimeMetadata?: boolean;
+  tolerateAuxiliaryMetadataFailure?: boolean;
+}
+
+interface AuxiliaryMetadataResult<T> {
+  failed: boolean;
+  value: T | null;
+}
+
 const PROJECT_SESSION_PAGE_SIZE = 20;
 const PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY = 6;
 
@@ -828,6 +839,30 @@ export function mergeAgentSessionRecordIntoView(
   };
 }
 
+async function loadAgentSessionAuxiliaryMetadata<T>(
+  name: string,
+  load: () => Promise<T>,
+  signal: AbortSignal | undefined,
+  tolerateFailure: boolean,
+): Promise<AuxiliaryMetadataResult<T>> {
+  try {
+    return { failed: false, value: await load() };
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+    if (!tolerateFailure) {
+      throw error;
+    }
+    console.warn(
+      `Failed to load Agents Session ${name}; preserving available transcript data`,
+      error,
+    );
+    return { failed: true, value: null };
+  }
+}
+
 export async function loadAgentSessionView(
   agentSessionService: IAgentSessionService,
   session: AgentSessionRecord,
@@ -836,44 +871,94 @@ export async function loadAgentSessionView(
   itemPageInfo?: AgentSessionPageInfoView,
   signal?: AbortSignal,
   prefetchedUserStates?: ReadonlyMap<string, AgentSessionUserStateRecord>,
+  options: LoadAgentSessionViewOptions = {},
 ): Promise<AgentSessionView> {
-  const [runtimeBindingPage, userStates] = await Promise.all([
-    agentSessionService.listRuntimeBindings(
-      session.sessionId,
-      { page: 1, pageSize: 20 },
-      { signal },
+  const tolerateFailure = options.tolerateAuxiliaryMetadataFailure === true;
+  const fallbackView = options.fallbackView;
+  const [runtimeBindingResult, userStatesResult] = await Promise.all([
+    options.reuseFallbackRuntimeMetadata && fallbackView?.activity
+      ? Promise.resolve({ failed: true, value: null })
+      : loadAgentSessionAuxiliaryMetadata(
+          'runtime bindings',
+          () => agentSessionService.listRuntimeBindings(
+            { agentId: session.agentId, sessionId: session.sessionId },
+            { page: 1, pageSize: 20 },
+            { signal },
+          ),
+          signal,
+          tolerateFailure,
+        ),
+    loadAgentSessionAuxiliaryMetadata(
+      'user state',
+      () => prefetchedUserStates
+        ? Promise.resolve(prefetchedUserStates)
+        : agentSessionService.getSessionUserStates([
+            { agentId: session.agentId, sessionId: session.sessionId },
+          ], { signal }),
+      signal,
+      tolerateFailure,
     ),
-    prefetchedUserStates
-      ? Promise.resolve(prefetchedUserStates)
-      : agentSessionService.getSessionUserStates([session.sessionId], { signal }),
   ]);
-  const userState = userStates.get(session.sessionId) ?? null;
-  const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+  const userState = userStatesResult.value?.get(session.sessionId) ?? null;
+  const currentBinding = runtimeBindingResult.value?.items.find((binding) => binding.isCurrent);
   const engine = currentBinding
     ? resolveWorkbenchCodeEngineForRuntimeBinding({
         ...currentBinding,
         agentId: session.agentId,
       })
     : null;
-  return toAgentSessionView(session, {
+  const view = toAgentSessionView(session, {
     projectId,
-    engineId: engine?.id ?? currentBinding?.providerId,
-    modelId: currentBinding?.modelId,
-    providerId: currentBinding?.providerId,
-    providerBindingId: currentBinding?.providerBindingId,
-    runtimeBindingId: currentBinding?.runtimeBindingId,
+    engineId: engine?.id
+      ?? currentBinding?.providerId
+      ?? (runtimeBindingResult.failed ? fallbackView?.engineId : undefined),
+    modelId: currentBinding?.modelId
+      ?? (runtimeBindingResult.failed ? fallbackView?.modelId : undefined),
+    providerId: currentBinding?.providerId
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerId : undefined),
+    providerBindingId: currentBinding?.providerBindingId
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerBindingId : undefined),
+    runtimeBindingId: currentBinding?.runtimeBindingId
+      ?? (runtimeBindingResult.failed ? fallbackView?.runtimeBindingId : undefined),
     hostMode:
       currentBinding?.hostMode === 'desktop' || currentBinding?.hostMode === 'server'
         ? currentBinding.hostMode
-        : 'web',
-    transportKind: currentBinding?.transportKind,
-    providerSessionId: currentBinding?.providerSessionId ?? undefined,
-    runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
+        : runtimeBindingResult.failed
+          ? fallbackView?.hostMode
+          : 'web',
+    transportKind: currentBinding?.transportKind
+      ?? (runtimeBindingResult.failed ? fallbackView?.transportKind : undefined),
+    providerSessionId: currentBinding?.providerSessionId
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerSessionId : undefined),
+    runtimeLocationId: currentBinding?.runtimeLocationId
+      ?? (runtimeBindingResult.failed ? fallbackView?.runtimeLocationId : undefined),
     runtimeBindingStatus: currentBinding?.status,
-    runtimeBindingUpdatedAt: currentBinding?.updatedAt,
+    runtimeBindingUpdatedAt: currentBinding?.updatedAt
+      ?? (runtimeBindingResult.failed ? fallbackView?.lastRuntimeEventAt : undefined),
     userState,
     itemPageInfo,
   }, items);
+  return {
+    ...view,
+    ...(runtimeBindingResult.failed && fallbackView
+      ? {
+        lastRuntimeEventAt: fallbackView.lastRuntimeEventAt,
+        runtimeStatus:
+          view.status === 'completed' || view.status === 'archived'
+            ? view.runtimeStatus
+            : fallbackView.runtimeStatus,
+      }
+      : {}),
+    ...(userStatesResult.failed && fallbackView
+      ? {
+        archived: view.archived || fallbackView.archived,
+        lastReadItemSequence: fallbackView.lastReadItemSequence,
+        pinned: fallbackView.pinned,
+        title: fallbackView.title,
+        unread: fallbackView.unread,
+      }
+      : {}),
+  };
 }
 
 export async function loadProjectAgentSessionPage(
@@ -914,15 +999,22 @@ export async function loadProjectAgentSessionPage(
     throw new Error('Agents session inventory returned an empty page with hasMore=true.');
   }
   const projectSessions = sessionPage.items.filter((session) => session.projectId === projectId);
-  const userStateSessionIds = projectSessions.map((session) => session.sessionId);
-  const userStates = userStateSessionIds.length > 0
-    ? await agentSessionService.getSessionUserStates(userStateSessionIds, { signal })
+  const userStateSessionIdentities = projectSessions.map((session) => ({
+    agentId: session.agentId,
+    sessionId: session.sessionId,
+  }));
+  const userStates = userStateSessionIdentities.length > 0
+    ? await agentSessionService.getSessionUserStates(userStateSessionIdentities, { signal })
     : new Map<string, AgentSessionUserStateRecord>();
+  const existingSessionsById = new Map(
+    project.agentSessions.map((session) => [session.id, session]),
+  );
   const visibleSessions = await mapWithConcurrency(
     projectSessions,
     PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY,
-    (session) =>
-      loadAgentSessionView(
+    (session) => {
+      const fallbackView = existingSessionsById.get(session.sessionId);
+      return loadAgentSessionView(
         agentSessionService,
         session,
         projectId,
@@ -930,7 +1022,12 @@ export async function loadProjectAgentSessionPage(
         undefined,
         signal,
         userStates,
-      ),
+        {
+          fallbackView,
+          reuseFallbackRuntimeMetadata: fallbackView?.activity !== undefined,
+        },
+      );
+    },
   );
   signal?.throwIfAborted();
   const agentSessions = mergeAgentSessions(project.agentSessions, visibleSessions);

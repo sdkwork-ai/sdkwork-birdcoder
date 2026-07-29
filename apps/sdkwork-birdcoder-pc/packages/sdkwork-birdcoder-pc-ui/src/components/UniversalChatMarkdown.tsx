@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { FileCode2, Hexagon, RefreshCw, Workflow } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -16,7 +16,7 @@ export interface UniversalChatMarkdownProps {
   onOpenUrl?: (url: string) => void;
   openFileLabel?: string;
   openUrlLabel?: string;
-  skills?: ChatSkill[];
+  skills?: readonly ChatSkill[];
   mode?: 'basic' | 'rich';
   unknownSkillDescription?: string;
 }
@@ -32,6 +32,7 @@ const UniversalChatMermaid = lazy(async () => {
 });
 
 const CHAT_MARKDOWN_REMARK_PLUGINS = [remarkGfm];
+const EMPTY_MARKDOWN_SKILLS: readonly ChatSkill[] = [];
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -140,16 +141,16 @@ function MarkdownCode({
     );
   }
 
+  if (!rich) {
+    return <PlainCodeBlock language={language}>{children}</PlainCodeBlock>;
+  }
+
   if (language.trim().toLowerCase() === 'mermaid') {
     return (
       <Suspense fallback={<MermaidBlockFallback />}>
         <UniversalChatMermaid source={String(children).replace(/\n$/u, '')} />
       </Suspense>
     );
-  }
-
-  if (!rich) {
-    return <PlainCodeBlock language={language}>{children}</PlainCodeBlock>;
   }
 
   return (
@@ -167,11 +168,11 @@ export function UniversalChatMarkdown({
   onOpenUrl,
   openFileLabel = 'Open file in editor',
   openUrlLabel = 'Open link preview',
-  skills = [],
+  skills = EMPTY_MARKDOWN_SKILLS,
   mode = 'rich',
   unknownSkillDescription = 'Skill details unavailable',
 }: UniversalChatMarkdownProps) {
-  const safeLinkComponents = {
+  const safeLinkComponents = useMemo(() => ({
     a: ({ node, ...props }: any) => {
       const openFile = onOpenFile;
       const filePath = openFile ? resolveMarkdownFilePath(props.href) : null;
@@ -301,16 +302,36 @@ export function UniversalChatMarkdown({
         />
       );
     },
-  };
+  }), [
+    onOpenFile,
+    onOpenUrl,
+    openFileLabel,
+    openUrlLabel,
+    skills,
+    unknownSkillDescription,
+  ]);
+
+  const basicMarkdownComponents = useMemo(() => ({
+    ...safeLinkComponents,
+    code: ({ node: _node, ...props }: any) => <MarkdownCode {...props} rich={false} />,
+    pre: ({ children }: any) => <>{children}</>,
+  }), [safeLinkComponents]);
+
+  const richMarkdownComponents = useMemo(() => ({
+    ...safeLinkComponents,
+    code: ({ node: _node, ...props }: any) => <MarkdownCode {...props} rich />,
+    pre: ({ children }: any) => <>{children}</>,
+  }), [safeLinkComponents]);
+
+  const processedContent = useMemo(
+    () => processContent(content, skills),
+    [content, skills],
+  );
 
   if (mode === 'basic') {
     return (
       <ReactMarkdown
-        components={{
-          ...safeLinkComponents,
-          code: ({ node, ...props }: any) => <MarkdownCode {...props} rich={false} />,
-          pre: ({ children }: any) => <>{children}</>,
-        }}
+        components={basicMarkdownComponents}
         remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
       >
         {content}
@@ -318,18 +339,12 @@ export function UniversalChatMarkdown({
     );
   }
 
-  const markdownComponents = {
-    ...safeLinkComponents,
-    code: ({ node, ...props }: any) => <MarkdownCode {...props} rich />,
-    pre: ({ children }: any) => <>{children}</>,
-  };
-
   return (
     <ReactMarkdown
-      components={markdownComponents}
+      components={richMarkdownComponents}
       remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
     >
-      {processContent(content, skills)}
+      {processedContent}
     </ReactMarkdown>
   );
 }

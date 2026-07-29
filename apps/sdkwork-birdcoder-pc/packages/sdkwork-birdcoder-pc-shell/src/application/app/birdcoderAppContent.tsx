@@ -48,6 +48,13 @@ import {
   type ProjectMountRecoveryEventPayload,
 } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import {
+  formatKeyboardShortcut,
+  isMacKeyboardPlatform,
+  resolveKeyboardShortcutCommand,
+  useKeyboardShortcuts,
+  type KeyboardShortcutCommand,
+} from '@sdkwork/birdcoder-pc-workbench';
 import { revealTauriPathInFileManager } from '@sdkwork/birdcoder-pc-workbench/platform/tauriFileManager';
 import { ToastProvider, useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
@@ -68,6 +75,7 @@ import type {
   AgentProjectView,
   AgentWorkspaceView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { SettingsTab } from '@sdkwork/birdcoder-pc-settings';
 import {
   loadWorkbenchCodeEngineCatalog,
   resetWorkbenchCodeEngineCatalog,
@@ -123,7 +131,14 @@ export function AppContent() {
   const { user, isLoading: isAuthLoading, logout, sessionRevision } = useAuth();
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
+  const { bindings: keyboardShortcutBindings } = useKeyboardShortcuts();
+  const isMacKeyboard = useMemo(() => isMacKeyboardPlatform(), []);
+  const shortcutFor = useCallback((command: KeyboardShortcutCommand) => {
+    const shortcut = keyboardShortcutBindings[command][0];
+    return shortcut ? formatKeyboardShortcut(shortcut, isMacKeyboard) : undefined;
+  }, [isMacKeyboard, keyboardShortcutBindings]);
   const [activeTab, setActiveTab] = useState<AppTab>(() => resolveBirdCoderInitialAppTab());
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
   const [recoverySnapshot, , isRecoveryHydrated] = usePersistedState<WorkbenchRecoverySnapshot>(
     'workbench',
     'recovery-context',
@@ -214,7 +229,7 @@ export function AppContent() {
     deleteProject,
     createAgentSession,
   } = useProjects({
-    isActive: Boolean(user) && isRecoveryHydrated,
+    isActive: Boolean(user) && isRecoveryHydrated && Boolean(selectedWorkspaceId),
     targetProjectId:
       scopedActiveProjectId || normalizedRecoverySnapshot.activeProjectId,
     workspaceId: selectedWorkspaceId,
@@ -294,7 +309,6 @@ export function AppContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isDesktopWindowAvailable, setIsDesktopWindowAvailable] = useState(false);
   const [isDesktopWindowMaximized, setIsDesktopWindowMaximized] = useState(false);
   const [isDesktopWindowMinimized, setIsDesktopWindowMinimized] = useState(false);
@@ -974,80 +988,113 @@ export function AppContent() {
   }, [closeWorkspaceProjectPopover, hasOpenHeaderSelectionSurface, showCreateWorkspaceDialog]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-      
-      if (cmdOrCtrl && e.key === 'n') {
-        e.preventDefault();
-        if (e.repeat) return;
-        void createAgentSessionCommandRef.current({ source: 'keyboard-shortcut' });
-      } else if (cmdOrCtrl && e.key === 'o') {
-        e.preventDefault();
-        openFolderHandlerRef.current();
-      } else if (cmdOrCtrl && e.key === 's' && !e.shiftKey) {
-        e.preventDefault();
-        globalEventBus.emit('saveActiveFile');
-      } else if (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        globalEventBus.emit('saveAllFiles');
-      } else if (cmdOrCtrl && e.key === ',') {
-        e.preventDefault();
-        setActiveTab('settings');
-      } else if (cmdOrCtrl && e.key === 'b' && !e.altKey) {
-        e.preventDefault();
-        globalEventBus.emit('toggleSidebar');
-      } else if (cmdOrCtrl && e.key === 'j') {
-        e.preventDefault();
-        globalEventBus.emit('toggleTerminal');
-      } else if (cmdOrCtrl && e.altKey && e.key === 'b') {
-        e.preventDefault();
-        globalEventBus.emit('toggleDiffPanel');
-      } else if (cmdOrCtrl && e.key === 'f') {
-        e.preventDefault();
-        globalEventBus.emit('findInFiles');
-      } else if (cmdOrCtrl && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        zoomHandlerRef.current('in');
-      } else if (cmdOrCtrl && e.key === '-') {
-        e.preventDefault();
-        zoomHandlerRef.current('out');
-      } else if (cmdOrCtrl && e.key === '0') {
-        e.preventDefault();
-        zoomHandlerRef.current('reset');
-      } else if (e.key === 'F11') {
-        e.preventDefault();
-        toggleFullScreenHandlerRef.current();
-      } else if (cmdOrCtrl && e.key === 'p') {
-        e.preventDefault();
-        globalEventBus.emit('openQuickOpen');
-      } else if (cmdOrCtrl && e.shiftKey && e.key === '[') {
-        e.preventDefault();
-        globalEventBus.emit('previousAgentSession');
-      } else if (cmdOrCtrl && e.shiftKey && e.key === ']') {
-        e.preventDefault();
-        globalEventBus.emit('nextAgentSession');
-      } else if (cmdOrCtrl && e.key === '[' && !e.shiftKey) {
-        e.preventDefault();
-        window.history.back();
-      } else if (cmdOrCtrl && e.key === ']' && !e.shiftKey) {
-        e.preventDefault();
-        window.history.forward();
-      } else if (e.key === 'F5' && !cmdOrCtrl) {
-        e.preventDefault();
-        globalEventBus.emit('startDebugging');
-      } else if (cmdOrCtrl && e.key === 'F5') {
-        e.preventDefault();
-        globalEventBus.emit('runWithoutDebugging');
-      } else if (cmdOrCtrl && e.shiftKey && e.code === 'Backquote') {
-        e.preventDefault();
-        void handleCreateTerminal();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const command = resolveKeyboardShortcutCommand(
+        event,
+        keyboardShortcutBindings,
+        isMacKeyboard,
+      );
+      if (!command) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.repeat) {
+        return;
+      }
+
+      const emitCodeSurfaceEvent = (eventName: string) => {
+        if (activeTab === 'code') {
+          globalEventBus.emit(eventName);
+          return;
+        }
+        setActiveTab('code');
+        window.setTimeout(() => globalEventBus.emit(eventName), 0);
+      };
+      const emitTaskNavigationEvent = (eventName: string) => {
+        if (activeTab === 'code' || activeTab === 'studio') {
+          globalEventBus.emit(eventName);
+          return;
+        }
+        setActiveTab('code');
+        window.setTimeout(() => globalEventBus.emit(eventName), 0);
+      };
+
+      switch (command) {
+        case 'newSession':
+          void createAgentSessionCommandRef.current({ source: 'keyboard-shortcut' });
+          break;
+        case 'openFolder':
+          openFolderHandlerRef.current();
+          break;
+        case 'openSettings':
+          setSettingsTab('general');
+          setActiveTab('settings');
+          break;
+        case 'showKeyboardShortcuts':
+          setSettingsTab('shortcuts');
+          setActiveTab('settings');
+          break;
+        case 'saveActiveFile':
+          emitCodeSurfaceEvent('saveActiveFile');
+          break;
+        case 'saveAllFiles':
+          emitCodeSurfaceEvent('saveAllFiles');
+          break;
+        case 'toggleSidebar':
+          emitCodeSurfaceEvent('toggleSidebar');
+          break;
+        case 'toggleTerminal':
+          emitCodeSurfaceEvent('toggleTerminal');
+          break;
+        case 'toggleReview':
+          emitCodeSurfaceEvent('toggleDiffPanel');
+          break;
+        case 'findInFiles':
+          emitCodeSurfaceEvent('findInFiles');
+          break;
+        case 'openQuickOpen':
+          emitCodeSurfaceEvent('openQuickOpen');
+          break;
+        case 'previousAgentSession':
+          emitTaskNavigationEvent('previousAgentSession');
+          break;
+        case 'nextAgentSession':
+          emitTaskNavigationEvent('nextAgentSession');
+          break;
+        case 'historyBack':
+          window.history.back();
+          break;
+        case 'historyForward':
+          window.history.forward();
+          break;
+        case 'zoomIn':
+          zoomHandlerRef.current('in');
+          break;
+        case 'zoomOut':
+          zoomHandlerRef.current('out');
+          break;
+        case 'zoomReset':
+          zoomHandlerRef.current('reset');
+          break;
+        case 'toggleFullScreen':
+          toggleFullScreenHandlerRef.current();
+          break;
+        case 'startDebugging':
+          emitCodeSurfaceEvent('startDebugging');
+          break;
+        case 'runWithoutDebugging':
+          emitCodeSurfaceEvent('runWithoutDebugging');
+          break;
+        case 'createTerminal':
+          void handleCreateTerminal();
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCreateTerminal]);
+  }, [activeTab, handleCreateTerminal, isMacKeyboard, keyboardShortcutBindings]);
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
     if (!selectedWorkspaceId) {
@@ -1882,7 +1929,7 @@ export function AppContent() {
     () => [
       {
         label: t('app.menu.newSession'),
-        shortcut: 'Ctrl+N',
+        shortcut: shortcutFor('newSession'),
         onClick: () =>
           handleCreateAgentSessionCommand({
             engineId: newSessionEngineCatalog.preferredSelection.engineId,
@@ -1899,22 +1946,29 @@ export function AppContent() {
         }),
       })),
       { label: '', divider: true },
-      { label: t('app.menu.openFolder'), shortcut: 'Ctrl+O', onClick: handleOpenFolder },
+      { label: t('app.menu.openFolder'), shortcut: shortcutFor('openFolder'), onClick: handleOpenFolder },
       { label: '', divider: true },
       {
         label: t('app.menu.save'),
-        shortcut: 'Ctrl+S',
+        shortcut: shortcutFor('saveActiveFile'),
         onClick: () => globalEventBus.emit('saveActiveFile'),
       },
       {
         label: t('app.menu.saveAll'),
-        shortcut: 'Ctrl+Shift+S',
+        shortcut: shortcutFor('saveAllFiles'),
         onClick: () => globalEventBus.emit('saveAllFiles'),
       },
       { label: '', divider: true },
       { label: t('app.menu.logOut'), onClick: () => void handleLogout() },
       { label: t('app.menu.exit'), onClick: handleClose },
-      { label: t('app.menu.settings'), shortcut: 'Ctrl+,', onClick: () => setActiveTab('settings') },
+      {
+        label: t('app.menu.settings'),
+        shortcut: shortcutFor('openSettings'),
+        onClick: () => {
+          setSettingsTab('general');
+          setActiveTab('settings');
+        },
+      },
       { label: '', divider: true },
       { label: t('app.menu.aboutBirdCoder'), onClick: () => setShowAboutModal(true) },
     ],
@@ -1926,6 +1980,7 @@ export function AppContent() {
       handleLogout,
       newSessionEngineCatalog.preferredSelection.engineId,
       newSessionEngineCatalog.preferredSelection.modelId,
+      shortcutFor,
       t,
     ],
   );
@@ -1957,12 +2012,12 @@ export function AppContent() {
     () => [
       {
         label: t('app.menu.toggleSidebar'),
-        shortcut: 'Ctrl+B',
+        shortcut: shortcutFor('toggleSidebar'),
         onClick: () => globalEventBus.emit('toggleSidebar'),
       },
       {
         label: t('app.menu.toggleTerminal'),
-        shortcut: 'Ctrl+J',
+        shortcut: shortcutFor('toggleTerminal'),
         onClick: () => {
           if (activeTab !== 'code') {
             setActiveTab('code');
@@ -1972,66 +2027,66 @@ export function AppContent() {
       },
       {
         label: t('app.menu.toggleDiffPanel'),
-        shortcut: 'Alt+Ctrl+B',
+        shortcut: shortcutFor('toggleReview'),
         onClick: () => globalEventBus.emit('toggleDiffPanel'),
       },
       {
         label: t('app.menu.find'),
-        shortcut: 'Ctrl+F',
+        shortcut: shortcutFor('findInFiles'),
         onClick: () => globalEventBus.emit('findInFiles'),
       },
       { label: '', divider: true },
-      { label: t('app.menu.zoomIn'), shortcut: 'Ctrl+=', onClick: () => handleZoom('in') },
-      { label: t('app.menu.zoomOut'), shortcut: 'Ctrl+-', onClick: () => handleZoom('out') },
-      { label: t('app.menu.actualSize'), shortcut: 'Ctrl+0', onClick: () => handleZoom('reset') },
+      { label: t('app.menu.zoomIn'), shortcut: shortcutFor('zoomIn'), onClick: () => handleZoom('in') },
+      { label: t('app.menu.zoomOut'), shortcut: shortcutFor('zoomOut'), onClick: () => handleZoom('out') },
+      { label: t('app.menu.actualSize'), shortcut: shortcutFor('zoomReset'), onClick: () => handleZoom('reset') },
       { label: '', divider: true },
       {
         label: t('app.menu.toggleFullScreen'),
-        shortcut: 'F11',
+        shortcut: shortcutFor('toggleFullScreen'),
         onClick: toggleFullScreen,
       },
     ],
-    [activeTab, handleZoom, t, toggleFullScreen],
+    [activeTab, handleZoom, shortcutFor, t, toggleFullScreen],
   );
 
   const goMenuItems = useMemo<TopMenuItem[]>(
     () => [
       {
         label: t('app.menu.goToFile'),
-        shortcut: 'Ctrl+P',
+        shortcut: shortcutFor('openQuickOpen'),
         onClick: () => globalEventBus.emit('openQuickOpen'),
       },
       { label: '', divider: true },
       {
         label: t('app.menu.previousAgentSession'),
-        shortcut: 'Ctrl+Shift+[',
+        shortcut: shortcutFor('previousAgentSession'),
         onClick: () => globalEventBus.emit('previousAgentSession'),
       },
       {
         label: t('app.menu.nextAgentSession'),
-        shortcut: 'Ctrl+Shift+]',
+        shortcut: shortcutFor('nextAgentSession'),
         onClick: () => globalEventBus.emit('nextAgentSession'),
       },
-      { label: t('app.menu.back'), shortcut: 'Ctrl+[', onClick: () => window.history.back() },
+      { label: t('app.menu.back'), shortcut: shortcutFor('historyBack'), onClick: () => window.history.back() },
       {
         label: t('app.menu.forward'),
-        shortcut: 'Ctrl+]',
+        shortcut: shortcutFor('historyForward'),
         onClick: () => window.history.forward(),
       },
     ],
-    [t],
+    [shortcutFor, t],
   );
 
   const runMenuItems = useMemo<TopMenuItem[]>(
     () => [
       {
         label: t('app.menu.startDebugging'),
-        shortcut: 'F5',
+        shortcut: shortcutFor('startDebugging'),
         onClick: () => globalEventBus.emit('startDebugging'),
       },
       {
         label: t('app.menu.runWithoutDebugging'),
-        shortcut: 'Ctrl+F5',
+        shortcut: shortcutFor('runWithoutDebugging'),
         onClick: () => globalEventBus.emit('runWithoutDebugging'),
       },
       { label: '', divider: true },
@@ -2040,20 +2095,20 @@ export function AppContent() {
         onClick: () => globalEventBus.emit('addRunConfiguration'),
       },
     ],
-    [t],
+    [shortcutFor, t],
   );
 
   const terminalMenuItems = useMemo<TopMenuItem[]>(
     () => [
       {
         label: t('app.menu.newTerminal'),
-        shortcut: 'Ctrl+Shift+`',
+        shortcut: shortcutFor('createTerminal'),
         onClick: () => void handleCreateTerminal(),
       },
       { label: '', divider: true },
       { label: t('app.menu.runTask'), onClick: () => globalEventBus.emit('runTask') },
     ],
-    [handleCreateTerminal, t],
+    [handleCreateTerminal, shortcutFor, t],
   );
 
   const windowMenuItems = useMemo<TopMenuItem[]>(
@@ -2080,8 +2135,11 @@ export function AppContent() {
       { label: '', divider: true },
       {
         label: t('app.menu.keyboardShortcuts'),
-        shortcut: 'Ctrl+K Ctrl+R',
-        onClick: () => setShowShortcutsModal(true),
+        shortcut: shortcutFor('showKeyboardShortcuts'),
+        onClick: () => {
+          setSettingsTab('shortcuts');
+          setActiveTab('settings');
+        },
       },
       { label: '', divider: true },
       {
@@ -2093,7 +2151,7 @@ export function AppContent() {
       { label: '', divider: true },
       { label: t('app.menu.aboutBirdCoder'), onClick: () => setShowAboutModal(true) },
     ],
-    [handleToggleRecording, isRecording, t],
+    [handleToggleRecording, isRecording, shortcutFor, t],
   );
 
   const handleWorkspaceProjectPopoverToggle = useCallback(() => {
@@ -2402,7 +2460,9 @@ export function AppContent() {
         projectName={activeProject?.name}
         agentSessionId={effectiveAgentSessionId}
         runtimeLocationId={effectiveAgentSessionRuntimeLocationId}
+        settingsTab={settingsTab}
         onActiveTabChange={handleActiveTabChange}
+        onSettingsTabChange={setSettingsTab}
         onRequireAuth={openAuthenticationSurface}
         onRequestProjectCreation={handleOpenCreateProjectDialog}
         onProjectChange={handleActiveProjectChange}
@@ -2437,12 +2497,10 @@ export function AppContent() {
           : null}
         showAboutModal={showAboutModal}
         showWhatsNewModal={showWhatsNewModal}
-        showShortcutsModal={showShortcutsModal}
         onCloseProjectRemove={handleCloseProjectRemoveDialog}
         onConfirmProjectRemove={executeRemoveProject}
         onCloseAbout={() => setShowAboutModal(false)}
         onCloseWhatsNew={() => setShowWhatsNewModal(false)}
-        onCloseShortcuts={() => setShowShortcutsModal(false)}
       />
     </div>
   );

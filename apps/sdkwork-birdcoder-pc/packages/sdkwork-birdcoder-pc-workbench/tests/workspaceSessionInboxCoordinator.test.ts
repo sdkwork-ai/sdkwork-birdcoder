@@ -170,9 +170,34 @@ function serviceWith(
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('Workspace Session Inbox coordinator', () => {
+  it('rejects cross-page duplicate Sessions without committing a partial snapshot', async () => {
+    const scopeKey = installProject();
+    const duplicateSessionId = 'session.cross-page-duplicate';
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const service = serviceWith(async (request) => request.cursor === undefined
+      ? page([
+          summary(duplicateSessionId, '1', '2026-07-27T00:00:01.000Z'),
+        ], { hasMore: true, nextCursor: 'duplicate-cursor' })
+      : page([
+          summary(duplicateSessionId, '2', '2026-07-27T00:00:02.000Z'),
+        ]));
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledOnce());
+    expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions).toEqual([]);
+
+    subscription.dispose();
+    errorSpy.mockRestore();
+    deleteProjectsStore(scopeKey);
+  });
+
   it('uses only the current round head cursor for one bounded continuation page', async () => {
     vi.useFakeTimers();
     const scopeKey = installProject();
