@@ -321,21 +321,21 @@ test('selected code providers create their own Agent Sessions without a runtime 
 
   const providers = [
     {
-      agentId: 'agent.claude-code',
+      agentId: 'agent.intelligence.claude-code',
       menuName: /Claude Code.*Claude Sonnet 4\.5/iu,
       modelId: 'claude-sonnet-4-5',
       providerBindingId: 'claude-code',
       providerId: 'anthropic',
     },
     {
-      agentId: 'agent.codex',
+      agentId: 'agent.intelligence.codex',
       menuName: /Codex.*GPT-5 Codex/iu,
       modelId: 'gpt-5-codex',
       providerBindingId: 'codex',
       providerId: 'openai',
     },
     {
-      agentId: 'agent.opencode',
+      agentId: 'agent.intelligence.opencode',
       menuName: /Opencode.*Automatic/iu,
       modelId: 'auto',
       providerBindingId: 'opencode',
