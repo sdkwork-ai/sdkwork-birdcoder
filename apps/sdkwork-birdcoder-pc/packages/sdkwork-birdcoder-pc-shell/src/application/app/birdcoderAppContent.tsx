@@ -51,6 +51,7 @@ import {
   subscribeProjectMountRecoveryState,
   type ProjectMountRecoveryEventPayload,
 } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
+import { emitRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import {
   formatKeyboardShortcut,
@@ -89,6 +90,7 @@ import {
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { resolveWorkbenchModeForEngineId } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { useTranslation } from 'react-i18next';
 import {
   createAppHeaderWindowDragController,
@@ -1977,8 +1979,28 @@ export function AppContent() {
       return;
     }
 
+    const targetWorkbenchMode = resolveWorkbenchModeForEngineId(location.agentSession.engineId);
+    updatePreferences((previousPreferences) => ({
+      sessionInboxFilter: 'all',
+      sessionInboxGroupMode: 'project',
+      sessionInboxProviderId: '',
+      workbenchMode: targetWorkbenchMode ?? previousPreferences.workbenchMode,
+    }));
+    setActiveTab('code');
     handleSelectCreatedAgentSession(action.sessionId, { projectId: action.projectId });
-  }, [addToast, handleSelectCreatedAgentSession, projectsIndex, t]);
+    window.setTimeout(() => {
+      emitRevealAgentSession({
+        projectId: action.projectId,
+        sessionId: action.sessionId,
+      });
+    }, 0);
+  }, [
+    addToast,
+    handleSelectCreatedAgentSession,
+    projectsIndex,
+    t,
+    updatePreferences,
+  ]);
   useNativeTrayMenuBridge(desktopTrayMenuSnapshot, handleDesktopTrayAction);
 
   const fileMenuItems = useMemo<TopMenuItem[]>(

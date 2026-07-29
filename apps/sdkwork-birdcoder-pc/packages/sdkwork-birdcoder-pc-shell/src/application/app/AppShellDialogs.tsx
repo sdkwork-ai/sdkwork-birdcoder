@@ -40,7 +40,13 @@ export const AppShellDialogs = memo(function AppShellDialogs({
 
       {showAboutModal ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+          <div
+            aria-label={t('app.aboutTitle')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
               <Code2 size={32} className="text-white" />
             </div>
@@ -60,7 +66,13 @@ export const AppShellDialogs = memo(function AppShellDialogs({
 
       {showWhatsNewModal ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div
+            aria-label={t('app.whatsNewTitle')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <h3 className="text-lg font-semibold text-white mb-4">{t('app.whatsNewTitle')}</h3>
             <div className="space-y-4 mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
               <div className="border-l-2 border-blue-500 pl-4">

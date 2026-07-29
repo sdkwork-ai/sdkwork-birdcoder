@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   WORKBENCH_MODE_PROVIDERS,
   filterWorkbenchModeCatalogEngines,
+  listWorkbenchModeProviderAvailability,
   matchesWorkbenchModeEngineId,
   normalizeWorkbenchMode,
+  resolveWorkbenchModeForEngineId,
 } from '../src/workbench/workbenchMode.ts';
 
 describe('workbench mode provider contract', () => {
@@ -13,11 +15,13 @@ describe('workbench mode provider contract', () => {
       {
         engineId: 'openclaw',
         agentId: 'agent.intelligence.openclaw',
+        displayName: 'OpenClaw',
         tier: 't2-autonomous',
       },
       {
         engineId: 'hermes',
         agentId: 'agent.intelligence.hermes',
+        displayName: 'Hermes Agent',
         tier: 't2-autonomous',
       },
     ]);
@@ -66,5 +70,34 @@ describe('workbench mode provider contract', () => {
     expect(normalizeWorkbenchMode('WORK')).toBe('work');
     expect(normalizeWorkbenchMode('unexpected')).toBe('coding');
     expect(normalizeWorkbenchMode(null)).toBe('coding');
+  });
+
+  it('resolves a session engine to the workbench mode that can display it', () => {
+    expect(resolveWorkbenchModeForEngineId('codex')).toBe('coding');
+    expect(resolveWorkbenchModeForEngineId('CLAUDE-CODE')).toBe('coding');
+    expect(resolveWorkbenchModeForEngineId('openclaw')).toBe('work');
+    expect(resolveWorkbenchModeForEngineId(' hermes ')).toBe('work');
+    expect(resolveWorkbenchModeForEngineId('future-agent')).toBeNull();
+  });
+
+  it('keeps every declared Work Provider visible when the Agents catalog is empty', () => {
+    expect(listWorkbenchModeProviderAvailability('work', [])).toEqual([
+      expect.objectContaining({
+        provider: expect.objectContaining({
+          engineId: 'openclaw',
+          displayName: 'OpenClaw',
+        }),
+        engine: null,
+        installed: false,
+      }),
+      expect.objectContaining({
+        provider: expect.objectContaining({
+          engineId: 'hermes',
+          displayName: 'Hermes Agent',
+        }),
+        engine: null,
+        installed: false,
+      }),
+    ]);
   });
 });

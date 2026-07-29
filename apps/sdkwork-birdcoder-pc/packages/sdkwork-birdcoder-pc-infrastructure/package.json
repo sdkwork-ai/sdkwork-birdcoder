@@ -47,6 +47,10 @@
       "import": "./src/platform/tauriRuntime.ts",
       "types": "./src/platform/tauriRuntime.ts"
     },
+    "./platform/workProviderInstallation": {
+      "import": "./src/platform/workProviderInstallation.ts",
+      "types": "./src/platform/workProviderInstallation.ts"
+    },
     "./services/interfaces/IPromptService": {
       "import": "./src/services/interfaces/IPromptService.ts",
       "types": "./src/services/interfaces/IPromptService.ts"

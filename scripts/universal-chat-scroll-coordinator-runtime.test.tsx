@@ -444,6 +444,33 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
     expect(animationFrames.requestSpy).toHaveBeenCalled();
   });
 
+  it('keeps following the active tail when asynchronous layout emits a native scroll event', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    const harness = await mountHarness({
+      geometry,
+      latestMessageContentLength: 10,
+      latestMessageIdentity: 'message-c',
+      rows: BASE_ROWS,
+      scopeKey: 'session-a',
+    });
+    expect(geometry.scrollTop).toBe(700);
+    geometry.resetWrites();
+
+    geometry.scrollHeight = 1_400;
+    await act(async () => {
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    ControlledResizeObserver.triggerActive();
+
+    expect(harness.coordinator().shouldStickToBottomRef.current).toBe(true);
+    expect(harness.coordinator().jumpToLatestVisible).toBe(false);
+    expect(animationFrames.pendingCount()).toBe(1);
+    await animationFrames.flushFrame();
+    expect(geometry.writes).toEqual([1_100]);
+  });
+
   it('does not write while the user reads history and resumes only after jump to latest', async () => {
     vi.useFakeTimers();
     const animationFrames = installAnimationFrameController();
@@ -510,6 +537,7 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
     geometry.setNativeScrollTop(250);
 
     await act(async () => {
+      scrollContainer.dispatchEvent(new Event('wheel'));
       scrollContainer.dispatchEvent(new Event('scroll'));
       scrollContainer.dispatchEvent(new Event('scroll'));
       scrollContainer.dispatchEvent(new Event('scroll'));

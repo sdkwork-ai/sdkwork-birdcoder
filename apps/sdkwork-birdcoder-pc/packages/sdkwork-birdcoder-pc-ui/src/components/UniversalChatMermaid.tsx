@@ -293,13 +293,10 @@ export function UniversalChatMermaid({ source }: UniversalChatMermaidProps) {
     setRenderStatus('loading');
     setZoom(mermaidZoomCache.get(normalizedSource) ?? 1);
 
-    const commitSvg = (svgText: string, reveal: boolean) => {
+    const commitSvg = (svgText: string) => {
       const safeSvg = buildSafeMermaidSvg(svgText, diagramLabel);
       host.replaceChildren(safeSvg);
       setRenderStatus('ready');
-      if (reveal) {
-        revealChatDisclosureDetails(diagramId);
-      }
     };
     const renderSvg = () => {
       void (async () => {
@@ -311,7 +308,7 @@ export function UniversalChatMermaid({ source }: UniversalChatMermaidProps) {
           if (cancelled) {
             return;
           }
-          commitSvg(svgText, true);
+          commitSvg(svgText);
         } catch {
           if (!cancelled) {
             mermaidSvgCache.delete(normalizedSource);
@@ -327,7 +324,7 @@ export function UniversalChatMermaid({ source }: UniversalChatMermaidProps) {
     let renderTimer: number | null = null;
     if (cachedSvgText) {
       try {
-        commitSvg(cachedSvgText, false);
+        commitSvg(cachedSvgText);
       } catch {
         mermaidSvgCache.delete(normalizedSource);
         resolvedMermaidSvgCache.delete(normalizedSource);

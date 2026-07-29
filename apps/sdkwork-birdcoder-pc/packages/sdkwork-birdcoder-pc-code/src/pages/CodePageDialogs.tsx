@@ -91,7 +91,13 @@ export const CodePageDialogs = memo(function CodePageDialogs({
 
       {isDebugConfigVisible && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            aria-label={t('app.debugConfiguration')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200">{t('app.debugConfiguration')}</h3>
               <button onClick={onCloseDebugConfig} className="text-gray-400 hover:text-white">
@@ -169,7 +175,13 @@ export const CodePageDialogs = memo(function CodePageDialogs({
         />
       ) : deleteConfirmation ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div
+            aria-label={deleteDialogTitle}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <h3 className="text-lg font-semibold text-white mb-2">
               {deleteDialogTitle}
             </h3>

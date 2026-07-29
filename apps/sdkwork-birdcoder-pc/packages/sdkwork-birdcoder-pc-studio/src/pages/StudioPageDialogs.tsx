@@ -70,7 +70,13 @@ export function StudioPageDialogs({
     <>
       {isAnalyzeModalVisible && analyzeReport && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            aria-label={t('studio.codeAnalysisReport')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200 flex items-center gap-2">
                 <Code2 size={16} className="text-blue-400" />
@@ -155,7 +161,13 @@ export function StudioPageDialogs({
 
       {isDebugConfigVisible && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            aria-label={t('studio.debugConfig')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200">{t('studio.debugConfig')}</h3>
               <button onClick={onCloseDebugConfig} className="text-gray-400 hover:text-white">
@@ -213,7 +225,13 @@ export function StudioPageDialogs({
 
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div
+            aria-label={`${t('studio.delete')} ${deleteConfirmation.type}`}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            role="dialog"
+          >
             <h3 className="text-lg font-semibold text-white mb-2">
               {t('studio.delete')} {deleteConfirmation.type.charAt(0).toUpperCase() + deleteConfirmation.type.slice(1)}
             </h3>

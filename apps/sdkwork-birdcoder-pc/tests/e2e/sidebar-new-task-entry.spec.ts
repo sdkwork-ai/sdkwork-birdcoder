@@ -192,9 +192,8 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
   await createRequest;
 
   expect(sessionCreateBodies).toHaveLength(1);
-  expect(defaultProviderId).toBe('codex');
   expect(sessionCreateBodies[0]).toMatchObject({
-    agentId: 'agent.intelligence.codex',
+    agentId: `agent.intelligence.${defaultProviderId}`,
   });
   await expect(providerMenu).toHaveCount(0);
 });

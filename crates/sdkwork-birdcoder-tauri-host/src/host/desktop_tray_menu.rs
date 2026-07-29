@@ -16,8 +16,8 @@ const MAX_RUNNING_SESSIONS: usize = 3;
 const MAX_PINNED_SESSIONS: usize = 5;
 const MAX_RECENT_SESSIONS: usize = 3;
 const MAX_MORE_SESSIONS: usize = 50;
-const MAX_SESSION_TITLE_CHARACTERS: usize = 72;
-const MAX_PROJECT_NAME_CHARACTERS: usize = 36;
+const MAX_SESSION_TITLE_CHARACTERS: usize = 15;
+const MAX_PROJECT_NAME_CHARACTERS: usize = 22;
 const MAX_MENU_LABEL_CHARACTERS: usize = 48;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -505,7 +505,7 @@ pub(crate) fn setup_desktop_tray(app: &AppHandle) -> Result<(), String> {
 mod tests {
     use super::{
         normalize_menu_text, normalize_session_entries, DesktopTrayAction,
-        DesktopTraySessionMenuEntry,
+        DesktopTraySessionMenuEntry, MAX_PROJECT_NAME_CHARACTERS, MAX_SESSION_TITLE_CHARACTERS,
     };
     use serde_json::json;
 
@@ -549,6 +549,31 @@ mod tests {
         assert_eq!(normalized[0].session_id, "session.one");
         assert_eq!(normalized[0].project_name, "Project One");
         assert_eq!(normalized[0].title, "Untitled session");
+    }
+
+    #[test]
+    fn tray_session_columns_are_bounded_to_the_compact_menu_width() {
+        let normalized = normalize_session_entries(
+            vec![DesktopTraySessionMenuEntry {
+                project_id: "project.one".to_string(),
+                project_name: "p".repeat(80),
+                session_id: "session.one".to_string(),
+                title: "t".repeat(120),
+            }],
+            1,
+            "Untitled session",
+        );
+
+        assert_eq!(
+            normalized[0].title.chars().count(),
+            MAX_SESSION_TITLE_CHARACTERS
+        );
+        assert_eq!(
+            normalized[0].project_name.chars().count(),
+            MAX_PROJECT_NAME_CHARACTERS
+        );
+        assert!(normalized[0].title.ends_with("..."));
+        assert!(normalized[0].project_name.ends_with("..."));
     }
 
     #[test]

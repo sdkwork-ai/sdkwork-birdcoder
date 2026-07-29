@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
+import { installWorkbenchWorkProvider } from '@sdkwork/birdcoder-pc-workbench/workbench/workProviderInstallation';
+import { WorkProviderInstallDialog } from './WorkProviderInstallDialog';
 
 interface WorkModeSidebarLabels {
   assistant: string;
@@ -22,6 +24,21 @@ interface WorkModeSidebarLabels {
   noPinnedTasks: string;
   noTasks: string;
   pinnedTasks: string;
+  providerInstalled: string;
+  providerNotInstalled: string;
+  providerInstallCancel: string;
+  providerInstallClose: string;
+  providerInstallDesktopRequired: string;
+  providerInstallDone: string;
+  providerInstallAction: string;
+  providerInstallOfficialSource: string;
+  providerInstallRetry: string;
+  providerInstallDescription: (provider: string, baseline: string) => string;
+  providerInstallFailed: (provider: string) => string;
+  providerInstalling: (provider: string) => string;
+  providerInstallReady: (provider: string) => string;
+  providerInstallRestartRequired: (provider: string) => string;
+  providerInstallTitle: (provider: string) => string;
   projects: string;
   selectProjectFirst: string;
   spaces: string;
@@ -101,6 +118,7 @@ export function WorkModeSidebar({
 }: WorkModeSidebarProps) {
   const tasksRef = useRef<HTMLElement>(null);
   const spacesRef = useRef<HTMLElement>(null);
+  const [providerToInstall, setProviderToInstall] = useState<string | null>(null);
   const scrollToSection = (section: HTMLElement | null) => {
     section?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
@@ -145,13 +163,17 @@ export function WorkModeSidebar({
           buttonLabel={labels.newTask}
           disabled={!selectedProjectId}
           disabledTitle={labels.selectProjectFirst}
+          installProviderLabel={labels.providerInstallAction}
+          installedLabel={labels.providerInstalled}
           menuLabel={labels.newTask}
+          notInstalledLabel={labels.providerNotInstalled}
           selectedEngineId={selectedEngineId}
           selectedModelId={selectedModelId}
           unavailableTitle={labels.workProvidersUnavailable}
           variant="work-sidebar"
           workbenchMode="work"
           onCreateSession={onCreateSession}
+          onRequestProviderInstall={setProviderToInstall}
         />
       </div>
 
@@ -221,6 +243,28 @@ export function WorkModeSidebar({
           })}
         </WorkModeSection>
       </div>
+      {providerToInstall ? (
+        <WorkProviderInstallDialog
+          labels={{
+            cancel: labels.providerInstallCancel,
+            close: labels.providerInstallClose,
+            desktopRequired: labels.providerInstallDesktopRequired,
+            done: labels.providerInstallDone,
+            install: labels.providerInstallAction,
+            installDescription: labels.providerInstallDescription,
+            installFailed: labels.providerInstallFailed,
+            installing: labels.providerInstalling,
+            officialSource: labels.providerInstallOfficialSource,
+            ready: labels.providerInstallReady,
+            restartRequired: labels.providerInstallRestartRequired,
+            retry: labels.providerInstallRetry,
+            title: labels.providerInstallTitle,
+          }}
+          providerId={providerToInstall}
+          onClose={() => setProviderToInstall(null)}
+          onInstall={installWorkbenchWorkProvider}
+        />
+      ) : null}
     </div>
   );
 }

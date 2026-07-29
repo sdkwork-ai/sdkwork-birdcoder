@@ -68,8 +68,13 @@ assert.match(
 );
 assert.match(
   mermaidSource,
-  /revealChatDisclosureDetails\(diagramId\)/u,
-  'Completed and zoomed Mermaid diagrams must remain visible above the composer.',
+  /const updateZoom = \(nextZoom: number\) => \{[\s\S]*?revealChatDisclosureDetails\(diagramId\);[\s\S]*?\};/u,
+  'Explicit Mermaid zoom interactions must keep the diagram visible above the composer.',
+);
+assert.doesNotMatch(
+  mermaidSource,
+  /const commitSvg = [\s\S]*?revealChatDisclosureDetails\(diagramId\);[\s\S]*?\};/u,
+  'Asynchronous Mermaid rendering must preserve transcript follow and reading-anchor state.',
 );
 assert.match(mermaidSource, /new DOMParser\(\)/u, 'Rendered SVG must be parsed as structured XML.');
 for (const blockedElement of ['script', 'foreignObject', 'iframe', 'object', 'embed', 'image']) {

@@ -118,6 +118,8 @@ test('Birdcoder switches between constrained Coding and Work modes', async ({
   );
   await expect(page.locator('[data-work-sidebar="true"]')).toBeVisible();
 
+  await page.mouse.move(800, 100);
+  await expect(page.locator('[data-sidebar-new-session-menu="true"]')).toHaveCount(0);
   await page.locator('[data-work-navigation-item="expert-tools"]').click();
   await expect(page.getByRole('heading', { name: 'Plugins', level: 1 })).toBeVisible();
 });

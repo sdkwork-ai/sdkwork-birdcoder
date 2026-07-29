@@ -755,6 +755,14 @@ export function useTranscriptScrollCoordinator({
         return;
       }
       rebasePendingPrependForScroll();
+      if (
+        shouldStickToBottomRef.current
+        && !isUserControllingScrollRef.current
+      ) {
+        requestBottomFollow();
+        scheduleAnchorRead();
+        return;
+      }
       updateStickiness();
       scheduleAnchorRead();
     };
@@ -805,7 +813,16 @@ export function useTranscriptScrollCoordinator({
       }
     };
 
-    updateStickiness();
+    const initialMetrics = readTranscriptMetrics(scrollContainer);
+    if (
+      shouldStickToBottomRef.current
+      && !isUserControllingScrollRef.current
+      && shouldShowTranscriptJumpToLatest(initialMetrics)
+    ) {
+      requestBottomFollow();
+    } else {
+      updateStickiness();
+    }
     updateReadingAnchor();
     scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
     scrollContainer.addEventListener('wheel', markUserScrollIntent, { passive: true });
@@ -840,6 +857,7 @@ export function useTranscriptScrollCoordinator({
     clearScrollAnimationFrame,
     isActive,
     normalizedScopeKey,
+    requestBottomFollow,
     revealTranscriptElement,
     rebasePendingPrependForScroll,
     scheduleAnchorRead,

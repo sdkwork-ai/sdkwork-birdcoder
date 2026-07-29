@@ -42,12 +42,15 @@ export function ShortcutCaptureDialog({
 
   return (
     <div
-      aria-labelledby="shortcut-capture-title"
-      aria-modal="true"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-5 backdrop-blur-sm"
-      role="dialog"
+      role="presentation"
     >
-      <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#242426] p-5 shadow-2xl">
+      <div
+        aria-labelledby="shortcut-capture-title"
+        aria-modal="true"
+        className="w-full max-w-md rounded-lg border border-white/10 bg-[#242426] p-5 shadow-2xl"
+        role="dialog"
+      >
         <h2 className="text-base font-semibold text-white" id="shortcut-capture-title">
           {t(currentShortcut ? 'settings.shortcuts.editDialogTitle' : 'settings.shortcuts.addDialogTitle', {
             command: title,

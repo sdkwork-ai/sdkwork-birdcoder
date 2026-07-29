@@ -5,6 +5,7 @@ export type WorkbenchMode = (typeof WORKBENCH_MODES)[number];
 export interface WorkbenchModeProviderDefinition {
   engineId: string;
   agentId: string;
+  displayName: string;
   tier: 't1-code' | 't2-autonomous';
 }
 
@@ -21,21 +22,25 @@ export const WORKBENCH_MODE_PROVIDERS: Readonly<
     {
       engineId: 'codex',
       agentId: 'agent.intelligence.codex',
+      displayName: 'Codex',
       tier: 't1-code',
     },
     {
       engineId: 'claude-code',
       agentId: 'agent.intelligence.claude-code',
+      displayName: 'Claude Code',
       tier: 't1-code',
     },
     {
       engineId: 'gemini',
       agentId: 'agent.intelligence.gemini',
+      displayName: 'Gemini',
       tier: 't1-code',
     },
     {
       engineId: 'opencode',
       agentId: 'agent.intelligence.opencode',
+      displayName: 'OpenCode',
       tier: 't1-code',
     },
   ],
@@ -43,11 +48,13 @@ export const WORKBENCH_MODE_PROVIDERS: Readonly<
     {
       engineId: 'openclaw',
       agentId: 'agent.intelligence.openclaw',
+      displayName: 'OpenClaw',
       tier: 't2-autonomous',
     },
     {
       engineId: 'hermes',
       agentId: 'agent.intelligence.hermes',
+      displayName: 'Hermes Agent',
       tier: 't2-autonomous',
     },
   ],
@@ -78,6 +85,10 @@ export function matchesWorkbenchModeEngineId(
   );
 }
 
+export function resolveWorkbenchModeForEngineId(engineId: unknown): WorkbenchMode | null {
+  return WORKBENCH_MODES.find((mode) => matchesWorkbenchModeEngineId(mode, engineId)) ?? null;
+}
+
 export function matchesWorkbenchModeCatalogEngine(
   mode: WorkbenchMode,
   engine: WorkbenchModeEngineIdentity,
@@ -97,4 +108,33 @@ export function filterWorkbenchModeCatalogEngines<
   TEngine extends WorkbenchModeEngineIdentity,
 >(mode: WorkbenchMode, engines: readonly TEngine[]): TEngine[] {
   return engines.filter((engine) => matchesWorkbenchModeCatalogEngine(mode, engine));
+}
+
+export interface WorkbenchModeProviderAvailability<
+  TEngine extends WorkbenchModeEngineIdentity,
+> {
+  provider: WorkbenchModeProviderDefinition;
+  engine: TEngine | null;
+  installed: boolean;
+}
+
+export function listWorkbenchModeProviderAvailability<
+  TEngine extends WorkbenchModeEngineIdentity,
+>(
+  mode: WorkbenchMode,
+  engines: readonly TEngine[],
+): WorkbenchModeProviderAvailability<TEngine>[] {
+  return WORKBENCH_MODE_PROVIDERS[mode].map((provider) => {
+    const engine = engines.find(
+      (candidate) =>
+        normalizeIdentitySegment(candidate.id) === provider.engineId
+        && normalizeIdentitySegment(candidate.agentId) === provider.agentId
+        && normalizeIdentitySegment(candidate.tier) === provider.tier,
+    ) ?? null;
+    return {
+      provider,
+      engine,
+      installed: engine !== null,
+    };
+  });
 }

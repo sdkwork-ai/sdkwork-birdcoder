@@ -11,6 +11,7 @@ import {
 import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
 import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
+import { subscribeRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionActions';
@@ -168,6 +169,12 @@ function CodePageComponent({
   );
   const [editorExplorerWidth, setEditorExplorerWidth] = useState(256);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  useEffect(() => subscribeRevealAgentSession(() => {
+    startTransition(() => {
+      setActiveTab('ai');
+    });
+    setIsSidebarVisible(true);
+  }), []);
   const [isFindVisible, setIsFindVisible] = useState(false);
   const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
   const [isRunConfigVisible, setIsRunConfigVisible] = useState(false);

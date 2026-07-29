@@ -919,7 +919,7 @@ function createSessionActivitySummary(session) {
   const presentationBySessionId = {
     'e2e-claude-session': { phase: 'running', state: 'working', turnStatus: 'running' },
     'e2e-codex-session': { phase: 'queued', state: 'working', turnStatus: 'requested' },
-    'e2e-opencode-session': { phase: 'idle', state: 'idle', turnStatus: 'completed' },
+    'e2e-opencode-session': { phase: 'waiting', state: 'idle', turnStatus: 'completed' },
     'e2e-gemini-session': { phase: 'failed', state: 'failed', turnStatus: 'failed' },
     'e2e-history-session-1': { phase: 'unknown', state: null, turnStatus: 'completed' },
     'e2e-history-session-2': { phase: 'running', state: 'working', turnStatus: 'running' },

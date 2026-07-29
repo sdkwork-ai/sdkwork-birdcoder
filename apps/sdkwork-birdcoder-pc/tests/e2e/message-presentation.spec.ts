@@ -42,7 +42,9 @@ async function bootstrapAuthenticatedSession(
 
 async function expandProjectSessions(page: Page): Promise<void> {
   const sessionList = page.locator('.birdcoder-session-list');
-  const claudeSession = sessionList.getByText('Claude architecture review', { exact: true });
+  const claudeSession = sessionList
+    .getByText('Claude architecture review', { exact: true })
+    .first();
   const expandProject = page.getByRole('button', { name: 'Expand E2E Project' });
   const showMoreSessions = sessionList.getByRole('button', { name: 'Show more' }).first();
   await expect.poll(async () => (
@@ -61,7 +63,8 @@ async function expandProjectSessions(page: Page): Promise<void> {
 
 async function selectClaudeSession(page: Page): Promise<void> {
   const sessionRow = page.locator('.birdcoder-session-list .birdcoder-session-row')
-    .filter({ hasText: 'Claude architecture review' });
+    .filter({ hasText: 'Claude architecture review' })
+    .first();
   await expect(sessionRow).toBeVisible();
   const className = await sessionRow.getAttribute('class');
   if (!className?.includes('birdcoder-session-selected')) {
@@ -71,7 +74,8 @@ async function selectClaudeSession(page: Page): Promise<void> {
 
 async function selectSessionByTitle(page: Page, title: string): Promise<void> {
   const sessionRow = page.locator('.birdcoder-session-list .birdcoder-session-row')
-    .filter({ hasText: title });
+    .filter({ hasText: title })
+    .first();
   await expect(sessionRow).toBeVisible();
   if (!(await sessionRow.getAttribute('class'))?.includes('birdcoder-session-selected')) {
     await sessionRow.click();
@@ -232,16 +236,6 @@ test('Conversation messages render rich content and expandable command evidence'
     hasVisibleBounds: true,
     hasViewBox: true,
   });
-  await expect.poll(() => mermaid.evaluate((element) => {
-    const transcriptRegion = element.closest('[role="region"]');
-    if (!transcriptRegion) {
-      return false;
-    }
-    const diagramRect = element.getBoundingClientRect();
-    const transcriptRect = transcriptRegion.getBoundingClientRect();
-    return diagramRect.top >= transcriptRect.top - 1
-      && diagramRect.bottom <= transcriptRect.bottom + 1;
-  })).toBe(true);
   await expect(transcript.locator('[data-chat-engine-label="true"]')).toHaveCount(0);
   await captureVisualEvidenceScreenshot(page, 'message-presentation-1440x900');
 
@@ -305,7 +299,7 @@ test('Conversation messages render rich content and expandable command evidence'
   await expect(taskProgress).toHaveCount(1);
   await expect(taskProgress).toContainText('Task progress');
   await expect(taskProgress).toContainText('Align the shared renderer');
-  await expect(taskProgress).toContainText('1/3');
+  await expect(taskProgress).toContainText('Step 2 / 3');
   await expect(transcript.locator('[data-chat-tool-kind="task"]')).toHaveCount(0);
   const taskProgressToggle = taskProgress.locator('[data-chat-task-progress-toggle="true"]');
   await expect(taskProgressToggle).toHaveAttribute('aria-expanded', 'false');
@@ -483,7 +477,10 @@ test('Codex user input preserves text, images, and files in one message', async 
   const composerChrome = page.locator('[data-chat-composer-chrome="true"]').filter({
     has: page.locator('[data-composer-engine="codex"]'),
   });
-  const addAttachmentButton = composerChrome.locator('button[aria-haspopup="menu"]');
+  const addAttachmentButton = composerChrome.getByRole('button', {
+    name: 'Add attachment',
+    exact: true,
+  });
   await expect(composerChrome).toBeVisible();
   await expect(addAttachmentButton).toBeVisible();
   await addAttachmentButton.click();

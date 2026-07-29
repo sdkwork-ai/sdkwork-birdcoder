@@ -10,6 +10,7 @@ import {
   deduplicateAgentProjectsForRender,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import { subscribeRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
 import {
   filterWorkbenchModeCatalogEngines,
   matchesWorkbenchModeEngineId,
@@ -375,6 +376,7 @@ export const Sidebar = React.memo(function Sidebar({
   width = 256
 }: ProjectExplorerProps) {
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [revealSelectionRevision, setRevealSelectionRevision] = useState(0);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
   >({});
@@ -1241,6 +1243,27 @@ export const Sidebar = React.memo(function Sidebar({
     setShowSearch(false);
     updatePreferences({ workbenchMode: mode });
   }, [closeFloatingMenus, updatePreferences]);
+  useEffect(() => subscribeRevealAgentSession((target) => {
+    const projectId = target.projectId.trim();
+    if (!projectId) {
+      return;
+    }
+
+    closeFloatingMenus();
+    setShowSearch(false);
+    lastAutoLocatedSelectionKeyRef.current = '';
+    setRevealSelectionRevision((revision) => revision + 1);
+    setExpandedProjects((previousState) => (
+      previousState[projectId] === true
+        ? previousState
+        : { ...previousState, [projectId]: true }
+    ));
+
+    const project = renderProjects.find((candidate) => candidate.projectId === projectId);
+    if (project?.agentSessionPageInfo === undefined) {
+      void handleLoadMoreProjectSessions(projectId, INITIAL_VISIBLE_SESSIONS_PER_PROJECT);
+    }
+  }), [closeFloatingMenus, handleLoadMoreProjectSessions, renderProjects]);
   useEffect(() => {
     if (organizeBy !== 'project' || !selectedProjectId || !selectedAgentSessionId) {
       return;
@@ -1369,6 +1392,7 @@ export const Sidebar = React.memo(function Sidebar({
     isVisible,
     organizeBy,
     projectEntries,
+    revealSelectionRevision,
     selectedAgentSessionId,
     selectedProjectId,
     shouldWindowChronologicalSessions,
@@ -1444,6 +1468,27 @@ export const Sidebar = React.memo(function Sidebar({
               noPinnedTasks: t('app.noPinnedTasks'),
               noTasks: t('app.noSessions'),
               pinnedTasks: t('app.pinnedTasks'),
+              providerInstalled: t('app.workProviderInstalled'),
+              providerNotInstalled: t('app.workProviderNotInstalled'),
+              providerInstallCancel: t('app.workProviderInstallCancel'),
+              providerInstallClose: t('app.workProviderInstallClose'),
+              providerInstallDesktopRequired: t('app.workProviderInstallDesktopRequired'),
+              providerInstallDone: t('app.workProviderInstallDone'),
+              providerInstallAction: t('app.workProviderInstallAction'),
+              providerInstallOfficialSource: t('app.workProviderInstallOfficialSource'),
+              providerInstallRetry: t('app.workProviderInstallRetry'),
+              providerInstallDescription: (provider, baseline) => t(
+                'app.workProviderInstallDescription',
+                { provider, baseline },
+              ),
+              providerInstallFailed: (provider) => t('app.workProviderInstallFailed', { provider }),
+              providerInstalling: (provider) => t('app.workProviderInstalling', { provider }),
+              providerInstallReady: (provider) => t('app.workProviderInstallReady', { provider }),
+              providerInstallRestartRequired: (provider) => t(
+                'app.workProviderInstallRestartRequired',
+                { provider },
+              ),
+              providerInstallTitle: (provider) => t('app.workProviderInstallTitle', { provider }),
               projects: t('app.projects'),
               selectProjectFirst: t('code.selectProjectFirst'),
               spaces: t('app.workSpaces'),

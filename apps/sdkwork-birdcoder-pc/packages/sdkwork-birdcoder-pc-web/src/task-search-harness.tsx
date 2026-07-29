@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type {
   AgentProjectView,
@@ -49,14 +49,49 @@ const projects = [
   },
 ] as AgentProjectView[];
 
+const harnessThemeTokens = {
+  dark: {
+    '--sdk-color-border-default': 'rgba(255, 255, 255, 0.14)',
+    '--sdk-color-surface-canvas': '#181818',
+    '--sdk-color-surface-elevated': '#2d2d2d',
+    '--sdk-color-surface-field-hover': '#333333',
+    '--sdk-color-surface-panel-muted': '#262626',
+    '--sdk-color-text-muted': '#8c8c8c',
+    '--sdk-color-text-primary': '#ffffff',
+    '--sdk-color-text-secondary': '#b8b8b8',
+  },
+  light: {
+    '--sdk-color-border-default': 'rgba(13, 13, 13, 0.10)',
+    '--sdk-color-surface-canvas': '#ffffff',
+    '--sdk-color-surface-elevated': '#ffffff',
+    '--sdk-color-surface-field-hover': '#fafafa',
+    '--sdk-color-surface-panel-muted': '#f7f7f8',
+    '--sdk-color-text-muted': '#737373',
+    '--sdk-color-text-primary': '#0d0d0d',
+    '--sdk-color-text-secondary': '#525252',
+  },
+} as const;
+
 function Harness() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const colorMode = new URLSearchParams(window.location.search).get('theme') === 'light'
+    ? 'light'
+    : 'dark';
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-sdk-color-mode', colorMode);
+    root.style.colorScheme = colorMode;
+    Object.entries(harnessThemeTokens[colorMode]).forEach(([name, value]) => {
+      root.style.setProperty(name, value);
+    });
+  }, [colorMode]);
 
   return (
-    <main className="min-h-screen bg-[#151515] text-white">
+    <main className="min-h-screen bg-[var(--sdk-color-surface-canvas)] text-[var(--sdk-color-text-primary)]">
       <button ref={triggerRef} type="button" onClick={() => setIsOpen(true)}>
         打开任务搜索
       </button>

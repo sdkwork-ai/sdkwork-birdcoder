@@ -85,6 +85,7 @@ export * from './workbench/recovery.ts';
 export * from './workbench/sessionRefresh.ts';
 export * from './workbench/projectInventoryRender.ts';
 export * from './workbench/workbenchMode.ts';
+export * from './workbench/workProviderInstallation.ts';
 export {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,

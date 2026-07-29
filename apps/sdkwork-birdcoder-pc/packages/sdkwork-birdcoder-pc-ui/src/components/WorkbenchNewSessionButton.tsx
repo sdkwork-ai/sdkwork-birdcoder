@@ -16,6 +16,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   filterWorkbenchModeCatalogEngines,
+  listWorkbenchModeProviderAvailability,
   type WorkbenchMode,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
@@ -29,13 +30,17 @@ interface WorkbenchNewSessionButtonProps {
   currentSessionModelId?: string | null;
   disabled?: boolean;
   disabledTitle?: string;
+  installProviderLabel?: string;
+  installedLabel?: string;
   menuLabel?: string;
+  notInstalledLabel?: string;
   unavailableTitle?: string;
   selectedEngineId: string;
   selectedModelId: string;
   variant: WorkbenchNewSessionButtonVariant;
   workbenchMode?: WorkbenchMode;
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
+  onRequestProviderInstall?: (providerId: string) => void;
 }
 
 interface WorkbenchNewSessionButtonVariantStyle {
@@ -103,13 +108,17 @@ function WorkbenchNewSessionButtonComponent({
   currentSessionModelId,
   disabled = false,
   disabledTitle,
+  installProviderLabel = 'Install',
+  installedLabel = 'Installed',
   menuLabel,
+  notInstalledLabel = 'Not installed',
   unavailableTitle,
   selectedEngineId,
   selectedModelId,
   variant,
   workbenchMode,
   onCreateSession,
+  onRequestProviderInstall,
 }: WorkbenchNewSessionButtonProps) {
   const { preferences } = useWorkbenchPreferences();
   const [isOpen, setIsOpen] = useState(false);
@@ -120,6 +129,7 @@ function WorkbenchNewSessionButtonComponent({
   const variantStyle = getVariantStyle(variant);
   const isCompactStudio = variant === 'studio' && compact;
   const isSidebar = variant === 'sidebar' || variant === 'work-sidebar';
+  const isFixedWorkMenu = variant === 'work-sidebar' && workbenchMode === 'work';
   const { availableEngines, preferredSelection } = useMemo(() => {
     const catalog = resolveWorkbenchNewSessionEngineCatalog(
       {
@@ -161,7 +171,24 @@ function WorkbenchNewSessionButtonComponent({
     selectedModelId,
     workbenchMode,
   ]);
-  const isUnavailable = disabled || availableEngines.length === 0;
+  const menuItems = useMemo(
+    () => isFixedWorkMenu
+      ? listWorkbenchModeProviderAvailability('work', availableEngines).map((availability) => ({
+          id: availability.provider.engineId,
+          label: availability.provider.displayName,
+          engine: availability.engine,
+          installed: availability.installed,
+        }))
+      : availableEngines.map((engine) => ({
+          id: engine.id,
+          label: engine.label,
+          engine,
+          installed: true,
+        })),
+    [availableEngines, isFixedWorkMenu],
+  );
+  const isCreationUnavailable = disabled || availableEngines.length === 0;
+  const canOpenMenu = isFixedWorkMenu || !isCreationUnavailable;
 
   const clearSidebarCloseTimer = useCallback(() => {
     if (sidebarCloseTimerRef.current !== null) {
@@ -171,13 +198,13 @@ function WorkbenchNewSessionButtonComponent({
   }, []);
 
   const openSidebarMenu = useCallback(() => {
-    if (!isSidebar || isUnavailable) {
+    if (!isSidebar || !canOpenMenu) {
       return;
     }
 
     clearSidebarCloseTimer();
     setIsOpen(true);
-  }, [clearSidebarCloseTimer, isSidebar, isUnavailable]);
+  }, [canOpenMenu, clearSidebarCloseTimer, isSidebar]);
 
   const scheduleSidebarMenuClose = useCallback(() => {
     if (!isSidebar) {
@@ -198,12 +225,12 @@ function WorkbenchNewSessionButtonComponent({
   }, []);
 
   useEffect(() => {
-    if (!isUnavailable) {
+    if (canOpenMenu) {
       return;
     }
 
     setIsOpen(false);
-  }, [isUnavailable]);
+  }, [canOpenMenu]);
 
   useEffect(() => () => clearSidebarCloseTimer(), [clearSidebarCloseTimer]);
 
@@ -225,7 +252,12 @@ function WorkbenchNewSessionButtonComponent({
   }, [isOpen]);
 
   const handlePrimaryClick = useCallback(() => {
-    if (isUnavailable) {
+    if (isFixedWorkMenu) {
+      clearSidebarCloseTimer();
+      setIsOpen(true);
+      return;
+    }
+    if (isCreationUnavailable) {
       return;
     }
 
@@ -234,19 +266,20 @@ function WorkbenchNewSessionButtonComponent({
     void onCreateSession(preferredSelection.engine.id, preferredSelection.modelId);
   }, [
     clearSidebarCloseTimer,
-    isUnavailable,
+    isCreationUnavailable,
+    isFixedWorkMenu,
     onCreateSession,
     preferredSelection.engine.id,
     preferredSelection.modelId,
   ]);
 
   const handleToggleMenu = useCallback(() => {
-    if (isUnavailable) {
+    if (!canOpenMenu) {
       return;
     }
 
     setIsOpen((previousState) => !previousState);
-  }, [isUnavailable]);
+  }, [canOpenMenu]);
 
   const handlePrimaryKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!isSidebar || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) {
@@ -255,7 +288,7 @@ function WorkbenchNewSessionButtonComponent({
 
     event.preventDefault();
     openSidebarMenu();
-    focusMenuItem(event.key === 'ArrowUp' ? availableEngines.length - 1 : 0);
+    focusMenuItem(event.key === 'ArrowUp' ? menuItems.length - 1 : 0);
   };
 
   const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -276,29 +309,31 @@ function WorkbenchNewSessionButtonComponent({
     }
     if (event.key === 'End') {
       event.preventDefault();
-      focusMenuItem(availableEngines.length - 1);
+      focusMenuItem(menuItems.length - 1);
       return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const direction = event.key === 'ArrowDown' ? 1 : -1;
       const nextIndex = (
-        activeIndex + direction + availableEngines.length
-      ) % availableEngines.length;
+        activeIndex + direction + menuItems.length
+      ) % menuItems.length;
       focusMenuItem(nextIndex);
     }
   };
 
-  const buttonTitle = isUnavailable
-    ? availableEngines.length === 0
-      ? unavailableTitle ?? disabledTitle ?? buttonLabel
-      : disabledTitle ?? buttonLabel
-    : buttonLabel;
+  const buttonTitle = isFixedWorkMenu
+    ? buttonLabel
+    : isCreationUnavailable
+      ? availableEngines.length === 0
+        ? unavailableTitle ?? disabledTitle ?? buttonLabel
+        : disabledTitle ?? buttonLabel
+      : buttonLabel;
   const resolvedMenuLabel = menuLabel ?? buttonLabel;
   const primaryButtonClassName =
     variant === 'studio'
       ? `${variantStyle.primaryButton} ${
-          isUnavailable
+          isCreationUnavailable
             ? isCompactStudio
               ? 'cursor-not-allowed text-gray-500'
               : 'cursor-not-allowed text-blue-400/40'
@@ -307,7 +342,7 @@ function WorkbenchNewSessionButtonComponent({
               : 'text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
         } ${isCompactStudio ? '!h-7 !gap-1.5 !px-2.5 !py-0' : ''}`
       : `${variantStyle.primaryButton} ${
-          isUnavailable
+          isCreationUnavailable && !isFixedWorkMenu
             ? 'cursor-not-allowed text-gray-500'
             : isSidebar
               ? 'cursor-pointer text-gray-200 hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white focus-visible:outline-none'
@@ -316,7 +351,7 @@ function WorkbenchNewSessionButtonComponent({
   const secondaryButtonClassName =
     variant === 'studio'
       ? `${variantStyle.secondaryButton} ${
-          isUnavailable
+          isCreationUnavailable
             ? isCompactStudio
               ? 'cursor-not-allowed border-white/[0.05] text-gray-600'
               : 'cursor-not-allowed border-blue-500/20 text-blue-400/40'
@@ -325,7 +360,7 @@ function WorkbenchNewSessionButtonComponent({
               : 'border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300'
         } ${isCompactStudio ? '!h-7 !px-1.5' : ''}`
       : `${variantStyle.secondaryButton} ${
-          isUnavailable
+          isCreationUnavailable
             ? isSidebar
               ? 'cursor-not-allowed text-gray-700'
               : 'cursor-not-allowed text-gray-600'
@@ -335,7 +370,7 @@ function WorkbenchNewSessionButtonComponent({
         }`;
   const wrapperClassName =
     isSidebar
-      ? `${variantStyle.wrapper} ${isUnavailable ? 'text-gray-600' : 'text-gray-200'}`
+      ? `${variantStyle.wrapper} ${isCreationUnavailable && !isFixedWorkMenu ? 'text-gray-600' : 'text-gray-200'}`
       : isCompactStudio
         ? `${variantStyle.wrapper} !rounded-md !border-0 !bg-white/[0.07]`
         : variantStyle.wrapper;
@@ -355,7 +390,7 @@ function WorkbenchNewSessionButtonComponent({
         <button
           ref={primaryButtonRef}
           type="button"
-          disabled={isUnavailable}
+          disabled={isCreationUnavailable && !isFixedWorkMenu}
           title={buttonTitle}
           aria-label={buttonLabel}
           aria-expanded={isSidebar ? isOpen : undefined}
@@ -379,7 +414,7 @@ function WorkbenchNewSessionButtonComponent({
         {!isSidebar ? (
           <button
             type="button"
-            disabled={isUnavailable}
+            disabled={isCreationUnavailable}
             title={buttonTitle}
             aria-label={resolvedMenuLabel}
             aria-expanded={isOpen}
@@ -394,7 +429,7 @@ function WorkbenchNewSessionButtonComponent({
           </button>
         ) : null}
       </div>
-      {isOpen && !isUnavailable ? (
+      {isOpen && canOpenMenu ? (
         <div
           aria-label={resolvedMenuLabel}
           className={menuClassName}
@@ -407,41 +442,66 @@ function WorkbenchNewSessionButtonComponent({
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             {resolvedMenuLabel}
           </div>
-          {availableEngines.map((engine, index) => {
-            const engineModelId = resolveWorkbenchCodeEngineSelectedModelId(
-              engine.id,
-              preferences,
-            );
+          {menuItems.map((item, index) => {
+            const engineModelId = item.engine
+              ? resolveWorkbenchCodeEngineSelectedModelId(item.engine.id, preferences)
+              : '';
             const engineModelLabel =
-              getWorkbenchCodeModelLabel(engine.id, engineModelId, preferences) ||
+              (item.engine
+                ? getWorkbenchCodeModelLabel(item.engine.id, engineModelId, preferences)
+                : '') ||
               engineModelId;
+            const isSelected = item.installed
+              && item.id === preferredSelection.engine.id;
+            const isItemDisabled = item.installed
+              ? disabled
+              : !onRequestProviderInstall;
 
             return (
               <button
-                key={`new-session-engine-${variant}-${engine.id}`}
+                key={`new-session-engine-${variant}-${item.id}`}
                 ref={(element) => {
                   menuItemRefs.current[index] = element;
                 }}
                 type="button"
-                aria-checked={engine.id === preferredSelection.engine.id}
-                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white"
+                aria-checked={isSelected}
+                aria-disabled={isItemDisabled}
+                className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                data-work-provider-id={isFixedWorkMenu ? item.id : undefined}
+                data-work-provider-install-state={isFixedWorkMenu
+                  ? item.installed ? 'installed' : 'not-installed'
+                  : undefined}
+                disabled={isItemDisabled}
                 role="menuitemradio"
                 onClick={() => {
                   clearSidebarCloseTimer();
                   setIsOpen(false);
-                  void onCreateSession(engine.id, engineModelId);
+                  if (!item.installed) {
+                    onRequestProviderInstall?.(item.id);
+                    return;
+                  }
+                  void onCreateSession(item.id, engineModelId);
                 }}
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <WorkbenchCodeEngineIcon engineId={engine.id} />
+                  <WorkbenchCodeEngineIcon engineId={item.id} />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{engine.label}</span>
+                    <span className="truncate">{item.label}</span>
                     <span className="truncate text-[11px] text-gray-500">
-                      {engineModelLabel}
+                      {item.installed
+                        ? disabled ? disabledTitle ?? engineModelLabel : engineModelLabel
+                        : installProviderLabel}
                     </span>
                   </span>
                 </div>
-                {engine.id === preferredSelection.engine.id ? (
+                {isFixedWorkMenu ? (
+                  <span
+                    className={`shrink-0 text-[11px] ${item.installed ? 'text-emerald-400/80' : 'text-amber-300/90'}`}
+                    data-work-provider-status="true"
+                  >
+                    {item.installed ? installedLabel : notInstalledLabel}
+                  </span>
+                ) : isSelected ? (
                   <Check size={14} className="shrink-0 text-blue-400" />
                 ) : null}
               </button>

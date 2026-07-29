@@ -381,6 +381,7 @@ interface UniversalChatTranscriptProps {
     | 'cancelPrepend'
     | 'completePrepend'
     | 'pauseFollowing'
+    | 'requestBottomFollow'
     | 'scrollToOffset'
   >;
   sessionId: string;
@@ -481,6 +482,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     cancelPrepend,
     completePrepend,
     pauseFollowing,
+    requestBottomFollow,
     scrollToOffset,
   } = scrollCoordinator;
   const [transcriptDisclosureState, setTranscriptDisclosureState] =
@@ -671,6 +673,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       layout,
       engineId,
     );
+  useLayoutEffect(() => {
+    if (isActive && measurementVersion > 0) {
+      requestBottomFollow();
+    }
+  }, [isActive, measurementVersion, requestBottomFollow]);
   const completedNavigationRequestRef = useRef(0);
   const lastNavigationEstimateRef = useRef<{
     requestId: number;
@@ -1529,12 +1536,14 @@ export const UniversalChat = memo(function UniversalChat({
     cancelPrepend: transcriptScrollCoordinator.cancelPrepend,
     completePrepend: transcriptScrollCoordinator.completePrepend,
     pauseFollowing: transcriptScrollCoordinator.pauseFollowing,
+    requestBottomFollow: transcriptScrollCoordinator.requestBottomFollow,
     scrollToOffset: transcriptScrollCoordinator.scrollToOffset,
   }), [
     transcriptScrollCoordinator.beginPrepend,
     transcriptScrollCoordinator.cancelPrepend,
     transcriptScrollCoordinator.completePrepend,
     transcriptScrollCoordinator.pauseFollowing,
+    transcriptScrollCoordinator.requestBottomFollow,
     transcriptScrollCoordinator.scrollToOffset,
   ]);
   const focusedNewSessionScopeRef = useRef('');
@@ -3191,7 +3200,10 @@ export const UniversalChat = memo(function UniversalChat({
   }, [normalizedMessages, normalizedTranscriptScopeKey]);
 
   return (
-    <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
+    <div
+      className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}
+      data-universal-chat-root="true"
+    >
       <style>{`
         .custom-scrollbar {
           scrollbar-width: thin;
@@ -3356,7 +3368,7 @@ export const UniversalChat = memo(function UniversalChat({
             onSubmitUserQuestionAnswer={handleSubmitPendingUserQuestionAnswer}
             onSubmitApprovalDecision={handleSubmitPendingApprovalDecision}
           />
-          <div ref={composerActionRegionRef} className="w-full">
+          <div ref={composerActionRegionRef} className="relative w-full">
             {showAttachmentMenu ? (
               <ComposerActionPanel
                 attachmentsDisabled={attachmentsDisabled}
@@ -3681,7 +3693,14 @@ export const UniversalChat = memo(function UniversalChat({
 
       {showPromptModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowPromptModal(false)}>
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+          <div
+            aria-label={t('chat.promptHistory')}
+            aria-modal="true"
+            className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            data-birdcoder-popup-surface="true"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+          >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
               <div className="flex gap-6">
                 <button 

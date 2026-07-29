@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -17,6 +17,10 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench';
 
 export type ComposerCapabilityKind = 'plugin' | 'skill';
+
+const MAX_PANEL_HEIGHT = 440;
+const PANEL_EDGE_GAP = 8;
+const PANEL_OPEN_LAYOUT_SYNC_FRAMES = 30;
 
 export interface ComposerActionPanelProps {
   attachmentsDisabled: boolean;
@@ -175,6 +179,50 @@ export function ComposerActionPanel({
   providerLabel,
 }: ComposerActionPanelProps) {
   const { t } = useTranslation();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const anchor = panel?.parentElement;
+    const clippingRoot = panel?.closest<HTMLElement>('[data-universal-chat-root="true"]');
+    if (!panel || !anchor || !clippingRoot) {
+      return;
+    }
+
+    const updateMaxHeight = () => {
+      const anchorRect = anchor.getBoundingClientRect();
+      const clippingRootRect = clippingRoot.getBoundingClientRect();
+      const availableHeight = anchorRect.top
+        - clippingRootRect.top
+        - (PANEL_EDGE_GAP * 2);
+      panel.style.maxHeight = `${Math.max(0, Math.min(MAX_PANEL_HEIGHT, availableHeight))}px`;
+    };
+
+    let animationFrameId: number | null = null;
+    let remainingLayoutSyncFrames = PANEL_OPEN_LAYOUT_SYNC_FRAMES;
+    const syncOpeningLayout = () => {
+      updateMaxHeight();
+      remainingLayoutSyncFrames -= 1;
+      if (remainingLayoutSyncFrames > 0) {
+        animationFrameId = window.requestAnimationFrame(syncOpeningLayout);
+      }
+    };
+
+    syncOpeningLayout();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateMaxHeight);
+    resizeObserver?.observe(anchor);
+    resizeObserver?.observe(clippingRoot);
+    window.addEventListener('resize', updateMaxHeight);
+    return () => {
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateMaxHeight);
+    };
+  }, []);
 
   useEffect(() => {
     const previouslyFocusedElement = document.activeElement instanceof HTMLElement
@@ -203,8 +251,9 @@ export function ComposerActionPanel({
 
   return (
     <div
+      ref={panelRef}
       aria-label={t('chat.composerActions')}
-      className="mb-2 w-full overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#2a2a2d] text-zinc-200 shadow-[0_24px_70px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-bottom-2 duration-150"
+      className="absolute inset-x-0 bottom-full z-50 mb-2 flex max-h-[min(40vh,440px)] w-full flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#2a2a2d] text-zinc-200 shadow-[0_24px_70px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-bottom-2 duration-150"
       data-composer-action-panel="true"
       data-testid="composer-action-panel"
       id="composer-action-panel"
@@ -217,7 +266,7 @@ export function ComposerActionPanel({
         </span>
       </div>
 
-      <div className="max-h-[min(58vh,440px)] overflow-y-auto px-2 pb-2 custom-scrollbar">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 custom-scrollbar">
         <div className="space-y-0.5">
           <ActionRow
             description={t('chat.composerFilesDescription')}

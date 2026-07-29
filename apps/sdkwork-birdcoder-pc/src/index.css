@@ -262,6 +262,241 @@
     border-color: var(--sdk-color-border-default) !important;
   }
 
+  /* Popup surfaces are often portaled outside the app shell, so they need
+     their own light-mode compatibility boundary for legacy dark utilities. */
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) {
+    background-color: var(--sdk-color-surface-elevated) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-white,
+    .text-gray-100,
+    .text-gray-200,
+    .text-slate-100,
+    .text-slate-200,
+    .text-slate-300,
+    .text-zinc-300
+  ) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-gray-300,
+    .text-gray-400,
+    .text-slate-400,
+    .text-zinc-400,
+    [class~='text-[#c6c7ca]']
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-gray-500,
+    .text-gray-600,
+    .text-gray-700,
+    .text-slate-500,
+    .text-slate-600,
+    .text-slate-700,
+    .text-zinc-500,
+    [class~='text-[#6f7075]'],
+    [class~='text-[#96979c]']
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='bg-[#0d0d11]'],
+    [class~='bg-[#0e0e11]'],
+    [class~='bg-[#0e0e12]'],
+    [class~='bg-[#0f0f12]'],
+    [class~='bg-[#101014]'],
+    [class~='bg-[#111116]'],
+    [class~='bg-[#121214]'],
+    [class~='bg-[#141417]'],
+    [class~='bg-[#151519]'],
+    [class~='bg-[#15151a]'],
+    [class~='bg-[#15161a]'],
+    [class~='bg-[#15161b]'],
+    [class~='bg-[#16161b]'],
+    [class~='bg-[#171719]'],
+    [class~='bg-[#18181b]'],
+    [class~='bg-[#18181c]'],
+    [class~='bg-[#19191e]'],
+    [class~='bg-[#1a1b22]'],
+    [class~='bg-[#1b1b1f]'],
+    [class~='bg-[#1e1e22]'],
+    [class~='bg-[#202125]'],
+    [class~='bg-[#242424]'],
+    [class~='bg-[#242426]'],
+    [class~='bg-[#28282b]'],
+    [class~='bg-[#292929]'],
+    [class~='bg-[#29292c]'],
+    [class~='bg-[#2b2b2e]'],
+    [class~='bg-black/10'],
+    [class~='bg-black/15'],
+    [class~='bg-black/20'],
+    [class~='bg-black/25'],
+    [class~='bg-black/30'],
+    [class~='bg-black/50'],
+    [class~='bg-black/55'],
+    [class~='bg-zinc-900/70'],
+    [class~='bg-zinc-900/80']
+  ) {
+    background-color: var(--sdk-color-surface-panel-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='bg-white/5'],
+    [class~='bg-white/10'],
+    [class~='bg-white/15'],
+    [class~='bg-white/20'],
+    [class~='bg-white/[0.018]'],
+    [class~='bg-white/[0.025]'],
+    [class~='bg-white/[0.03]'],
+    [class~='bg-white/[0.035]'],
+    [class~='bg-white/[0.04]'],
+    [class~='bg-white/[0.045]'],
+    [class~='bg-white/[0.05]'],
+    [class~='bg-white/[0.055]'],
+    [class~='bg-white/[0.06]'],
+    [class~='bg-white/[0.065]'],
+    [class~='bg-white/[0.07]'],
+    [class~='bg-white/[0.075]'],
+    [class~='bg-white/[0.08]'],
+    [class~='bg-white/[0.09]'],
+    [class~='bg-white/[0.11]']
+  ) {
+    background-color: var(--sdk-color-surface-panel-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='border-white/5'],
+    [class~='border-white/8'],
+    [class~='border-white/10'],
+    [class~='border-white/15'],
+    [class~='border-white/20'],
+    [class~='border-white/25'],
+    [class~='border-white/[0.045]'],
+    [class~='border-white/[0.06]'],
+    [class~='border-white/[0.07]'],
+    [class~='border-white/[0.08]'],
+    [class~='border-white/[0.09]'],
+    [class~='border-white/[0.1]'],
+    [class~='border-white/[0.12]'],
+    .border-gray-600,
+    [class~='border-zinc-700/70'],
+    [class~='border-zinc-800/60'],
+    [class~='border-zinc-800/70']
+  ) {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='bg-white'][class~='text-black'],
+    [class~='bg-white'][class~='text-gray-900']
+  ) {
+    background-color: var(--sdk-color-brand-primary) !important;
+    color: var(--sdk-color-text-inverse) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) .bg-gradient-to-br .text-white {
+    color: var(--sdk-color-text-inverse) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(.text-amber-100, .text-amber-200, .text-amber-300) {
+    color: #92400e !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(.text-blue-200, .text-blue-300) {
+    color: #1d4ed8 !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(.text-green-200, .text-green-300, .text-green-400) {
+    color: #047857 !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(.text-red-200, .text-red-300, .text-red-400) {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is([class*='hover:bg-white/'], [class*='hover:bg-[#']):hover {
+    background-color: var(--sdk-color-surface-field-hover) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) [class*='hover:text-white']:hover {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(.bg-blue-500, .bg-blue-600, .bg-red-500, .bg-red-600).text-white {
+    color: var(--sdk-color-text-inverse) !important;
+  }
+
   .birdcoder-app-header {
     background: var(--birdcoder-chrome-bg);
     border-color: var(--birdcoder-chrome-border);

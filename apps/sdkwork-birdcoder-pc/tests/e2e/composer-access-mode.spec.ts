@@ -57,6 +57,59 @@ async function disableApproveForMeMode(page: Page): Promise<void> {
   });
 }
 
+async function expectComposerActionPanelToFloat(page: Page): Promise<void> {
+  const composerChrome = page.locator('[data-chat-composer-chrome="true"]:visible');
+  const addAttachmentButton = page.locator('button[title="Add attachment"]:visible');
+  await expect(composerChrome).toBeVisible();
+  await expect(addAttachmentButton).toBeVisible();
+
+  const composerBoxBeforeOpen = await composerChrome.boundingBox();
+  expect(composerBoxBeforeOpen).not.toBeNull();
+  await addAttachmentButton.click();
+
+  const actionPanel = page.locator('[data-testid="composer-action-panel"]:visible');
+  const universalChatRoot = page.locator('[data-universal-chat-root="true"]:visible');
+  await expect(actionPanel).toBeVisible();
+  await expect.poll(async () => {
+    const actionPanelBox = await actionPanel.boundingBox();
+    const universalChatRootBox = await universalChatRoot.boundingBox();
+    if (!actionPanelBox || !universalChatRootBox) {
+      return Number.NEGATIVE_INFINITY;
+    }
+    return actionPanelBox.y - universalChatRootBox.y;
+  }).toBeGreaterThanOrEqual(0);
+  const composerBoxAfterOpen = await composerChrome.boundingBox();
+  const actionPanelBox = await actionPanel.boundingBox();
+  const universalChatRootBox = await universalChatRoot.boundingBox();
+  expect(composerBoxAfterOpen).not.toBeNull();
+  expect(actionPanelBox).not.toBeNull();
+  expect(universalChatRootBox).not.toBeNull();
+  expect(composerBoxAfterOpen!.x).toBeCloseTo(composerBoxBeforeOpen!.x, 1);
+  expect(composerBoxAfterOpen!.y).toBeCloseTo(composerBoxBeforeOpen!.y, 1);
+  expect(composerBoxAfterOpen!.width).toBeCloseTo(composerBoxBeforeOpen!.width, 1);
+  expect(composerBoxAfterOpen!.height).toBeCloseTo(composerBoxBeforeOpen!.height, 1);
+  expect(actionPanelBox!.x).toBeCloseTo(composerBoxAfterOpen!.x, 1);
+  expect(actionPanelBox!.width).toBeCloseTo(composerBoxAfterOpen!.width, 1);
+  expect(actionPanelBox!.y + actionPanelBox!.height).toBeLessThanOrEqual(
+    composerBoxAfterOpen!.y,
+  );
+
+  const viewport = page.viewportSize();
+  const viewportWidth = viewport?.width;
+  const viewportHeight = viewport?.height;
+  expect(viewportWidth).toBeDefined();
+  expect(viewportHeight).toBeDefined();
+  expect(actionPanelBox!.x).toBeGreaterThanOrEqual(0);
+  expect(actionPanelBox!.x + actionPanelBox!.width).toBeLessThanOrEqual(viewportWidth!);
+  expect(actionPanelBox!.y).toBeGreaterThanOrEqual(0);
+  expect(actionPanelBox!.y + actionPanelBox!.height).toBeLessThanOrEqual(viewportHeight!);
+  expect(actionPanelBox!.y).toBeGreaterThanOrEqual(universalChatRootBox!.y);
+
+  await page.keyboard.press('Escape');
+  await expect(actionPanel).toHaveCount(0);
+  await expect(addAttachmentButton).toBeFocused();
+}
+
 async function installAccessModeSession(page: Page): Promise<void> {
   const sessionId = 'session.e2e-access-mode';
   let agentId = 'agent.intelligence.codex';
@@ -146,6 +199,9 @@ async function installAccessModeSession(page: Page): Promise<void> {
       const isRuntimeBindingRequest = new URL(route.request().url()).pathname.endsWith(
         '/runtime_bindings',
       );
+      const requestUrl = new URL(route.request().url());
+      const page = Number(requestUrl.searchParams.get('page') ?? 1);
+      const pageSize = Number(requestUrl.searchParams.get('page_size') ?? 20);
       const items = isRuntimeBindingRequest && runtimeBinding ? [runtimeBinding] : [];
       await route.fulfill({
         json: {
@@ -155,8 +211,8 @@ async function installAccessModeSession(page: Page): Promise<void> {
             pageInfo: {
               hasMore: false,
               mode: 'offset',
-              page: 1,
-              pageSize: 20,
+              page,
+              pageSize,
               totalItems: String(items.length),
               totalPages: items.length > 0 ? 1 : 0,
             },
@@ -201,8 +257,9 @@ test('composer access mode selects full access and snapshots it into the turn', 
   await expect(codexOption).toHaveCount(1);
   await codexOption.click();
 
-  const newSessionComposer = page.locator('[data-new-session-composer="true"]');
-  const accessModeTrigger = newSessionComposer.getByTestId('composer-access-mode-trigger');
+  const accessModeTrigger = page.locator(
+    '[data-testid="composer-access-mode-trigger"]:visible',
+  );
   await expect(accessModeTrigger).toBeVisible();
   await expect(accessModeTrigger).toHaveAttribute('data-access-mode-id', 'ask_for_approval');
   await expect(accessModeTrigger).toHaveAccessibleName('Access mode: Ask for approval');
@@ -211,7 +268,7 @@ test('composer access mode selects full access and snapshots it into the turn', 
   ))).toBe(true);
 
   await accessModeTrigger.click();
-  const accessModeMenu = newSessionComposer.getByTestId('composer-access-mode-menu');
+  const accessModeMenu = page.locator('[data-testid="composer-access-mode-menu"]:visible');
   const approveForMeMode = accessModeMenu.locator(
     '[data-access-mode-option="approve_for_me"]',
   );
@@ -233,6 +290,8 @@ test('composer access mode selects full access and snapshots it into the turn', 
   await expect(accessModeTrigger).toHaveAttribute('data-access-mode-id', 'full_access');
   await expect(accessModeTrigger).toHaveAccessibleName('Access mode: Full access');
 
+  await expectComposerActionPanelToFloat(page);
+
   await page.setViewportSize({ width: 520, height: 640 });
   await accessModeTrigger.click();
   const menuBox = await accessModeMenu.boundingBox();
@@ -247,14 +306,16 @@ test('composer access mode selects full access and snapshots it into the turn', 
   });
   await page.keyboard.press('Escape');
 
+  await expectComposerActionPanelToFloat(page);
+
   const message = `E2E full access verification ${Date.now()}`;
-  const composer = newSessionComposer.locator('textarea');
+  const composer = page.locator('textarea[placeholder="Ask anything or request changes..."]:visible');
   await composer.fill(message);
   const turnRequest = page.waitForRequest((candidate) => (
     candidate.method() === 'POST'
       && new URL(candidate.url()).pathname.endsWith('/turns')
   ));
-  await newSessionComposer.locator('button[title="Send message"]').click();
+  await page.locator('button[title="Send message"]:visible').click();
   const submittedTurn = await turnRequest;
   expect(submittedTurn.postDataJSON()).toMatchObject({
     accessModeId: 'full_access',
