@@ -91,6 +91,21 @@ async function selectStudioSessionByTitle(page: Page, title: string): Promise<vo
   await sessionRow.click();
 }
 
+async function waitForTranscriptSettlement(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let remainingFrames = 12;
+    const waitForNextFrame = () => {
+      remainingFrames -= 1;
+      if (remainingFrames <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(waitForNextFrame);
+    };
+    window.requestAnimationFrame(waitForNextFrame);
+  }));
+}
+
 test('Conversation messages render rich content and expandable command evidence', async ({
   page,
   request,
@@ -403,12 +418,19 @@ test('Codex user input preserves text, images, and files in one message', async 
   await page.setViewportSize({ width: 900, height: 800 });
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  const codexItemRequestedPages: number[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
       consoleErrors.push(message.text());
     }
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/e2e-codex-session/items')) {
+      codexItemRequestedPages.push(Number(url.searchParams.get('page') ?? 1));
+    }
+  });
 
   await page.goto('/#/app/code');
   await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
@@ -492,6 +514,60 @@ test('Codex user input preserves text, images, and files in one message', async 
   await expect(composerActionPanel).toHaveCount(0);
   await expect(addAttachmentButton).toBeFocused();
 
+  const loadEarlierMessages = transcript.getByRole('button', {
+    name: 'Load earlier messages',
+    exact: true,
+  });
+  await expect(loadEarlierMessages).toBeVisible();
+  const pageTwoResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/e2e-codex-session/items')
+      && url.searchParams.get('page') === '2';
+  });
+  await loadEarlierMessages.click();
+  await expect.poll(() => codexItemRequestedPages.includes(2)).toBe(true);
+  expect((await pageTwoResponse).ok()).toBe(true);
+  expect(codexItemRequestedPages.includes(3)).toBe(false);
+  await expect(transcript.getByText(
+    'Codex historical message 55',
+    { exact: true },
+  )).toBeVisible();
+  const pageThreeResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/e2e-codex-session/items')
+      && url.searchParams.get('page') === '3';
+  });
+  await transcript.hover();
+  await page.mouse.wheel(0, -5_000);
+  await waitForTranscriptSettlement(page);
+  await expect(transcript.getByText(
+    'Codex historical message 7',
+    { exact: true },
+  )).toBeVisible();
+  if (!codexItemRequestedPages.includes(3)) {
+    await transcript.hover();
+    await page.mouse.wheel(0, -5_000);
+  }
+  await expect.poll(() => codexItemRequestedPages.includes(3)).toBe(true);
+  expect((await pageThreeResponse).ok()).toBe(true);
+  await expect(loadEarlierMessages).toHaveCount(0);
+  const earliestCodexMessage = transcript.getByText(
+    'Codex historical message 1',
+    { exact: true },
+  );
+  for (
+    let attempt = 0;
+    attempt < 3 && await earliestCodexMessage.count() === 0;
+    attempt += 1
+  ) {
+    await transcript.hover();
+    await page.mouse.wheel(0, -5_000);
+    await waitForTranscriptSettlement(page);
+  }
+  await expect(
+    earliestCodexMessage,
+  ).toBeVisible();
+
   expect(pageErrors).toEqual([]);
   expect(consoleErrors.filter((entry) => (
     /codex|image|attachment|undefined.*map/iu.test(entry)
@@ -523,6 +599,9 @@ test('Provider lifecycle protocols share one structured expandable presentation'
 
   await selectSessionByTitle(page, 'OpenCode verification');
   await expect(transcript.getByText('Verify OpenCode lifecycle rendering.', { exact: true })).toBeVisible();
+  await transcript.getByRole('button', {
+    name: /Processed.*Show execution process/u,
+  }).click();
   const openCodeCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
   await expect(openCodeCompleted).toContainText('Turn completed');
   await expect(openCodeCompleted).toContainText('1.6k tokens');
@@ -636,6 +715,9 @@ test('Provider lifecycle protocols share one structured expandable presentation'
   await expect(transcript).toBeVisible();
 
   await selectSessionByTitle(page, 'Gemini failure triage');
+  await transcript.getByRole('button', {
+    name: /Processed.*Show execution process/u,
+  }).click();
   const geminiBlocked = transcript.locator('[data-chat-lifecycle-event="blocked"]');
   const geminiCompacted = transcript.locator('[data-chat-lifecycle-event="compacted"]');
   await expect(geminiBlocked).toContainText('Execution blocked');

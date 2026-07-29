@@ -64,13 +64,24 @@ assert.ok(
 const transcriptScrollHandlerBody = transcriptScrollHandlerMatch[1] ?? '';
 assert.match(
   transcriptScrollHandlerBody,
-  /scheduleEarlierTranscriptPageRequest\(\);/,
-  'Progressive transcript pagination scroll events must only schedule top-load checks.',
+  /pendingTopLoadIntentRef\.current[\s\S]*scheduleEarlierTranscriptPageRequest\(\);/,
+  'Progressive transcript pagination scroll events must only schedule top-load checks after explicit user intent.',
 );
 assert.doesNotMatch(
   transcriptScrollHandlerBody,
   /readTranscriptScrollMetrics|shouldLoadEarlierTranscriptPage|requestEarlierTranscriptPage\(\)/,
   'Progressive transcript pagination scroll events must not synchronously read layout or reveal older history.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /const pendingTopLoadIntentRef = useRef\(false\);/,
+  'Programmatic transcript scroll events must not trigger remote history loading without a preceding user input intent.',
+);
+assert.match(
+  progressiveTranscriptHookSource,
+  /const markPendingTopLoadIntent = \(event\?: Event\) => \{[\s\S]*pendingTopLoadIntentRef\.current = true;/s,
+  'Transcript input handlers must record user intent before top-load scheduling.',
 );
 
 assert.match(

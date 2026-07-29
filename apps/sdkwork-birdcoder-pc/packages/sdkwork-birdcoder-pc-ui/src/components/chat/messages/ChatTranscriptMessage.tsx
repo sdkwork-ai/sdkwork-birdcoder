@@ -13,6 +13,7 @@ import type { ChatMessageRendererRegistry } from './registry.ts';
 import { ChatTurnActiveTail } from './renderers/ChatTurnActiveTail.tsx';
 import { ChatTranscriptSurface } from './ChatTranscriptSurface.tsx';
 import { TurnFileChangesCard } from './activity/TurnFileChangesCard.tsx';
+import { TurnProcessDisclosure } from './presentation/TurnProcessDisclosure.tsx';
 
 export interface ChatTranscriptMessageProps {
   message: AgentSessionItemView;
@@ -45,9 +46,26 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
     () => resolveAgentSessionItemPresentation(message, { activitySummary, engineId, layout }),
     [activitySummary, engineId, layout, message],
   );
-  const entry = useMemo(() => registry.resolve(view), [registry, view]);
+  const displayView = useMemo(() => {
+    if (!context.suppressProcessBlocks) return view;
+    const blocks = view.blocks.filter((block) => (
+      (block.type === 'markdown' && !block.noticeKind)
+      || (message.role === 'user' && block.type === 'resources')
+    ));
+    return blocks.length === view.blocks.length
+      ? view
+      : {
+          ...view,
+          blocks,
+          layoutHints: {
+            ...view.layoutHints,
+            hasCollapsibleSections: false,
+          },
+        };
+  }, [context.suppressProcessBlocks, message.role, view]);
+  const entry = useMemo(() => registry.resolve(displayView), [displayView, registry]);
   const Renderer = entry.Component;
-  const isUser = view.kind === 'user.text';
+  const isUser = displayView.kind === 'user.text';
   const resolvedContext = useMemo(
     () => ({
       ...context,
@@ -56,6 +74,23 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
     }),
     [context, index, layout],
   );
+  const hasSurfaceContent = displayView.blocks.length > 0
+    || Boolean(resolvedContext.turnProcess)
+    || Boolean(resolvedContext.turnFileChanges)
+    || resolvedContext.turn.isActiveTail;
+
+  if (!hasSurfaceContent) {
+    return (
+      <div
+        key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
+        ref={messageRef}
+        className="h-0 w-full overflow-hidden"
+        data-chat-process-source-hidden="true"
+        data-transcript-message-index={index}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <ChatTranscriptSurface
@@ -67,10 +102,18 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
       providerProfile={resolvedContext.providerProfile}
       turn={resolvedContext.turn}
     >
-      <Renderer
-        view={view}
-        context={resolvedContext}
-      />
+      {resolvedContext.turnProcess ? (
+        <TurnProcessDisclosure
+          context={resolvedContext}
+          presentation={resolvedContext.turnProcess}
+        />
+      ) : null}
+      {displayView.blocks.length > 0 ? (
+        <Renderer
+          view={displayView}
+          context={resolvedContext}
+        />
+      ) : null}
       {resolvedContext.turnFileChanges ? (
         <TurnFileChangesCard
           compact={layout === 'sidebar'}
@@ -80,7 +123,7 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
           toggleDisclosure={resolvedContext.toggleDisclosure}
         />
       ) : null}
-      {resolvedContext.turn.isActiveTail ? (
+      {resolvedContext.turn.isActiveTail && !resolvedContext.turnProcess ? (
         <ChatTurnActiveTail
           layout={layout}
           providerProfile={resolvedContext.providerProfile}

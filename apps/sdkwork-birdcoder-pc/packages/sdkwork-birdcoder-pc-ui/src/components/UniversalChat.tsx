@@ -123,6 +123,7 @@ import {
 } from './chat/messages/index.ts';
 import { resolveChatProviderPresentationProfile } from './chat/messages/presentation/providerPresentationProfiles.ts';
 import { buildChatTranscriptTurnPresentations } from './chat/messages/presentation/transcriptTurnPresentation.ts';
+import { resolveChatTurnProcessPresentations } from './chat/messages/presentation/turnProcessPresentation.ts';
 import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
 import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
@@ -763,6 +764,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     () => buildChatTranscriptTurnPresentations(renderedMessages, isLive),
     [isLive, renderedMessages],
   );
+  const turnProcessPresentations = useMemo(
+    () => resolveChatTurnProcessPresentations(renderedMessages, { engineId, isLive }),
+    [engineId, isLive, renderedMessages],
+  );
   const providerProfile = useMemo(
     () => resolveChatProviderPresentationProfile(engineId),
     [engineId],
@@ -1079,6 +1084,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             const turnFileChangesPresentation = turnFileChangesPresentations[messageIndex];
             const turnPresentation = transcriptTurnPresentations[messageIndex]
               ?? messageRenderContext.turn;
+            const turnProcessPresentation = turnProcessPresentations[messageIndex];
 
             return (
               <ChatTranscriptMessage
@@ -1100,6 +1106,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   suppressInlineFileChanges:
                     turnFileChangesPresentation?.suppressInlineFileChanges ?? false,
                   turnFileChanges: turnFileChangesPresentation?.card,
+                  turnProcess: turnProcessPresentation?.process,
+                  suppressProcessBlocks: turnProcessPresentation?.suppressProcessBlocks ?? false,
                 }}
               />
             );

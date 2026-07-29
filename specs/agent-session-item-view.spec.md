@@ -35,8 +35,15 @@ timestamps, and source payload needed for deterministic rendering.
 
 The adapter must not persist derived state, invent a second lifecycle, accept
 IM delivery semantics, or use the terms `projection` or `message authority`.
+Provider-native normalization must accept the official nested envelope shapes
+used by OpenCode (`properties.part`), Codex (`method` / `params`), Claude Code
+(`message.content` / `stream_event.event`), and Gemini (core events and JSONL
+assistant messages). Traversal and retained visible text must remain explicitly
+bounded before React rendering.
 Unknown Session Item kinds are rendered with a safe generic representation and
-must not be silently discarded.
+must not be silently discarded. Only explicitly classified internal kinds,
+including canonical `system_instruction` facts and injected Codex `AGENTS.md`
+instruction inputs, may be omitted from the user transcript.
 
 ## Verification
 

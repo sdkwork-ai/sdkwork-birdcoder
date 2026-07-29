@@ -25,6 +25,16 @@ interface ProgressiveTranscriptWindowState {
   visibleTranscriptStartIndex: number;
 }
 
+const TRANSCRIPT_INTERACTIVE_DESCENDANT_SELECTOR = [
+  'a[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  '[contenteditable="true"]',
+  '[role="button"]',
+].join(',');
+
 export interface ProgressiveTranscriptRemoteHistory {
   hasMoreMessages: boolean;
   isLoadingMessages: boolean;
@@ -64,6 +74,15 @@ function readTranscriptScrollMetrics(
   };
 }
 
+function isTranscriptInteractiveDescendant(
+  eventTarget: EventTarget | null,
+  scrollContainer: HTMLDivElement,
+): boolean {
+  return eventTarget instanceof Element
+    && eventTarget !== scrollContainer
+    && eventTarget.closest(TRANSCRIPT_INTERACTIVE_DESCENDANT_SELECTOR) !== null;
+}
+
 export function useProgressiveTranscriptWindow(
   messages: readonly AgentSessionItemView[],
   messagesEndRef: RefObject<HTMLDivElement | null>,
@@ -81,18 +100,27 @@ export function useProgressiveTranscriptWindow(
   } | null>(null);
   const prependAnchorRepairAnimationFrameRef = useRef<number | null>(null);
   const isTranscriptPointerDragActiveRef = useRef(false);
+  const pendingTopLoadIntentRef = useRef(false);
   const pendingTopLoadAfterPointerReleaseRef = useRef(false);
   const pendingTopLoadAfterRemoteRequestRef = useRef(false);
   const topLoadAnimationFrameRef = useRef<number | null>(null);
   const remoteHistoryRef = useRef(remoteHistory);
   const remoteLoadRequestRef = useRef<Promise<void> | null>(null);
   const remoteLoadRequestScopeRef = useRef(transcriptIdentity);
+  const handledRemoteTopLoadRearmVersionRef = useRef(0);
+  const handledRemoteTopLoadContinuationVersionRef = useRef(0);
+  const pendingRemoteTopLoadAfterLocalExpansionRef = useRef(false);
   const [remoteTopLoadRearmVersion, setRemoteTopLoadRearmVersion] = useState(0);
+  const [remoteTopLoadContinuationVersion, setRemoteTopLoadContinuationVersion] = useState(0);
   remoteHistoryRef.current = remoteHistory;
   if (remoteLoadRequestScopeRef.current !== transcriptIdentity) {
     remoteLoadRequestScopeRef.current = transcriptIdentity;
     remoteLoadRequestRef.current = null;
+    pendingTopLoadIntentRef.current = false;
     pendingTopLoadAfterRemoteRequestRef.current = false;
+    handledRemoteTopLoadRearmVersionRef.current = remoteTopLoadRearmVersion;
+    handledRemoteTopLoadContinuationVersionRef.current = remoteTopLoadContinuationVersion;
+    pendingRemoteTopLoadAfterLocalExpansionRef.current = false;
   }
   const [transcriptWindowState, setTranscriptWindowState] =
     useState<ProgressiveTranscriptWindowState>(() =>
@@ -257,6 +285,14 @@ export function useProgressiveTranscriptWindow(
         metrics: scrollMetrics,
         transcriptIdentity,
       };
+      const nextVisibleTranscriptStartIndex = resolveEarlierTranscriptStartIndex(
+        visibleTranscriptStartIndex,
+      );
+      pendingRemoteTopLoadAfterLocalExpansionRef.current = Boolean(
+        nextVisibleTranscriptStartIndex === 0
+        && remoteHistoryRef.current?.hasMoreMessages
+        && remoteHistoryRef.current.onLoadMoreMessages,
+      );
       setTranscriptWindowState((previousState) => {
         const activeState = previousState.transcriptIdentity === transcriptIdentity
           ? previousState
@@ -286,11 +322,14 @@ export function useProgressiveTranscriptWindow(
           return;
         }
 
+        pendingTopLoadIntentRef.current = false;
         requestEarlierTranscriptPage();
       });
     };
     const handleTranscriptScroll = () => {
-      scheduleEarlierTranscriptPageRequest();
+      if (pendingTopLoadIntentRef.current) {
+        scheduleEarlierTranscriptPageRequest();
+      }
     };
     const cancelPrependAnchorRepairForUserInput = () => {
       pendingPrependedScrollMetricsRef.current = null;
@@ -299,16 +338,30 @@ export function useProgressiveTranscriptWindow(
         prependAnchorRepairAnimationFrameRef.current = null;
       }
     };
-    const markPendingTopLoadIntent = () => {
+    const markPendingTopLoadIntent = (event?: Event) => {
+      if (
+        event
+        && isTranscriptInteractiveDescendant(event.target, scrollContainer)
+      ) {
+        return;
+      }
+
+      pendingTopLoadIntentRef.current = true;
       cancelPrependAnchorRepairForUserInput();
       if (
         remoteLoadRequestRef.current
         || remoteHistoryRef.current?.isLoadingMessages
       ) {
         pendingTopLoadAfterRemoteRequestRef.current = true;
+        return;
       }
+      scheduleEarlierTranscriptPageRequest();
     };
     const handleTranscriptKeyDown = (event: KeyboardEvent) => {
+      if (isTranscriptInteractiveDescendant(event.target, scrollContainer)) {
+        return;
+      }
+
       if (
         event.key === 'ArrowDown'
         || event.key === 'ArrowUp'
@@ -329,7 +382,10 @@ export function useProgressiveTranscriptWindow(
       }
     };
     const handleTranscriptPointerDown = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse' && event.button !== 0) {
+      if (
+        isTranscriptInteractiveDescendant(event.target, scrollContainer)
+        || (event.pointerType === 'mouse' && event.button !== 0)
+      ) {
         return;
       }
 
@@ -348,13 +404,13 @@ export function useProgressiveTranscriptWindow(
       }
 
       pendingTopLoadAfterPointerReleaseRef.current = false;
+      pendingTopLoadIntentRef.current = false;
       if (topLoadAnimationFrameRef.current !== null) {
         window.cancelAnimationFrame(topLoadAnimationFrameRef.current);
         topLoadAnimationFrameRef.current = null;
       }
       requestEarlierTranscriptPage();
     };
-
     scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
     scrollContainer.addEventListener('wheel', markPendingTopLoadIntent, { passive: true });
     scrollContainer.addEventListener('touchstart', markPendingTopLoadIntent, { passive: true });
@@ -362,7 +418,17 @@ export function useProgressiveTranscriptWindow(
     scrollContainer.addEventListener('pointerdown', handleTranscriptPointerDown, { passive: true });
     window.addEventListener('pointerup', handleTranscriptPointerRelease, true);
     window.addEventListener('pointercancel', handleTranscriptPointerRelease, true);
-    scheduleEarlierTranscriptPageRequest();
+    if (handledRemoteTopLoadRearmVersionRef.current < remoteTopLoadRearmVersion) {
+      handledRemoteTopLoadRearmVersionRef.current = remoteTopLoadRearmVersion;
+      scheduleEarlierTranscriptPageRequest();
+    }
+    if (
+      handledRemoteTopLoadContinuationVersionRef.current
+      < remoteTopLoadContinuationVersion
+    ) {
+      handledRemoteTopLoadContinuationVersionRef.current = remoteTopLoadContinuationVersion;
+      requestRemoteMessages();
+    }
 
     return () => {
       isTranscriptPointerDragActiveRef.current = false;
@@ -385,6 +451,7 @@ export function useProgressiveTranscriptWindow(
     messages.length,
     messagesEndRef,
     remoteHistory?.hasMoreMessages,
+    remoteTopLoadContinuationVersion,
     remoteTopLoadRearmVersion,
     transcriptIdentity,
     visibleTranscriptStartIndex,
@@ -430,6 +497,10 @@ export function useProgressiveTranscriptWindow(
     const finishAnchorRepair = () => {
       pendingPrependedScrollMetricsRef.current = null;
       prependAnchorRepairAnimationFrameRef.current = null;
+      if (pendingRemoteTopLoadAfterLocalExpansionRef.current) {
+        pendingRemoteTopLoadAfterLocalExpansionRef.current = false;
+        setRemoteTopLoadContinuationVersion((version) => version + 1);
+      }
     };
     restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor);
     let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;

@@ -39,6 +39,11 @@ interface ActiveEarlierItemsRequest {
   scopeKey: string;
 }
 
+interface ActiveAgentSessionRefreshRequest {
+  controller: AbortController;
+  generation: number;
+}
+
 interface ScopedProjectRefreshState {
   projectId: string;
   userScope: string;
@@ -107,6 +112,8 @@ export function useSessionRefreshActions({
     useState<ScopedEarlierAgentSessionItemsState | null>(null);
   const projectRefreshGenerationRef = useRef(0);
   const agentSessionRefreshGenerationRef = useRef(0);
+  const activeAgentSessionRefreshRequestRef =
+    useRef<ActiveAgentSessionRefreshRequest | null>(null);
   const activeEarlierItemsRequestRef = useRef<ActiveEarlierItemsRequest | null>(null);
   const currentSelection = getPreservedSelection();
   const selectedAgentSessionId = currentSelection.agentSessionId?.trim() ?? '';
@@ -121,6 +128,20 @@ export function useSessionRefreshActions({
     ));
   }, []);
 
+  const cancelActiveAgentSessionRefreshRequest = useCallback(() => {
+    const activeRequest = activeAgentSessionRefreshRequestRef.current;
+    if (!activeRequest) {
+      return;
+    }
+    activeAgentSessionRefreshRequestRef.current = null;
+    agentSessionRefreshGenerationRef.current += 1;
+    activeRequest.controller.abort(new DOMException(
+      'Agents session refresh request was superseded.',
+      'AbortError',
+    ));
+    setRefreshingAgentSessionScope(null);
+  }, []);
+
   useLayoutEffect(() => {
     getPreservedSelectionRef.current = getPreservedSelection;
     restoreSelectionAfterRefreshRef.current = restoreSelectionAfterRefresh;
@@ -132,13 +153,20 @@ export function useSessionRefreshActions({
       activeUserScopeRef.current = null;
       projectRefreshGenerationRef.current += 1;
       agentSessionRefreshGenerationRef.current += 1;
+      cancelActiveAgentSessionRefreshRequest();
       cancelActiveEarlierItemsRequest();
     };
-  }, [cancelActiveEarlierItemsRequest, userScope]);
+  }, [cancelActiveAgentSessionRefreshRequest, cancelActiveEarlierItemsRequest, userScope]);
 
   useEffect(() => () => {
+    cancelActiveAgentSessionRefreshRequest();
     cancelActiveEarlierItemsRequest();
-  }, [cancelActiveEarlierItemsRequest, selectedAgentSessionId, selectedProjectId]);
+  }, [
+    cancelActiveAgentSessionRefreshRequest,
+    cancelActiveEarlierItemsRequest,
+    selectedAgentSessionId,
+    selectedProjectId,
+  ]);
 
   const isPreservedSelectionStillCurrent = useCallback(
     (preservedSelection: PreservedSessionRefreshSelection) => {
@@ -222,7 +250,13 @@ export function useSessionRefreshActions({
       return;
     }
 
+    cancelActiveAgentSessionRefreshRequest();
     const requestGeneration = ++agentSessionRefreshGenerationRef.current;
+    const controller = new AbortController();
+    activeAgentSessionRefreshRequestRef.current = {
+      controller,
+      generation: requestGeneration,
+    };
 
     setRefreshingAgentSessionScope({
       agentSessionId,
@@ -233,6 +267,7 @@ export function useSessionRefreshActions({
       const result = await refreshAgentSessionItems({
         agentSessionService,
         agentSessionId,
+        signal: controller.signal,
         ...(resolvedLocation ? { resolvedLocation } : {}),
       });
       if (
@@ -291,6 +326,9 @@ export function useSessionRefreshActions({
       }
       addToast(messages.sessionMessagesRefreshed(agentSessionTitle), 'success');
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
       if (
         agentSessionRefreshGenerationRef.current !== requestGeneration
         || activeUserScopeRef.current !== userScope
@@ -306,10 +344,17 @@ export function useSessionRefreshActions({
       ) {
         setRefreshingAgentSessionScope(null);
       }
+      if (
+        activeAgentSessionRefreshRequestRef.current?.controller === controller
+        && activeAgentSessionRefreshRequestRef.current.generation === requestGeneration
+      ) {
+        activeAgentSessionRefreshRequestRef.current = null;
+      }
     }
   }, [
     addToast,
     agentSessionService,
+    cancelActiveAgentSessionRefreshRequest,
     messages,
     projectService,
     resolveAgentSessionLocation,

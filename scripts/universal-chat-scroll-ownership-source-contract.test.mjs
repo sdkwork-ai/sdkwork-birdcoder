@@ -131,7 +131,7 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const cancelPrependAnchorRepairForUserInput = \(\) => \{[\s\S]*pendingPrependedScrollMetricsRef\.current = null;[\s\S]*window\.cancelAnimationFrame\(prependAnchorRepairAnimationFrameRef\.current\);[\s\S]*\};[\s\S]*const markPendingTopLoadIntent = \(\) => \{[\s\S]*cancelPrependAnchorRepairForUserInput\(\);/s,
+  /const cancelPrependAnchorRepairForUserInput = \(\) => \{[\s\S]*pendingPrependedScrollMetricsRef\.current = null;[\s\S]*window\.cancelAnimationFrame\(prependAnchorRepairAnimationFrameRef\.current\);[\s\S]*\};[\s\S]*const markPendingTopLoadIntent = \(event\?: Event\) => \{[\s\S]*cancelPrependAnchorRepairForUserInput\(\);/s,
   'Explicit scroll input must cancel local prepend anchor settlement so it cannot override the user after history appears.',
 );
 

@@ -68,9 +68,12 @@ framework implementation.
    delete, regenerate, and virtualization behavior remains functional.
 8. Opening or switching to a populated Session reconciles a bounded contiguous
    newest authority window and positions the transcript at the latest message
-   after progressive rendering and row measurement settle. A stale tail that
-   cannot overlap within five 20-item pages is replaced rather than joined
-   across a silent gap; unconfirmed transient items remain at the newest edge.
+   after progressive rendering and row measurement settle. Initial hydration
+   requests 50-item pages until it covers eight visible user turns, reaches
+   authority exhaustion, or consumes the five-page budget. A stale tail that
+   cannot overlap within that budget is replaced rather than joined across a
+   silent gap; unconfirmed transient items remain at the newest edge. Pages
+   that violate the requested descending sequence order are never committed.
 9. New or streaming content follows the viewport only while the user remains
    near the bottom; reading older content is never interrupted by autoscroll.
 10. Reaching the transcript top automatically reveals the next local window or
@@ -100,6 +103,13 @@ framework implementation.
     indexed linear passes, preserve exact-ID updates and concurrent latest
     items, isolate provisional suppression by Session, and pass the 10,000-item
     performance contract without allocating a set for every unique key.
+19. OpenCode part update/delta envelopes and text/reasoning/file/tool parts,
+    Codex JSON-RPC item/delta envelopes and agent-message/plan/reasoning/image
+    items, Claude assistant/stream text/thinking/tool-use blocks, and Gemini
+    core/JSONL content/thought/citation/tool events remain visible when
+    delivered inside a provider-event Session Item. Unknown non-system kinds
+    degrade to a bounded generic notice; only explicit internal instruction
+    kinds are hidden.
 
 ## Non-Functional Requirements
 
@@ -107,7 +117,7 @@ framework implementation.
 | --- | --- |
 | Cohesion | Protocol normalization, presentation policy, and React rendering remain separate focused modules. |
 | Extensibility | A future provider adds a profile and adapter without modifying shared render branches. |
-| Performance | Existing progressive loading, server pagination, virtualization, bounded previews, lazy Markdown rendering, four-slot attachment upload scheduling, and bounded file-change parsing remain intact; head reconciliation is capped at five pages, one history operation at ten pages, and loaded-window deduplication/ordered reconciliation at indexed `O(n + m)` time with operation-scoped `O(n + m)` temporary memory. |
+| Performance | Existing progressive loading, server pagination, virtualization, bounded previews, lazy Markdown rendering, four-slot attachment upload scheduling, and bounded file-change parsing remain intact; native provider normalization visits at most 128 payload values and retains at most 64,000 visible text characters, head reconciliation is capped at five 50-item pages (250 raw items), one history operation at ten pages, and loaded-window deduplication/ordered reconciliation at indexed `O(n + m)` time with operation-scoped `O(n + m)` temporary memory. |
 | Reliability | Missing provider fields degrade to neutral generic labels and never invent completion; scroll anchoring survives local-window and server-page prepends; authority windows never merge across an unproven gap and pagination metadata never regresses under concurrent commits. |
 | Accessibility | Disclosures, status, actions, and the active-turn tail remain keyboard and screen-reader operable. |
 | Security | Provider payloads are rendered only through normalized, bounded, sanitized presentation paths. |

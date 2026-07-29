@@ -82,9 +82,10 @@ const sessions = [
     sessionId: 'e2e-codex-session',
     agentId: 'agent.codex',
     title: 'Codex implementation',
-    lastItemSequence: '45',
+    itemCount: '105',
+    lastItemSequence: '105',
     lastItemAt: '2026-01-01T00:20:00.000Z',
-    version: '45',
+    version: '105',
     updatedAt: '2026-01-01T00:20:00.000Z',
   }),
   createAgentSessionFixture({
@@ -188,20 +189,33 @@ const sessionItemsBySessionId = new Map([
         sessionId: 'e2e-claude-session',
         itemId: 'e2e-claude-item-5',
         turnId: 'e2e-claude-turn-1',
-        kind: 'assistant_output',
+        kind: 'tool_result',
         status: 'completed',
         sequence: '5',
-        content: [
-          "The transcript now keeps `sdkwork-agents` rich content and BirdCoder's command evidence together.",
-          '',
-          '```mermaid',
-          'flowchart LR',
-          '  A["Provider message"] --> B{"Structured?"}',
-          '  B -->|Yes| C["Render diagram"]',
-          '  B -->|No| D["Show source"]',
-          '```',
-        ].join('\n'),
-        contentType: 'text/markdown',
+        content: null,
+        contentType: 'application/json',
+        toolName: 'provider_event',
+        toolCallId: 'e2e-claude-assistant-1',
+        toolResult: {
+          type: 'assistant',
+          message: {
+            id: 'e2e-claude-assistant-1',
+            role: 'assistant',
+            content: [{
+              type: 'text',
+              text: [
+                "The transcript now keeps `sdkwork-agents` rich content and BirdCoder's command evidence together.",
+                '',
+                '```mermaid',
+                'flowchart LR',
+                '  A["Provider message"] --> B{"Structured?"}',
+                '  B -->|Yes| C["Render diagram"]',
+                '  B -->|No| D["Show source"]',
+                '```',
+              ].join('\n'),
+            }],
+          },
+        },
         createdAt: '2026-01-01T00:30:05.000Z',
       },
       {
@@ -333,16 +347,19 @@ const sessionItemsBySessionId = new Map([
         toolName: 'provider_event',
         toolCallId: 'e2e-opencode-step-finish-1',
         toolResult: {
-          part: {
-            id: 'e2e-opencode-step-finish-1',
-            type: 'step-finish',
-            reason: 'stop',
-            cost: 0.012,
-            tokens: {
-              input: 1_200,
-              output: 340,
-              reasoning: 80,
-              cache: { read: 500, write: 20 },
+          type: 'message.part.updated',
+          properties: {
+            part: {
+              id: 'e2e-opencode-step-finish-1',
+              type: 'step-finish',
+              reason: 'stop',
+              cost: 0.012,
+              tokens: {
+                input: 1_200,
+                output: 340,
+                reasoning: 80,
+                cache: { read: 500, write: 20 },
+              },
             },
           },
           message: {
@@ -372,11 +389,23 @@ const sessionItemsBySessionId = new Map([
         sessionId: 'e2e-opencode-session',
         itemId: 'e2e-opencode-item-5',
         turnId: 'e2e-opencode-turn-1',
-        kind: 'assistant_output',
+        kind: 'tool_result',
         status: 'completed',
         sequence: '5',
-        content: 'The OpenCode-aligned message presentation is ready.',
-        contentType: 'text/markdown',
+        content: null,
+        contentType: 'application/json',
+        toolName: 'provider_event',
+        toolCallId: 'e2e-opencode-text-1',
+        toolResult: {
+          type: 'message.part.updated',
+          properties: {
+            part: {
+              id: 'e2e-opencode-text-1',
+              type: 'text',
+              text: 'The OpenCode-aligned message presentation is ready.',
+            },
+          },
+        },
         createdAt: '2026-01-01T00:10:05.000Z',
       },
       {
@@ -486,17 +515,17 @@ const sessionItemsBySessionId = new Map([
   ],
   [
     'e2e-codex-session',
-    Array.from({ length: 45 }, (_, index) => {
-      const sequence = 45 - index;
+    Array.from({ length: 105 }, (_, index) => {
+      const sequence = 105 - index;
       const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
-      if (sequence === 45) {
+      if (sequence === 105) {
         return {
           sessionId: 'e2e-codex-session',
-          itemId: 'e2e-codex-item-45',
+          itemId: 'e2e-codex-item-105',
           turnId: 'e2e-codex-turn-1',
           kind: 'tool_result',
           status: 'completed',
-          sequence: '45',
+          sequence: '105',
           content: null,
           contentType: 'application/json',
           toolName: 'provider_event',
@@ -516,14 +545,14 @@ const sessionItemsBySessionId = new Map([
           createdAt,
         };
       }
-      if (sequence === 44) {
+      if (sequence === 104) {
         return {
           sessionId: 'e2e-codex-session',
-          itemId: 'e2e-codex-item-44',
+          itemId: 'e2e-codex-item-104',
           turnId: 'e2e-codex-turn-1',
           kind: 'tool_result',
           status: 'completed',
-          sequence: '44',
+          sequence: '104',
           content: null,
           contentType: 'application/json',
           toolName: 'apply_patch',
@@ -547,27 +576,42 @@ const sessionItemsBySessionId = new Map([
           createdAt,
         };
       }
-      if (sequence === 43) {
+      if (sequence === 103) {
         return {
           sessionId: 'e2e-codex-session',
-          itemId: 'e2e-codex-item-43',
+          itemId: 'e2e-codex-item-103',
           turnId: 'e2e-codex-turn-1',
-          kind: 'assistant_output',
+          kind: 'tool_result',
           status: 'completed',
-          sequence: '43',
-          content: 'Codex completed the provider-neutral file presentation.',
-          contentType: 'text/markdown',
+          sequence: '103',
+          content: null,
+          contentType: 'application/json',
+          toolName: 'provider_event',
+          toolCallId: 'e2e-codex-agent-message-1',
+          toolResult: {
+            method: 'item/completed',
+            params: {
+              threadId: 'e2e-codex-session',
+              turnId: 'e2e-codex-turn-1',
+              completedAtMs: Date.parse(createdAt),
+              item: {
+                id: 'e2e-codex-agent-message-1',
+                type: 'agentMessage',
+                text: 'Codex completed the provider-neutral file presentation.',
+              },
+            },
+          },
           createdAt,
         };
       }
-      if (sequence === 42) {
+      if (sequence === 102) {
         return {
           sessionId: 'e2e-codex-session',
           itemId: 'e2e-codex-user-text',
           turnId: 'e2e-codex-multimodal-turn',
           kind: 'user_input',
           status: 'completed',
-          sequence: '42',
+          sequence: '102',
           content: [
             '# Files mentioned by the user:',
             '',
@@ -583,28 +627,28 @@ const sessionItemsBySessionId = new Map([
           createdAt: '2026-01-01T00:00:42.004Z',
         };
       }
-      if (sequence === 41) {
+      if (sequence === 101) {
         return {
           sessionId: 'e2e-codex-session',
           itemId: 'e2e-codex-user-image-placeholder',
           turnId: 'e2e-codex-multimodal-turn',
           kind: 'artifact_reference',
           status: 'completed',
-          sequence: '41',
+          sequence: '101',
           content: '<image name=[Image #1] path="C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png">',
           contentType: 'text/plain',
           providerId: 'openai',
           createdAt: '2026-01-01T00:00:42.003Z',
         };
       }
-      if (sequence === 40) {
+      if (sequence === 100) {
         return {
           sessionId: 'e2e-codex-session',
           itemId: 'e2e-codex-user-image',
           turnId: 'e2e-codex-multimodal-turn',
           kind: 'artifact_reference',
           status: 'completed',
-          sequence: '40',
+          sequence: '100',
           content: JSON.stringify({
             type: 'input_image',
             image_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
@@ -633,11 +677,17 @@ const sessionItemsBySessionId = new Map([
         sessionId: 'e2e-gemini-session',
         itemId: 'e2e-gemini-item-3',
         turnId: 'e2e-gemini-turn-1',
-        kind: 'assistant_output',
+        kind: 'tool_result',
         status: 'completed',
         sequence: '3',
-        content: 'Gemini preserved the file change before the blocked event.',
-        contentType: 'text/markdown',
+        content: null,
+        contentType: 'application/json',
+        toolName: 'provider_event',
+        toolCallId: 'e2e-gemini-content-1',
+        toolResult: {
+          type: 'content',
+          value: 'Gemini preserved the file change before the blocked event.',
+        },
         createdAt: '2026-01-01T00:05:03.000Z',
       },
       {

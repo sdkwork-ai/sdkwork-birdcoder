@@ -13,6 +13,7 @@ import {
   formatAgentSessionActivityDisplayTime,
   formatAgentSessionDisplayTime,
   isAgentSessionItemVisibleInTranscript,
+  mergeAgentSessionItemReasoning,
   normalizeAgentSessionItemResources,
   normalizeAgentSessionItemLifecycleEvents,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -30,6 +31,7 @@ import {
   type AgentSessionUserContentProjection,
   type AgentSessionUserContentProviderIdentity,
 } from './agentSessionUserContent.ts';
+import { resolveAgentSessionProviderPayload } from './agentSessionProviderPayload.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -209,6 +211,7 @@ function resolveDriveResourceKind(
 function resolveItemResources(
   item: AgentSessionItemRecord,
   providerProjection?: AgentSessionUserContentProjection | null,
+  providerPayloadResources?: readonly AgentSessionItemResourceView[],
 ): AgentSessionItemResourceView[] | undefined {
   const driveRefs = Array.isArray(item.driveRefs) ? item.driveRefs : [];
   const driveResources = driveRefs
@@ -228,6 +231,7 @@ function resolveItemResources(
   const resources = normalizeAgentSessionItemResources([
     ...driveResources,
     ...(providerProjection?.resources ?? []),
+    ...(providerPayloadResources ?? []),
   ]);
   if (resources.length < 2) {
     return resources.length > 0 ? resources : undefined;
@@ -343,11 +347,30 @@ function readProviderNativeToolPayload(value: unknown): Record<string, unknown> 
   if (!record) {
     return null;
   }
-  if (readRecord(record.item) || readRecord(record.part)
-    || readRecord(record.contentBlock) || readRecord(record.content_block)) {
-    return record;
+  const envelopeRecords = [
+    record,
+    readRecord(record.params),
+    readRecord(record.properties),
+    readRecord(record.payload),
+  ];
+  for (const envelope of envelopeRecords) {
+    if (!envelope) {
+      continue;
+    }
+    if (readRecord(envelope.item) || readRecord(envelope.part)
+      || readRecord(envelope.contentBlock) || readRecord(envelope.content_block)) {
+      return record;
+    }
+    const envelopeType = readNonEmptyString(envelope.type)
+      .toLowerCase()
+      .replace(/[./\-\s]+/gu, '_');
+    if (PROVIDER_NATIVE_TOOL_TYPES.has(envelopeType)) {
+      return record;
+    }
   }
-  const type = readNonEmptyString(record.type).toLowerCase().replace(/[.\-\s]+/gu, '_');
+  const type = readNonEmptyString(record.type ?? record.method)
+    .toLowerCase()
+    .replace(/[./\-\s]+/gu, '_');
   return PROVIDER_NATIVE_TOOL_TYPES.has(type) ? record : null;
 }
 
@@ -419,12 +442,31 @@ export function toAgentSessionItemView(
 ): AgentSessionItemView {
   const noticeKind = resolveItemNoticeKind(item);
   const userContent = resolveAgentSessionUserContent(item, providerIdentity);
+  const completedAt = item.completedAt
+    ?? (['completed', 'failed', 'cancelled'].includes(item.status) ? item.updatedAt : undefined);
+  const providerPayload = item.kind === 'tool_call' || item.kind === 'tool_result'
+    ? resolveAgentSessionProviderPayload(
+        [item.toolResult, item.toolArguments],
+        {
+          completedAt,
+          createdAt: item.createdAt,
+          itemId: item.itemId,
+        },
+      )
+    : null;
+  const reasoning = mergeAgentSessionItemReasoning(
+    resolveItemReasoning(item),
+    providerPayload?.reasoning,
+  );
   return {
     id: item.itemId,
     sessionId: item.sessionId,
     turnId: item.turnId ?? undefined,
-    role: resolveItemRole(item.kind),
-    content: userContent?.content ?? resolveItemContent(item),
+    role: providerPayload?.role ?? resolveItemRole(item.kind),
+    content: userContent?.content
+      ?? (providerPayload
+        ? providerPayload.content ?? ''
+        : resolveItemContent(item)),
     metadata: {
       agentItemKind: item.kind,
       agentItemSequence: item.sequence,
@@ -438,14 +480,17 @@ export function toAgentSessionItemView(
       ...(noticeKind ? { noticeKind } : {}),
     },
     createdAt: item.createdAt,
+    completedAt,
     timestamp: Date.parse(item.createdAt),
     name: item.toolName ?? undefined,
-    tool_calls: resolveItemToolCalls(item),
+    tool_calls: providerPayload?.consumesToolPayload
+      ? providerPayload.toolCalls
+      : resolveItemToolCalls(item),
     tool_call_id: item.toolCallId ?? undefined,
     fileChanges: resolveAgentSessionFileChanges(item.toolResult),
     lifecycleEvents: resolveItemLifecycleEvents(item),
-    reasoning: resolveItemReasoning(item),
-    resources: resolveItemResources(item, userContent),
+    reasoning: reasoning.length > 0 ? reasoning : undefined,
+    resources: resolveItemResources(item, userContent, providerPayload?.resources),
   };
 }
 

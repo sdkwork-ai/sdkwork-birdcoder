@@ -3,6 +3,27 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 
+interface SessionActivitySummaryFixture {
+  latestTurn?: {
+    completedAt?: string | null;
+    responseItemId?: string | null;
+    status?: string;
+  };
+  presentationPhase?: string;
+  providerActivity?: {
+    state?: string | null;
+  } | null;
+  session?: {
+    sessionId?: string;
+  };
+}
+
+interface SessionActivitySummaryEnvelopeFixture {
+  data?: {
+    items?: SessionActivitySummaryFixture[];
+  };
+}
+
 async function bootstrapAuthenticatedSession(
   page: Page,
   request: APIRequestContext,
@@ -41,6 +62,21 @@ async function expandProjectSessions(page: Page): Promise<void> {
   await expect(codexSession).toBeVisible();
 }
 
+async function waitForTranscriptSettlement(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let remainingFrames = 12;
+    const waitForNextFrame = () => {
+      remainingFrames -= 1;
+      if (remainingFrames <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(waitForNextFrame);
+    };
+    window.requestAnimationFrame(waitForNextFrame);
+  }));
+}
+
 test('Session transcript survives rapid reselection and completes a sent turn', async ({
   page,
   request,
@@ -50,6 +86,7 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   let codexItemRequestCount = 0;
+  const codexItemRequestedPages: number[] = [];
   let codexTurnRequestCount = 0;
 
   page.on('console', (message) => {
@@ -58,6 +95,25 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
     }
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.route(/\/app\/v3\/api\/ai\/session_activity_summaries(?:\?.*)?$/u, async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json() as SessionActivitySummaryEnvelopeFixture;
+    const codexActivity = payload.data?.items?.find(
+      (item) => item.session?.sessionId === 'e2e-codex-session',
+    );
+    if (codexActivity) {
+      codexActivity.presentationPhase = 'idle';
+      if (codexActivity.providerActivity) {
+        codexActivity.providerActivity.state = 'idle';
+      }
+      if (codexActivity.latestTurn) {
+        codexActivity.latestTurn.status = 'completed';
+        codexActivity.latestTurn.responseItemId = 'activity-response-item.e2e-codex-session';
+        codexActivity.latestTurn.completedAt = '2026-01-01T00:20:00.000Z';
+      }
+    }
+    await route.fulfill({ response, json: payload });
+  });
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (
@@ -69,6 +125,9 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   });
   await page.route(/\/e2e-codex-session\/items(?:\?.*)?$/u, async (route) => {
     codexItemRequestCount += 1;
+    codexItemRequestedPages.push(
+      Number(new URL(route.request().url()).searchParams.get('page') ?? 1),
+    );
     if (codexItemRequestCount === 1) {
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
@@ -90,7 +149,11 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   await expect.poll(() => codexItemRequestCount).toBeGreaterThanOrEqual(2);
-  await expect(transcript.getByText('Codex historical message 45', { exact: true })).toBeVisible();
+  await expect(transcript.getByText(
+    'Codex completed the provider-neutral file presentation.',
+    { exact: true },
+  )).toBeVisible();
+  expect(codexItemRequestedPages.every((pageNumber) => pageNumber === 1)).toBe(true);
 
   const loadEarlierMessages = transcript.getByRole('button', {
     name: 'Load earlier messages',
@@ -98,10 +161,44 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   });
   await expect(loadEarlierMessages).toBeVisible();
   await loadEarlierMessages.click();
-  await expect(transcript.getByText('Codex historical message 6', { exact: true })).toBeVisible();
-  await loadEarlierMessages.click();
-  await expect(transcript.getByText('Codex historical message 1', { exact: true })).toBeVisible();
+  await expect.poll(() => codexItemRequestedPages.includes(2)).toBe(true);
+  await expect(page.getByRole('button', {
+    name: /Go to conversation turn .*Codex historical message 7$/u,
+  })).toHaveCount(1);
+  const pageThreeResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/e2e-codex-session/items')
+      && url.searchParams.get('page') === '3';
+  });
+  for (
+    let attempt = 0;
+    attempt < 3 && !codexItemRequestedPages.includes(3);
+    attempt += 1
+  ) {
+    await transcript.focus();
+    await page.keyboard.press('Home');
+    await waitForTranscriptSettlement(page);
+  }
+  await expect.poll(() => codexItemRequestedPages.includes(3)).toBe(true);
+  expect((await pageThreeResponse).ok()).toBe(true);
   await expect(loadEarlierMessages).toHaveCount(0);
+  await expect(page.getByRole('button', {
+    name: /Go to conversation turn .*Codex historical message 1$/u,
+  })).toHaveCount(1);
+  const earliestCodexMessage = transcript.getByText(
+    'Codex historical message 1',
+    { exact: true },
+  );
+  for (
+    let attempt = 0;
+    attempt < 3 && await earliestCodexMessage.count() === 0;
+    attempt += 1
+  ) {
+    await transcript.focus();
+    await page.keyboard.press('Home');
+    await waitForTranscriptSettlement(page);
+  }
+  await expect(earliestCodexMessage).toBeVisible();
 
   const message = `E2E session send verification ${Date.now()}`;
   const composer = page.locator(
@@ -121,6 +218,10 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   });
   await page.locator('button[title="Send message"]:visible').click();
   await expect.poll(() => codexTurnRequestCount).toBe(1);
+  await page.getByRole('button', {
+    name: 'Jump to latest message',
+    exact: true,
+  }).click();
   await expect(transcript.getByText(firstAssistantDelta, { exact: true })).toBeVisible();
   const submittedTurnResponse = await turnResponse;
   expect(submittedTurnResponse.ok()).toBe(true);
@@ -138,6 +239,7 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   await expect(transcript.getByText(assistantResponse, {
     exact: true,
   })).toHaveCount(1);
+  await expect(loadEarlierMessages).toHaveCount(0);
   await expect(composer).toHaveValue('');
   await expect(page.getByText(/Cannot read properties of undefined/iu)).toHaveCount(0);
   expect(pageErrors).toEqual([]);

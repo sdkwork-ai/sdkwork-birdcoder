@@ -25,6 +25,10 @@ const TRANSCRIPT_AGENT_SESSION_ITEM_KINDS = new Set([
   'error_notice',
 ]);
 
+const INTERNAL_AGENT_SESSION_ITEM_KINDS = new Set([
+  'system_instruction',
+]);
+
 const CODEX_AGENTS_MD_INSTRUCTIONS_PREFIX = '# agents.md instructions for ';
 
 function readMetadataString(
@@ -68,7 +72,7 @@ export function isAgentSessionItemVisibleInTranscript(
   item: AgentSessionItemViewSource,
 ): boolean {
   const sourceKind = resolveAgentSessionItemSourceKind(item);
-  if (sourceKind && !isAgentSessionItemKindIncludedInTranscript(sourceKind)) {
+  if (sourceKind && INTERNAL_AGENT_SESSION_ITEM_KINDS.has(sourceKind)) {
     return false;
   }
   if (

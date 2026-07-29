@@ -515,8 +515,31 @@ assert.equal(
     ...transientItemView,
     metadata: { agentItemKind: 'future_internal_context' },
   }),
-  false,
-  'unknown canonical item kinds must stay hidden until their transcript presentation is defined.',
+  true,
+  'unknown non-system Session Item kinds must degrade visibly instead of being silently discarded.',
+);
+const unknownItemPresentation = resolveAgentSessionItemPresentation({
+  ...transientItemView,
+  id: 'agent-item-future-provider-event',
+  role: 'tool',
+  content: '',
+  metadata: {
+    agentItemKind: 'future_provider_event',
+    agentItemStatus: 'completed',
+  },
+  name: undefined,
+  tool_calls: undefined,
+});
+assert.deepEqual(
+  unknownItemPresentation.blocks.map((block) => block.type),
+  ['notice'],
+  'an unknown empty event must retain a generic visible presentation block.',
+);
+assert.equal(
+  unknownItemPresentation.blocks[0]?.type === 'notice'
+    ? unknownItemPresentation.blocks[0].title
+    : undefined,
+  'Future provider event',
 );
 assert.equal(statusNoticeView.metadata?.noticeKind, 'info');
 assert.equal(errorNoticeView.metadata?.noticeKind, 'failed');
@@ -717,6 +740,426 @@ assert.equal(normalizedOpenCodeTool?.id, 'opencode-call-1');
 assert.equal(normalizedOpenCodeTool?.name, 'mcp__docs__search');
 assert.equal(normalizedOpenCodeTool?.status, 'success');
 assert.equal(normalizedOpenCodeTool?.output, 'found');
+
+const providerContentFixtures = [
+  {
+    engineId: 'opencode',
+    itemId: 'agent-item-opencode-text-part',
+    payload: {
+      type: 'message.part.updated',
+      properties: {
+        part: {
+          id: 'opencode-text-part-1',
+          type: 'text',
+          text: 'OPENCODE_VISIBLE_SENTINEL',
+        },
+      },
+    },
+    visibleText: 'OPENCODE_VISIBLE_SENTINEL',
+  },
+  {
+    engineId: 'codex',
+    itemId: 'agent-item-codex-agent-message',
+    payload: {
+      method: 'item/completed',
+      params: {
+        item: {
+          id: 'codex-agent-message-1',
+          type: 'agentMessage',
+          text: 'CODEX_VISIBLE_SENTINEL',
+        },
+      },
+    },
+    visibleText: 'CODEX_VISIBLE_SENTINEL',
+  },
+  {
+    engineId: 'claude-code',
+    itemId: 'agent-item-claude-assistant-message',
+    payload: {
+      type: 'assistant',
+      message: {
+        id: 'claude-assistant-message-1',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'CLAUDE_VISIBLE_SENTINEL' }],
+      },
+    },
+    visibleText: 'CLAUDE_VISIBLE_SENTINEL',
+  },
+  {
+    engineId: 'gemini',
+    itemId: 'agent-item-gemini-content-event',
+    payload: {
+      type: 'content',
+      value: 'GEMINI_VISIBLE_SENTINEL',
+    },
+    visibleText: 'GEMINI_VISIBLE_SENTINEL',
+  },
+] as const;
+
+for (const fixture of providerContentFixtures) {
+  const providerContentView = toAgentSessionItemView({
+    ...canonicalToolItem,
+    itemId: fixture.itemId,
+    toolName: 'provider_event',
+    toolCallId: `${fixture.itemId}-call`,
+    toolResult: fixture.payload,
+  });
+  assert.equal(
+    providerContentView.role,
+    'assistant',
+    `${fixture.engineId} native assistant content must project to the assistant role.`,
+  );
+  assert.equal(providerContentView.content, fixture.visibleText);
+  assert.equal(providerContentView.tool_calls, undefined);
+  assert.equal(
+    resolveAgentSessionItemPresentation(providerContentView, {
+      engineId: fixture.engineId,
+    }).blocks.some((block) =>
+      block.type === 'markdown' && block.content.includes(fixture.visibleText),
+    ),
+    true,
+    `${fixture.engineId} native assistant content must have a visible transcript block.`,
+  );
+}
+
+const providerStreamingContentFixtures = [
+  {
+    engineId: 'opencode',
+    itemId: 'agent-item-opencode-text-delta',
+    payload: {
+      type: 'message.part.delta',
+      properties: {
+        sessionID: 'opencode-session-1',
+        messageID: 'opencode-message-1',
+        partID: 'opencode-text-part-1',
+        field: 'text',
+        delta: 'OPENCODE_DELTA_SENTINEL',
+      },
+    },
+    visibleText: 'OPENCODE_DELTA_SENTINEL',
+  },
+  {
+    engineId: 'codex',
+    itemId: 'agent-item-codex-agent-message-delta',
+    payload: {
+      method: 'item/agentMessage/delta',
+      params: {
+        threadId: 'codex-thread-1',
+        turnId: 'codex-turn-1',
+        itemId: 'codex-agent-message-1',
+        delta: 'CODEX_DELTA_SENTINEL',
+      },
+    },
+    visibleText: 'CODEX_DELTA_SENTINEL',
+  },
+  {
+    engineId: 'claude-code',
+    itemId: 'agent-item-claude-stream-event',
+    payload: {
+      type: 'stream_event',
+      event: {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'text_delta',
+          text: 'CLAUDE_DELTA_SENTINEL',
+        },
+      },
+    },
+    visibleText: 'CLAUDE_DELTA_SENTINEL',
+  },
+  {
+    engineId: 'gemini',
+    itemId: 'agent-item-gemini-jsonl-message',
+    payload: {
+      type: 'message',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      role: 'assistant',
+      content: 'GEMINI_JSONL_SENTINEL',
+      delta: true,
+    },
+    visibleText: 'GEMINI_JSONL_SENTINEL',
+  },
+] as const;
+
+for (const fixture of providerStreamingContentFixtures) {
+  const providerContentView = toAgentSessionItemView({
+    ...canonicalToolItem,
+    itemId: fixture.itemId,
+    toolName: 'provider_event',
+    toolCallId: `${fixture.itemId}-call`,
+    toolResult: fixture.payload,
+  });
+  assert.equal(providerContentView.role, 'assistant');
+  assert.equal(providerContentView.content, fixture.visibleText);
+  assert.equal(providerContentView.tool_calls, undefined);
+  assert.equal(
+    resolveAgentSessionItemPresentation(providerContentView, {
+      engineId: fixture.engineId,
+    }).blocks.some((block) =>
+      block.type === 'markdown' && block.content.includes(fixture.visibleText),
+    ),
+    true,
+    `${fixture.engineId} streaming protocol envelopes must remain visible.`,
+  );
+}
+
+const codexReasoningDeltaView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-reasoning-delta',
+  toolName: 'provider_event',
+  toolCallId: 'codex-reasoning-delta-1',
+  toolResult: {
+    method: 'item/reasoning/summaryTextDelta',
+    params: {
+      threadId: 'codex-thread-1',
+      turnId: 'codex-turn-1',
+      itemId: 'codex-reasoning-1',
+      delta: 'CODEX_REASONING_DELTA_SENTINEL',
+      summaryIndex: 0,
+    },
+  },
+});
+assert.equal(
+  codexReasoningDeltaView.reasoning?.[0]?.summary,
+  'CODEX_REASONING_DELTA_SENTINEL',
+  'Codex JSON-RPC reasoning deltas must project as structured reasoning.',
+);
+
+const providerReasoningFixtures = [
+  {
+    engineId: 'opencode',
+    itemId: 'agent-item-opencode-reasoning-part',
+    payload: {
+      part: {
+        id: 'opencode-reasoning-1',
+        type: 'reasoning',
+        text: 'OPENCODE_REASONING_SENTINEL',
+      },
+    },
+    summary: 'OPENCODE_REASONING_SENTINEL',
+  },
+  {
+    engineId: 'codex',
+    itemId: 'agent-item-codex-reasoning-item',
+    payload: {
+      item: {
+        id: 'codex-reasoning-1',
+        type: 'reasoning',
+        summary: ['CODEX_REASONING_SENTINEL'],
+        content: [],
+      },
+    },
+    summary: 'CODEX_REASONING_SENTINEL',
+  },
+  {
+    engineId: 'claude-code',
+    itemId: 'agent-item-claude-thinking-block',
+    payload: {
+      type: 'assistant',
+      message: {
+        id: 'claude-thinking-message-1',
+        role: 'assistant',
+        content: [{ type: 'thinking', thinking: 'CLAUDE_REASONING_SENTINEL' }],
+      },
+    },
+    summary: 'CLAUDE_REASONING_SENTINEL',
+  },
+  {
+    engineId: 'gemini',
+    itemId: 'agent-item-gemini-thought-event',
+    payload: {
+      type: 'thought',
+      value: {
+        subject: 'Gemini plan',
+        description: 'GEMINI_REASONING_SENTINEL',
+      },
+    },
+    summary: 'GEMINI_REASONING_SENTINEL',
+  },
+] as const;
+
+for (const fixture of providerReasoningFixtures) {
+  const providerReasoningView = toAgentSessionItemView({
+    ...canonicalToolItem,
+    itemId: fixture.itemId,
+    toolName: 'provider_event',
+    toolCallId: `${fixture.itemId}-call`,
+    toolResult: fixture.payload,
+  });
+  assert.equal(providerReasoningView.role, 'assistant');
+  assert.equal(providerReasoningView.content, '');
+  assert.equal(providerReasoningView.reasoning?.[0]?.summary, fixture.summary);
+  assert.equal(
+    resolveAgentSessionItemPresentation(providerReasoningView, {
+      engineId: fixture.engineId,
+    }).blocks.some((block) =>
+      block.type === 'reasoning'
+      && block.items.some((item) => item.summary === fixture.summary),
+    ),
+    true,
+    `${fixture.engineId} native reasoning must have a visible structured disclosure.`,
+  );
+}
+
+const claudeMixedContentView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-claude-mixed-content',
+  toolName: 'provider_event',
+  toolCallId: 'claude-mixed-content-1',
+  toolResult: {
+    type: 'assistant',
+    message: {
+      id: 'claude-mixed-content-1',
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: 'Inspect the requested file.' },
+        { type: 'text', text: 'The file is ready.' },
+        {
+          type: 'tool_use',
+          id: 'claude-read-1',
+          name: 'Read',
+          input: { file_path: 'src/index.ts' },
+        },
+      ],
+    },
+  },
+});
+assert.equal(claudeMixedContentView.content, 'The file is ready.');
+assert.equal(claudeMixedContentView.reasoning?.[0]?.summary, 'Inspect the requested file.');
+assert.equal(claudeMixedContentView.tool_calls?.length, 1);
+assert.equal(
+  normalizeAgentSessionItemToolCalls(
+    claudeMixedContentView.tool_calls,
+    { engineId: 'claude-code' },
+  )[0]?.name,
+  'Read',
+  'Claude mixed assistant blocks must preserve nested tool use beside text and thinking.',
+);
+
+const openCodeFilePartView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-opencode-file-part',
+  toolName: 'provider_event',
+  toolCallId: 'opencode-file-part-1',
+  toolResult: {
+    part: {
+      id: 'opencode-file-part-1',
+      type: 'file',
+      mime: 'image/png',
+      filename: 'opencode-preview.png',
+      url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB',
+      source: {
+        type: 'file',
+        path: 'src/opencode-preview.png',
+        text: { value: 'preview', start: 0, end: 7 },
+      },
+    },
+  },
+});
+assert.equal(openCodeFilePartView.role, 'assistant');
+assert.equal(openCodeFilePartView.resources?.[0]?.kind, 'image');
+assert.equal(openCodeFilePartView.resources?.[0]?.name, 'opencode-preview.png');
+assert.equal(openCodeFilePartView.resources?.[0]?.path, 'src/opencode-preview.png');
+
+const openCodeToolAttachmentView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-opencode-tool-attachment',
+  toolName: 'provider_event',
+  toolCallId: 'opencode-tool-attachment-1',
+  toolResult: {
+    type: 'message.part.updated',
+    properties: {
+      part: {
+        id: 'opencode-tool-attachment-1',
+        type: 'tool',
+        callID: 'opencode-tool-attachment-1',
+        tool: 'read',
+        state: {
+          status: 'completed',
+          input: { filePath: 'src/generated.png' },
+          output: 'Generated preview.',
+          attachments: [{
+            id: 'opencode-tool-image-1',
+            type: 'file',
+            mime: 'image/png',
+            filename: 'generated.png',
+            url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB',
+          }],
+          time: { start: 1, end: 2 },
+        },
+      },
+    },
+  },
+});
+assert.equal(openCodeToolAttachmentView.tool_calls?.length, 1);
+assert.equal(openCodeToolAttachmentView.resources?.[0]?.kind, 'image');
+assert.equal(openCodeToolAttachmentView.resources?.[0]?.name, 'generated.png');
+
+const codexImageView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-image-view',
+  toolName: 'provider_event',
+  toolCallId: 'codex-image-view-1',
+  toolResult: {
+    method: 'item/completed',
+    params: {
+      threadId: 'codex-thread-1',
+      turnId: 'codex-turn-1',
+      item: {
+        id: 'codex-image-view-1',
+        type: 'imageView',
+        path: 'E:\\workspace\\codex-preview.png',
+      },
+    },
+  },
+});
+assert.equal(codexImageView.resources?.[0]?.kind, 'image');
+assert.equal(codexImageView.resources?.[0]?.path, 'E:\\workspace\\codex-preview.png');
+
+const geminiToolRequestView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-gemini-tool-request',
+  toolName: 'provider_event',
+  toolCallId: 'gemini-tool-request-1',
+  toolResult: {
+    type: 'tool_call_request',
+    value: {
+      callId: 'gemini-tool-request-1',
+      name: 'read_file',
+      args: { path: 'README.md' },
+    },
+  },
+});
+assert.equal(geminiToolRequestView.tool_calls?.length, 1);
+assert.equal(
+  normalizeAgentSessionItemToolCalls(
+    geminiToolRequestView.tool_calls,
+    { engineId: 'gemini' },
+  )[0]?.name,
+  'read_file',
+  'Gemini tool request events must use the shared structured tool renderer.',
+);
+
+const boundedProviderPayloadView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-bounded-provider-payload',
+  toolName: 'provider_event',
+  toolCallId: 'bounded-provider-payload-1',
+  toolResult: {
+    part: Array.from({ length: 256 }, (_, index) => ({
+      id: `provider-text-${index}`,
+      type: 'text',
+      text: `provider text ${index}`,
+    })),
+  },
+});
+assert.equal(boundedProviderPayloadView.content.split('\n\n').length, 32);
+assert.doesNotMatch(
+  boundedProviderPayloadView.content,
+  /provider text 200/u,
+  'provider projection must bound queued values and retained text before React rendering.',
+);
 
 const commandText = 'pnpm typecheck';
 const canonicalCommandCall: AgentSessionItemRecord = {

@@ -35,9 +35,10 @@ import {
   validateAgentSessionActivitySummary,
 } from './workspaceSessionInboxSync.ts';
 
-const AGENT_SESSION_ITEM_PAGE_SIZE = 20;
+const AGENT_SESSION_ITEM_PAGE_SIZE = 50;
 const AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT = 5;
 const AGENT_SESSION_HISTORY_PROGRESS_PAGE_LIMIT = 10;
+const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
@@ -516,6 +517,7 @@ async function loadSessionItemPage(
     throw new Error('Agents session item list returned an empty page with hasMore=true.');
   }
   const itemIds = new Set<string>();
+  let previousSequence: bigint | undefined;
   for (const item of page.items) {
     const itemId = typeof item.itemId === 'string' ? item.itemId.trim() : '';
     const itemSessionId = typeof item.sessionId === 'string' ? item.sessionId.trim() : '';
@@ -528,11 +530,21 @@ async function loadSessionItemPage(
     itemIds.add(itemId);
 
     const sequence = typeof item.sequence === 'string' ? item.sequence.trim() : '';
+    if (!/^[0-9]+$/u.test(sequence)) {
+      throw new Error('Agents session item list returned an invalid Session Item sequence.');
+    }
+    let parsedSequence: bigint;
     try {
-      BigInt(sequence);
+      parsedSequence = BigInt(sequence);
     } catch {
       throw new Error('Agents session item list returned an invalid Session Item sequence.');
     }
+    if (previousSequence !== undefined && parsedSequence > previousSequence) {
+      throw new Error(
+        'Agents session item list did not honor the requested descending sequence order.',
+      );
+    }
+    previousSequence = parsedSequence;
   }
   return {
     items: page.items,
@@ -546,6 +558,31 @@ interface LatestSessionItemWindow {
   replaceLoadedAuthorityWindow: boolean;
 }
 
+function buildLoadedConversationTurnKeys(
+  existingItems: readonly AgentSessionItemView[],
+): Set<string> {
+  return new Set(existingItems.flatMap((item) => {
+    if (item.role !== 'user' || isTransientSessionItem(item)) {
+      return [];
+    }
+    const turnId = item.turnId?.trim() ?? '';
+    return [turnId ? `turn:${turnId}` : `item:${item.id.trim()}`];
+  }));
+}
+
+function appendVisibleAuthorityConversationTurnKeys(
+  turnKeys: Set<string>,
+  items: readonly AgentSessionItemRecord[],
+): void {
+  for (const item of normalizeSessionItemRecords(items)) {
+    if (item.role !== 'user') {
+      continue;
+    }
+    const turnId = item.turnId?.trim() ?? '';
+    turnKeys.add(turnId ? `turn:${turnId}` : `item:${item.id.trim()}`);
+  }
+}
+
 async function loadLatestSessionItemWindow(
   service: IAgentSessionService,
   sessionId: string,
@@ -554,20 +591,23 @@ async function loadLatestSessionItemWindow(
 ): Promise<LatestSessionItemWindow> {
   const authorityItemIds = buildAuthoritySessionItemIds(existingItems);
   const firstPage = await loadSessionItemPage(service, sessionId, 1, signal);
-  if (authorityItemIds.size === 0 || !firstPage.pageInfo.hasMore) {
-    return {
-      itemPageInfo: firstPage.pageInfo,
-      items: firstPage.items,
-      replaceLoadedAuthorityWindow: existingItems.length > 0,
-    };
-  }
-
   const pages = [firstPage];
-  let overlapsLoadedWindow = firstPage.items.some((item) => authorityItemIds.has(item.itemId));
+  const loadedConversationTurnKeys = new Set<string>();
+  appendVisibleAuthorityConversationTurnKeys(loadedConversationTurnKeys, firstPage.items);
+  const loadedConversationTurnCount = buildLoadedConversationTurnKeys(existingItems).size;
+  let overlapsLoadedWindow = authorityItemIds.size === 0
+    || firstPage.items.some((item) => authorityItemIds.has(item.itemId));
+  const hasEnoughConversationContext = () =>
+    loadedConversationTurnKeys.size >= AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET
+    || (
+      authorityItemIds.size > 0
+      && overlapsLoadedWindow
+      && loadedConversationTurnCount >= AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET
+    );
   while (
-    !overlapsLoadedWindow
-    && pages.at(-1)?.pageInfo.hasMore
+    pages.at(-1)?.pageInfo.hasMore
     && pages.length < AGENT_SESSION_HEAD_RECONCILIATION_PAGE_LIMIT
+    && (!overlapsLoadedWindow || !hasEnoughConversationContext())
   ) {
     signal.throwIfAborted();
     const nextPage = await loadSessionItemPage(
@@ -577,7 +617,9 @@ async function loadLatestSessionItemWindow(
       signal,
     );
     pages.push(nextPage);
-    overlapsLoadedWindow = nextPage.items.some((item) => authorityItemIds.has(item.itemId));
+    appendVisibleAuthorityConversationTurnKeys(loadedConversationTurnKeys, nextPage.items);
+    overlapsLoadedWindow = overlapsLoadedWindow
+      || nextPage.items.some((item) => authorityItemIds.has(item.itemId));
   }
 
   return {
@@ -585,7 +627,9 @@ async function loadLatestSessionItemWindow(
     items: pages.flatMap((page) => page.items),
     // A stale window that cannot be joined within the request budget must be
     // replaced. Retaining it would render a transcript with a silent gap.
-    replaceLoadedAuthorityWindow: !overlapsLoadedWindow,
+    replaceLoadedAuthorityWindow: authorityItemIds.size === 0
+      ? existingItems.length > 0
+      : !overlapsLoadedWindow,
   };
 }
 

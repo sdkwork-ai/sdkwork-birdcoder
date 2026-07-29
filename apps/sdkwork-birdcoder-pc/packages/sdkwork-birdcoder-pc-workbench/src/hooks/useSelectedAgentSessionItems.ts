@@ -35,6 +35,11 @@ export interface UseSelectedAgentSessionItemsOptions {
   selectedProject?: AgentProjectView | null;
 }
 
+interface SelectedAgentSessionItemsLoadingState {
+  isLoading: boolean;
+  requestKey: string;
+}
+
 function normalize(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }
@@ -54,7 +59,10 @@ export function useSelectedAgentSessionItems({
   selectedProject,
 }: UseSelectedAgentSessionItemsOptions): boolean {
   const { sessionRevision, user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState<SelectedAgentSessionItemsLoadingState>({
+    isLoading: false,
+    requestKey: '',
+  });
   const [pollRevision, setPollRevision] = useState(0);
   const activeRequestKeyRef = useRef<string | null>(null);
   const selectedAgentSessionRef = useRef(selectedAgentSession);
@@ -89,6 +97,14 @@ export function useSelectedAgentSessionItems({
       refreshScopeKey,
       selectionRefreshToken,
     ],
+  );
+  const isLoading = Boolean(
+    isActive
+    && normalizedSessionId
+    && (
+      loadingState.requestKey !== requestKey
+      || loadingState.isLoading
+    )
   );
 
   useEffect(() => {
@@ -134,7 +150,7 @@ export function useSelectedAgentSessionItems({
   useEffect(() => {
     if (!isActive || !normalizedSessionId || activeRequestKeyRef.current === requestKey) {
       if (!isActive || !normalizedSessionId) {
-        setIsLoading(false);
+        setLoadingState({ isLoading: false, requestKey });
       }
       return undefined;
     }
@@ -143,7 +159,7 @@ export function useSelectedAgentSessionItems({
     const controller = new AbortController();
     const requestAgentSession = selectedAgentSessionRef.current;
     const requestProject = selectedProjectRef.current;
-    setIsLoading(true);
+    setLoadingState({ isLoading: true, requestKey });
 
     void refreshAgentSessionItems({
       agentSessionService,
@@ -220,7 +236,7 @@ export function useSelectedAgentSessionItems({
           if (activeRequestKeyRef.current === requestKey) {
             activeRequestKeyRef.current = null;
           }
-          setIsLoading(false);
+          setLoadingState({ isLoading: false, requestKey });
         }
       });
 

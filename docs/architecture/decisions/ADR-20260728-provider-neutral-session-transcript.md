@@ -37,6 +37,20 @@ behavior. Provider profiles may narrow semantic capabilities, but they do not
 fork the base transcript spacing, typography, action placement, or component
 tree.
 
+The adapter accepts both canonical Agents Session Items and provider-native
+payloads that have not yet been split by the runtime. It normalizes OpenCode
+`message.part.updated` / `message.part.delta` envelopes and text, reasoning,
+file, tool, and attachment parts; Codex JSON-RPC item/delta envelopes,
+`agentMessage`, `plan`, `reasoning`, `output_text`, and `imageView` items;
+Claude assistant and `stream_event` text, thinking, and nested tool-use blocks;
+and Gemini core events, JSONL assistant messages, thoughts, citations, and tool
+events into the same presentation fields. The traversal retains at most 128
+payload values, 64,000 visible text characters, and 32 text or reasoning
+entries. Unknown
+non-system Session Item kinds receive a bounded generic notice; explicit
+`system_instruction` facts and injected Codex `AGENTS.md` instructions remain
+the internal-noise allowlist and never enter the transcript.
+
 Turn grouping prefers canonical `turnId`; when it is unavailable, it falls back
 to the user-to-user transcript boundary. This grouping is rendering-only,
 memory-only state and is never persisted or described as an authority.
@@ -55,7 +69,7 @@ visible text so delayed dispatch is protocol-equivalent to immediate dispatch.
 Provider data is bounded before it reaches React. A Session Item retains at
 most 32 resources and 256 file-change rows. Each file-change path is limited to
 4,096 characters, each diff or before/after snapshot to 2 MiB, and the retained
-file-change text for one projection to 16 MiB. Oversized before/after content is
+file-change text for one rendering pass to 16 MiB. Oversized before/after content is
 dropped atomically and is not eligible for Restore. Composer uploads use four
 independent-file slots; Drive remains responsible for chunk-level concurrency.
 The full unified-diff view creates at most 20,000 styled line elements.
@@ -65,11 +79,15 @@ temporarily owns the visible workspace, while the mounted chat component keeps
 its draft and Session state for the reversible close transition.
 
 Transcript synchronization reads the newest Agents Session Items in descending
-sequence order and normalizes them back to chronological presentation order. A
-refresh follows at most five 20-item pages until it overlaps the loaded
-authority window. If that bounded traversal cannot prove continuity, the PC
-replaces the disconnected authority tail instead of rendering a silent gap;
-unconfirmed transient items remain at the newest edge. Upward history loading
+sequence order, rejects a page whose sequence order is ascending, and
+normalizes accepted items back to chronological presentation order. Each page
+contains 50 raw items. Initial hydration continues until it covers eight
+visible user turns, reaches authority exhaustion, or consumes the five-page
+(250-item) budget. Refresh of an existing window also traverses within that
+budget until continuity and sufficient recent visible context are proven; if
+it cannot prove continuity, the PC replaces the disconnected authority tail
+instead of rendering a silent gap.
+Unconfirmed transient items remain at the newest edge. Upward history loading
 is one cancellable operation and may advance across at most ten offset pages
 that contain only duplicates or filtered internal items before returning.
 Pagination metadata advances monotonically when history and head refreshes

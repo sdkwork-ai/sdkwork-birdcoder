@@ -5589,6 +5589,8 @@ dependencies = [
 name = "sdkwork-agent-kernel"
 version = "0.1.0"
 dependencies = [
+ "sdkwork-intelligence-sandbox-service",
+ "sdkwork-sandbox-provider-spi",
  "sdkwork-utils-rust",
  "serde_json",
 ]
@@ -6743,6 +6745,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-intelligence-sandbox-service"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-sandbox-provider-spi",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "sdkwork-intelligence-skills-repository-sqlx"
 version = "0.1.0"
 dependencies = [
@@ -7493,6 +7505,16 @@ dependencies = [
  "sdkwork-web-core",
  "tokio",
  "tower 0.5.3",
+]
+
+[[package]]
+name = "sdkwork-sandbox-provider-spi"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.18",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

@@ -162,15 +162,18 @@ export function reverseUnifiedFileChangeDiff(
 
   let lineOffset = 0;
   for (const hunk of patch.hunks) {
-    const startIndex = (hunk.newStart === 0 ? 0 : hunk.newStart - 1) + lineOffset;
-    if (startIndex < 0 || startIndex + hunk.currentLines.length > currentLines.length) {
+    const hunkApplyIndex = (hunk.newStart === 0 ? 0 : hunk.newStart - 1) + lineOffset;
+    if (hunkApplyIndex < 0 || hunkApplyIndex + hunk.currentLines.length > currentLines.length) {
       return null;
     }
-    const currentSlice = currentLines.slice(startIndex, startIndex + hunk.currentLines.length);
+    const currentSlice = currentLines.slice(
+      hunkApplyIndex,
+      hunkApplyIndex + hunk.currentLines.length,
+    );
     if (currentSlice.some((line, index) => line !== hunk.currentLines[index])) {
       return null;
     }
-    currentLines.splice(startIndex, hunk.currentLines.length, ...hunk.originalLines);
+    currentLines.splice(hunkApplyIndex, hunk.currentLines.length, ...hunk.originalLines);
     lineOffset += hunk.originalLines.length - hunk.currentLines.length;
   }
 

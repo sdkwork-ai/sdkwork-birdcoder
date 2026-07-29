@@ -25,28 +25,34 @@ import {
 
 const protocolFixtures = {
   opencode: {
-    part: {
-      id: 'prt-opencode-finish',
-      type: 'step-finish',
-      reason: 'stop',
-      cost: 0.012,
-      tokens: {
-        input: 1_200,
-        output: 340,
-        reasoning: 80,
-        cache: { read: 500, write: 20 },
+    type: 'message.part.updated',
+    properties: {
+      part: {
+        id: 'prt-opencode-finish',
+        type: 'step-finish',
+        reason: 'stop',
+        cost: 0.012,
+        tokens: {
+          input: 1_200,
+          output: 340,
+          reasoning: 80,
+          cache: { read: 500, write: 20 },
+        },
       },
     },
   },
   codex: {
-    item: {
-      id: 'codex-turn-completed',
-      type: 'turn.completed',
-      usage: {
-        input_tokens: 2_000,
-        cached_input_tokens: 1_000,
-        output_tokens: 200,
-        reasoning_output_tokens: 50,
+    method: 'item/completed',
+    params: {
+      item: {
+        id: 'codex-turn-completed',
+        type: 'turn.completed',
+        usage: {
+          input_tokens: 2_000,
+          cached_input_tokens: 1_000,
+          output_tokens: 200,
+          reasoning_output_tokens: 50,
+        },
       },
     },
   },

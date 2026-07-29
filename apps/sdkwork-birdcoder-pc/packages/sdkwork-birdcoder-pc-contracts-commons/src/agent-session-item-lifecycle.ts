@@ -115,13 +115,16 @@ function unwrapProtocolRecord(value: unknown): Record<string, unknown> | null {
   let unwrapped = record;
   for (let depth = 0; depth < 4; depth += 1) {
     let nestedRecord: Record<string, unknown> | null = null;
+    let nestedKey = '';
     for (const key of [
+      'params', 'properties', 'payload',
       'item', 'part', 'contentBlock', 'content_block', 'event',
       'output', 'result', 'toolResult', 'tool_result',
     ]) {
       const nested = readStructuredRecord(unwrapped[key]);
       if (nested && nested !== unwrapped) {
         nestedRecord = nested;
+        nestedKey = key;
         break;
       }
     }
@@ -129,6 +132,7 @@ function unwrapProtocolRecord(value: unknown): Record<string, unknown> | null {
       return unwrapped;
     }
     unwrapped = { ...unwrapped, ...nestedRecord };
+    delete unwrapped[nestedKey];
   }
   return unwrapped;
 }

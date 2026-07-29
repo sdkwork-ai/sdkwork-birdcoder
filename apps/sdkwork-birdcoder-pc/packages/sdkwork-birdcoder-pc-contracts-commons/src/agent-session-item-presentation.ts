@@ -26,7 +26,10 @@ import {
   resolveAgentSessionItemVisibleMarkdownContent,
   type AgentTurnActivityPresentation,
 } from './agent-session-item-activity-presentation.ts';
-import { resolveAgentSessionItemProtocolNoticeKind } from './agent-session-item-transcript.ts';
+import {
+  resolveAgentSessionItemProtocolNoticeKind,
+  resolveAgentSessionItemSourceKind,
+} from './agent-session-item-transcript.ts';
 import {
   isAgentSessionTodoToolCall,
   resolveTaskProgressDisplayState,
@@ -167,6 +170,43 @@ export interface ResolveAgentSessionItemPresentationOptions {
   activitySummary?: AgentTurnActivityPresentation | null;
   engineId?: string;
   layout?: 'sidebar' | 'main';
+}
+
+const MAX_AGENT_SESSION_ITEM_FALLBACK_DETAIL_CHARACTERS = 8_000;
+
+function humanizeAgentSessionEventName(value: string): string {
+  const normalized = value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2')
+    .replace(/[._\-\s]+/gu, ' ')
+    .trim();
+  if (!normalized) {
+    return 'Session event';
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function composeAgentSessionItemFallbackNotice(
+  item: AgentSessionItemViewSource,
+): AgentSessionItemNoticePresentationBlock {
+  const sourceKind = resolveAgentSessionItemSourceKind(item) ?? '';
+  const title = humanizeAgentSessionEventName(item.name?.trim() || sourceKind);
+  const detail = item.content.trim().slice(0, MAX_AGENT_SESSION_ITEM_FALLBACK_DETAIL_CHARACTERS);
+  const sourceStatus = typeof item.metadata === 'object' && item.metadata
+    ? (item.metadata as Record<string, unknown>).agentItemStatus
+    : undefined;
+  const noticeKind: AgentSessionProtocolNoticeKind = sourceStatus === 'failed'
+    ? 'failed'
+    : sourceStatus === 'cancelled'
+      ? 'cancelled'
+      : 'info';
+  return {
+    type: 'notice',
+    id: item.id || `${sourceKind || 'session-event'}-fallback`,
+    noticeKind,
+    title,
+    ...(detail ? { detail } : {}),
+  };
 }
 
 function readActivityPath(value: unknown): string {
@@ -322,9 +362,7 @@ function buildAgentSessionItemPresentationBlocks(
     : resolveAgentSessionItemVisibleMarkdownContent(item);
   const noticeKind = resolveAgentSessionItemProtocolNoticeKind(item);
 
-  const reasoning = ['assistant', 'planner', 'reviewer'].includes(item.role)
-    ? normalizeAgentSessionItemReasoning(item.reasoning)
-    : [];
+  const reasoning = normalizeAgentSessionItemReasoning(item.reasoning);
   if (reasoning.length > 0) {
     blocks.push({
       type: 'reasoning',
@@ -490,11 +528,7 @@ function buildAgentSessionItemPresentationBlocks(
   }
 
   if (blocks.length === 0 && kind !== 'user.text') {
-    blocks.push({
-      type: 'markdown',
-      content: '',
-      mode: markdownMode,
-    });
+    blocks.push(composeAgentSessionItemFallbackNotice(item));
   }
 
   return blocks;

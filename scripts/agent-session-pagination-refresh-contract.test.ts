@@ -564,7 +564,7 @@ const itemRefreshService = {
           createdAt: '2026-07-24T00:00:01.000Z',
         },
       ],
-      pageInfo: { mode: 'offset', page: 1, pageSize: 20, hasMore: true },
+      pageInfo: { mode: 'offset', page: 1, pageSize: 50, hasMore: false },
     };
   },
   async listRuntimeBindings() {
@@ -584,8 +584,8 @@ const refreshedItems = await refreshAgentSessionItems({
   agentSessionId: selectedSession.id,
   resolvedLocation: { agentSession: selectedSession, project: buildProject() },
 });
-assert.deepEqual(itemRequest, { page: 1, pageSize: 20, sort: '-sequence' });
-assert.equal(refreshedItems.agentSession?.itemPageInfo?.hasMore, true);
+assert.deepEqual(itemRequest, { page: 1, pageSize: 50, sort: '-sequence' });
+assert.equal(refreshedItems.agentSession?.itemPageInfo?.hasMore, false);
 assert.deepEqual(
   refreshedItems.agentSession?.items.map((item) => item.id),
   ['item.pagination.1', 'item.pagination.2'],
@@ -605,6 +605,177 @@ assert.deepEqual(
   'a recovered Session outside the loaded Project page must hydrate from its known Project location',
 );
 
+const recentConversationPageRequests: AgentSessionPageRequest[] = [];
+const recentConversationService = {
+  async getSession() {
+    return buildSession(200);
+  },
+  async listSessionItems(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+  ) {
+    recentConversationPageRequests.push(request);
+    const page = request.page ?? 1;
+    const newestSequence = 200 - ((page - 1) * 50);
+    const items = Array.from({ length: 50 }, (_, index) => {
+      const sequence = newestSequence - index;
+      const turnOffset = Math.floor(index / 10);
+      const turnNumber = ((page - 1) * 4) + turnOffset + 1;
+      const isAssistant = index === 7 || index === 17 || index === 27 || index === 37;
+      const isUser = index === 8 || index === 18 || index === 28 || index === 38;
+      const isHiddenUserInstruction = index < 7 || index === 9;
+      return {
+        sessionId,
+        itemId: `item.recent.${sequence}`,
+        kind: isAssistant
+          ? 'assistant_output' as const
+          : isUser
+            ? 'user_input' as const
+            : isHiddenUserInstruction
+              ? 'user_input' as const
+              : 'system_instruction' as const,
+        status: 'completed' as const,
+        sequence: String(sequence),
+        content: isAssistant
+          ? `assistant turn ${turnNumber}`
+          : isUser
+            ? `user turn ${turnNumber}`
+            : isHiddenUserInstruction
+              ? `# AGENTS.md instructions for /workspace/${sequence}`
+              : `internal event ${sequence}`,
+        contentType: 'text/plain',
+        turnId: isHiddenUserInstruction
+          ? `turn.hidden.${sequence}`
+          : `turn.recent.${turnNumber}`,
+        createdAt: new Date(Date.UTC(2026, 6, 24, 1, 0, sequence)).toISOString(),
+      };
+    });
+    return {
+      items,
+      pageInfo: {
+        mode: 'offset' as const,
+        page,
+        pageSize: 50,
+        hasMore: page < 3,
+      },
+    };
+  },
+  async listRuntimeBindings() {
+    return buildEmptyRuntimeBindingsPage();
+  },
+  async getSessionUserStates(sessionIds: readonly string[]) {
+    return buildSessionUserStates(sessionIds);
+  },
+} as unknown as IAgentSessionService;
+const recentConversationWindow = await refreshAgentSessionItems({
+  agentSessionService: recentConversationService,
+  agentSessionId: 'session.pagination.200',
+  resolvedLocation: { project: buildProject() },
+});
+assert.deepEqual(
+  recentConversationPageRequests,
+  [1, 2].map((page) => ({ page, pageSize: 50, sort: '-sequence' })),
+  'hidden instruction inputs must not consume the bounded initial conversation-turn target',
+);
+assert.equal(recentConversationWindow.agentSession?.itemPageInfo?.page, 2);
+assert.equal(
+  recentConversationWindow.agentSession?.items.filter((item) => item.role === 'user').length,
+  8,
+  'internal Session Items must not leave the first transcript window with only one visible reply',
+);
+assert.equal(
+  recentConversationWindow.agentSession?.items.at(-1)?.id,
+  'item.recent.193',
+  'multi-page context hydration must still end at the newest visible authority item',
+);
+
+recentConversationPageRequests.length = 0;
+const provisionalOnlyWindow = {
+  ...recentConversationWindow.agentSession!,
+  itemPageInfo: undefined,
+  items: Array.from({ length: 8 }, (_, index) => ({
+    id: '',
+    sessionId: 'session.pagination.200',
+    turnId: `turn.provisional.${index + 1}`,
+    role: 'user' as const,
+    content: `provisional user turn ${index + 1}`,
+    createdAt: `2026-07-24T00:00:0${index + 1}.000Z`,
+  })),
+};
+await refreshAgentSessionItems({
+  agentSessionService: recentConversationService,
+  agentSessionId: provisionalOnlyWindow.id,
+  resolvedLocation: {
+    agentSession: provisionalOnlyWindow,
+    project: buildProject(),
+  },
+});
+assert.deepEqual(
+  recentConversationPageRequests,
+  [1, 2].map((page) => ({ page, pageSize: 50, sort: '-sequence' })),
+  'provisional turns without authority ids must not shorten initial authority hydration',
+);
+
+const wrongSortService = {
+  async getSession() {
+    return buildSession(2);
+  },
+  async listSessionItems(sessionId: string) {
+    return {
+      items: [1, 2].map((sequence) => ({
+        sessionId,
+        itemId: `item.wrong-sort.${sequence}`,
+        kind: sequence === 1 ? 'user_input' as const : 'assistant_output' as const,
+        status: 'completed' as const,
+        sequence: String(sequence),
+        content: `wrong sort ${sequence}`,
+        contentType: 'text/plain',
+        createdAt: `2026-07-24T02:00:0${sequence}.000Z`,
+      })),
+      pageInfo: { mode: 'offset' as const, page: 1, pageSize: 50, hasMore: false },
+    };
+  },
+} as unknown as IAgentSessionService;
+await assert.rejects(
+  refreshAgentSessionItems({
+    agentSessionService: wrongSortService,
+    agentSessionId: 'session.pagination.2',
+    resolvedLocation: { project: buildProject() },
+  }),
+  /did not honor the requested descending sequence order/u,
+  'an ascending old page must never be committed as the newest transcript window',
+);
+
+const emptySequenceService = {
+  async getSession() {
+    return buildSession(1);
+  },
+  async listSessionItems(sessionId: string) {
+    return {
+      items: [{
+        sessionId,
+        itemId: 'item.empty-sequence',
+        kind: 'assistant_output' as const,
+        status: 'completed' as const,
+        sequence: '',
+        content: 'invalid sequence',
+        contentType: 'text/plain',
+        createdAt: '2026-07-24T02:00:01.000Z',
+      }],
+      pageInfo: { mode: 'offset' as const, page: 1, pageSize: 50, hasMore: false },
+    };
+  },
+} as unknown as IAgentSessionService;
+await assert.rejects(
+  refreshAgentSessionItems({
+    agentSessionService: emptySequenceService,
+    agentSessionId: 'session.pagination.1',
+    resolvedLocation: { project: buildProject() },
+  }),
+  /invalid Session Item sequence/u,
+  'an empty sequence must not be coerced to zero and committed',
+);
+
 const missingRecoveredItems = await refreshAgentSessionItems({
   agentSessionService: {
     async getSession() {
@@ -617,11 +788,14 @@ const missingRecoveredItems = await refreshAgentSessionItems({
 assert.equal(missingRecoveredItems.status, 'not-found');
 assert.equal(missingRecoveredItems.projectId, 'project.pagination');
 
-const refreshedAgentSession = refreshedItems.agentSession!;
+const refreshedAgentSession = {
+  ...refreshedItems.agentSession!,
+  itemPageInfo: { hasMore: true, page: 1, pageSize: 50 },
+};
 
 const staleHeadSession = {
   ...refreshedAgentSession,
-  itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+  itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
   items: [
     {
       ...refreshedAgentSession.items[0]!,
@@ -676,7 +850,7 @@ const headReconciliationService = {
       pageInfo: {
         mode: 'offset' as const,
         page,
-        pageSize: 20,
+        pageSize: 50,
         hasMore: page === 1,
       },
     };
@@ -722,7 +896,7 @@ const unchangedFullyLoadedHead = await refreshAgentSessionItems({
   resolvedLocation: {
     agentSession: {
       ...reconciledHead.agentSession!,
-      itemPageInfo: { hasMore: false, page: 2, pageSize: 20 },
+      itemPageInfo: { hasMore: false, page: 2, pageSize: 50 },
     },
     project: buildProject(),
   },
@@ -791,7 +965,7 @@ const boundedHeadService = {
       pageInfo: {
         mode: 'offset' as const,
         page,
-        pageSize: 20,
+        pageSize: 50,
         hasMore: true,
       },
     };
@@ -863,16 +1037,6 @@ const earlierItemsService = {
       items: [
         {
           sessionId: refreshedAgentSession.id,
-          itemId: 'item.pagination.internal-history',
-          kind: 'system_instruction',
-          status: 'completed',
-          sequence: '0',
-          content: 'Historical internal execution guidance',
-          contentType: 'text/plain',
-          createdAt: '2026-07-23T23:59:59.000Z',
-        },
-        {
-          sessionId: refreshedAgentSession.id,
           itemId: 'item.pagination.1',
           kind: 'user_input',
           status: 'completed',
@@ -880,6 +1044,16 @@ const earlierItemsService = {
           content: 'first',
           contentType: 'text/plain',
           createdAt: '2026-07-24T00:00:01.000Z',
+        },
+        {
+          sessionId: refreshedAgentSession.id,
+          itemId: 'item.pagination.internal-history',
+          kind: 'system_instruction',
+          status: 'completed',
+          sequence: '0',
+          content: 'Historical internal execution guidance',
+          contentType: 'text/plain',
+          createdAt: '2026-07-23T23:59:59.000Z',
         },
         {
           sessionId: refreshedAgentSession.id,
@@ -892,7 +1066,7 @@ const earlierItemsService = {
           createdAt: '2026-07-24T00:00:00.000Z',
         },
       ],
-      pageInfo: { mode: 'offset', page: 2, pageSize: 20, hasMore: false },
+      pageInfo: { mode: 'offset', page: 2, pageSize: 50, hasMore: false },
     };
   },
 } as unknown as IAgentSessionService;
@@ -903,11 +1077,11 @@ const loadedEarlierItems = await loadEarlierAgentSessionItems({
   },
   agentSessionService: earlierItemsService,
 });
-assert.deepEqual(earlierItemRequest, { page: 2, pageSize: 20, sort: '-sequence' });
+assert.deepEqual(earlierItemRequest, { page: 2, pageSize: 50, sort: '-sequence' });
 assert.equal(loadedEarlierItems.status, 'loaded');
 assert.deepEqual(loadedEarlierItems.agentSession.itemPageInfo, {
   page: 2,
-  pageSize: 20,
+  pageSize: 50,
   hasMore: false,
 });
 assert.deepEqual(
@@ -946,7 +1120,7 @@ const duplicateHistoryService = {
       pageInfo: {
         mode: 'offset' as const,
         page,
-        pageSize: 20,
+        pageSize: 50,
         hasMore: page === 3,
       },
     };
@@ -955,7 +1129,7 @@ const duplicateHistoryService = {
 const duplicateHistoryResult = await loadEarlierAgentSessionItems({
   agentSession: {
     ...loadedEarlierItems.agentSession,
-    itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+    itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
   },
   agentSessionService: duplicateHistoryService,
 });
@@ -984,7 +1158,7 @@ upsertAgentSessionIntoProjectsStore(
   storedProject.projectId,
   {
     ...refreshedAgentSession,
-    itemPageInfo: { page: 2, pageSize: 20, hasMore: true },
+    itemPageInfo: { page: 2, pageSize: 50, hasMore: true },
   },
   storeWorkspaceId,
   storeUserScope,
@@ -1000,7 +1174,7 @@ const emptyEarlierItemsService = {
   async listSessionItems() {
     return {
       items: [],
-      pageInfo: { mode: 'offset', page: 2, pageSize: 20, hasMore: true },
+      pageInfo: { mode: 'offset', page: 2, pageSize: 50, hasMore: true },
     };
   },
 } as unknown as IAgentSessionService;
@@ -1016,7 +1190,7 @@ const wrongEarlierItemsPageService = {
   async listSessionItems() {
     return {
       items: [],
-      pageInfo: { mode: 'offset', page: 3, pageSize: 20, hasMore: false },
+      pageInfo: { mode: 'offset', page: 3, pageSize: 50, hasMore: false },
     };
   },
 } as unknown as IAgentSessionService;
@@ -1074,7 +1248,7 @@ const hydratedOlderProject = {
   agentSessionPageInfo: {
     hasMore: false,
     page: 1,
-    pageSize: 20,
+    pageSize: 50,
   },
   agentSessions: [{
     ...firstPage.project.agentSessions[0]!,

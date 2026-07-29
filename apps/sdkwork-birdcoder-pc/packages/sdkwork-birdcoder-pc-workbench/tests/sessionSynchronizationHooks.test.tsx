@@ -2,6 +2,7 @@
 
 import { act } from 'react';
 import { cleanup, renderHook } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   IAgentSessionService,
@@ -125,6 +126,72 @@ afterEach(() => {
 });
 
 describe('useSessionRefreshActions request lifecycle', () => {
+  it('cancels a manual Session refresh when the selected Session changes', async () => {
+    const deferred = createDeferred<{
+      agentSessionId: string;
+      itemCount: number;
+      projectId: string;
+      source: 'agents';
+      status: 'failed';
+    }>();
+    const addToast = vi.fn();
+    const restoreSelection = vi.fn();
+    const project = createProject('project-a');
+    const agentSession = {
+      id: 'session-a',
+      items: [],
+      projectId: project.projectId,
+      runtimeStatus: 'ready',
+      status: 'active',
+    } as unknown as AgentProjectView['agentSessions'][number];
+    mocks.refreshAgentSessionItems.mockReturnValueOnce(deferred.promise);
+    const props = {
+      selection: { agentSessionId: 'session-a', projectId: 'project-a' },
+    };
+    const { result, rerender } = renderHook(() => useSessionRefreshActions({
+      addToast,
+      agentSessionService,
+      getPreservedSelection: () => props.selection,
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionLocation: (sessionId, projectId) => (
+        sessionId === agentSession.id && projectId === project.projectId
+          ? { agentSession, project }
+          : null
+      ),
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+    }));
+
+    let request!: Promise<void>;
+    act(() => {
+      request = result.current.handleRefreshAgentSessionItems('session-a', 'project-a');
+    });
+    const requestSignal = mocks.refreshAgentSessionItems.mock.calls[0]?.[0].signal;
+    expect(requestSignal.aborted).toBe(false);
+
+    props.selection = { agentSessionId: 'session-b', projectId: 'project-b' };
+    rerender();
+    expect(requestSignal.aborted).toBe(true);
+
+    await act(async () => {
+      deferred.resolve({
+        agentSessionId: 'session-a',
+        itemCount: 0,
+        projectId: 'project-a',
+        source: 'agents',
+        status: 'failed',
+      });
+      await request;
+    });
+
+    expect(mocks.upsertAgentSessionIntoProjectsStore).not.toHaveBeenCalled();
+    expect(restoreSelection).not.toHaveBeenCalled();
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
   it('does not restore Session A after the live selection changes to Session B', async () => {
     const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
     const addToast = vi.fn();
@@ -311,6 +378,32 @@ describe('useSessionRefreshActions request lifecycle', () => {
 });
 
 describe('useSelectedAgentSessionItems background refresh', () => {
+  it('reports initial hydration during the first render before effects run', () => {
+    const selectedProject = createProject('project-a');
+    const selectedAgentSession = {
+      id: 'session-a',
+      items: [],
+      projectId: selectedProject.projectId,
+      runtimeStatus: 'ready',
+      status: 'active',
+    } as unknown as AgentProjectView['agentSessions'][number];
+
+    function InitialLoadingProbe() {
+      const isLoading = useSelectedAgentSessionItems({
+        agentSessionService,
+        projectService,
+        selectedAgentSession,
+        selectedAgentSessionId: selectedAgentSession.id,
+        selectedProject,
+        selectionRefreshToken: 0,
+      });
+      return <span>{isLoading ? 'loading' : 'idle'}</span>;
+    }
+
+    expect(renderToString(<InitialLoadingProbe />)).toContain('loading');
+    expect(mocks.refreshAgentSessionItems).not.toHaveBeenCalled();
+  });
+
   it('does not supersede an active refresh on poll, focus, visibility, or online events', async () => {
     vi.useFakeTimers();
     try {

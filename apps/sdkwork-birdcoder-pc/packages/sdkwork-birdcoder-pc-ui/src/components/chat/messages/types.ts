@@ -8,6 +8,9 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatTranscriptTurnPresentation } from './presentation/transcriptTurnPresentation.ts';
 import type { ChatProviderPresentationProfile } from './presentation/providerPresentationProfiles.ts';
+import type {
+  ChatTurnProcessPresentation,
+} from './presentation/turnProcessPresentation.ts';
 
 export interface ChatSkill {
   id: string;
@@ -65,6 +68,8 @@ export interface ChatMessageRenderContext {
   suppressInlineFileChanges?: boolean;
   turn: ChatTranscriptTurnPresentation;
   turnFileChanges?: ChatTurnFileChangesPresentation;
+  turnProcess?: ChatTurnProcessPresentation;
+  suppressProcessBlocks?: boolean;
 }
 
 export interface ChatMessageRendererProps {

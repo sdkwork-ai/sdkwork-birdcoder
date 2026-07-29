@@ -316,6 +316,8 @@ export interface AgentSessionItemView {
   content: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
+  /** Provider/session completion timestamp used for turn-level duration display. */
+  completedAt?: string;
   timestamp?: number;
   name?: string;
   tool_calls?: unknown[];
@@ -467,6 +469,7 @@ function buildAgentSessionItemSynchronizationSignature(item: AgentSessionItemVie
     commands: item.commands ?? null,
     content: item.content,
     createdAt: item.createdAt,
+    completedAt: item.completedAt ?? null,
     fileChanges: item.fileChanges ?? null,
     id: item.id,
     metadata: item.metadata ?? null,
