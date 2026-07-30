@@ -90,7 +90,7 @@ assert.deepEqual(resolveBirdcoderDevelopmentApiEnvDefines('production'), {});
 const resolved = resolveBirdcoderPublicRuntimeEnv({
   SDKWORK_ACCESS_TOKEN: 'secret-bootstrap-token',
   SDKWORK_BIRDCODER_APP_API_BASE_URL: 'http://127.0.0.1:10240/app/v3/api',
-  SDKWORK_IAM_DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+  SDKWORK_DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
   SDKWORK_SIGNING_KEY: 'tenant-signing-secret',
   VITE_PRIVATE_KEY: 'private-key-material',
   VITE_UNDOCUMENTED_RUNTIME_FLAG: 'must-not-be-forwarded',
@@ -99,7 +99,7 @@ const resolved = resolveBirdcoderPublicRuntimeEnv({
 }, 'development');
 
 assert.equal(resolved.SDKWORK_ACCESS_TOKEN, undefined);
-assert.equal(resolved.SDKWORK_IAM_DATABASE_URL, undefined);
+assert.equal(resolved.SDKWORK_DATABASE_URL, undefined);
 assert.equal(resolved.VITE_SDKWORK_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD, undefined);
 assert.equal(resolved.SDKWORK_SIGNING_KEY, undefined);
 assert.equal(resolved.VITE_PRIVATE_KEY, undefined);

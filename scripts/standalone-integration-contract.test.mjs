@@ -91,7 +91,7 @@ assert.equal(
   'Standalone development must use the persistent Agents PostgreSQL repository.',
 );
 assert.equal(
-  standaloneDevelopmentProfile.SDKWORK_AGENTS_DATABASE_URL,
+  standaloneDevelopmentProfile.SDKWORK_DATABASE_URL,
   undefined,
   'Tracked topology must not contain the private Agents database credential.',
 );
