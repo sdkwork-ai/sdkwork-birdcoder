@@ -3,7 +3,7 @@
 ## Baseline And Authority
 
 - Repository: [openai/codex](https://github.com/openai/codex)
-- Source commit: `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`
+- Source commit: `a05bcda3dbd68729caa2f11027b7f43974fda298`
 - Workspace crate version: `0.0.0` (source build; use the commit as the compatibility identity)
 - App Server guide: [Codex App Server](https://developers.openai.com/codex/app-server)
 - Primary local types: `external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts`
@@ -134,7 +134,15 @@ For head refresh, keep reading while pages contain only already-known items if t
 
 ## Unknown Data Policy
 
-New non-system `ThreadItem` variants and durable rollout records are retained as bounded provider data and receive a generic visible presentation until a typed mapping is added. Unknown notifications remain lifecycle/diagnostic metadata and never become empty message rows. System/developer prompts, auth material, and transport-only payloads fail closed from the transcript.
+New non-system `ThreadItem` variants receive a bounded generic presentation until a typed mapping is added. Raw rollout records require an additional security classification because the same JSONL contains encrypted reasoning/compaction, tool definitions, model input, deltas, and transport controls:
+
+- a future `response_item` with a stable type becomes a type-only generic notice; its unclassified payload is not copied into visible text;
+- `additional_tools`, encrypted compaction records, and compaction triggers fail closed;
+- `context_compaction` becomes a lifecycle marker without encrypted content;
+- warning, error, stream-error, and review-mode events retain only their user-facing message/status fields;
+- an unclassified `event_msg` remains omitted until it is proven durable and user-visible, because treating every event as a message would expose internals and duplicate high-volume deltas.
+
+Unknown notifications never create empty message rows. System/developer prompts, auth material, encrypted content, and transport-only payloads fail closed from the transcript.
 
 ## BirdCoder Mapping
 
@@ -160,5 +168,6 @@ Regression authorities are `scripts/agent-session-item-view-contract.test.ts`, `
 - `item/started` plus deltas plus `item/completed` results in one item identity.
 - Command, MCP, dynamic, web, image, patch, collaboration, and sub-agent records survive rollout history reconstruction.
 - Command failures and MCP errors settle as failures with bounded evidence.
+- Unknown response items produce a safe type notice while encrypted and transport-only rollout records stay hidden.
 - Deep duplicate-only history pages do not stop pagination early.
 - Structured/tool-heavy transcripts avoid estimated spacer virtualization and blank scroll regions.

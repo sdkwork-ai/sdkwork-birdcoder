@@ -148,15 +148,21 @@ export function useTranscriptScrollCoordinator({
 
   const publishJumpVisibility = useCallback((visible: boolean) => {
     const activeScopeKey = currentScopeKeyRef.current;
-    setJumpState((previousState) => (
-      previousState.scopeKey === activeScopeKey
-      && previousState.visible === visible
-        ? previousState
-        : {
-            scopeKey: activeScopeKey,
-            visible,
-          }
-    ));
+    setJumpState((previousState) => {
+      if (!visible && previousState.scopeKey !== activeScopeKey) {
+        return previousState;
+      }
+      if (
+        previousState.scopeKey === activeScopeKey
+        && previousState.visible === visible
+      ) {
+        return previousState;
+      }
+      return {
+        scopeKey: activeScopeKey,
+        visible,
+      };
+    });
   }, []);
 
   const clearScrollAnimationFrame = useCallback(() => {

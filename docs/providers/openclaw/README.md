@@ -4,11 +4,12 @@
 
 - Repository: [openclaw/openclaw](https://github.com/openclaw/openclaw)
 - Version: `2026.7.2`
-- Commit: `819961a292dc224d57bc110dd8c6d8364709de13`
+- Commit: `ff72f287c37e21b233bc919ae2ceda5fc8005e13`
 - Gateway package: `external/openclaw/packages/gateway-protocol/`
 - Frame schemas: `packages/gateway-protocol/src/schema/frames.ts`
 - Chat/log schemas: `packages/gateway-protocol/src/schema/logs-chat.ts`
 - Session schemas: `packages/gateway-protocol/src/schema/sessions.ts`
+- Viewer-presence schema: `packages/gateway-protocol/src/schema/sessions-viewer-presence.ts`
 - Agent schemas: `packages/gateway-protocol/src/schema/agent.ts`
 - Display projection: `external/openclaw/src/gateway/chat-display-projection.ts`
 - History paging: `external/openclaw/src/gateway/server-methods/chat-history-pages.ts`
@@ -34,6 +35,8 @@ The initial `hello-ok` response negotiates protocol version, advertised methods/
 Session inventory, session history, live agent execution, and chat delivery are separate protocol concerns. A session key identifies a conversation across reconnects. History methods establish durable transcript authority; chat/agent events update the live projection.
 
 OpenClaw's display projection deliberately converts raw model/tool records to user-visible chat content. BirdCoder should preserve the same separation: ingest durable source records in the kernel/Agents layer, then apply BirdCoder presentation without rewriting source facts.
+
+`sessions.viewers.set` replaces the set of sessions currently rendered by one gateway connection. It accepts at most 32 session keys, canonicalizes them through the session store, and returns the retained canonical keys. Viewer presence is connection-local observation state: it can govern live fan-out, but it is not a message, read receipt, or durable history cursor. Session creator metadata may also include a durable profile `avatarUrl`; that field decorates identity and does not become message content.
 
 ## Chat Run Events
 
@@ -84,6 +87,7 @@ Anchored `messageId` reads intentionally omit numeric paging metadata because th
 - On reconnect or a sequence gap, re-read history rather than guessing events.
 - Deduplicate history and live projection by stable message/tool identity.
 - Do not persist transient gateway notices, observer summaries, or heartbeats as messages.
+- Re-declare `sessions.viewers.set` after reconnect when live session observation is needed; never restore it from transcript history.
 
 ## Unknown Data Policy
 
@@ -104,4 +108,5 @@ Unknown frame methods and event names are retained as bounded diagnostic metadat
 - Honor delta replacement, active branch leaf, and chat-send idempotency semantics.
 - Preserve offset, raw-page count, total, anchor, CLI-import, and byte-budget history behavior.
 - Keep observer plan counts distinct from ordered task steps.
+- Keep connection-local viewer presence distinct from session history and message-read state.
 - Apply OpenClaw display sanitization and projection rules before BirdCoder presentation.

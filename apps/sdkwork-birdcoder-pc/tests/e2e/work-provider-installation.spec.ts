@@ -121,6 +121,16 @@ test('Work new-task menu keeps uninstalled Providers visible and offers retryabl
   const openClawDialog = page.getByRole('dialog', { name: 'Install OpenClaw' });
   await expect(openClawDialog).toBeVisible();
   await expect(openClawDialog).toContainText('2026.7.2');
+  const desktopDialogBox = await openClawDialog.boundingBox();
+  expect(desktopDialogBox).not.toBeNull();
+  expect(desktopDialogBox?.width).toBeGreaterThanOrEqual(420);
+
+  await page.setViewportSize({ width: 768, height: 900 });
+  const narrowDialogBox = await openClawDialog.boundingBox();
+  expect(narrowDialogBox).not.toBeNull();
+  expect(narrowDialogBox?.x ?? -1).toBeGreaterThanOrEqual(16);
+  expect((narrowDialogBox?.x ?? 0) + (narrowDialogBox?.width ?? 0)).toBeLessThanOrEqual(752);
+
   await installFakeDesktopProviderHost(page);
   await openClawDialog.getByRole('button', { name: 'Install', exact: true }).click();
   await expect(openClawDialog).toContainText('OpenClaw was installed successfully.');

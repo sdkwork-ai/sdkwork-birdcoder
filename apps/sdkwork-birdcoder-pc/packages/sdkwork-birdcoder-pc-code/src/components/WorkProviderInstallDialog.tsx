@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -57,9 +58,28 @@ export function WorkProviderInstallDialog({
   const [result, setResult] = useState<WorkbenchWorkProviderInstallationResult | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
   const isBusy = phase === 'installing';
+
+  useEffect(() => {
+    const activeElement = document.activeElement instanceof HTMLElement
+      && document.activeElement !== document.body
+      ? document.activeElement
+      : null;
+    const fallbackTrigger = document.querySelector<HTMLElement>(
+      '[data-sidebar-new-session-trigger="true"]',
+    );
+    restoreFocusRef.current = activeElement ?? fallbackTrigger;
+
+    return () => {
+      const focusTarget = restoreFocusRef.current?.isConnected
+        ? restoreFocusRef.current
+        : fallbackTrigger;
+      window.requestAnimationFrame(() => focusTarget?.focus());
+    };
+  }, []);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => primaryButtonRef.current?.focus());
@@ -138,7 +158,7 @@ export function WorkProviderInstallDialog({
         ? AlertTriangle
         : Download;
 
-  return (
+  const dialog = (
     <div
       className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto bg-black/65 p-4 backdrop-blur-[2px]"
       data-work-provider-install-backdrop="true"
@@ -171,7 +191,9 @@ export function WorkProviderInstallDialog({
               <ShieldCheck size={13} aria-hidden="true" />
               <span>{labels.officialSource}</span>
               <span aria-hidden="true">·</span>
-              <span className="truncate">{new URL(definition.installerAuthority).hostname}</span>
+              <span className="min-w-0 break-all">
+                {new URL(definition.installerAuthority).hostname}
+              </span>
             </div>
           </div>
           <button
@@ -217,7 +239,7 @@ export function WorkProviderInstallDialog({
             <dt className="text-gray-500">Provider</dt>
             <dd className="truncate text-gray-300">{definition.displayName}</dd>
             <dt className="text-gray-500">Baseline</dt>
-            <dd className="truncate font-mono text-[11px] text-gray-300" title={definition.baseline}>
+            <dd className="break-all font-mono text-[11px] text-gray-300" title={definition.baseline}>
               {definition.baseline}
             </dd>
           </dl>
@@ -260,4 +282,6 @@ export function WorkProviderInstallDialog({
       </div>
     </div>
   );
+
+  return typeof document === 'undefined' ? null : createPortal(dialog, document.body);
 }

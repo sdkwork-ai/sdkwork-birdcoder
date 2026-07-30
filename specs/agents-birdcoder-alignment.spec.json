@@ -6,6 +6,7 @@
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
     "docs/product/prd/PRD.md",
+    "docs/providers/README.md",
     "specs/domain-ownership.spec.json",
     "specs/agent-session-item-view.spec.md"
   ],
@@ -15,10 +16,14 @@
     "sdkwork-agents -/-> sdkwork-im"
   ],
   "workbenchModes": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "catalogAuthority": "sdkwork-agents code-engine catalog",
     "defaultMode": "coding",
     "admissionPolicy": "exact-engine-agent-tier-fail-closed",
+    "visibilityPolicy": {
+      "coding": "catalog-admitted-only",
+      "work": "fixed-allowlist-always-visible"
+    },
     "modes": {
       "coding": {
         "tier": "t1-code",
@@ -43,14 +48,59 @@
       },
       "work": {
         "tier": "t2-autonomous",
+        "availabilityPolicy": "catalog-exact-match-with-usable-model",
+        "installationPolicy": {
+          "runtimeTarget": "birdcoder-desktop",
+          "invocationBoundary": "desktop_local_shell_exec",
+          "commandSelection": "provider-id-to-fixed-official-installer-plan-fail-closed",
+          "unknownProviderBehavior": "reject-before-host-invocation",
+          "browserBehavior": "desktop-required",
+          "setupBehavior": "noninteractive-install-with-onboarding-or-setup-deferred",
+          "postInstallAuthority": "refresh-sdkwork-agents-code-engine-catalog-without-fabricated-availability"
+        },
         "providers": [
           {
             "engineId": "openclaw",
-            "agentId": "agent.intelligence.openclaw"
+            "agentId": "agent.intelligence.openclaw",
+            "displayName": "OpenClaw",
+            "installation": {
+              "baseline": "2026.7.2",
+              "windowsAuthority": "https://openclaw.ai/install.ps1",
+              "windowsArguments": [
+                "-Tag",
+                "2026.7.2",
+                "-NoOnboard"
+              ],
+              "unixAuthority": "https://openclaw.ai/install.sh",
+              "unixArguments": [
+                "--no-prompt",
+                "--no-onboard",
+                "--version",
+                "2026.7.2"
+              ]
+            }
           },
           {
             "engineId": "hermes",
-            "agentId": "agent.intelligence.hermes"
+            "agentId": "agent.intelligence.hermes",
+            "displayName": "Hermes Agent",
+            "installation": {
+              "baseline": "cff9728587da4f3c0beed0786f9bea528e489f13",
+              "windowsAuthority": "https://hermes-agent.nousresearch.com/install.ps1",
+              "windowsArguments": [
+                "-SkipSetup",
+                "-NonInteractive",
+                "-Commit",
+                "cff9728587da4f3c0beed0786f9bea528e489f13"
+              ],
+              "unixAuthority": "https://hermes-agent.nousresearch.com/install.sh",
+              "unixArguments": [
+                "--skip-setup",
+                "--non-interactive",
+                "--commit",
+                "cff9728587da4f3c0beed0786f9bea528e489f13"
+              ]
+            }
           }
         ]
       }
@@ -166,14 +216,19 @@
     {
       "id": "ABA-005",
       "owner": "birdcoder",
-      "title": "Constrain Coding and Work modes to canonical Agents catalog Providers",
+      "title": "Constrain Coding and Work Provider visibility, admission, and installation",
       "status": "done",
       "gate": true,
       "evidence": {
         "paths": [
           "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/workbenchMode.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/workProviderInstallation.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/workProviderInstallation.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/WorkProviderInstallDialog.tsx",
           "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workbenchMode.test.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workProviderInstallation.test.ts",
           "apps/sdkwork-birdcoder-pc/specs/README.md",
+          "docs/providers/README.md",
           "docs/architecture/tech/TECH_ARCHITECTURE.md"
         ],
         "requiredPatterns": [
@@ -186,8 +241,28 @@
             "pattern": "fails closed for unknown engines and mismatched identities or tiers"
           },
           {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workbenchMode.test.ts",
+            "pattern": "keeps every declared Work Provider visible when the Agents catalog is empty"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/workProviderInstallation.ts",
+            "pattern": "unsupported-provider[\\s\\S]*desktop-required[\\s\\S]*desktop_local_shell_exec"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/WorkProviderInstallDialog.tsx",
+            "pattern": "createPortal\\(dialog, document\\.body\\)"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/workProviderInstallation.test.ts",
+            "pattern": "rejects unknown Provider input before invoking the desktop host"
+          },
+          {
             "file": "docs/architecture/tech/TECH_ARCHITECTURE.md",
             "pattern": "Work Mode[\\s\\S]*OpenClaw[\\s\\S]*Hermes"
+          },
+          {
+            "file": "docs/providers/README.md",
+            "pattern": "Work Mode Distribution And Installation[\\s\\S]*fixed Work Provider allowlist[\\s\\S]*does not fabricate catalog availability"
           }
         ]
       },

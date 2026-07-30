@@ -38,10 +38,14 @@ assert.equal(
   'IM ownership must not imply a BirdCoder runtime dependency before human messaging is enabled.',
 );
 assert.deepEqual(spec.workbenchModes, {
-  schemaVersion: 1,
+  schemaVersion: 2,
   catalogAuthority: 'sdkwork-agents code-engine catalog',
   defaultMode: 'coding',
   admissionPolicy: 'exact-engine-agent-tier-fail-closed',
+  visibilityPolicy: {
+    coding: 'catalog-admitted-only',
+    work: 'fixed-allowlist-always-visible',
+  },
   modes: {
     coding: {
       tier: 't1-code',
@@ -54,9 +58,52 @@ assert.deepEqual(spec.workbenchModes, {
     },
     work: {
       tier: 't2-autonomous',
+      availabilityPolicy: 'catalog-exact-match-with-usable-model',
+      installationPolicy: {
+        runtimeTarget: 'birdcoder-desktop',
+        invocationBoundary: 'desktop_local_shell_exec',
+        commandSelection: 'provider-id-to-fixed-official-installer-plan-fail-closed',
+        unknownProviderBehavior: 'reject-before-host-invocation',
+        browserBehavior: 'desktop-required',
+        setupBehavior: 'noninteractive-install-with-onboarding-or-setup-deferred',
+        postInstallAuthority:
+          'refresh-sdkwork-agents-code-engine-catalog-without-fabricated-availability',
+      },
       providers: [
-        { engineId: 'openclaw', agentId: 'agent.intelligence.openclaw' },
-        { engineId: 'hermes', agentId: 'agent.intelligence.hermes' },
+        {
+          engineId: 'openclaw',
+          agentId: 'agent.intelligence.openclaw',
+          displayName: 'OpenClaw',
+          installation: {
+            baseline: '2026.7.2',
+            windowsAuthority: 'https://openclaw.ai/install.ps1',
+            windowsArguments: ['-Tag', '2026.7.2', '-NoOnboard'],
+            unixAuthority: 'https://openclaw.ai/install.sh',
+            unixArguments: ['--no-prompt', '--no-onboard', '--version', '2026.7.2'],
+          },
+        },
+        {
+          engineId: 'hermes',
+          agentId: 'agent.intelligence.hermes',
+          displayName: 'Hermes Agent',
+          installation: {
+            baseline: 'cff9728587da4f3c0beed0786f9bea528e489f13',
+            windowsAuthority: 'https://hermes-agent.nousresearch.com/install.ps1',
+            windowsArguments: [
+              '-SkipSetup',
+              '-NonInteractive',
+              '-Commit',
+              'cff9728587da4f3c0beed0786f9bea528e489f13',
+            ],
+            unixAuthority: 'https://hermes-agent.nousresearch.com/install.sh',
+            unixArguments: [
+              '--skip-setup',
+              '--non-interactive',
+              '--commit',
+              'cff9728587da4f3c0beed0786f9bea528e489f13',
+            ],
+          },
+        },
       ],
     },
   },

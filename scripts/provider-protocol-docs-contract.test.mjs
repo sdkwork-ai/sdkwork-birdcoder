@@ -48,6 +48,7 @@ const providers = [
     sources: [
       'external/openclaw/packages/gateway-protocol/src/schema/frames.ts',
       'external/openclaw/packages/gateway-protocol/src/schema/logs-chat.ts',
+      'external/openclaw/packages/gateway-protocol/src/schema/sessions-viewer-presence.ts',
       'external/openclaw/src/gateway/server-methods/chat-history-pages.ts',
     ],
   },
@@ -57,6 +58,7 @@ const providers = [
     sources: [
       'external/hermes-agent/gateway/stream_events.py',
       'external/hermes-agent/hermes_state.py',
+      'external/hermes-agent/hermes_state_common.py',
     ],
   },
 ];
@@ -93,12 +95,12 @@ for (const provider of providers) {
   }
 
   if (provider.external) {
-    const gitlink = execFileSync('git', ['rev-parse', `HEAD:${provider.external}`], {
+    const checkedOutHead = execFileSync('git', ['-C', provider.external, 'rev-parse', 'HEAD'], {
       cwd: rootDir,
       encoding: 'utf8',
     }).trim();
-    assert.match(document, new RegExp(gitlink), `${provider.slug} document baseline does not match its gitlink`);
-    assert.match(index, new RegExp(gitlink), `${provider.slug} index baseline does not match its gitlink`);
+    assert.match(document, new RegExp(checkedOutHead), `${provider.slug} document baseline does not match its checked-out HEAD`);
+    assert.match(index, new RegExp(checkedOutHead), `${provider.slug} index baseline does not match its checked-out HEAD`);
   } else {
     assert.match(document, new RegExp(provider.baseline), `${provider.slug} SDK baseline is missing`);
     assert.match(index, new RegExp(provider.baseline), `${provider.slug} index SDK baseline is missing`);

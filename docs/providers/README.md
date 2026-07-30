@@ -6,12 +6,38 @@ This directory records the provider-native message contracts that BirdCoder must
 
 | Provider | Baseline | Local authority |
 | --- | --- | --- |
-| [Codex](codex/README.md) | source commit `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc` | `external/codex/` |
-| [OpenCode](opencode/README.md) | `1.18.9`, commit `7565e03536d19e850f9996c407f9bf5e932b5f7a` | `external/opencode/` |
+| [Codex](codex/README.md) | source commit `a05bcda3dbd68729caa2f11027b7f43974fda298` | `external/codex/` |
+| [OpenCode](opencode/README.md) | `1.18.9`, commit `a6f7fe739c691e8b086c50390cf3205f0b5d431e` | `external/opencode/` |
 | [Gemini CLI](gemini/README.md) | `0.55.0-nightly.20260728.gd29268d36`, commit `3499c84f7b8e70c86600e7cd2c67a7c65a667f5e` | `external/gemini/` |
 | [Claude Code](claude-code/README.md) | Agent SDK `0.3.220` | kernel adapter plus published SDK contract |
-| [OpenClaw](openclaw/README.md) | `2026.7.2`, commit `819961a292dc224d57bc110dd8c6d8364709de13` | `external/openclaw/` |
-| [Hermes Agent](hermes-agent/README.md) | `0.19.0`, commit `cff9728587da4f3c0beed0786f9bea528e489f13` | `external/hermes-agent/` |
+| [OpenClaw](openclaw/README.md) | `2026.7.2`, commit `ff72f287c37e21b233bc919ae2ceda5fc8005e13` | `external/openclaw/` |
+| [Hermes Agent](hermes-agent/README.md) | `0.19.0`, commit `595a408f4028fb72e244ba818ddec2b7d92d670a` | `external/hermes-agent/` |
+
+## Work Mode Distribution And Installation
+
+BirdCoder Work Mode has a fixed Work Provider allowlist. Its new-task menu
+always displays OpenClaw (`openclaw` / `agent.intelligence.openclaw`) and
+Hermes Agent (`hermes` / `agent.intelligence.hermes`) at tier
+`t2-autonomous`. Display does not mean installed: only the generated Agents
+App SDK catalog can declare a Provider available, and it must publish the exact
+engine id, Agent id, tier, and a usable model.
+
+| Provider | Official Windows installer | Official Unix installer | Installed baseline | Noninteractive constraint |
+| --- | --- | --- | --- | --- |
+| OpenClaw | `https://openclaw.ai/install.ps1` | `https://openclaw.ai/install.sh` | `2026.7.2` | no prompt; onboarding deferred |
+| Hermes Agent | `https://hermes-agent.nousresearch.com/install.ps1` | `https://hermes-agent.nousresearch.com/install.sh` | commit `cff9728587da4f3c0beed0786f9bea528e489f13` | noninteractive; setup deferred |
+
+One-click installation is a BirdCoder desktop capability. The component sends
+only `openclaw` or `hermes`; infrastructure selects the fixed shell profile,
+official HTTPS authority, pinned baseline, and arguments. Unknown ids are
+rejected before `desktop_local_shell_exec`, and browser mode reports that the
+desktop app is required. A zero installer exit triggers an Agents catalog
+refresh but does not fabricate catalog availability. If the owning runtime has
+not published the exact Provider identity, the Provider remains unavailable
+until refresh or restart resolves it.
+
+The normative machine contract is
+[`../../specs/agents-birdcoder-alignment.spec.json`](../../specs/agents-birdcoder-alignment.spec.json).
 
 ## Canonical BirdCoder Model
 
@@ -60,7 +86,7 @@ Provider adapters must retain enough source data to populate this logical envelo
 | `lifecycleEvents` | Bounded status facts that matter to the user but are not durable assistant prose. |
 | `providerData` | Bounded source payload needed for forward compatibility and diagnostics. |
 
-An adapter must not emit an empty visible item merely because a source record is recognized. Records that are transport-only or secret-bearing are retained as bounded metadata or omitted by an explicit rule; all other unknown durable records receive a generic visible representation.
+An adapter must not emit an empty visible item merely because a source record is recognized. Records that are transport-only or secret-bearing are retained as bounded metadata or omitted by an explicit rule; all other unknown records receive a generic visible representation only after the owning adapter can classify them as durable and safe. Raw provider payloads are never used as an unreviewed fallback.
 
 ## Correlation Keys
 

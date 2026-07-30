@@ -4,9 +4,11 @@
 
 - Repository: [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
 - Version: `0.19.0`
-- Commit: `cff9728587da4f3c0beed0786f9bea528e489f13`
+- Commit: `595a408f4028fb72e244ba818ddec2b7d92d670a`
 - Live stream contract: `external/hermes-agent/gateway/stream_events.py`
 - Persistence authority: `external/hermes-agent/hermes_state.py`
+- SQLite schema authority: `external/hermes-agent/hermes_state_common.py`
+- Schema/search/portability mixins: `external/hermes-agent/hermes_state_schema.py`, `hermes_state_search.py`, and `hermes_state_portability.py`
 
 ## Two Distinct Contracts
 
@@ -29,6 +31,8 @@ These events drive an in-flight UI. They are explicitly not the durable conversa
 Persisted history uses OpenAI-style message records with `role`, `content`, assistant `tool_calls`, tool `tool_call_id`, optional `tool_name`, and reasoning-related fields. This persisted list is the authority for history and resume.
 
 The SQLite message schema at the pinned baseline also preserves insertion ID, session ID, timestamp, token count, finish reason, effect disposition, API-fidelity content, display kind/metadata, platform message identity, active/compacted state, and Codex-compatible reasoning/message sidecars. Insertion ID order is the durable ordering authority; timestamp order alone can misorder adjacent assistant tool-call and tool-result rows.
+
+The pinned source mechanically splits schema, search, and portability responsibilities into mixins, but `SessionDB.get_messages_as_conversation` remains the durable conversation projection. The ownership move does not change the live event union or the insertion-order rule.
 
 ## Lifecycle
 

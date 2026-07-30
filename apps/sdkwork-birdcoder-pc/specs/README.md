@@ -48,10 +48,31 @@ domain.
 The generated Agents App SDK catalog is the availability authority. BirdCoder
 admits an engine only when its normalized `engineId`, `agentId`, and `tier`
 exactly match the selected mode's allowlist. Missing fields, mismatched tiers,
-unknown engines, and future catalog entries fail closed. A Provider is not
-shown merely because it appears in this document or in local preferences; it
-must also be published by the live catalog with a usable model. Invalid stored
-mode values normalize to Coding.
+unknown engines, and future catalog entries fail closed. Invalid stored mode
+values normalize to Coding.
+
+Visibility and availability are deliberately separate. Coding continues to
+show only catalog-admitted Providers. The Work new-task menu always shows the
+fixed OpenClaw and Hermes Agent choices, including when the catalog is empty.
+A Work Provider that is absent from the live catalog or has no usable model is
+labelled not installed and cannot create a task; selecting it opens the
+installation dialog.
+
+Work Provider installation is supported only by the BirdCoder desktop app. The
+UI passes an allowlisted Provider id, and the infrastructure maps that id to a
+fixed official HTTPS installer, pinned baseline, shell profile, and
+noninteractive arguments. Unknown ids fail before native host invocation;
+browser installation fails with `desktop-required`. Setup or onboarding is
+deferred so installation does not silently configure credentials or external
+services. After a zero exit code, BirdCoder resets and reloads the generated
+Agents catalog. It never fabricates catalog publication or task readiness; if
+the exact Provider identity is still unavailable, the dialog asks the user to
+restart or retry after the owning runtime publishes it.
+
+| Provider | Installer authorities | Pinned baseline | Deferred step |
+| --- | --- | --- | --- |
+| OpenClaw | `https://openclaw.ai/install.ps1`; `https://openclaw.ai/install.sh` | `2026.7.2` | onboarding |
+| Hermes Agent | `https://hermes-agent.nousresearch.com/install.ps1`; `https://hermes-agent.nousresearch.com/install.sh` | commit `cff9728587da4f3c0beed0786f9bea528e489f13` | setup |
 
 The machine-readable authority and enforcement evidence live in
 [`../../../../specs/agents-birdcoder-alignment.spec.json`](../../../../specs/agents-birdcoder-alignment.spec.json).

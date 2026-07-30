@@ -48,6 +48,11 @@ export function useCodePageSessionSelection({
   const normalizedSelectedSessionProjectId = selectedSessionProjectId?.trim() ?? '';
   const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
   const normalizedInitialAgentSessionId = initialAgentSessionId?.trim() || '';
+  const requestedSelectionKey = buildAgentSessionProjectScopedKey(
+    normalizedProjectId,
+    normalizedInitialAgentSessionId,
+  );
+  const lastObservedRequestedSelectionKeyRef = useRef(requestedSelectionKey);
   const currentProjectId =
     normalizedSessionProjectId || normalizedSelectedSessionProjectId || normalizedProjectId;
   const currentProject =
@@ -186,11 +191,18 @@ export function useCodePageSessionSelection({
     const currentLocalSelectionKey = currentLocalProjectId
       ? buildAgentSessionProjectScopedKey(currentLocalProjectId, currentLocalAgentSessionId)
       : currentLocalAgentSessionId;
+    const requestedSelectionChanged =
+      lastObservedRequestedSelectionKeyRef.current !== requestedSelectionKey;
+    lastObservedRequestedSelectionKeyRef.current = requestedSelectionKey;
     if (
       pendingLocalAgentSessionSelectionKeyRef.current &&
-      pendingLocalAgentSessionSelectionKeyRef.current === currentLocalSelectionKey
+      pendingLocalAgentSessionSelectionKeyRef.current === currentLocalSelectionKey &&
+      !requestedSelectionChanged
     ) {
       return;
+    }
+    if (requestedSelectionChanged) {
+      pendingLocalAgentSessionSelectionKeyRef.current = null;
     }
 
     if (!normalizedInitialAgentSessionId) {
@@ -201,7 +213,8 @@ export function useCodePageSessionSelection({
           normalizedSelectedSessionProjectId !== normalizedProjectId
         )
       ) {
-        selectProjectWithoutAgentSession(normalizedProjectId || null);
+        setSelectedSessionId(null);
+        setSelectedSessionProjectId(normalizedProjectId || null);
       }
       return;
     }
@@ -238,9 +251,9 @@ export function useCodePageSessionSelection({
     normalizedProjectId,
     normalizedSelectedSessionProjectId,
     normalizedSessionProjectId,
+    requestedSelectionKey,
     resolveProjectById,
     resolveSessionInProject,
-    selectProjectWithoutAgentSession,
     sessionId,
   ]);
 
@@ -268,15 +281,16 @@ export function useCodePageSessionSelection({
       return;
     }
 
+    if (pendingLocalAgentSessionSelectionKeyRef.current !== nextSelectionKey) {
+      return;
+    }
+
     if (lastNotifiedAgentSessionSelectionKeyRef.current === nextSelectionKey) {
       return;
     }
 
     lastNotifiedAgentSessionSelectionKeyRef.current = nextSelectionKey;
     onAgentSessionChange?.(nextAgentSessionId, currentProjectId);
-    if (pendingLocalAgentSessionSelectionKeyRef.current === nextSelectionKey) {
-      pendingLocalAgentSessionSelectionKeyRef.current = null;
-    }
   }, [
     currentProjectId,
     isVisible,

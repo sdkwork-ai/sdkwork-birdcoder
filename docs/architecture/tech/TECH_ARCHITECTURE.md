@@ -185,14 +185,35 @@ code-engine catalog:
 | Work | `t2-autonomous` | `openclaw` (OpenClaw) | `agent.intelligence.openclaw` |
 | Work | `t2-autonomous` | `hermes` (Hermes Agent) | `agent.intelligence.hermes` |
 
-An entry is selectable only when `engineId`, `agentId`, and `tier` all match
-the selected row and the live catalog publishes a usable model. Unknown or
-partially specified entries, an identity with the wrong tier, and later
-Providers that have not been deliberately assigned to a mode are excluded.
-Persisted values outside `coding | work` normalize to Coding. Session lists,
-search results, context-menu engine choices, and new-task Provider menus apply
-the same mode boundary. The exact mapping is machine-governed by
-`specs/agents-birdcoder-alignment.spec.json` and checked by
+An entry is available for task creation only when `engineId`, `agentId`, and
+`tier` all match the selected row and the live catalog publishes a usable
+model. Unknown or partially specified entries, an identity with the wrong
+tier, and later Providers that have not been deliberately assigned to a mode
+are excluded. Persisted values outside `coding | work` normalize to Coding.
+Session lists, search results, context-menu engine choices, and task creation
+apply the same admission boundary.
+
+Provider menu visibility is a separate presentation contract. Coding shows
+catalog-admitted Providers. Work always shows the two allowlisted choices,
+OpenClaw and Hermes Agent, so an empty catalog does not hide the supported
+installation path. A non-admitted Work row is labelled not installed and
+opens an installation dialog instead of creating a Session.
+
+The installation path is desktop-only and fail-closed. A Work Provider id is
+mapped inside infrastructure to one fixed official HTTPS installer plan;
+arbitrary command text is never accepted from the component. OpenClaw is
+pinned to `2026.7.2` and skips onboarding. Hermes Agent is pinned to commit
+`cff9728587da4f3c0beed0786f9bea528e489f13` and skips setup. Both plans are
+noninteractive, invoke the existing `desktop_local_shell_exec` Tauri boundary,
+and reject unknown ids before invoking the host. Browser mode returns
+`desktop-required`.
+
+A successful installer exit is not availability authority. BirdCoder clears
+and reloads the generated Agents code-engine catalog, then enables task
+creation only if the exact Work identity and usable model are published. It
+does not synthesize a catalog entry. The exact visibility, mapping, installer
+authorities, baselines, arguments, and post-install rule are machine-governed
+by `specs/agents-birdcoder-alignment.spec.json` and checked by
 `pnpm check:agents-birdcoder-alignment`.
 
 ### Session Activity Inbox
