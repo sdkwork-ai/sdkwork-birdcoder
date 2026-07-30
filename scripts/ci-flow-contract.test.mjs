@@ -115,7 +115,7 @@ for (const requiredPattern of [
 
 assert.doesNotMatch(
   ciWorkflow,
-  /postgresql-live-smoke|postgres:16-alpine|SDKWORK_BIRDCODER_POSTGRES_TEST_URL|release:smoke:postgresql-live/u,
+  /postgresql-live-smoke|postgres:16-alpine|SDKWORK_DATABASE_TEST_POSTGRES_URL|release:smoke:postgresql-live/u,
   'CI must not provision an application-owned database for stateless BirdCoder verification.',
 );
 assert.match(
