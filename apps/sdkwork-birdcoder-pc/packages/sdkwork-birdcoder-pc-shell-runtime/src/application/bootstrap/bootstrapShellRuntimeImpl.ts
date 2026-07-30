@@ -5,6 +5,7 @@ import type {
   BirdCoderDeploymentProfile,
   BirdCoderExecutionLocation,
   BirdCoderRuntimeTarget,
+  IGitService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { bootstrapBirdCoderMembershipSdk } from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
 import { bootstrapBirdCoderDriveSandboxExplorer } from '@sdkwork/birdcoder-pc-infrastructure-runtime/driveSandboxExplorer';
@@ -23,6 +24,7 @@ export interface BootstrapShellRuntimeOptions {
   bootstrapTimeoutMs?: number;
   deploymentProfile?: BirdCoderDeploymentProfile;
   executionLocation?: BirdCoderExecutionLocation;
+  gitService?: IGitService;
   host?: BirdHostDescriptor;
   platformApiGatewayBaseUrl?: string;
   runtimeTarget?: BirdCoderRuntimeTarget;

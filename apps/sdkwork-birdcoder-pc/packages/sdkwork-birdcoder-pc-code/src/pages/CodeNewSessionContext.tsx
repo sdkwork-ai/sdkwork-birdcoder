@@ -6,7 +6,6 @@ import {
   ChevronDown,
   FolderClosed,
   Loader2,
-  Monitor,
   Plus,
   Search,
 } from 'lucide-react';
@@ -23,6 +22,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  NewTaskRunModeSelector,
+  type NewTaskExecutionTarget,
+} from './NewTaskRunModeSelector';
 
 interface ProjectSwitcherPosition extends CSSProperties {
   bottom?: number;
@@ -62,9 +65,13 @@ function resolveProjectSwitcherPosition(trigger: HTMLElement): ProjectSwitcherPo
 }
 
 interface CodeNewSessionContextProps {
+  cloudExecutionAvailable: boolean;
+  executionTarget: NewTaskExecutionTarget;
   hasMoreProjects: boolean;
   isLoadingMoreProjects: boolean;
+  localExecutionAvailable: boolean;
   onLoadMoreProjects: () => Promise<unknown> | void;
+  onExecutionTargetChange: (executionTarget: NewTaskExecutionTarget) => void;
   onNewProject: () => Promise<string | undefined>;
   onProjectSelect: (projectId: string) => void;
   projectGitOverviewState?: ProjectGitOverviewViewState;
@@ -74,9 +81,13 @@ interface CodeNewSessionContextProps {
 }
 
 export const CodeNewSessionContext = memo(function CodeNewSessionContext({
+  cloudExecutionAvailable,
+  executionTarget,
   hasMoreProjects,
   isLoadingMoreProjects,
+  localExecutionAvailable,
   onLoadMoreProjects,
+  onExecutionTargetChange,
   onNewProject,
   onProjectSelect,
   projectGitOverviewState,
@@ -287,10 +298,12 @@ export const CodeNewSessionContext = memo(function CodeNewSessionContext({
         : null}
       </div>
 
-      <div className="flex h-8 shrink-0 items-center gap-2 rounded-md px-2.5 text-gray-300">
-        <Monitor size={15} className="text-gray-300" />
-        <span>{t('app.localFolder')}</span>
-      </div>
+      <NewTaskRunModeSelector
+        cloudExecutionAvailable={cloudExecutionAvailable}
+        executionTarget={executionTarget}
+        localExecutionAvailable={localExecutionAvailable}
+        onExecutionTargetChange={onExecutionTargetChange}
+      />
 
       <ProjectGitHeaderControls
         compactControls={false}

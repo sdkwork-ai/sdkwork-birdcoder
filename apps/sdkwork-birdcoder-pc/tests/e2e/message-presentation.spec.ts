@@ -1,4 +1,10 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
@@ -108,6 +114,20 @@ async function waitForTranscriptSettlement(page: Page): Promise<void> {
     };
     window.requestAnimationFrame(waitForNextFrame);
   }));
+}
+
+async function revealTranscriptMessage(
+  page: Page,
+  transcript: Locator,
+  message: Locator,
+  maxAttempts = 8,
+): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts && !(await message.isVisible()); attempt += 1) {
+    await transcript.hover();
+    await page.mouse.wheel(0, -5_000);
+    await waitForTranscriptSettlement(page);
+  }
+  await expect(message).toBeVisible();
 }
 
 test('Conversation messages render rich content and expandable command evidence', async ({
@@ -412,7 +432,7 @@ test('Codex user input preserves text, images, and files in one message', async 
   await page.setViewportSize({ width: 900, height: 800 });
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
-  const codexItemRequestedPages: number[] = [];
+  const codexItemRequestUrls: URL[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
       consoleErrors.push(message.text());
@@ -421,8 +441,11 @@ test('Codex user input preserves text, images, and files in one message', async 
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('request', (request) => {
     const url = new URL(request.url());
-    if (url.pathname.endsWith('/e2e-codex-session/items')) {
-      codexItemRequestedPages.push(Number(url.searchParams.get('page') ?? 1));
+    if (
+      url.pathname.endsWith('/e2e-codex-session/items')
+      || url.pathname.endsWith('/e2e-codex-session/items/synchronize')
+    ) {
+      codexItemRequestUrls.push(url);
     }
   });
 
@@ -431,7 +454,26 @@ test('Codex user input preserves text, images, and files in one message', async 
     timeout: 60_000,
   });
   await expandProjectSessions(page);
+  const initialItemPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST'
+      && url.pathname.endsWith('/e2e-codex-session/items/synchronize')
+      && !url.searchParams.has('cursor');
+  });
   await selectSessionByTitle(page, 'Codex implementation');
+  const initialItemPage = await initialItemPageResponse;
+  const initialItemPageUrl = new URL(initialItemPage.url());
+  const initialItemPagePayload = await initialItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const firstEarlierCursor = initialItemPagePayload.data.pageInfo.nextCursor;
+  expect(initialItemPage.ok()).toBe(true);
+  expect(initialItemPageUrl.searchParams.get('page')).toBeNull();
+  expect(initialItemPageUrl.searchParams.get('page_size')).toBe('50');
+  expect(initialItemPageUrl.searchParams.get('sort')).toBe('-sequence');
+  expect(initialItemPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(firstEarlierCursor).toEqual(expect.any(String));
+  expect(firstEarlierCursor).not.toMatch(/^\d+$/u);
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   const codexUserText = transcript.locator('[data-chat-user-text="true"]').filter({
@@ -519,51 +561,65 @@ test('Codex user input preserves text, images, and files in one message', async 
   const pageTwoResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '2';
+      && url.searchParams.get('cursor') === firstEarlierCursor
+      && url.searchParams.get('page_size') === '50'
+      && !url.searchParams.has('page');
   });
   await loadEarlierMessages.click();
-  await expect.poll(() => codexItemRequestedPages.includes(2)).toBe(true);
-  expect((await pageTwoResponse).ok()).toBe(true);
-  expect(codexItemRequestedPages.includes(3)).toBe(false);
-  await expect(transcript.getByText(
-    'Codex historical message 55',
-    { exact: true },
-  )).toBeVisible();
+  const secondItemPage = await pageTwoResponse;
+  const secondItemPagePayload = await secondItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const secondEarlierCursor = secondItemPagePayload.data.pageInfo.nextCursor;
+  expect(secondItemPage.ok()).toBe(true);
+  expect(secondItemPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(secondEarlierCursor).toEqual(expect.any(String));
+  expect(secondEarlierCursor).not.toBe(firstEarlierCursor);
+  expect(secondEarlierCursor).not.toMatch(/^\d+$/u);
+  expect(codexItemRequestUrls.some((url) => url.searchParams.has('page'))).toBe(false);
+  expect(codexItemRequestUrls.some(
+    (url) => url.searchParams.get('cursor') === secondEarlierCursor,
+  )).toBe(false);
   const pageThreeResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '3';
+      && url.searchParams.get('cursor') === secondEarlierCursor
+      && url.searchParams.get('page_size') === '50'
+      && !url.searchParams.has('page');
   });
-  await transcript.hover();
-  await page.mouse.wheel(0, -5_000);
-  await waitForTranscriptSettlement(page);
-  await expect(transcript.getByText(
-    'Codex historical message 7',
-    { exact: true },
-  )).toBeVisible();
-  if (!codexItemRequestedPages.includes(3)) {
-    await transcript.hover();
-    await page.mouse.wheel(0, -5_000);
-  }
-  await expect.poll(() => codexItemRequestedPages.includes(3)).toBe(true);
-  expect((await pageThreeResponse).ok()).toBe(true);
-  await expect(loadEarlierMessages).toHaveCount(0);
-  const earliestCodexMessage = transcript.getByText(
-    'Codex historical message 1',
-    { exact: true },
+  await revealTranscriptMessage(
+    page,
+    transcript,
+    transcript.getByText('Codex historical message 7', { exact: true }),
   );
   for (
     let attempt = 0;
-    attempt < 3 && await earliestCodexMessage.count() === 0;
+    attempt < 4 && !codexItemRequestUrls.some(
+      (url) => url.searchParams.get('cursor') === secondEarlierCursor,
+    );
     attempt += 1
   ) {
     await transcript.hover();
     await page.mouse.wheel(0, -5_000);
     await waitForTranscriptSettlement(page);
   }
-  await expect(
-    earliestCodexMessage,
-  ).toBeVisible();
+  await expect.poll(() => codexItemRequestUrls.some(
+    (url) => url.searchParams.get('cursor') === secondEarlierCursor,
+  )).toBe(true);
+  const thirdItemPage = await pageThreeResponse;
+  const thirdItemPagePayload = await thirdItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  expect(thirdItemPage.ok()).toBe(true);
+  expect(thirdItemPagePayload.data.pageInfo.hasMore).toBe(false);
+  expect(thirdItemPagePayload.data.pageInfo.nextCursor).toBeNull();
+  expect(codexItemRequestUrls.some((url) => url.searchParams.has('page'))).toBe(false);
+  await expect(loadEarlierMessages).toHaveCount(0);
+  const earliestCodexMessage = transcript.getByText(
+    'Codex historical message 1',
+    { exact: true },
+  );
+  await revealTranscriptMessage(page, transcript, earliestCodexMessage);
 
   expect(pageErrors).toEqual([]);
   expect(consoleErrors.filter((entry) => (

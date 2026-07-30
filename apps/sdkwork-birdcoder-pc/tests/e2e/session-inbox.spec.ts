@@ -1,4 +1,10 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
@@ -40,6 +46,35 @@ async function ensureProjectSessionsExpanded(page: Page): Promise<void> {
     await expandProject.click();
   }
   await expect(collapseProject).toBeVisible();
+}
+
+async function waitForTranscriptSettlement(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let remainingFrames = 12;
+    const waitForNextFrame = () => {
+      remainingFrames -= 1;
+      if (remainingFrames <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(waitForNextFrame);
+    };
+    window.requestAnimationFrame(waitForNextFrame);
+  }));
+}
+
+async function revealTranscriptMessage(
+  page: Page,
+  transcript: Locator,
+  message: Locator,
+  maxAttempts = 8,
+): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts && !(await message.isVisible()); attempt += 1) {
+    await transcript.hover();
+    await page.mouse.wheel(0, -5_000);
+    await waitForTranscriptSettlement(page);
+  }
+  await expect(message).toBeVisible();
 }
 
 async function openOrganizeMenu(page: Page) {
@@ -84,7 +119,7 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   await ensureProjectSessionsExpanded(page);
 
   const sessionList = page.locator('.project-explorer-scroll-region').last();
-  const sessionRows = sessionList.locator('.birdcoder-session-row:visible');
+  const sessionRows = sessionList.locator('.birdcoder-session-row[data-agent-session-id]:visible');
   await expect(sessionList.getByText('Claude architecture review', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('Codex implementation', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
@@ -206,9 +241,9 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   }
   await page.setViewportSize({ width: 1_440, height: 900 });
 
-  const smartOrderDetails = await sessionRows.evaluateAll((rows) =>
-    rows.map((row) => row.getAttribute('title')),
-  );
+  const smartOrderDetails = await sessionRows.evaluateAll((rows) => rows.map((row) => (
+    row.querySelector(':scope > button[aria-label]')?.getAttribute('aria-label') ?? null
+  )));
   const uniqueSmartOrderDetails = smartOrderDetails.filter((details, index, allDetails) => {
     if (!details) {
       return false;
@@ -260,43 +295,91 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   await expect(sessionList.getByText('Codex implementation', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
 
-  await sessionList.getByText('Codex implementation', { exact: true }).click();
+  const initialItemPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST'
+      && url.pathname.endsWith('/e2e-codex-session/items/synchronize')
+      && !url.searchParams.has('cursor');
+  });
+  const codexSessionRow = sessionList.locator('[data-agent-session-id="e2e-codex-session"]');
+  await codexSessionRow.locator(':scope > button[aria-label]').click();
+  const initialItemPage = await initialItemPageResponse;
+  const initialItemPageUrl = new URL(initialItemPage.url());
+  expect(initialItemPage.ok()).toBe(true);
+  expect(initialItemPageUrl.searchParams.get('page')).toBeNull();
+  expect(initialItemPageUrl.searchParams.get('page_size')).toBe('50');
+  expect(initialItemPageUrl.searchParams.get('sort')).toBe('-sequence');
+  const initialItemPagePayload = await initialItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const firstEarlierCursor = initialItemPagePayload.data.pageInfo.nextCursor;
+  expect(initialItemPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(firstEarlierCursor).toEqual(expect.any(String));
+  expect(firstEarlierCursor).not.toMatch(/^\d+$/u);
   const selectedRow = page.locator(
     '.birdcoder-session-list .birdcoder-session-row.birdcoder-session-selected:visible',
   );
-  await expect(selectedRow).toHaveAttribute('title', /Codex implementation/u);
+  const selectedRowButton = selectedRow.locator(':scope > button[aria-label]');
+  await expect(selectedRowButton).toHaveAttribute('title', /Codex implementation/u);
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   const loadEarlierMessages = transcript.getByRole('button', {
     name: 'Load earlier messages',
     exact: true,
   });
-  await expect(transcript.getByText('Codex historical message 26', { exact: true })).toBeVisible();
+  await expect(transcript.getByText('Codex historical message 56', { exact: true })).toBeVisible();
   await expect(loadEarlierMessages).toBeVisible();
   const secondItemPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '2'
-      && url.searchParams.get('page_size') === '20';
+      && url.searchParams.get('cursor') === firstEarlierCursor
+      && url.searchParams.get('page_size') === '50'
+      && !url.searchParams.has('page');
   });
   await loadEarlierMessages.click();
-  await secondItemPageResponse;
-  await expect(transcript.getByText('Codex historical message 6', { exact: true })).toBeVisible();
-  await expect(loadEarlierMessages).toBeVisible();
+  const secondItemPage = await secondItemPageResponse;
+  const secondItemPagePayload = await secondItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const secondEarlierCursor = secondItemPagePayload.data.pageInfo.nextCursor;
+  expect(secondItemPage.ok()).toBe(true);
+  expect(secondItemPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(secondEarlierCursor).toEqual(expect.any(String));
+  expect(secondEarlierCursor).not.toBe(firstEarlierCursor);
+  expect(secondEarlierCursor).not.toMatch(/^\d+$/u);
   const thirdItemPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '3'
-      && url.searchParams.get('page_size') === '20';
+      && url.searchParams.get('cursor') === secondEarlierCursor
+      && url.searchParams.get('page_size') === '50'
+      && !url.searchParams.has('page');
   });
-  await loadEarlierMessages.click();
-  await thirdItemPageResponse;
-  await expect(transcript.getByText('Codex historical message 1', { exact: true })).toBeVisible();
+  await revealTranscriptMessage(
+    page,
+    transcript,
+    transcript.getByText('Codex historical message 6', { exact: true }),
+  );
+  const thirdItemPage = await thirdItemPageResponse;
+  const thirdItemPagePayload = await thirdItemPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  expect(thirdItemPage.ok()).toBe(true);
+  expect(thirdItemPagePayload.data.pageInfo).toEqual({
+    hasMore: false,
+    mode: 'cursor',
+    nextCursor: null,
+    pageSize: 50,
+  });
+  await revealTranscriptMessage(
+    page,
+    transcript,
+    transcript.getByText('Codex historical message 1', { exact: true }),
+  );
   await expect(loadEarlierMessages).toHaveCount(0);
 
   menu = await openOrganizeMenu(page);
   await menu.getByRole('button', { name: 'Created', exact: true }).click();
-  await expect(selectedRow).toHaveAttribute('title', /Codex implementation/u);
+  await expect(selectedRowButton).toHaveAttribute('title', /Codex implementation/u);
 
   await page.reload();
   await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({

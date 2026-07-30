@@ -86,7 +86,7 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   let codexItemRequestCount = 0;
-  const codexItemRequestedPages: number[] = [];
+  const codexItemRequestUrls: URL[] = [];
   let codexTurnRequestCount = 0;
 
   page.on('console', (message) => {
@@ -123,11 +123,9 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
       codexTurnRequestCount += 1;
     }
   });
-  await page.route(/\/e2e-codex-session\/items(?:\?.*)?$/u, async (route) => {
+  await page.route(/\/e2e-codex-session\/items(?:\/synchronize)?(?:\?.*)?$/u, async (route) => {
     codexItemRequestCount += 1;
-    codexItemRequestedPages.push(
-      Number(new URL(route.request().url()).searchParams.get('page') ?? 1),
-    );
+    codexItemRequestUrls.push(new URL(route.request().url()));
     if (codexItemRequestCount === 1) {
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
@@ -140,12 +138,33 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   });
   await expandProjectSessions(page);
 
-  const codexSession = page.getByText('Codex implementation', { exact: true });
-  const openCodeSession = page.getByText('OpenCode verification', { exact: true });
+  const sessionList = page.locator('.project-explorer-scroll-region').last();
+  const codexSession = sessionList
+    .locator('[data-agent-session-id="e2e-codex-session"]')
+    .locator(':scope > button[aria-label]');
+  const openCodeSession = sessionList
+    .locator('[data-agent-session-id="e2e-opencode-session"]')
+    .locator(':scope > button[aria-label]');
   await codexSession.click();
   await expect.poll(() => codexItemRequestCount).toBe(1);
   await openCodeSession.click();
+  const reselectedInitialPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST'
+      && url.pathname.endsWith('/e2e-codex-session/items/synchronize')
+      && !url.searchParams.has('cursor')
+      && !url.searchParams.has('page');
+  });
   await codexSession.click();
+  const reselectedInitialPage = await reselectedInitialPageResponse;
+  const reselectedInitialPagePayload = await reselectedInitialPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const firstEarlierCursor = reselectedInitialPagePayload.data.pageInfo.nextCursor;
+  expect(reselectedInitialPage.ok()).toBe(true);
+  expect(reselectedInitialPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(firstEarlierCursor).toEqual(expect.any(String));
+  expect(firstEarlierCursor).not.toMatch(/^\d+$/u);
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   await expect.poll(() => codexItemRequestCount).toBeGreaterThanOrEqual(2);
@@ -153,34 +172,54 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
     'Codex completed the provider-neutral file presentation.',
     { exact: true },
   )).toBeVisible();
-  expect(codexItemRequestedPages.every((pageNumber) => pageNumber === 1)).toBe(true);
+  expect(codexItemRequestUrls.every((url) => !url.searchParams.has('page'))).toBe(true);
 
   const loadEarlierMessages = transcript.getByRole('button', {
     name: 'Load earlier messages',
     exact: true,
   });
   await expect(loadEarlierMessages).toBeVisible();
+  const secondPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/e2e-codex-session/items')
+      && url.searchParams.get('cursor') === firstEarlierCursor
+      && !url.searchParams.has('page');
+  });
   await loadEarlierMessages.click();
-  await expect.poll(() => codexItemRequestedPages.includes(2)).toBe(true);
+  const secondPage = await secondPageResponse;
+  const secondPagePayload = await secondPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const secondEarlierCursor = secondPagePayload.data.pageInfo.nextCursor;
+  expect(secondPage.ok()).toBe(true);
+  expect(secondPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(secondEarlierCursor).toEqual(expect.any(String));
+  expect(secondEarlierCursor).not.toBe(firstEarlierCursor);
   await expect(page.getByRole('button', {
     name: /Go to conversation turn .*Codex historical message 7$/u,
   })).toHaveCount(1);
   const pageThreeResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '3';
+      && url.searchParams.get('cursor') === secondEarlierCursor
+      && !url.searchParams.has('page');
   });
   for (
     let attempt = 0;
-    attempt < 3 && !codexItemRequestedPages.includes(3);
+    attempt < 5 && !codexItemRequestUrls.some(
+      (url) => url.searchParams.get('cursor') === secondEarlierCursor,
+    );
     attempt += 1
   ) {
     await transcript.focus();
     await page.keyboard.press('Home');
     await waitForTranscriptSettlement(page);
   }
-  await expect.poll(() => codexItemRequestedPages.includes(3)).toBe(true);
+  await expect.poll(() => codexItemRequestUrls.some(
+    (url) => url.searchParams.get('cursor') === secondEarlierCursor,
+  )).toBe(true);
   expect((await pageThreeResponse).ok()).toBe(true);
+  expect(codexItemRequestUrls.every((url) => !url.searchParams.has('page'))).toBe(true);
   await expect(loadEarlierMessages).toHaveCount(0);
   await expect(page.getByRole('button', {
     name: /Go to conversation turn .*Codex historical message 1$/u,

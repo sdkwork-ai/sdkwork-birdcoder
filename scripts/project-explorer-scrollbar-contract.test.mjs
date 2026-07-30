@@ -28,25 +28,20 @@ assert.match(
 const sectionHeaderIndex = source.indexOf(
   'className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"',
 );
-const searchTriggerIndex = source.indexOf('aria-label={searchSessionsTitleLabel}');
+const projectsHeaderIndex = source.indexOf('data-sidebar-projects-header="true"');
 const scrollRegionIndex = source.indexOf(
   'className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"',
 );
 const scrollRegionChildrenIndex = source.indexOf('{children}', scrollRegionIndex);
 
+assert.notEqual(projectsHeaderIndex, -1, 'Project explorer pinned projects header must exist.');
 assert.notEqual(sectionHeaderIndex, -1, 'Project explorer section header must exist.');
-assert.notEqual(searchTriggerIndex, -1, 'Project explorer search trigger must exist.');
 assert.notEqual(scrollRegionIndex, -1, 'Project explorer scroll region must exist.');
 assert.notEqual(scrollRegionChildrenIndex, -1, 'Project explorer children must render inside the scroll region.');
 
 assert.ok(
-  sectionHeaderIndex < scrollRegionIndex,
-  'Project explorer section header and filters must render before the scroll region so project scrolling only moves the session list.',
-);
-
-assert.ok(
-  searchTriggerIndex < scrollRegionIndex,
-  'Project explorer search trigger must render before the scroll region so search controls stay pinned above project scrolling.',
+  projectsHeaderIndex < sectionHeaderIndex && sectionHeaderIndex < scrollRegionIndex,
+  'Project explorer header and filters must render before the scroll region so project scrolling only moves the session list.',
 );
 
 assert.doesNotMatch(
@@ -87,7 +82,7 @@ assert.match(
 
 assert.match(
   sessionRowSource,
-  /<div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">/,
+  /<div className="[^"]*flex min-w-0 flex-1 items-center gap-2 overflow-hidden">/,
   'Code ProjectExplorer session row text cluster must be min-w-0 so long titles shrink instead of changing row geometry.',
 );
 

@@ -15,6 +15,7 @@ import {
   getProjectsStore,
   mutateProjectsStoreByScopeKey,
   peekProjectsStore,
+  PROJECT_STORE_MAX_SESSION_TOMBSTONES,
   recordAgentSessionTombstoneInProjectsStore,
   upsertAgentSessionIntoCollection,
   upsertAgentSessionIntoProjectsStore,
@@ -32,6 +33,7 @@ import {
   canSynchronizeWorkspaceSessionInbox,
   loadWorkspaceSessionInboxUpdate,
   resolveWorkspaceSessionInboxRefreshDelay,
+  WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS,
 } from '../src/workbench/workspaceSessionInboxSync.ts';
 
 const tenantId = '100001';
@@ -335,8 +337,8 @@ describe('Session Inbox', () => {
     )).rejects.toThrow('non-progressing cursor page');
   });
 
-  it('accepts an empty terminal continuation that echoes its opaque request cursor', async () => {
-    const update = await loadWorkspaceSessionInboxUpdate(
+  it('rejects an empty terminal continuation that echoes its opaque request cursor', async () => {
+    await expect(loadWorkspaceSessionInboxUpdate(
       activityService(async () => cursorPage([], {
         hasMore: false,
         nextCursor: 'cursor.terminal',
@@ -344,14 +346,7 @@ describe('Session Inbox', () => {
       workspaceId,
       [project()],
       'cursor.terminal',
-    );
-
-    expect(update).toEqual({
-      cursor: 'cursor.terminal',
-      hasMore: false,
-      nextCursor: 'cursor.terminal',
-      summaries: [],
-    });
+    )).rejects.toThrow('unexpected terminal cursor');
   });
 
   it.each([
@@ -1151,6 +1146,104 @@ describe('Session Inbox', () => {
     expect(canSynchronizeWorkspaceSessionInbox('visible', true)).toBe(true);
     expect(canSynchronizeWorkspaceSessionInbox('hidden', true)).toBe(false);
     expect(canSynchronizeWorkspaceSessionInbox('visible', false)).toBe(false);
+  });
+
+  it('keeps the Session cache at a hard bound even when every row is pinned', () => {
+    const loadedTranscriptSession = session('selected-session', {
+      items: [{
+        id: 'selected-item',
+        sessionId: 'selected-session',
+        role: 'assistant',
+        content: 'Loaded transcript',
+        createdAt,
+      }],
+    });
+    const pinnedSessions = Array.from(
+      { length: WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS + 49 },
+      (_, index) => session(`pinned-${String(index).padStart(3, '0')}`, { pinned: true }),
+    );
+
+    const committed = applyWorkspaceSessionInboxUpdate(
+      [project([loadedTranscriptSession, ...pinnedSessions])],
+      { hasMore: false, summaries: [] },
+    );
+
+    expect(committed[0]?.agentSessions)
+      .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+    expect(committed[0]?.agentSessions).toContain(loadedTranscriptSession);
+  });
+
+  it('bounds Session tombstones and evicts the oldest recorded identities', () => {
+    const scopeKey = buildProjectsStoreScopeKey(
+      'session-tombstone-bound-user',
+      workspaceId,
+    );
+    try {
+      for (
+        let index = 0;
+        index < PROJECT_STORE_MAX_SESSION_TOMBSTONES + 5;
+        index += 1
+      ) {
+        recordAgentSessionTombstoneInProjectsStore(
+          scopeKey,
+          projectId,
+          `deleted-${index}`,
+          String(index + 1),
+        );
+      }
+
+      const tombstones = getProjectsStore(scopeKey).agentSessionTombstones;
+      expect(tombstones).toHaveLength(PROJECT_STORE_MAX_SESSION_TOMBSTONES);
+      expect(tombstones.has(`${projectId}\u0001deleted-0`)).toBe(false);
+      expect(
+        tombstones.get(
+          `${projectId}\u0001deleted-${PROJECT_STORE_MAX_SESSION_TOMBSTONES + 4}`,
+        ),
+      ).toBe(String(PROJECT_STORE_MAX_SESSION_TOMBSTONES + 5));
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
+  });
+
+  it('prunes transcript revisions when the central Session cache evicts rows', () => {
+    const scopeKey = buildProjectsStoreScopeKey(
+      'session-revision-bound-user',
+      workspaceId,
+    );
+    const sessions = Array.from(
+      { length: WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS + 25 },
+      (_, index) => session(`revision-${String(index).padStart(3, '0')}`),
+    );
+    try {
+      const store = getProjectsStore(scopeKey);
+      for (const agentSession of sessions) {
+        store.agentSessionTranscriptRevisions.set(
+          `${projectId}\u0001${agentSession.id}`,
+          1,
+        );
+      }
+
+      upsertProjectIntoProjectsStoreByScopeKey(scopeKey, project(sessions));
+
+      const retainedSessions = getProjectsStore(scopeKey)
+        .snapshot.projects[0]?.agentSessions ?? [];
+      const retainedRevisionKeys = new Set(
+        retainedSessions.map(
+          (agentSession) => `${projectId}\u0001${agentSession.id}`,
+        ),
+      );
+      expect(retainedSessions)
+        .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+      expect(store.agentSessionTranscriptRevisions)
+        .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+      expect(
+        [...store.agentSessionTranscriptRevisions.keys()].every((key) =>
+          retainedRevisionKeys.has(key),
+        ),
+      ).toBe(true);
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
   });
 
   it.each<AgentSessionRuntimeDisplayStatus>([

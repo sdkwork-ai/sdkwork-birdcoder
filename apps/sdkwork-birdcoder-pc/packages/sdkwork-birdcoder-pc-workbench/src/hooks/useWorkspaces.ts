@@ -54,7 +54,7 @@ export function useWorkspaces(options?: {
   isActive?: boolean;
   preferredWorkspaceId?: string | null;
 }) {
-  const { workspaceService } = useIDEServices();
+  const { agentWorkspaceService } = useIDEServices();
   const { sessionRevision, user } = useAuth();
   const sessionScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
   const activeSessionScopeRef = useRef(sessionScope);
@@ -96,8 +96,8 @@ export function useWorkspaces(options?: {
     let request = inventoryByRequestKey.get(requestKey);
     if (!request) {
       request = (async () => {
-        await workspaceService.ensureDefaultWorkspace();
-        return workspaceService.getWorkspacesPage({
+        await agentWorkspaceService.ensureDefaultWorkspace();
+        return agentWorkspaceService.getWorkspacesPage({
           page: 1,
           pageSize: DEFAULT_LIST_PAGE_SIZE,
           status: 'active',
@@ -124,7 +124,7 @@ export function useWorkspaces(options?: {
         )
       ) {
         try {
-          const preferredWorkspace = await workspaceService.getWorkspaceById(
+          const preferredWorkspace = await agentWorkspaceService.getWorkspaceById(
             preferredWorkspaceId,
           );
           if (
@@ -177,7 +177,7 @@ export function useWorkspaces(options?: {
       setSelectedWorkspaceId('');
       throw error;
     }
-  }, [isActive, options?.preferredWorkspaceId, sessionScope, workspaceService]);
+  }, [agentWorkspaceService, isActive, options?.preferredWorkspaceId, sessionScope]);
 
   const loadMoreWorkspaces = useCallback(async () => {
     const pageInfo = inventory.pageInfo;
@@ -200,7 +200,7 @@ export function useWorkspaces(options?: {
     }));
     let request = inventoryByRequestKey.get(requestKey);
     if (!request) {
-      request = workspaceService.getWorkspacesPage({
+      request = agentWorkspaceService.getWorkspacesPage({
         page: nextPage,
         pageSize: pageInfo.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
         status: 'active',
@@ -256,14 +256,14 @@ export function useWorkspaces(options?: {
     isActive,
     options?.preferredWorkspaceId,
     sessionScope,
-    workspaceService,
+    agentWorkspaceService,
   ]);
 
   const createWorkspace = useCallback(async (name: string, description?: string) => {
     if (!sessionScope) {
       throw new Error('An authenticated session is required');
     }
-    const workspace = await workspaceService.createWorkspace(name, description);
+    const workspace = await agentWorkspaceService.createWorkspace(name, description);
     if (activeSessionScopeRef.current !== sessionScope) {
       return workspace;
     }
@@ -275,7 +275,7 @@ export function useWorkspaces(options?: {
     }));
     setSelectedWorkspaceId(workspace.workspaceId);
     return workspace;
-  }, [sessionScope, workspaceService]);
+  }, [agentWorkspaceService, sessionScope]);
 
   const updateWorkspace = useCallback(async (
     workspaceId: string,
@@ -285,7 +285,7 @@ export function useWorkspaces(options?: {
     if (!sessionScope) {
       throw new Error('An authenticated session is required');
     }
-    const workspace = await workspaceService.updateWorkspace(
+    const workspace = await agentWorkspaceService.updateWorkspace(
       workspaceId,
       expectedVersion,
       updates,
@@ -301,7 +301,7 @@ export function useWorkspaces(options?: {
       ),
     }));
     return workspace;
-  }, [sessionScope, workspaceService]);
+  }, [agentWorkspaceService, sessionScope]);
 
   const removeWorkspaceFromActiveInventory = useCallback((workspaceId: string) => {
     const remainingWorkspaces = inventory.workspaces.filter(
@@ -328,12 +328,12 @@ export function useWorkspaces(options?: {
     if (!sessionScope) {
       throw new Error('An authenticated session is required');
     }
-    const workspace = await workspaceService.archiveWorkspace(workspaceId, expectedVersion);
+    const workspace = await agentWorkspaceService.archiveWorkspace(workspaceId, expectedVersion);
     if (activeSessionScopeRef.current === sessionScope) {
       removeWorkspaceFromActiveInventory(workspaceId);
     }
     return workspace;
-  }, [removeWorkspaceFromActiveInventory, sessionScope, workspaceService]);
+  }, [agentWorkspaceService, removeWorkspaceFromActiveInventory, sessionScope]);
 
   const deleteWorkspace = useCallback(async (
     workspaceId: string,
@@ -342,11 +342,11 @@ export function useWorkspaces(options?: {
     if (!sessionScope) {
       throw new Error('An authenticated session is required');
     }
-    await workspaceService.deleteWorkspace(workspaceId, expectedVersion);
+    await agentWorkspaceService.deleteWorkspace(workspaceId, expectedVersion);
     if (activeSessionScopeRef.current === sessionScope) {
       removeWorkspaceFromActiveInventory(workspaceId);
     }
-  }, [removeWorkspaceFromActiveInventory, sessionScope, workspaceService]);
+  }, [agentWorkspaceService, removeWorkspaceFromActiveInventory, sessionScope]);
 
   useEffect(() => {
     if (!isActive || !sessionScope) {

@@ -2,6 +2,34 @@ interface CreatedAgentSession {
   sessionId: string;
 }
 
+export class AgentSessionExecutionTargetUnavailableError extends Error {
+  readonly code: 'cloud_execution_unavailable';
+  readonly executionTarget: 'CLOUD';
+
+  constructor() {
+    super(
+      'Cloud execution is unavailable until Agents can prove a ready Sandbox placement.',
+    );
+    this.name = 'AgentSessionExecutionTargetUnavailableError';
+    this.code = 'cloud_execution_unavailable';
+    this.executionTarget = 'CLOUD';
+  }
+}
+
+export class AgentSessionRuntimeLocationUnavailableError extends Error {
+  readonly code: 'local_runtime_location_unavailable';
+  readonly executionTarget: 'LOCAL';
+
+  constructor() {
+    super(
+      'Local execution requires a mounted project runtime location before the Agent Session can be created.',
+    );
+    this.name = 'AgentSessionRuntimeLocationUnavailableError';
+    this.code = 'local_runtime_location_unavailable';
+    this.executionTarget = 'LOCAL';
+  }
+}
+
 export interface CreateBoundAgentSessionOptions<
   TSession extends CreatedAgentSession,
   TRuntimeBinding,
@@ -14,6 +42,24 @@ export interface CreateBoundAgentSessionOptions<
 export interface BoundAgentSession<TSession, TRuntimeBinding> {
   runtimeBinding: TRuntimeBinding;
   session: TSession;
+}
+
+export interface CreateLocallyBoundAgentSessionOptions<
+  TSession extends CreatedAgentSession,
+  TRuntimeBinding,
+> {
+  createRuntimeBinding: (
+    session: TSession,
+    runtimeLocationId: string,
+  ) => Promise<TRuntimeBinding>;
+  createSession: () => Promise<TSession>;
+  deleteCreatedSession: (session: TSession) => Promise<void>;
+  resolveRuntimeLocationId: () => Promise<string>;
+}
+
+export interface LocallyBoundAgentSession<TSession, TRuntimeBinding>
+  extends BoundAgentSession<TSession, TRuntimeBinding> {
+  runtimeLocationId: string;
 }
 
 export class AgentSessionRuntimeBindingProvisioningError extends Error {
@@ -62,4 +108,28 @@ export async function createBoundAgentSession<
       cleanupError,
     );
   }
+}
+
+export async function createLocallyBoundAgentSession<
+  TSession extends CreatedAgentSession,
+  TRuntimeBinding,
+>(
+  options: CreateLocallyBoundAgentSessionOptions<TSession, TRuntimeBinding>,
+): Promise<LocallyBoundAgentSession<TSession, TRuntimeBinding>> {
+  const runtimeLocationId = (await options.resolveRuntimeLocationId()).trim();
+  if (!runtimeLocationId) {
+    throw new AgentSessionRuntimeLocationUnavailableError();
+  }
+
+  const provisionedSession = await createBoundAgentSession({
+    createRuntimeBinding: (session) =>
+      options.createRuntimeBinding(session, runtimeLocationId),
+    createSession: options.createSession,
+    deleteCreatedSession: options.deleteCreatedSession,
+  });
+
+  return {
+    ...provisionedSession,
+    runtimeLocationId,
+  };
 }

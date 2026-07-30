@@ -172,6 +172,8 @@ export default defineLocaleModule('code/sidebar', {
     forkToLocal: '\u5206\u53c9\u5230\u672c\u5730',
     forkToNewTree: '\u5206\u53c9\u5230\u65b0 worktree',
     showMoreSessions: '\u5c55\u5f00\u66f4\u591a',
+    showOlderSessions: '\u66f4\u65e9\u7684\u4f1a\u8bdd',
+    showLatestSessions: '\u6700\u65b0\u4f1a\u8bdd',
     loadingMoreSessions: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd...',
     failedToLoadMoreSessions: '\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd\u5931\u8d25',
     collapseSessions: '\u6536\u8d77\u4f1a\u8bdd',

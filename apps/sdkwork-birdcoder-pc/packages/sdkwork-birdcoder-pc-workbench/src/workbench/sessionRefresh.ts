@@ -213,12 +213,12 @@ function normalizeSessionItemCursorPageInfo(
     ) {
       throw new Error(`${label} returned a non-progressing cursor page.`);
     }
-  } else if (nextCursor !== null) {
-    throw new Error(`${label} terminal page must return a null cursor.`);
+  } else if (nextCursor !== null && nextCursor !== undefined) {
+    throw new Error(`${label} terminal page must omit or null its cursor.`);
   }
   return {
     hasMore: pageInfo.hasMore,
-    nextCursor,
+    nextCursor: nextCursor ?? null,
     pageSize: requestedPageSize,
   };
 }
@@ -244,7 +244,7 @@ function validateLoadedItemPageInfo(
     throw new Error(`${label} has an invalid continuation cursor.`);
   }
   if (!pageInfo.hasMore && pageInfo.nextCursor !== null) {
-    throw new Error(`${label} terminal page must have a null cursor.`);
+    throw new Error(`${label} terminal page must have a normalized null cursor.`);
   }
   return pageInfo;
 }
@@ -539,11 +539,14 @@ async function loadSessionItemPage(
   items: AgentSessionItemRecord[];
   pageInfo: AgentSessionItemPageInfoView;
 }> {
-  const page = await service.listSessionItems(identity, {
+  const pageRequest = {
     cursor: requestedCursor,
     pageSize: AGENT_SESSION_ITEM_PAGE_SIZE,
     sort: '-sequence',
-  }, { signal });
+  } as const;
+  const page = requestedCursor === undefined
+    ? await service.synchronizeSessionItems(identity, pageRequest, { signal })
+    : await service.listSessionItems(identity, pageRequest, { signal });
   const pageInfo = normalizeSessionItemCursorPageInfo(
     page.pageInfo,
     requestedCursor,
@@ -1004,7 +1007,11 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
   const identity = { agentId, sessionId: normalizedSessionId };
 
   const currentPageInfo = agentSession.itemPageInfo;
-  if (!currentPageInfo || !currentPageInfo.hasMore) {
+  if (
+    !currentPageInfo
+    || !currentPageInfo.hasMore
+    || currentPageInfo.retentionLimitReached === true
+  ) {
     return {
       agentSession,
       loadedItemCount: 0,

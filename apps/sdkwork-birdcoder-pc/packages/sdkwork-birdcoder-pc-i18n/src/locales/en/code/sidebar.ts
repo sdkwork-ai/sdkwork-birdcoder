@@ -171,6 +171,8 @@ export default defineLocaleModule('code/sidebar', {
     forkToLocal: 'Fork to local',
     forkToNewTree: 'Fork to new worktree',
     showMoreSessions: 'Show more',
+    showOlderSessions: 'Older sessions',
+    showLatestSessions: 'Latest sessions',
     loadingMoreSessions: 'Loading more sessions...',
     failedToLoadMoreSessions: 'Failed to load more sessions',
     collapseSessions: 'Collapse',

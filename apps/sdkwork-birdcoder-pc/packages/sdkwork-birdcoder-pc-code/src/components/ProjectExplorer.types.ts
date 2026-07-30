@@ -2,8 +2,12 @@ import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectSessionLoadMoreResult {
   hasMore?: boolean;
+  hasNewer?: boolean;
   loadedCount?: number;
+  windowShifted?: boolean;
 }
+
+export type ProjectSessionWindowDirection = 'latest' | 'older';
 
 export interface ProjectExplorerProps {
   hasMoreProjects?: boolean;
@@ -27,6 +31,7 @@ export interface ProjectExplorerProps {
   onLoadMoreProjectSessions?: (
     projectId: string,
     requestedCount: number,
+    direction?: ProjectSessionWindowDirection,
   ) => Promise<ProjectSessionLoadMoreResult> | ProjectSessionLoadMoreResult | void;
   onOpenFolder?: () => void;
   onNewAgentSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;

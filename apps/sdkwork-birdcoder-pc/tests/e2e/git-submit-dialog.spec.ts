@@ -167,6 +167,32 @@ async function openAuthenticatedCodeProject(page: Page) {
     (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
   await page.addInitScript(({ accessToken: persistedAccessToken, authToken: persistedAuthToken }) => {
+    const gitOverview = {
+      branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
+      currentBranch: 'main',
+      currentRevision: '0123456789abcdef0123456789abcdef01234567',
+      detachedHead: false,
+      status: 'ready',
+      statusCounts: { staged: 1, unstaged: 1, untracked: 0 },
+      worktrees: [{ branch: 'main', head: '0123456789abcdef0123456789abcdef01234567', isCurrent: true }],
+    };
+    const rejectMutation = async () => {
+      throw new Error('The browser E2E Git fixture does not mutate a repository.');
+    };
+    Object.defineProperty(globalThis, '__SDKWORK_BIRDCODER_TEST_GIT_SERVICE__', {
+      configurable: true,
+      value: {
+        commitProjectGitChanges: rejectMutation,
+        createProjectGitBranch: rejectMutation,
+        createProjectGitWorktree: rejectMutation,
+        getProjectGitDiff: async () => ({ patch: '', truncated: false }),
+        getProjectGitOverview: async () => structuredClone(gitOverview),
+        pruneProjectGitWorktrees: rejectMutation,
+        pushProjectGitBranch: rejectMutation,
+        removeProjectGitWorktree: rejectMutation,
+        switchProjectGitBranch: rejectMutation,
+      },
+    });
     localStorage.setItem('sdkwork.birdcoder.appSession.v1', JSON.stringify({
       accessToken: persistedAccessToken,
       authToken: persistedAuthToken,
@@ -292,7 +318,7 @@ test('Git commit and push requires a commit message without mutating the reposit
   await openAuthenticatedCodeProject(page);
   await expect(page.getByText('E2E Project').first()).toBeVisible({ timeout: 60_000 });
 
-  const gitControl = page.locator('button:has(svg.lucide-folder-git-2):visible').first();
+  const gitControl = page.getByRole('button', { name: /^Git Overview:/u });
   await expect(gitControl).toBeVisible({ timeout: 30_000 });
   await gitControl.click();
 
@@ -327,9 +353,10 @@ test('sandbox explorer presents a responsive professional large-directory experi
   await routeLargeSandboxDirectory(page);
   await openAuthenticatedCodeProject(page);
 
-  const openFolderButton = page.getByRole('button', { name: 'Open Server Folder', exact: true }).first();
-  await expect(openFolderButton).toBeVisible({ timeout: 60_000 });
-  await openFolderButton.click();
+  await page.getByRole('button', { name: 'File', exact: true }).click();
+  const openFolderMenuItem = page.getByText('Open Server Folder...', { exact: true });
+  await expect(openFolderMenuItem).toBeVisible({ timeout: 60_000 });
+  await openFolderMenuItem.click();
 
   const dialog = page.getByRole('dialog', { name: 'Select a server project directory' });
   await expect(dialog).toBeVisible();
@@ -357,6 +384,7 @@ test('sandbox explorer presents a responsive professional large-directory experi
   await expect(dialog.getByText('Refreshing\u2026')).toBeVisible();
   await expect(secondFolder).toBeVisible();
   await expect(dialog.getByText('Refreshing\u2026')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Debug Configuration' })).toHaveCount(0);
   await expect(secondFolder).toBeFocused();
 
   await dialog.getByTitle('Switch to grid view').click();

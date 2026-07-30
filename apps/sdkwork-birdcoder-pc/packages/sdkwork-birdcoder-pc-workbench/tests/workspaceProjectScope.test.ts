@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
   AgentProjectView,
+  AgentSessionItemView,
   AgentSessionView,
   AgentWorkspaceView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -15,6 +16,8 @@ import {
   getAgentSessionTranscriptRevision,
   getProjectsStore,
   mutateProjectsStoreByScopeKey,
+  PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS,
+  PROJECT_STORE_MAX_SESSION_ITEMS,
   removeAgentSessionFromProjectsStore,
   updateAgentSessionInCollection,
   upsertAgentSessionIntoProjectsStore,
@@ -74,6 +77,23 @@ function createSession(projectId: string): AgentSessionView {
     updatedAt: '2026-07-25T00:01:00.000Z',
     displayTime: 'Just now',
     items: [],
+  };
+}
+
+function createSessionItem(sequence: number, options: {
+  content?: string;
+  transient?: boolean;
+} = {}): AgentSessionItemView {
+  return {
+    id: `item-${sequence}`,
+    sessionId: 'session-1',
+    role: 'assistant',
+    content: options.content ?? `message-${sequence}`,
+    createdAt: '2026-07-25T00:00:00.000Z',
+    metadata: {
+      agentItemSequence: String(sequence),
+      ...(options.transient ? { transient: true } : {}),
+    },
   };
 }
 
@@ -492,6 +512,94 @@ describe('Workspace-scoped project inventory', () => {
       expect(commit(historyPage)).toBe(true);
       expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.itemPageInfo)
         .toEqual(historyPage.itemPageInfo);
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
+  });
+
+  it('bounds retained transcript items without advancing beyond the recoverable cursor', () => {
+    const userScope = '42::bounded-transcript';
+    const project = createProject('workspace-bounded', 'project-bounded');
+    const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+    const latestItems = Array.from(
+      { length: PROJECT_STORE_MAX_SESSION_ITEMS },
+      (_, index) => createSessionItem(index + 51),
+    );
+    const initialSession = {
+      ...createSession(project.projectId),
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.recoverable', pageSize: 50 },
+      items: latestItems,
+    };
+
+    try {
+      upsertProjectIntoProjectsStore(project, userScope);
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        initialSession,
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'authority-window-reset' },
+      );
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        {
+          ...initialSession,
+          itemPageInfo: { hasMore: true, nextCursor: 'cursor.discarded', pageSize: 50 },
+          items: Array.from({ length: 550 }, (_, index) => createSessionItem(index + 1)),
+        },
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'ordered-window' },
+      );
+
+      const retained = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0];
+      expect(retained?.items).toHaveLength(PROJECT_STORE_MAX_SESSION_ITEMS);
+      expect(retained?.items[0]?.id).toBe('item-51');
+      expect(retained?.items.at(-1)?.id).toBe('item-550');
+      expect(retained?.itemPageInfo).toEqual({
+        hasMore: true,
+        nextCursor: 'cursor.recoverable',
+        pageSize: 50,
+        retentionLimitReached: true,
+      });
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
+  });
+
+  it('prioritizes transient items and enforces the transcript character budget', () => {
+    const userScope = '42::bounded-transient';
+    const project = createProject('workspace-bounded', 'project-transient');
+    const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+    const transient = createSessionItem(0, { transient: true });
+    const oversizedWindow = [
+      transient,
+      ...Array.from(
+        { length: PROJECT_STORE_MAX_SESSION_ITEMS },
+        (_, index) => createSessionItem(index + 1, { content: 'x'.repeat(10_000) }),
+      ),
+    ];
+
+    try {
+      upsertProjectIntoProjectsStore(project, userScope);
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        {
+          ...createSession(project.projectId),
+          itemPageInfo: { hasMore: true, nextCursor: 'cursor.older', pageSize: 50 },
+          items: oversizedWindow,
+        },
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'authority-window-reset' },
+      );
+
+      const retained = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0];
+      expect(retained?.items).toContain(transient);
+      expect(retained!.items.length).toBeLessThan(PROJECT_STORE_MAX_SESSION_ITEMS);
+      expect(retained!.items.reduce((total, item) => total + item.content.length, 0))
+        .toBeLessThanOrEqual(PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS);
+      expect(retained?.itemPageInfo?.retentionLimitReached).toBe(true);
     } finally {
       deleteProjectsStore(scopeKey);
     }

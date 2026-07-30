@@ -2,8 +2,11 @@ import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
 } from '@sdkwork/birdcoder-pc-ui/components/DeferredRunDialogs';
-import { useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui';
-import { Button, ConfirmationDialog } from '@sdkwork/birdcoder-pc-ui-shell';
+import {
+  Button,
+  ConfirmationDialog,
+  useDialogFocusManagement,
+} from '@sdkwork/birdcoder-pc-ui-shell';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import { X } from 'lucide-react';
 import { memo } from 'react';

@@ -31,7 +31,7 @@ async function bootstrapAuthenticatedSession(
   }, payload.data);
 }
 
-test('selected code providers create their own Agent Sessions without a runtime location', async ({
+test('browser cloud providers fail closed before creating Agent Sessions without Sandbox placement', async ({
   page,
   request,
 }) => {
@@ -46,6 +46,51 @@ test('selected code providers create their own Agent Sessions without a runtime 
   }> = [];
   const deletedSessions: Array<{ agentId: string; sessionId: string }> = [];
   let failNextRuntimeBinding = false;
+  const createSessionRecord = (sequence: number) => {
+    const body = sessionCreateBodies[sequence - 1] ?? {};
+    return {
+      sessionId: `e2e-provider-created-${sequence}`,
+      tenantId: '0',
+      organizationId: '0',
+      agentId: body.agentId,
+      ownerUserId: '1',
+      projectId,
+      sessionKind: 'coding',
+      entrySurface: 'pc',
+      sourceModule: 'sdkwork-birdcoder',
+      sourceContextKind: body.sourceContextKind,
+      sourceContextId: body.sourceContextId,
+      title: body.title,
+      status: 'active',
+      itemCount: '0',
+      lastItemSequence: '0',
+      totalInputTokens: '0',
+      totalOutputTokens: '0',
+      createdBy: '1',
+      updatedBy: '1',
+      version: '1',
+      createdAt,
+      updatedAt: createdAt,
+    };
+  };
+  const resolveCreatedSessionSequence = (url: string): number => Number(
+    /\/sessions\/e2e-provider-created-(?<sequence>\d+)(?:\/|$)/u.exec(
+      new URL(url).pathname,
+    )?.groups?.sequence ?? 0,
+  );
+  const createRuntimeBindingRecord = (sequence: number) => ({
+    runtimeBindingId: `runtime-binding.provider-created-${sequence}`,
+    tenantId: '0',
+    organizationId: '0',
+    sessionId: `e2e-provider-created-${sequence}`,
+    ...(runtimeBindingBodies[sequence - 1] ?? {}),
+    status: 'active',
+    isCurrent: true,
+    version: '1',
+    createdAt,
+    updatedAt: createdAt,
+    activatedAt: createdAt,
+  });
 
   await page.route(`**/app/v3/api/ai/projects/${projectId}/sessions`, async (route) => {
     if (route.request().method() !== 'POST') {
@@ -58,34 +103,100 @@ test('selected code providers create their own Agent Sessions without a runtime 
     await route.fulfill({
       json: {
         code: 0,
-        data: {
-          sessionId: `e2e-provider-created-${sequence}`,
-          tenantId: '0',
-          organizationId: '0',
-          agentId: body.agentId,
-          ownerUserId: '1',
-          projectId,
-          sessionKind: 'coding',
-          entrySurface: 'pc',
-          sourceModule: 'sdkwork-birdcoder',
-          sourceContextKind: body.sourceContextKind,
-          sourceContextId: body.sourceContextId,
-          title: body.title,
-          status: 'active',
-          itemCount: '0',
-          lastItemSequence: '0',
-          totalInputTokens: '0',
-          totalOutputTokens: '0',
-          createdBy: '1',
-          updatedBy: '1',
-          version: '1',
-          createdAt,
-          updatedAt: createdAt,
-        },
+        data: createSessionRecord(sequence),
         traceId: `provider-session-create-${sequence}`,
       },
     });
   });
+  await page.route(
+    /\/app\/v3\/api\/ai\/projects\/project\.e2e-1\/sessions\/e2e-provider-created-\d+$/u,
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const sequence = resolveCreatedSessionSequence(route.request().url());
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: createSessionRecord(sequence),
+          traceId: `provider-project-session-${sequence}`,
+        },
+      });
+    },
+  );
+  await page.route(
+    /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/e2e-provider-created-\d+$/u,
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const sequence = resolveCreatedSessionSequence(route.request().url());
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: createSessionRecord(sequence),
+          traceId: `provider-agent-session-${sequence}`,
+        },
+      });
+    },
+  );
+  await page.route(
+    /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/e2e-provider-created-\d+\/items(?:\/synchronize)?(?:\?.*)?$/u,
+    async (route) => {
+      const requestUrl = new URL(route.request().url());
+      const method = route.request().method();
+      const isSynchronization = requestUrl.pathname.endsWith('/items/synchronize');
+      if ((isSynchronization && method !== 'POST') || (!isSynchronization && method !== 'GET')) {
+        await route.fallback();
+        return;
+      }
+      const sequence = resolveCreatedSessionSequence(route.request().url());
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: {
+            items: [],
+            pageInfo: {
+              hasMore: false,
+              mode: 'cursor',
+              nextCursor: null,
+              pageSize: 50,
+            },
+          },
+          traceId: `provider-session-items-${sequence}`,
+        },
+      });
+    },
+  );
+  await page.route(
+    /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/e2e-provider-created-\d+\/interactions(?:\?.*)?$/u,
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const sequence = resolveCreatedSessionSequence(route.request().url());
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: {
+            items: [],
+            pageInfo: {
+              hasMore: false,
+              mode: 'offset',
+              page: 1,
+              pageSize: 200,
+              totalItems: '0',
+              totalPages: 0,
+            },
+          },
+          traceId: `provider-session-interactions-${sequence}`,
+        },
+      });
+    },
+  );
   await page.route(
     '**/app/v3/api/ai/agents/*/sessions/*/runtime_bindings',
     async (route) => {
@@ -114,20 +225,35 @@ test('selected code providers create their own Agent Sessions without a runtime 
       await route.fulfill({
         json: {
           code: 0,
-          data: {
-            runtimeBindingId: `runtime-binding.provider-created-${sequence}`,
-            tenantId: '0',
-            organizationId: '0',
-            sessionId: `e2e-provider-created-${sequence}`,
-            ...body,
-            status: 'active',
-            isCurrent: true,
-            version: '1',
-            createdAt,
-            updatedAt: createdAt,
-            activatedAt: createdAt,
-          },
+          data: createRuntimeBindingRecord(sequence),
           traceId: `provider-runtime-binding-${sequence}`,
+        },
+      });
+    },
+  );
+  await page.route(
+    /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/e2e-provider-created-\d+\/runtime_bindings(?:\?.*)?$/u,
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const sequence = resolveCreatedSessionSequence(route.request().url());
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: {
+            items: [createRuntimeBindingRecord(sequence)],
+            pageInfo: {
+              hasMore: false,
+              mode: 'offset',
+              page: 1,
+              pageSize: 20,
+              totalItems: '1',
+              totalPages: 1,
+            },
+          },
+          traceId: `provider-runtime-bindings-${sequence}`,
         },
       });
     },
@@ -345,31 +471,30 @@ test('selected code providers create their own Agent Sessions without a runtime 
 
   const providerMenuButton = page.locator('[data-sidebar-new-session-trigger="true"]');
   const providerMenu = page.getByRole('menu', { name: 'New task' });
-
-  for (const [index, provider] of providers.entries()) {
-    await providerMenuButton.hover();
-    await expect(providerMenu).toBeVisible();
-    await providerMenu.getByRole('menuitemradio', { name: provider.menuName }).click();
-    await expect.poll(() => runtimeBindingBodies.length).toBe(index + 1);
-
-    expect(sessionCreateBodies[index]).toMatchObject({
-      agentId: provider.agentId,
-    });
-    expect(runtimeBindingBodies[index]).toMatchObject({
-      hostMode: 'web',
-      transportKind: 'sdk-stream',
-      modelId: provider.modelId,
-      providerBindingId: provider.providerBindingId,
-      providerId: provider.providerId,
-    });
-    expect(runtimeBindingAgentIds[index]).toBe(provider.agentId);
-    expect(runtimeBindingBodies[index]).not.toHaveProperty('runtimeLocationId');
-  }
-
   const newSessionProviderSelector = page.getByTestId(
     'universal-chat-new-session-provider-selector',
   );
   const newSessionComposer = page.locator('[data-new-session-composer="true"]');
+
+  for (const provider of providers) {
+    await providerMenuButton.hover();
+    await expect(providerMenu).toBeVisible();
+    await providerMenu.getByRole('menuitemradio', { name: provider.menuName }).click();
+    await expect(newSessionProviderSelector).toHaveAccessibleName(
+      `Current provider: ${provider.providerBindingId === 'claude-code'
+        ? 'Claude Code'
+        : provider.providerBindingId === 'codex'
+          ? 'Codex'
+          : 'Opencode'}`,
+    );
+
+    expect(sessionCreateBodies).toHaveLength(0);
+    expect(runtimeBindingBodies).toHaveLength(0);
+  }
+
+  await providerMenuButton.hover();
+  await expect(providerMenu).toBeVisible();
+  await providerMenu.getByRole('menuitemradio', { name: providers[2].menuName }).click();
   const newSessionContext = page.locator('[data-new-session-context="true"]');
   const [newSessionContextBox, newSessionProviderSelectorBox, newSessionTextareaBox] =
     await Promise.all([
@@ -449,48 +574,14 @@ test('selected code providers create their own Agent Sessions without a runtime 
   await expect(newSessionProviderMenu).toBeHidden();
   await page.setViewportSize({ height: 720, width: 1280 });
   await newSessionComposer.locator('textarea').fill('Verify the selected provider');
-  const providerTurnResponse = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === 'POST'
-      && url.pathname.endsWith('/e2e-provider-created-4/turns');
-  });
   await newSessionComposer.locator('button[title="Send message"]').click();
-  const submittedProviderTurnResponse = await providerTurnResponse;
-  expect(
-    submittedProviderTurnResponse.status(),
-    await submittedProviderTurnResponse.text(),
-  ).toBe(200);
-  expect(new URL(submittedProviderTurnResponse.url()).searchParams.get('stream')).toBe('true');
-  await expect.poll(() => runtimeBindingBodies.length).toBe(4);
-  expect(sessionCreateBodies[3]).toMatchObject({ agentId: providers[1].agentId });
-  expect(runtimeBindingBodies[3]).toMatchObject({
-    modelId: providers[1].modelId,
-    providerBindingId: providers[1].providerBindingId,
-    providerId: providers[1].providerId,
-  });
-  expect(turnRequests).toHaveLength(1);
-  expect(turnRequests[0]).toMatchObject({
-    agentId: providers[1].agentId,
-    body: {
-      content: 'Verify the selected provider',
-      requestedModelId: providers[1].modelId,
-      runtimeBindingId: runtimeBindingBodies[3].runtimeBindingId,
-      turnId: expect.stringMatching(/^turn\./u),
-    },
-    sessionId: 'e2e-provider-created-4',
-  });
-  await expect(page.getByText('Verify the selected provider', { exact: true })).toHaveCount(1);
-  await expect(page.getByText('Provider selection verified.', { exact: true })).toHaveCount(1);
-
-  failNextRuntimeBinding = true;
-  await providerMenuButton.hover();
-  await providerMenu.getByRole('menuitemradio', {
-    name: providers[1].menuName,
-  }).click();
-
-  await expect.poll(() => deletedSessions.length).toBe(1);
-  expect(deletedSessions).toEqual([{
-    agentId: providers[1].agentId,
-    sessionId: 'e2e-provider-created-5',
-  }]);
+  await expect(page.getByText(
+    'Cloud execution is unavailable until Agents can prove a ready Sandbox placement.',
+    { exact: true },
+  ).first()).toBeVisible();
+  expect(sessionCreateBodies).toHaveLength(0);
+  expect(runtimeBindingBodies).toHaveLength(0);
+  expect(runtimeBindingAgentIds).toHaveLength(0);
+  expect(turnRequests).toHaveLength(0);
+  expect(deletedSessions).toHaveLength(0);
 });

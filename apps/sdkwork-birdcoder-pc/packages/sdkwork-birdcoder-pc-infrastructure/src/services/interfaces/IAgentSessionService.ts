@@ -91,6 +91,11 @@ export interface AgentSessionCursorPage<TItem> {
   };
 }
 
+export type AgentSessionItemSynchronizationRequest = Omit<
+  AgentSessionItemPageRequest,
+  'cursor'
+>;
+
 export interface CreateAgentSessionInput {
   agentId?: string;
   projectId: string;
@@ -193,6 +198,11 @@ export interface IAgentSessionService {
   listSessionItems(
     identity: AgentSessionIdentity,
     request?: AgentSessionItemPageRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionCursorPage<AgentSessionItemRecord>>;
+  synchronizeSessionItems(
+    identity: AgentSessionIdentity,
+    request?: AgentSessionItemSynchronizationRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionCursorPage<AgentSessionItemRecord>>;
   listTurns(

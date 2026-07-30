@@ -52,11 +52,18 @@ async function scrollTranscriptToTopAndReadAnchor(
   anchorText: string,
 ): Promise<number> {
   const anchor = transcript.getByText(anchorText, { exact: true });
-  await transcript.evaluate((element) => {
-    element.dispatchEvent(new WheelEvent('wheel', { deltaY: -1_000 }));
-    element.scrollTop = 0;
-    element.dispatchEvent(new Event('scroll'));
-  });
+  let attempt = 0;
+  do {
+    await transcript.evaluate((element) => {
+      element.dispatchEvent(new WheelEvent('wheel', { deltaY: -1_000 }));
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await transcript.evaluate(() => new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+    }));
+    attempt += 1;
+  } while (attempt < 6 && !(await anchor.isVisible()));
   await expect(anchor).toBeVisible();
   return anchor.evaluate((element) => element.getBoundingClientRect().top);
 }
@@ -68,12 +75,12 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   await bootstrapAuthenticatedSession(page, request);
   await page.setViewportSize({ width: 1_440, height: 900 });
 
-  const requestedHistoryPages: string[] = [];
-  await page.route(/\/e2e-codex-session\/items(?:\?.*)?$/u, async (route) => {
+  const requestedHistoryCursors: string[] = [];
+  await page.route(/\/e2e-codex-session\/items(?:\/synchronize)?(?:\?.*)?$/u, async (route) => {
     const url = new URL(route.request().url());
-    const pageNumber = url.searchParams.get('page');
-    if (pageNumber === '2' || pageNumber === '3') {
-      requestedHistoryPages.push(pageNumber);
+    const cursor = url.searchParams.get('cursor');
+    if (cursor) {
+      requestedHistoryCursors.push(cursor);
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
     await route.continue();
@@ -84,7 +91,25 @@ test('opens at the latest message and auto-loads anchored history at the top', a
     timeout: 60_000,
   });
   await expandProjectSessions(page);
-  await page.getByText('Codex implementation', { exact: true }).click();
+  const initialPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST'
+      && url.pathname.endsWith('/e2e-codex-session/items/synchronize')
+      && !url.searchParams.has('cursor')
+      && !url.searchParams.has('page');
+  });
+  await page.locator('[data-agent-session-id="e2e-codex-session"]')
+    .locator(':scope > button[aria-label]')
+    .click();
+  const initialPage = await initialPageResponse;
+  const initialPagePayload = await initialPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const firstEarlierCursor = initialPagePayload.data.pageInfo.nextCursor;
+  expect(initialPage.ok()).toBe(true);
+  expect(initialPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(firstEarlierCursor).toEqual(expect.any(String));
+  expect(firstEarlierCursor).not.toMatch(/^\d+$/u);
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
   await expect(transcript.getByText(
@@ -133,25 +158,29 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   const secondPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '2'
+      && url.searchParams.get('cursor') === firstEarlierCursor
       && url.searchParams.get('page_size') === '50';
   });
   const secondPageAnchorTop = await scrollTranscriptToTopAndReadAnchor(
     transcript,
     'Codex historical message 56',
   );
-  await secondPageResponse;
+  const secondPage = await secondPageResponse;
+  const secondPagePayload = await secondPage.json() as {
+    data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
+  };
+  const secondEarlierCursor = secondPagePayload.data.pageInfo.nextCursor;
+  expect(secondPage.ok()).toBe(true);
+  expect(secondPagePayload.data.pageInfo.hasMore).toBe(true);
+  expect(secondEarlierCursor).toEqual(expect.any(String));
+  expect(secondEarlierCursor).not.toBe(firstEarlierCursor);
   const secondPageAnchor = transcript.getByText('Codex historical message 56', { exact: true });
   await expect.poll(async () => (
     Math.abs((await secondPageAnchor.evaluate(
       (element) => element.getBoundingClientRect().top,
     )) - secondPageAnchorTop)
   )).toBeLessThanOrEqual(4);
-  expect(requestedHistoryPages).toEqual(['2']);
-  await expect(page.getByRole('button', {
-    name: 'Load earlier messages',
-    exact: true,
-  })).toBeEnabled();
+  expect(requestedHistoryCursors).toEqual([firstEarlierCursor]);
 
   const virtualizedDistantTurn = page.getByRole('button', {
     name: /Go to conversation turn \d+: Codex historical message 95$/u,
@@ -163,7 +192,7 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   const thirdPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/e2e-codex-session/items')
-      && url.searchParams.get('page') === '3'
+      && url.searchParams.get('cursor') === secondEarlierCursor
       && url.searchParams.get('page_size') === '50';
   });
   const thirdPageAnchorTop = await scrollTranscriptToTopAndReadAnchor(
@@ -192,7 +221,7 @@ test('opens at the latest message and auto-loads anchored history at the top', a
     [...renderedHistoricalMessageSequence].sort((left, right) => left - right),
   );
   expect(renderedHistoricalMessageSequence[0]).toBe(1);
-  expect(requestedHistoryPages).toEqual(['2', '3']);
+  expect(requestedHistoryCursors).toEqual([firstEarlierCursor, secondEarlierCursor]);
 
   await expect(jumpToLatestMessage).toBeVisible();
   await jumpToLatestMessage.click();

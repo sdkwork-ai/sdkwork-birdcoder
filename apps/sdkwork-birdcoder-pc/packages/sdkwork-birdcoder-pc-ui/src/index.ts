@@ -4,8 +4,6 @@ export { DeferredFileExplorer } from './components/DeferredFileExplorer';
 export { WorkbenchNewSessionButton } from './components/WorkbenchNewSessionButton';
 export { ProjectInventoryStatus } from './components/ProjectInventoryStatus';
 export type { ProjectInventoryStatusProps } from './components/ProjectInventoryStatus';
-export { useDialogFocusManagement } from './hooks/useDialogFocusManagement';
-export type { UseDialogFocusManagementOptions } from './hooks/useDialogFocusManagement';
 export {
   SessionProviderBadge,
   resolveSessionProviderPresentation,

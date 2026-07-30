@@ -91,9 +91,9 @@
       "import": "./src/services/interfaces/IProjectService.ts",
       "types": "./src/services/interfaces/IProjectService.ts"
     },
-    "./services/interfaces/IWorkspaceService": {
-      "import": "./src/services/interfaces/IWorkspaceService.ts",
-      "types": "./src/services/interfaces/IWorkspaceService.ts"
+    "./services/interfaces/IAgentWorkspaceService": {
+      "import": "./src/services/interfaces/IAgentWorkspaceService.ts",
+      "types": "./src/services/interfaces/IAgentWorkspaceService.ts"
     },
     "./services/interfaces/IVipMembershipService": {
       "import": "./src/services/interfaces/IVipMembershipService.ts",

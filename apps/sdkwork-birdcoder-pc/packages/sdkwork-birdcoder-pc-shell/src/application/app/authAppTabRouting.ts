@@ -62,23 +62,35 @@ export function useBirdCoderAuthAppTabRouting({
   recoveredTab,
   logout,
 }: UseBirdCoderAuthAppTabRoutingOptions) {
-  const hasAppliedRecoveredTabRef = useRef(false);
+  const appliedRecoveryTargetTabRef = useRef<AppTab | null>(null);
   const pendingAuthTargetTabRef = useRef<AppTab | null>(null);
   const explicitLogoutRedirectRef = useRef(false);
+  const bootedIntoAuthSurfaceRef = useRef(shouldBootIntoAuthSurface());
 
   useEffect(() => {
-    if (isAuthLoading || !isRecoveryHydrated || hasAppliedRecoveredTabRef.current) {
+    const requestedRecoveryTab = recoveredTab;
+    if (
+      isAuthLoading
+      || !isRecoveryHydrated
+      || appliedRecoveryTargetTabRef.current === requestedRecoveryTab
+    ) {
       return;
     }
 
-    hasAppliedRecoveredTabRef.current = true;
-    if (shouldBootIntoAuthSurface()) {
+    appliedRecoveryTargetTabRef.current = requestedRecoveryTab;
+    if (bootedIntoAuthSurfaceRef.current) {
       setActiveTab('auth');
       return;
     }
 
-    const recoveredTargetTab = resolveInitialAppTab(recoveredTab, Boolean(user));
-    if (user && activeTab === 'auth' && recoveredTargetTab !== 'auth') {
+    const recoveredTargetTab = resolveInitialAppTab(requestedRecoveryTab, Boolean(user));
+    if (
+      !user
+      && requestedRecoveryTab !== 'auth'
+      && requiresAuthenticatedSession(requestedRecoveryTab)
+    ) {
+      pendingAuthTargetTabRef.current = requestedRecoveryTab;
+    } else if (user && activeTab === 'auth' && recoveredTargetTab !== 'auth') {
       // The auth effect below observes this render's previous activeTab. Preserve
       // the recovered target so both effects converge when hydration completes.
       pendingAuthTargetTabRef.current = recoveredTargetTab;

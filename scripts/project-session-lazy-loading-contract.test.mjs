@@ -73,7 +73,7 @@ assert.match(
 );
 assert.match(
   projectsStoreSource,
-  /left\.agentSessionPageInfo\?\.page === right\.agentSessionPageInfo\?\.page[\s\S]*left\.agentSessionPageInfo\?\.pageSize === right\.agentSessionPageInfo\?\.pageSize[\s\S]*left\.agentSessionPageInfo\?\.hasMore === right\.agentSessionPageInfo\?\.hasMore/,
+  /left\.agentSessionPageInfo\?\.mode === right\.agentSessionPageInfo\?\.mode[\s\S]*left\.agentSessionPageInfo\?\.pageSize === right\.agentSessionPageInfo\?\.pageSize[\s\S]*left\.agentSessionPageInfo\?\.hasMore === right\.agentSessionPageInfo\?\.hasMore[\s\S]*left\.agentSessionPageInfo\?\.hasNewer === right\.agentSessionPageInfo\?\.hasNewer[\s\S]*left\.agentSessionPageInfo\?\.nextCursor === right\.agentSessionPageInfo\?\.nextCursor/,
   'Project store identity checks must include Session page metadata.',
 );
 

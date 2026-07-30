@@ -35,7 +35,7 @@ export function createDefaultBirdCoderIdeServices(
     projectRuntimeLocationService: runtime.projectRuntimeLocationService,
     promptService: new PromptsSdkPromptService(runtime.promptsClient),
     projectService: runtime.projectService,
-    workspaceService: runtime.workspaceService,
+    agentWorkspaceService: runtime.agentWorkspaceService,
     vipMembershipService: new ApiBackedVipMembershipService(),
   };
 }

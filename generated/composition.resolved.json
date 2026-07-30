@@ -244,6 +244,21 @@
       "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/specs/component.spec.json"
     },
     {
+      "workspace": "sdkwork-mcp-app-sdk",
+      "surface": "app-api",
+      "apiPrefix": "/app/v3/api",
+      "connectivityPlane": "platform",
+      "runtimeMode": "external-via-platform-surface",
+      "mountStatus": null,
+      "envKey": "VITE_SDKWORK_MCP_APP_API_BASE_URL",
+      "forbidApplicationSameOriginFallback": true,
+      "sdkOwner": "sdkwork-mcp",
+      "apiAuthority": "sdkwork-mcp.app",
+      "consumerSdkOwner": "sdkwork-birdcoder",
+      "corePackage": "@sdkwork/birdcoder-pc-core",
+      "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/specs/component.spec.json"
+    },
+    {
       "workspace": "sdkwork-documents-app-sdk",
       "surface": "app-api",
       "apiPrefix": "/app/v3/api/documents",
@@ -390,6 +405,11 @@
       {
         "workspace": "sdkwork-agents-app-sdk",
         "manifestRef": "../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+        "inheritPermissions": true
+      },
+      {
+        "workspace": "sdkwork-mcp-app-sdk",
+        "manifestRef": "../sdkwork-mcp/specs/iam.module.manifest.json",
         "inheritPermissions": true
       },
       {
@@ -1271,7 +1291,12 @@
         "source": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core/specs/component.spec.json",
         "layerRole": "frontend-core",
         "publicExports": [
-          "."
+          ".",
+          "./sdk",
+          "./modules",
+          "./host",
+          "./session",
+          "./composition"
         ],
         "providedPorts": [
           {
@@ -1280,11 +1305,23 @@
           },
           {
             "name": "sessionScope",
-            "export": "."
+            "export": "./session"
           },
           {
             "name": "sdkPorts",
-            "export": "."
+            "export": "./sdk"
+          },
+          {
+            "name": "moduleRegistry",
+            "export": "./modules"
+          },
+          {
+            "name": "hostRegistry",
+            "export": "./host"
+          },
+          {
+            "name": "coreComposition",
+            "export": "./composition"
           }
         ],
         "requiredPorts": [],
@@ -1755,6 +1792,7 @@
           "./appSessionTokenManager",
           "./sdk",
           "./sdk/agents-app",
+          "./sdk/mcp-app",
           "./sdk/birdcoder-app",
           "./sdk/documents-app",
           "./sdk/drive-app",
@@ -1811,6 +1849,12 @@
           {
             "workspace": "sdkwork-agents-app-sdk",
             "permissionModuleId": "ai",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api"
+          },
+          {
+            "workspace": "sdkwork-mcp-app-sdk",
+            "permissionModuleId": "mcp",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api"
           },
@@ -2030,7 +2074,20 @@
             "export": "."
           }
         ],
-        "requiredPorts": [],
+        "requiredPorts": [
+          {
+            "name": "workResourcesEnglishLocaleFragment",
+            "export": ".",
+            "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+            "sourceExport": "./i18n/en"
+          },
+          {
+            "name": "workResourcesChineseLocaleFragment",
+            "export": ".",
+            "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+            "sourceExport": "./i18n/zh"
+          }
+        ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
@@ -2186,9 +2243,10 @@
           "./services/impl/ApplicationPublishService",
           "./services/interfaces/IGitService",
           "./services/interfaces/IProjectService",
-          "./services/interfaces/IWorkspaceService",
+          "./services/interfaces/IAgentWorkspaceService",
           "./services/interfaces/IVipMembershipService",
           "./services/skillsSdkClient",
+          "./services/mcpSdkClient",
           "./services/impl/PromptsSdkPromptService",
           "./services/iamRuntime",
           "./services/sessionService",
@@ -2222,6 +2280,10 @@
           {
             "name": "skillsCatalogAdapter",
             "export": "./services/skillsSdkClient"
+          },
+          {
+            "name": "mcpCatalogAdapter",
+            "export": "./services/mcpSdkClient"
           },
           {
             "name": "desktopAppSessionPersistence",
@@ -2332,6 +2394,12 @@
           },
           {
             "workspace": "sdkwork-skills-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-mcp-app-sdk",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -2451,7 +2519,8 @@
         "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/specs/component.spec.json",
         "layerRole": "frontend-shell",
         "publicExports": [
-          "."
+          ".",
+          "./styles"
         ],
         "providedPorts": [
           {
@@ -2459,7 +2528,14 @@
             "export": "."
           }
         ],
-        "requiredPorts": [],
+        "requiredPorts": [
+          {
+            "name": "workResourcesFeature",
+            "export": ".",
+            "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+            "sourceExport": "."
+          }
+        ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [],
@@ -2520,6 +2596,10 @@
         "providedPorts": [
           {
             "name": "shellUiPrimitives",
+            "export": "."
+          },
+          {
+            "name": "dialogFocusManagement",
             "export": "."
           }
         ],
@@ -2662,6 +2742,45 @@
         "dependencyApiSurfaces": []
       },
       {
+        "name": "@sdkwork/birdcoder-pc-work-resources",
+        "type": "react-package",
+        "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-work-resources",
+        "domain": "intelligence",
+        "capability": "work-resources",
+        "surface": null,
+        "languages": [
+          "typescript",
+          "react"
+        ],
+        "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-work-resources/specs/component.spec.json",
+        "layerRole": "frontend-feature",
+        "publicExports": [
+          ".",
+          "./i18n/en",
+          "./i18n/zh"
+        ],
+        "providedPorts": [
+          {
+            "name": "workResourcesFeature",
+            "export": "."
+          }
+        ],
+        "requiredPorts": [
+          {
+            "name": "catalogService",
+            "export": ".",
+            "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure-runtime",
+            "sourceExport": "."
+          }
+        ],
+        "sdkDependencies": [],
+        "routeManifest": null,
+        "runtimeEntrypoints": [
+          "package.json#scripts.typecheck"
+        ],
+        "dependencyApiSurfaces": []
+      },
+      {
         "name": "@sdkwork/birdcoder-pc-workbench-state",
         "type": "node-package",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state",
@@ -2739,6 +2858,8 @@
           "./utils/*",
           "./events/*",
           "./workbench/*",
+          "./workbench/projectGitOverviewSubscription",
+          "./workbench/workspaceSessionInboxCoordinator",
           "./theme/*",
           "./platform/fileSystem",
           "./platform/tauriFileManager",
@@ -2849,6 +2970,13 @@
           },
           {
             "workspace": "sdkwork-messaging-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-mcp-app-sdk",
+            "permissionModuleId": "mcp",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -2999,6 +3127,22 @@
             ]
           },
           {
+            "workspace": "sdkwork-mcp-app-sdk",
+            "sdkFamily": "sdkwork-mcp-app-sdk",
+            "apiAuthority": "sdkwork-mcp.app",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "profileCoverage": [
+              "cloud"
+            ],
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_MCP_APP_API_BASE_URL"
+            ]
+          },
+          {
             "workspace": "sdkwork-order-app-sdk",
             "sdkFamily": "sdkwork-order-app-sdk",
             "apiAuthority": "sdkwork-order-app-api",
@@ -3060,9 +3204,7 @@
         "publicExports": [
           ".",
           "sdkwork_api_birdcoder_assembly::assemble_api_router",
-          "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check",
-          "sdkwork_api_agents_assembly::assemble_app_business_runtime",
-          "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
+          "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check"
         ],
         "providedPorts": [
           {
@@ -3106,18 +3248,10 @@
         "layerRole": "runtime-gateway",
         "publicExports": [
           ".",
-          "sdkwork_api_birdcoder_assembly::assemble_api_router",
           "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
           "sdkwork_api_birdcoder_standalone_gateway::build_app",
-          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
-          "sdkwork_api_iam_assembly::assemble_app_api_contribution",
-          "sdkwork_api_agents_assembly::assemble_app_api_contribution",
-          "sdkwork_api_documents_assembly::assemble_app_api_contribution",
-          "sdkwork_api_drive_assembly::assemble_app_api_contribution",
-          "sdkwork_api_membership_assembly::assemble_app_api_contribution",
-          "sdkwork_api_order_assembly::assemble_app_api_contribution",
-          "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
-          "sdkwork_api_skills_assembly::assemble_app_api_contribution"
+          "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver",
+          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
         ],
         "providedPorts": [
           {
@@ -3478,6 +3612,7 @@
         "publicExports": [
           ".",
           "setup_tauri_host",
+          "desktop_tray_update_menu",
           "start_embedded_application_gateway",
           "ensure_desktop_runtime_config",
           "spawn_embedded_application_gateway_startup",
@@ -3498,6 +3633,10 @@
           {
             "name": "tauriHostSetup",
             "export": "setup_tauri_host"
+          },
+          {
+            "name": "desktopTrayMenu",
+            "export": "desktop_tray_update_menu"
           },
           {
             "name": "embeddedGatewayRuntime",
@@ -3535,13 +3674,14 @@
         "requiredPorts": [
           {
             "name": "standaloneGatewayAppBuilder",
-            "export": "."
+            "export": "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver"
           }
         ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
           "src/lib.rs#setup_tauri_host",
+          "src/host/desktop_tray_menu.rs#desktop_tray_update_menu",
           "src/host/state.rs#start_embedded_application_gateway",
           "src/host/state.rs#ensure_desktop_runtime_config",
           "src/host/state.rs#spawn_embedded_application_gateway_startup",
@@ -3573,8 +3713,12 @@
             "surface": "app-api",
             "apiPrefix": "/app/v3/api",
             "runtimeMode": "same-origin-embedded",
+            "sameOriginAllowed": true,
             "cargoDependency": "sdkwork-api-birdcoder-standalone-gateway",
-            "embeddedExecutableExport": "start_embedded_application_gateway",
+            "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver",
+            "profileCoverage": [
+              "standalone"
+            ],
             "coverageEvidence": [
               "src/host/state.rs#start_embedded_application_gateway",
               "src/host/state.rs#ensure_desktop_runtime_config"
@@ -4229,6 +4373,13 @@
         {
           "appRoot": "apps/sdkwork-birdcoder-pc",
           "architecture": "pc",
+          "directoryName": "sdkwork-birdcoder-pc-work-resources",
+          "name": "@sdkwork/birdcoder-pc-work-resources",
+          "role": "capability"
+        },
+        {
+          "appRoot": "apps/sdkwork-birdcoder-pc",
+          "architecture": "pc",
           "directoryName": "sdkwork-birdcoder-pc-workbench",
           "name": "@sdkwork/birdcoder-pc-workbench",
           "role": "capability"
@@ -4690,6 +4841,7 @@
             "sha2",
             "shlex",
             "tar",
+            "test-case",
             "tokio-tungstenite",
             "tracing-opentelemetry",
             "wiremock"
@@ -4837,10 +4989,11 @@
           ]
         },
         {
-          "packageName": "codex",
+          "packageName": "logs_client",
           "manifest": "external/codex/codex-rs/cli/Cargo.toml",
           "dependencies": [
             "anyhow",
+            "chrono",
             "clap",
             "clap-complete",
             "codex-app-server",
@@ -4850,6 +5003,7 @@
             "codex-arg0",
             "codex-api",
             "codex-chatgpt",
+            "codex-cloud-config",
             "codex-cloud-tasks",
             "codex-utils-cli",
             "codex-config",
@@ -4907,10 +5061,12 @@
             "assert-cmd",
             "assert-matches",
             "codex-utils-cargo-bin",
+            "futures",
             "insta",
             "predicates",
             "pretty-assertions",
             "sqlx",
+            "tokio-tungstenite",
             "wiremock",
             "zstd"
           ]
@@ -4992,7 +5148,9 @@
             "tokio-stream",
             "tracing",
             "tracing-subscriber",
+            "unicode-segmentation",
             "unicode-width",
+            "insta",
             "pretty-assertions"
           ]
         },
@@ -5066,7 +5224,6 @@
             "codex-websocket-client",
             "futures",
             "http",
-            "reqwest",
             "schemars",
             "serde",
             "serde-json",
@@ -5084,8 +5241,7 @@
             "assert-matches",
             "pretty-assertions",
             "tokio-test",
-            "wiremock",
-            "reqwest"
+            "wiremock"
           ]
         },
         {
@@ -6535,10 +6691,10 @@
             "codex-utils-home-dir",
             "bytes",
             "futures",
+            "http",
             "keyring",
             "memchr",
             "oauth2",
-            "reqwest",
             "rmcp",
             "serde",
             "serde-json",
@@ -6548,9 +6704,11 @@
             "tiny-http",
             "tokio",
             "tracing",
+            "url",
             "urlencoding",
             "webbrowser",
             "which",
+            "codex-http-client",
             "codex-utils-cargo-bin",
             "pretty-assertions",
             "serial-test",
@@ -6704,13 +6862,10 @@
           "dependencies": [
             "anyhow",
             "chrono",
-            "clap",
             "codex-protocol",
             "codex-utils-absolute-path",
-            "dirs",
             "libsqlite3-sys",
             "log",
-            "owo-colors",
             "serde",
             "serde-json",
             "sqlx",
@@ -6840,6 +6995,7 @@
             "codex-feedback",
             "codex-file-search",
             "codex-git-utils",
+            "codex-http-client",
             "codex-login",
             "codex-message-history",
             "codex-model-provider",
@@ -7218,6 +7374,63 @@
           ]
         },
         {
+          "packageName": "Hermes-Setup",
+          "manifest": "external/hermes-agent/apps/bootstrap-installer/src-tauri/Cargo.toml",
+          "dependencies": [
+            "tauri-build",
+            "tauri",
+            "tauri-plugin-dialog",
+            "tauri-plugin-opener",
+            "tauri-plugin-process",
+            "tauri-plugin-shell",
+            "tokio",
+            "futures",
+            "serde",
+            "serde-json",
+            "reqwest",
+            "tracing",
+            "tracing-subscriber",
+            "tracing-appender",
+            "dirs",
+            "which",
+            "anyhow",
+            "thiserror",
+            "once-cell",
+            "uuid"
+          ]
+        },
+        {
+          "packageName": "openclaw-desktop",
+          "manifest": "external/openclaw/apps/linux/src-tauri/Cargo.toml",
+          "dependencies": [
+            "tauri-build",
+            "base64",
+            "ed25519-dalek",
+            "futures-util",
+            "getrandom",
+            "image",
+            "mdns-sd",
+            "rustls",
+            "serde",
+            "serde-json",
+            "sha2",
+            "subtle",
+            "tauri",
+            "tauri-plugin-autostart",
+            "tauri-plugin-deep-link",
+            "tauri-plugin-global-shortcut",
+            "tauri-plugin-opener",
+            "tauri-plugin-process",
+            "tauri-plugin-single-instance",
+            "tauri-plugin-updater",
+            "tauri-plugin-window-state",
+            "tokio",
+            "tokio-tungstenite",
+            "uuid",
+            "zeroize"
+          ]
+        },
+        {
           "packageName": "sdkwork-birdcoder-app-sdk",
           "manifest": "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/generated/server-openapi/Cargo.toml",
           "dependencies": [
@@ -7377,6 +7590,24 @@
           "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
           "optionalBaseUrlKeys": [
             "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-mcp-app-sdk",
+          "sdkFamily": "sdkwork-mcp-app-sdk",
+          "apiAuthority": "sdkwork-mcp.app",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "profileCoverage": [
+            "cloud"
+          ],
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_MCP_APP_API_BASE_URL"
           ]
         },
         {
@@ -7599,8 +7830,12 @@
           "surface": "app-api",
           "apiPrefix": "/app/v3/api",
           "runtimeMode": "same-origin-embedded",
+          "sameOriginAllowed": true,
           "cargoDependency": "sdkwork-api-birdcoder-standalone-gateway",
-          "embeddedExecutableExport": "start_embedded_application_gateway",
+          "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver",
+          "profileCoverage": [
+            "standalone"
+          ],
           "coverageEvidence": [
             "src/host/state.rs#start_embedded_application_gateway",
             "src/host/state.rs#ensure_desktop_runtime_config"
@@ -7621,6 +7856,7 @@
       "sdkwork-birdcoder-app-sdk": "authenticated-app-api",
       "sdkwork-drive-app-sdk": "authenticated-app-api",
       "sdkwork-messaging-app-sdk": "authenticated-app-api",
+      "sdkwork-mcp-app-sdk": "authenticated-app-api",
       "sdkwork-documents-app-sdk": "authenticated-app-api",
       "sdkwork-prompts-app-sdk": "authenticated-app-api",
       "sdkwork-skills-app-sdk": "authenticated-app-api",

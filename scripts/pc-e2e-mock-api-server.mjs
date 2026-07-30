@@ -33,6 +33,36 @@ const workspaces = [defaultWorkspace];
 const projects = [createAgentProjectFixture()];
 const projectDriveId = 'drive.e2e-project';
 const projectDriveRootEntryId = 'drive-entry-project-root';
+const e2eCursorPrefix = 'e2e.cursor.v1.';
+
+function createE2ECursor(scope, offset) {
+  const payload = Buffer.from(JSON.stringify({ offset, scope }), 'utf8').toString('base64url');
+  return `${e2eCursorPrefix}${payload}`;
+}
+
+function readE2ECursorOffset(cursor, scope) {
+  if (!cursor) {
+    return 0;
+  }
+  if (!cursor.startsWith(e2eCursorPrefix)) {
+    return null;
+  }
+  try {
+    const encodedPayload = cursor.slice(e2eCursorPrefix.length);
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    if (
+      payload?.scope !== scope
+      || !Number.isSafeInteger(payload?.offset)
+      || payload.offset < 0
+      || createE2ECursor(scope, payload.offset) !== cursor
+    ) {
+      return null;
+    }
+    return payload.offset;
+  } catch {
+    return null;
+  }
+}
 const projectDriveLogicalPath = 'sdkwork-birdcoder';
 const projectDriveEntries = [
   {
@@ -1522,14 +1552,20 @@ function handleRoute(method, url, request, body) {
     const agentId = searchParams.get('agent_id')?.trim();
     const pageSize = Number(searchParams.get('page_size') ?? 100);
     const cursor = searchParams.get('cursor')?.trim() ?? '';
+    const cursorScope = [
+      'session-activity',
+      workspaceId ?? '',
+      projectId ?? '',
+      agentId ?? '',
+    ].join(':');
     if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) {
       return {
         statusCode: 400,
         payload: createAppbaseFailure('Session activity page_size must be between 1 and 200.', '400'),
       };
     }
-    const cursorOffset = cursor ? Number(cursor) : 0;
-    if (!Number.isSafeInteger(cursorOffset) || cursorOffset < 0) {
+    const cursorOffset = readE2ECursorOffset(cursor, cursorScope);
+    if (cursorOffset === null) {
       return {
         statusCode: 400,
         payload: createAppbaseFailure('Session activity cursor is invalid.', '400'),
@@ -1557,7 +1593,7 @@ function handleRoute(method, url, request, body) {
         pageItems.map(createSessionActivitySummary),
         {
           hasMore,
-          nextCursor: hasMore ? String(nextOffset) : null,
+          nextCursor: hasMore ? createE2ECursor(cursorScope, nextOffset) : null,
           pageSize,
         },
       ),
@@ -1777,6 +1813,61 @@ function handleRoute(method, url, request, body) {
     return { statusCode: 200, payload: completion };
   }
 
+  const sessionItemsSynchronizeMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/items\/synchronize$/u.exec(pathname);
+  if (sessionItemsSynchronizeMatch && method === 'POST') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+    const session = sessions.find((item) =>
+      item.agentId === sessionItemsSynchronizeMatch.groups.agentId
+      && item.sessionId === sessionItemsSynchronizeMatch.groups.sessionId,
+    );
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+    const pageSize = Number(searchParams.get('page_size') ?? 20);
+    const sort = searchParams.get('sort')?.trim() ?? '';
+    if (
+      searchParams.has('cursor')
+      || searchParams.has('page')
+      || !Number.isSafeInteger(pageSize)
+      || pageSize < 1
+      || pageSize > 200
+      || sort !== '-sequence'
+    ) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure(
+          'Session Item synchronization requires page_size between 1 and 200 and sort=-sequence.',
+          '400',
+        ),
+      };
+    }
+    const cursorScope = [
+      'session-items',
+      session.agentId,
+      session.sessionId,
+      sort,
+    ].join(':');
+    const items = sessionItemsBySessionId.get(session.sessionId) ?? [];
+    const pageItems = items.slice(0, pageSize);
+    const hasMore = pageItems.length < items.length;
+    return {
+      statusCode: 200,
+      payload: createBirdCoderCursorListEnvelope(pageItems, {
+        hasMore,
+        nextCursor: hasMore ? createE2ECursor(cursorScope, pageItems.length) : null,
+        pageSize,
+      }),
+    };
+  }
+
   const sessionChildMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/(?<resource>checkpoints|interactions|items|runtime_bindings|turns|user_state)$/u.exec(pathname);
   if (sessionChildMatch && (method === 'GET' || method === 'PATCH')) {
     if (!isAuthenticatedRequest(request)) {
@@ -1802,11 +1893,54 @@ function handleRoute(method, url, request, body) {
         payload: createBirdCoderDataEnvelope(createSessionUserState(session)),
       };
     }
+    if (sessionChildMatch.groups.resource === 'items') {
+      const pageSize = Number(searchParams.get('page_size') ?? 20);
+      const cursor = searchParams.get('cursor')?.trim() ?? '';
+      const sort = searchParams.get('sort')?.trim() ?? '';
+      const cursorScope = [
+        'session-items',
+        session.agentId,
+        session.sessionId,
+        sort,
+      ].join(':');
+      if (
+        searchParams.has('page')
+        || !Number.isSafeInteger(pageSize)
+        || pageSize < 1
+        || pageSize > 200
+        || sort !== '-sequence'
+      ) {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure(
+            'Session Items require cursor pagination, page_size between 1 and 200, and sort=-sequence.',
+            '400',
+          ),
+        };
+      }
+      const cursorOffset = readE2ECursorOffset(cursor, cursorScope);
+      if (cursorOffset === null) {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure('Session Item cursor is invalid.', '400'),
+        };
+      }
+      const items = sessionItemsBySessionId.get(session.sessionId) ?? [];
+      const pageItems = items.slice(cursorOffset, cursorOffset + pageSize);
+      const nextOffset = cursorOffset + pageItems.length;
+      const hasMore = nextOffset < items.length;
+      return {
+        statusCode: 200,
+        payload: createBirdCoderCursorListEnvelope(pageItems, {
+          hasMore,
+          nextCursor: hasMore ? createE2ECursor(cursorScope, nextOffset) : null,
+          pageSize,
+        }),
+      };
+    }
     const items = sessionChildMatch.groups.resource === 'runtime_bindings'
       ? [createSessionRuntimeBinding(session)]
-      : sessionChildMatch.groups.resource === 'items'
-        ? sessionItemsBySessionId.get(session.sessionId) ?? []
-        : [];
+      : [];
     return {
       statusCode: 200,
       payload: createBirdCoderListEnvelope(items, {

@@ -92,6 +92,8 @@
       "./utils/*",
       "./events/*",
       "./workbench/*",
+      "./workbench/projectGitOverviewSubscription",
+      "./workbench/workspaceSessionInboxCoordinator",
       "./theme/*",
       "./platform/fileSystem",
       "./platform/tauriFileManager",

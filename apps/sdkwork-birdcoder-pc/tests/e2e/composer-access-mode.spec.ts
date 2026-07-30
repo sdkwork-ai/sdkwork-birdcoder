@@ -3,6 +3,27 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 
+interface SessionActivitySummaryFixture {
+  latestTurn?: {
+    completedAt?: string | null;
+    responseItemId?: string | null;
+    status?: string;
+  };
+  presentationPhase?: string;
+  providerActivity?: {
+    state?: string | null;
+  } | null;
+  session?: {
+    sessionId?: string;
+  };
+}
+
+interface SessionActivitySummaryEnvelopeFixture {
+  data?: {
+    items?: SessionActivitySummaryFixture[];
+  };
+}
+
 async function bootstrapAuthenticatedSession(
   page: Page,
   request: APIRequestContext,
@@ -110,132 +131,38 @@ async function expectComposerActionPanelToFloat(page: Page): Promise<void> {
   await expect(addAttachmentButton).toBeFocused();
 }
 
-async function installAccessModeSession(page: Page): Promise<void> {
-  const sessionId = 'session.e2e-access-mode';
-  let agentId = 'agent.intelligence.codex';
-  let runtimeBinding: Record<string, unknown> | null = null;
-  const createSession = () => ({
-    sessionId,
-    tenantId: '0',
-    organizationId: '0',
-    agentId,
-    ownerUserId: 'e2e-user-1',
-    projectId: 'project.e2e-1',
-    sessionKind: 'coding',
-    entrySurface: 'pc',
-    sourceModule: 'sdkwork-birdcoder',
-    sourceContextKind: 'coding-project',
-    sourceContextId: 'project.e2e-1',
-    title: 'New task',
-    status: 'active',
-    itemCount: '0',
-    lastItemSequence: '0',
-    totalInputTokens: '0',
-    totalOutputTokens: '0',
-    createdBy: 'e2e-user-1',
-    updatedBy: 'e2e-user-1',
-    version: '1',
-    createdAt: '2026-01-03T00:00:00.000Z',
-    updatedAt: '2026-01-03T00:00:00.000Z',
-  });
-
-  await page.route('**/app/v3/api/ai/projects/project.e2e-1/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    const body = route.request().postDataJSON() as Record<string, unknown>;
-    agentId = String(body.agentId ?? agentId);
-    await route.fulfill({
-      json: {
-        code: 0,
-        data: { item: createSession() },
-        traceId: 'composer-access-mode-session-create',
-      },
-    });
-  });
-
-  await page.route(
-    `**/app/v3/api/ai/agents/*/sessions/${sessionId}/runtime_bindings`,
-    async (route) => {
-      if (route.request().method() !== 'POST') {
-        await route.fallback();
-        return;
+async function installIdleCodexSessionActivity(page: Page): Promise<void> {
+  await page.route(/\/app\/v3\/api\/ai\/session_activity_summaries(?:\?.*)?$/u, async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json() as SessionActivitySummaryEnvelopeFixture;
+    const codexActivity = payload.data?.items?.find(
+      (item) => item.session?.sessionId === 'e2e-codex-session',
+    );
+    if (codexActivity) {
+      codexActivity.presentationPhase = 'idle';
+      if (codexActivity.providerActivity) {
+        codexActivity.providerActivity.state = 'idle';
       }
-      const body = route.request().postDataJSON() as Record<string, unknown>;
-      runtimeBinding = {
-        runtimeBindingId: 'runtime-binding.e2e-access-mode',
-        tenantId: '0',
-        organizationId: '0',
-        sessionId,
-        ...body,
-        status: 'active',
-        isCurrent: true,
-        version: '1',
-        createdAt: '2026-01-03T00:00:00.000Z',
-        updatedAt: '2026-01-03T00:00:00.000Z',
-        activatedAt: '2026-01-03T00:00:00.000Z',
-      };
-      await route.fulfill({
-        json: {
-          code: 0,
-          data: { item: runtimeBinding },
-          traceId: 'composer-access-mode-runtime-binding-create',
-        },
-      });
-    },
-  );
-
-  await page.route(
-    new RegExp(
-      `/app/v3/api/ai/agents/[^/]+/sessions/${sessionId}/(?:checkpoints|interactions|items|runtime_bindings|turns)(?:\\?.*)?$`,
-      'u',
-    ),
-    async (route) => {
-      if (route.request().method() !== 'GET') {
-        await route.fallback();
-        return;
+      if (codexActivity.latestTurn) {
+        codexActivity.latestTurn.status = 'completed';
+        codexActivity.latestTurn.responseItemId = 'activity-response-item.e2e-codex-session';
+        codexActivity.latestTurn.completedAt = '2026-01-01T00:20:00.000Z';
       }
-      const isRuntimeBindingRequest = new URL(route.request().url()).pathname.endsWith(
-        '/runtime_bindings',
-      );
-      const requestUrl = new URL(route.request().url());
-      const page = Number(requestUrl.searchParams.get('page') ?? 1);
-      const pageSize = Number(requestUrl.searchParams.get('page_size') ?? 20);
-      const items = isRuntimeBindingRequest && runtimeBinding ? [runtimeBinding] : [];
-      await route.fulfill({
-        json: {
-          code: 0,
-          data: {
-            items,
-            pageInfo: {
-              hasMore: false,
-              mode: 'offset',
-              page,
-              pageSize,
-              totalItems: String(items.length),
-              totalPages: items.length > 0 ? 1 : 0,
-            },
-          },
-          traceId: 'composer-access-mode-session-resources',
-        },
-      });
-    },
-  );
-
-  await page.route(`**/app/v3/api/ai/agents/*/sessions/${sessionId}`, async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.fallback();
-      return;
     }
-    await route.fulfill({
-      json: {
-        code: 0,
-        data: { item: createSession() },
-        traceId: 'composer-access-mode-session-detail',
-      },
-    });
+    await route.fulfill({ response, json: payload });
   });
+}
+
+async function expandProjectSessions(page: Page): Promise<void> {
+  const codexSession = page.getByText('Codex implementation', { exact: true });
+  const expandProject = page.getByRole('button', { name: 'Expand E2E Project' });
+  await expect.poll(async () => (
+    await codexSession.count() > 0 || await expandProject.count() > 0
+  ), { timeout: 60_000 }).toBe(true);
+  if (await codexSession.count() === 0) {
+    await expandProject.click();
+  }
+  await expect(codexSession).toBeVisible();
 }
 
 test('composer access mode selects full access and snapshots it into the turn', async ({
@@ -244,18 +171,25 @@ test('composer access mode selects full access and snapshots it into the turn', 
 }, testInfo) => {
   await bootstrapAuthenticatedSession(page, request);
   await disableApproveForMeMode(page);
-  await installAccessModeSession(page);
+  await installIdleCodexSessionActivity(page);
+  await page.route(/\/e2e-codex-session\/turns(?:\?.*)?$/u, async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.abort('blockedbyclient');
+      return;
+    }
+    await route.fallback();
+  });
   await page.setViewportSize({ width: 1_280, height: 760 });
   await page.goto('/#/app/code');
 
-  const newTaskButton = page.locator('[data-sidebar-new-session-trigger="true"]');
-  await expect(newTaskButton).toBeVisible({ timeout: 60_000 });
-  await newTaskButton.hover();
-  const providerMenu = page.locator('[data-sidebar-new-session-menu="true"]');
-  const codexOption = providerMenu.getByRole('menuitemradio').filter({ hasText: 'Codex' });
-  await expect(providerMenu).toBeVisible();
-  await expect(codexOption).toHaveCount(1);
-  await codexOption.click();
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expandProjectSessions(page);
+  await page.locator('.project-explorer-scroll-region').last()
+    .locator('[data-agent-session-id="e2e-codex-session"]')
+    .locator(':scope > button[aria-label]')
+    .click();
 
   const accessModeTrigger = page.locator(
     '[data-testid="composer-access-mode-trigger"]:visible',
@@ -313,7 +247,7 @@ test('composer access mode selects full access and snapshots it into the turn', 
   await composer.fill(message);
   const turnRequest = page.waitForRequest((candidate) => (
     candidate.method() === 'POST'
-      && new URL(candidate.url()).pathname.endsWith('/turns')
+      && new URL(candidate.url()).pathname.endsWith('/e2e-codex-session/turns')
   ));
   await page.locator('button[title="Send message"]:visible').click();
   const submittedTurn = await turnRequest;
@@ -322,4 +256,5 @@ test('composer access mode selects full access and snapshots it into the turn', 
     content: message,
     requestedModelId: 'gpt-5-codex',
   });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

@@ -77,8 +77,148 @@ export type AgentSessionStoreRemovalResult =
  */
 const PROJECT_STORE_MAX_CACHED_SCOPES = 5;
 const PROJECT_STORE_MAX_SCOPE_KEY_LENGTH = 384;
+export const PROJECT_STORE_MAX_CACHED_SESSIONS = 200;
+export const PROJECT_STORE_MAX_SESSION_ITEMS = 500;
+export const PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS = 4 * 1_048_576;
+export const PROJECT_STORE_MAX_SESSION_TOMBSTONES = 1_000;
 
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
+
+interface CachedSessionEntry {
+  key: string;
+  priority: number;
+  timestamp: number;
+}
+
+function cachedSessionPriority(session: AgentSessionView): number {
+  if (session.items.length > 0) return 6;
+  if (session.pinned === true) return 5;
+  if (session.activity?.pendingInteraction) return 4;
+  if (
+    session.runtimeStatus === 'initializing'
+    || session.runtimeStatus === 'streaming'
+    || session.runtimeStatus === 'awaiting_tool'
+    || session.runtimeStatus === 'awaiting_approval'
+    || session.runtimeStatus === 'awaiting_user'
+  ) {
+    return 3;
+  }
+  if (session.unread) return 2;
+  return session.archived ? 0 : 1;
+}
+
+function cachedSessionTimestamp(session: AgentSessionView): number {
+  const activityAt = Date.parse(session.activity?.activityAt ?? '');
+  if (Number.isFinite(activityAt)) return activityAt;
+  const updatedAt = Date.parse(session.updatedAt);
+  return Number.isFinite(updatedAt) ? updatedAt : 0;
+}
+
+function selectCachedSessionKeys(
+  projects: readonly AgentProjectView[],
+): Set<string> {
+  const heap: CachedSessionEntry[] = [];
+  const compareEntries = (left: CachedSessionEntry, right: CachedSessionEntry): number => {
+    if (left.priority !== right.priority) return left.priority - right.priority;
+    if (left.timestamp !== right.timestamp) return left.timestamp - right.timestamp;
+    return right.key.localeCompare(left.key);
+  };
+  const sinkDown = (startIndex: number): void => {
+    let index = startIndex;
+    while (true) {
+      const leftIndex = 2 * index + 1;
+      const rightIndex = leftIndex + 1;
+      let worstIndex = index;
+      if (leftIndex < heap.length && compareEntries(heap[leftIndex]!, heap[worstIndex]!) < 0) {
+        worstIndex = leftIndex;
+      }
+      if (rightIndex < heap.length && compareEntries(heap[rightIndex]!, heap[worstIndex]!) < 0) {
+        worstIndex = rightIndex;
+      }
+      if (worstIndex === index) break;
+      [heap[index], heap[worstIndex]] = [heap[worstIndex]!, heap[index]!];
+      index = worstIndex;
+    }
+  };
+
+  for (const project of projects) {
+    for (const session of project.agentSessions) {
+      const entry: CachedSessionEntry = {
+        key: `${project.projectId}\u0001${session.id}`,
+        priority: cachedSessionPriority(session),
+        timestamp: cachedSessionTimestamp(session),
+      };
+      if (heap.length < PROJECT_STORE_MAX_CACHED_SESSIONS) {
+        heap.push(entry);
+        let childIndex = heap.length - 1;
+        while (childIndex > 0) {
+          const parentIndex = (childIndex - 1) >> 1;
+          if (compareEntries(heap[childIndex]!, heap[parentIndex]!) >= 0) break;
+          [heap[childIndex], heap[parentIndex]] = [heap[parentIndex]!, heap[childIndex]!];
+          childIndex = parentIndex;
+        }
+      } else if (compareEntries(entry, heap[0]!) > 0) {
+        heap[0] = entry;
+        sinkDown(0);
+      }
+    }
+  }
+  return new Set(heap.map((entry) => entry.key));
+}
+
+export function trimProjectsStoreSessionCache(
+  projects: readonly AgentProjectView[],
+): AgentProjectView[] {
+  const sessionCount = projects.reduce(
+    (total, project) => total + project.agentSessions.length,
+    0,
+  );
+  if (sessionCount <= PROJECT_STORE_MAX_CACHED_SESSIONS) {
+    return projects as AgentProjectView[];
+  }
+  const rankedProjects = projects
+    .filter((project) => project.agentSessions.length > 0)
+    .map((project) => {
+      let priority = 0;
+      let timestamp = 0;
+      for (const session of project.agentSessions) {
+        priority = Math.max(priority, cachedSessionPriority(session));
+        timestamp = Math.max(timestamp, cachedSessionTimestamp(session));
+      }
+      return { project, priority, timestamp };
+    })
+    .sort((left, right) => (
+      right.priority - left.priority
+      || right.timestamp - left.timestamp
+      || left.project.projectId.localeCompare(right.project.projectId)
+    ));
+  const retainedProjectIds = new Set<string>();
+  let remainingCapacity = PROJECT_STORE_MAX_CACHED_SESSIONS;
+  for (const entry of rankedProjects) {
+    if (entry.project.agentSessions.length <= remainingCapacity) {
+      retainedProjectIds.add(entry.project.projectId);
+      remainingCapacity -= entry.project.agentSessions.length;
+    }
+  }
+
+  return projects.map((project) => {
+    if (retainedProjectIds.has(project.projectId) || project.agentSessions.length === 0) {
+      return project;
+    }
+    if (
+      remainingCapacity === PROJECT_STORE_MAX_CACHED_SESSIONS
+      && project.agentSessions.length > PROJECT_STORE_MAX_CACHED_SESSIONS
+    ) {
+      const retainedKeys = selectCachedSessionKeys([project]);
+      const agentSessions = project.agentSessions.filter((session) =>
+        retainedKeys.has(`${project.projectId}\u0001${session.id}`),
+      );
+      remainingCapacity = 0;
+      return { ...project, agentSessionPageInfo: undefined, agentSessions };
+    }
+    return { ...project, agentSessionPageInfo: undefined, agentSessions: [] };
+  });
+}
 
 /**
  * 更新 scope 的访问顺序，将其标记为最近访问。
@@ -189,9 +329,11 @@ function areProjectScalarsEqual(
   const hasEqualAgentSessionPageInfo =
     left.agentSessionPageInfo === right.agentSessionPageInfo ||
     (
-      left.agentSessionPageInfo?.page === right.agentSessionPageInfo?.page &&
+      left.agentSessionPageInfo?.mode === right.agentSessionPageInfo?.mode &&
       left.agentSessionPageInfo?.pageSize === right.agentSessionPageInfo?.pageSize &&
-      left.agentSessionPageInfo?.hasMore === right.agentSessionPageInfo?.hasMore
+      left.agentSessionPageInfo?.hasMore === right.agentSessionPageInfo?.hasMore &&
+      left.agentSessionPageInfo?.hasNewer === right.agentSessionPageInfo?.hasNewer &&
+      left.agentSessionPageInfo?.nextCursor === right.agentSessionPageInfo?.nextCursor
     );
   return (
     left.projectId === right.projectId &&
@@ -223,7 +365,8 @@ function areAgentSessionScalarsEqual(
     (
       left.itemPageInfo?.nextCursor === right.itemPageInfo?.nextCursor &&
       left.itemPageInfo?.pageSize === right.itemPageInfo?.pageSize &&
-      left.itemPageInfo?.hasMore === right.itemPageInfo?.hasMore
+      left.itemPageInfo?.hasMore === right.itemPageInfo?.hasMore &&
+      left.itemPageInfo?.retentionLimitReached === right.itemPageInfo?.retentionLimitReached
     );
   return (
     left.id === right.id &&
@@ -454,10 +597,96 @@ function filterAgentSessionItemsForStore(
 function normalizeAgentSessionItemsForStore(
   agentSessionId: string,
   items: readonly AgentSessionItemView[],
+  onRetentionLimitReached?: () => void,
 ): AgentSessionItemView[] {
-  return deduplicateAgentSessionItemViews(
+  const normalizedItems = deduplicateAgentSessionItemViews(
     filterAgentSessionItemsForStore(agentSessionId, items),
   );
+  if (normalizedItems.length === 0) {
+    return normalizedItems;
+  }
+
+  const retainedIndexes = new Set<number>();
+  let retainedCharacters = 0;
+  const retainNewestMatching = (predicate: (item: AgentSessionItemView) => boolean) => {
+    for (
+      let index = normalizedItems.length - 1;
+      index >= 0 && retainedIndexes.size < PROJECT_STORE_MAX_SESSION_ITEMS;
+      index -= 1
+    ) {
+      if (retainedIndexes.has(index)) {
+        continue;
+      }
+      const item = normalizedItems[index]!;
+      if (!predicate(item)) {
+        continue;
+      }
+      const itemCharacters = estimateStructuredValueCharacters(
+        item,
+        PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS - retainedCharacters,
+      );
+      if (retainedCharacters + itemCharacters > PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS) {
+        continue;
+      }
+      retainedIndexes.add(index);
+      retainedCharacters += itemCharacters;
+    }
+  };
+
+  retainNewestMatching(isTransientAgentSessionItem);
+  retainNewestMatching((item) => !isTransientAgentSessionItem(item));
+  if (retainedIndexes.size === normalizedItems.length) {
+    return normalizedItems;
+  }
+  onRetentionLimitReached?.();
+  return normalizedItems.filter((_item, index) => retainedIndexes.has(index));
+}
+
+function estimateStructuredValueCharacters(
+  value: unknown,
+  limit: number,
+  visited: WeakSet<object> = new WeakSet(),
+  depth = 0,
+): number {
+  if (limit <= 0 || depth > 16) {
+    return limit + 1;
+  }
+  if (typeof value === 'string') {
+    return Math.min(value.length, limit + 1);
+  }
+  if (value === null || value === undefined) {
+    return 4;
+  }
+  if (typeof value !== 'object') {
+    return Math.min(String(value).length, limit + 1);
+  }
+  if (visited.has(value)) {
+    return 0;
+  }
+  visited.add(value);
+  let characters = 0;
+  const append = (candidate: unknown) => {
+    characters += estimateStructuredValueCharacters(
+      candidate,
+      limit - characters,
+      visited,
+      depth + 1,
+    );
+  };
+  if (Array.isArray(value)) {
+    for (const candidate of value) {
+      append(candidate);
+      if (characters > limit) break;
+    }
+  } else {
+    for (const [key, candidate] of Object.entries(value)) {
+      characters += Math.min(key.length, Math.max(0, limit - characters) + 1);
+      if (characters > limit) break;
+      append(candidate);
+      if (characters > limit) break;
+    }
+  }
+  return characters;
 }
 
 interface CloneAgentSessionForStoreOptions extends AgentSessionStoreUpsertOptions {
@@ -820,19 +1049,31 @@ function cloneAgentSessionForStore(
         options,
       )
     : projectScopedAgentSession;
+  let retentionLimitReached = false;
   const incomingItems =
     activityScopedAgentSession.items.length > 0
       ? normalizeAgentSessionItemsForStore(
           activityScopedAgentSession.id,
           activityScopedAgentSession.items,
+          () => {
+            retentionLimitReached = true;
+          },
         )
       : (activityScopedAgentSession.items as AgentSessionItemView[]);
+  const retainedPageInfoSource = options.itemMergeMode === 'ordered-window'
+    ? existingAgentSession?.itemPageInfo ?? activityScopedAgentSession.itemPageInfo
+    : activityScopedAgentSession.itemPageInfo;
+  const retainedPageInfo = retentionLimitReached && retainedPageInfoSource
+    ? { ...retainedPageInfoSource, retentionLimitReached: true }
+    : activityScopedAgentSession.itemPageInfo;
   const scopedAgentSession =
     incomingItems === activityScopedAgentSession.items
+      && retainedPageInfo === activityScopedAgentSession.itemPageInfo
       ? activityScopedAgentSession
       : {
           ...activityScopedAgentSession,
           items: incomingItems,
+          itemPageInfo: retainedPageInfo,
         };
   const items =
     activityScopedAgentSession.items.length === 0
@@ -1126,9 +1367,13 @@ function finalizeAgentSessionForStore(
   agentSession: AgentSessionView,
   existingAgentSession?: AgentSessionView,
 ): AgentSessionView {
+  let retentionLimitReached = false;
   const normalizedItems = normalizeAgentSessionItemsForStore(
     agentSession.id,
     agentSession.items,
+    () => {
+      retentionLimitReached = true;
+    },
   );
   const items = existingAgentSession && areAgentSessionItemCollectionsEquivalent(
     existingAgentSession.items,
@@ -1140,6 +1385,12 @@ function finalizeAgentSessionForStore(
   const nextAgentSession = {
     ...agentSession,
     items,
+    itemPageInfo: retentionLimitReached && (existingAgentSession?.itemPageInfo ?? agentSession.itemPageInfo)
+      ? {
+          ...(existingAgentSession?.itemPageInfo ?? agentSession.itemPageInfo)!,
+          retentionLimitReached: true,
+        }
+      : agentSession.itemPageInfo,
     sortTimestamp,
     displayTime: formatAgentSessionActivityDisplayTime({
       ...agentSession,
@@ -1334,13 +1585,33 @@ export function updateProjectsStoreSnapshot(
   store: ProjectsStore,
   updater: (previousSnapshot: ProjectsStoreSnapshot) => ProjectsStoreSnapshot,
 ): void {
-  const nextSnapshot = updater(store.snapshot);
+  const proposedSnapshot = updater(store.snapshot);
+  const boundedProjects = trimProjectsStoreSessionCache(proposedSnapshot.projects);
+  const nextSnapshot = boundedProjects === proposedSnapshot.projects
+    ? proposedSnapshot
+    : { ...proposedSnapshot, projects: boundedProjects };
+  const pruneTranscriptRevisions = () => {
+    const retainedTranscriptKeys = new Set(
+      nextSnapshot.projects.flatMap((project) =>
+        project.agentSessions.map((session) =>
+          buildAgentSessionTranscriptRevisionKey(project.projectId, session.id),
+        ),
+      ),
+    );
+    for (const revisionKey of store.agentSessionTranscriptRevisions.keys()) {
+      if (!retainedTranscriptKeys.has(revisionKey)) {
+        store.agentSessionTranscriptRevisions.delete(revisionKey);
+      }
+    }
+  };
   if (areProjectsStoreSnapshotsEqual(store.snapshot, nextSnapshot)) {
+    pruneTranscriptRevisions();
     return;
   }
 
   store.snapshot = nextSnapshot;
   emitProjectsStoreSnapshot(store);
+  pruneTranscriptRevisions();
 }
 
 function buildAgentSessionTombstoneKey(projectId: string, sessionId: string): string {
@@ -1432,7 +1703,13 @@ export function recordAgentSessionTombstoneInProjectsStore(
     existingVersion === undefined
     || compareWorkbenchLongIntegers(normalizedVersion, existingVersion) > 0
   ) {
+    store.agentSessionTombstones.delete(tombstoneKey);
     store.agentSessionTombstones.set(tombstoneKey, normalizedVersion);
+    while (store.agentSessionTombstones.size > PROJECT_STORE_MAX_SESSION_TOMBSTONES) {
+      const oldestKey = store.agentSessionTombstones.keys().next().value;
+      if (oldestKey === undefined) break;
+      store.agentSessionTombstones.delete(oldestKey);
+    }
   }
 }
 
@@ -1558,6 +1835,8 @@ export function upsertAgentSessionIntoProjectsStore(
       || nextSession?.itemPageInfo?.hasMore !== previousSession?.itemPageInfo?.hasMore
       || nextSession?.itemPageInfo?.nextCursor !== previousSession?.itemPageInfo?.nextCursor
       || nextSession?.itemPageInfo?.pageSize !== previousSession?.itemPageInfo?.pageSize
+      || nextSession?.itemPageInfo?.retentionLimitReached
+        !== previousSession?.itemPageInfo?.retentionLimitReached
     );
     if (authorityWindowWasReset || transcriptWindowChanged) {
       store.agentSessionTranscriptRevisions.set(

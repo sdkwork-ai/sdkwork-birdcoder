@@ -1,12 +1,12 @@
 import {
   memo,
-  useEffect,
+  useCallback,
   useRef,
   type FormEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { Boxes, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui-shell';
 
 interface CreateWorkspaceDialogProps {
   isCreating: boolean;
@@ -17,13 +17,6 @@ interface CreateWorkspaceDialogProps {
   workspaceName: string;
 }
 
-const focusableElementSelector = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  '[href]',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
-
 export const CreateWorkspaceDialog = memo(function CreateWorkspaceDialog({
   isCreating,
   isOpen,
@@ -33,47 +26,17 @@ export const CreateWorkspaceDialog = memo(function CreateWorkspaceDialog({
   workspaceName,
 }: CreateWorkspaceDialogProps) {
   const { t } = useTranslation();
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
+  const workspaceNameInputRef = useRef<HTMLInputElement>(null);
+  const handleCloseRequest = useCallback(() => {
+    if (!isCreating) {
+      onClose();
     }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isCreating) {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isCreating, isOpen, onClose]);
-
-  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Tab') {
-      return;
-    }
-
-    const focusableElements = Array.from(
-      dialogRef.current?.querySelectorAll<HTMLElement>(focusableElementSelector) ?? [],
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    if (!firstElement || !lastElement) {
-      event.preventDefault();
-      return;
-    }
-
-    if (event.shiftKey && document.activeElement === firstElement) {
-      event.preventDefault();
-      lastElement.focus();
-    } else if (!event.shiftKey && document.activeElement === lastElement) {
-      event.preventDefault();
-      firstElement.focus();
-    }
-  };
+  }, [isCreating, onClose]);
+  const { dialogRef, onDialogKeyDown } = useDialogFocusManagement<HTMLDivElement>({
+    initialFocusRef: workspaceNameInputRef,
+    isOpen,
+    onClose: handleCloseRequest,
+  });
 
   if (!isOpen) {
     return null;
@@ -97,7 +60,7 @@ export const CreateWorkspaceDialog = memo(function CreateWorkspaceDialog({
         aria-modal="true"
         className="w-full max-w-[480px] overflow-hidden rounded-lg border border-white/[0.09] bg-[#202125] text-gray-100 shadow-[0_20px_64px_rgba(0,0,0,0.58)] animate-in zoom-in-95 duration-150"
         role="dialog"
-        onKeyDown={handleDialogKeyDown}
+        onKeyDown={onDialogKeyDown}
       >
         <form onSubmit={onSubmit}>
           <header className="flex h-14 items-center justify-between gap-4 px-5">
@@ -130,10 +93,10 @@ export const CreateWorkspaceDialog = memo(function CreateWorkspaceDialog({
                 <Boxes size={16} strokeWidth={1.8} />
               </span>
               <input
+                ref={workspaceNameInputRef}
                 id="birdcoder-create-workspace-name"
                 type="text"
                 autoComplete="off"
-                autoFocus
                 disabled={isCreating}
                 value={workspaceName}
                 onChange={(event) => onNameChange(event.target.value)}

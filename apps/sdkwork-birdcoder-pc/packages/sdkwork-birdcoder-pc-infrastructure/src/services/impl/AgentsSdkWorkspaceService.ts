@@ -8,8 +8,8 @@ import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
 import type {
   AgentWorkspacePageRequest,
   AgentWorkspaceViewPage,
-  IWorkspaceService,
-} from '../interfaces/IWorkspaceService.ts';
+  IAgentWorkspaceService,
+} from '../interfaces/IAgentWorkspaceService.ts';
 
 type AgentsWorkspacesSdkApi = AgentsAppSdkClient['ai']['agents']['workspaces'];
 
@@ -45,7 +45,7 @@ function mapWorkspace(workspace: AgentWorkspaceRecord): AgentWorkspaceView {
   };
 }
 
-export class ApiBackedWorkspaceService implements IWorkspaceService {
+export class AgentsSdkWorkspaceService implements IAgentWorkspaceService {
   constructor(private readonly workspaces: AgentWorkspacesSdkPort) {}
 
   async ensureDefaultWorkspace(name?: string): Promise<AgentWorkspaceView> {

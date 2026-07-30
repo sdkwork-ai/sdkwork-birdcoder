@@ -115,6 +115,10 @@
       {
         "name": "shellUiPrimitives",
         "export": "."
+      },
+      {
+        "name": "dialogFocusManagement",
+        "export": "."
       }
     ],
     "requiredPorts": [],

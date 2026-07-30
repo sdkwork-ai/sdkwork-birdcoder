@@ -42,6 +42,9 @@ Goals:
 - Keep Skill lifecycle in Skills and consume it through its generated SDK.
 - Keep directory mounts, filesystem access, Git, worktrees, and terminals
   local to PC host adapters.
+- Let a developer explicitly choose local or cloud execution for a new Agents
+  Session, and support a reviewed Task override, without inferring execution
+  from browser/desktop or standalone/cloud deployment shape.
 - Keep the Rust gateway stateless and its BirdCoder-owned API minimal.
 - Fail closed when an owner capability or required composition contract is
   unavailable.
@@ -58,6 +61,9 @@ Non-goals:
   slot.
 - Claiming Flutter completion from this Rust-and-PC delivery. H5 changes remain
   limited to compatibility with the canonical Agents Session Item contract.
+- Scheduling Kernel placement, calling Sandbox directly, or enabling cloud
+  execution before the protected Agents, Kernel, Sandbox, storage, security,
+  SLO, and release gates are accepted and proven.
 
 ## 4. User Scenarios
 
@@ -90,6 +96,12 @@ Non-goals:
    a known busy or attention state at the row end, preserves the developer's explicit
    selection, and expires uncertain page-local provider evidence to a neutral
    state.
+9. A developer creates a new coding Session and chooses local or cloud
+   execution. Local execution resolves an authorized opaque device mount before
+   Session persistence and keeps project bytes local. Cloud remains visibly
+   unavailable until Agents proves a reviewed Kernel placement and isolated
+   Sandbox capability for the requested policy; there is no fallback between
+   targets.
 
 ## 5. Functional Requirements
 
@@ -150,7 +162,11 @@ Non-goals:
     bounded unsupported-content presentation instead of being misclassified as
     assistant output or silently discarded.
 17. Rust, PC, and touched H5 documentation, contracts, generated SDKs, and runtime behavior
-    remain mutually consistent.
+   remain mutually consistent.
+18. Execution target is distinct from client runtime target, deployment
+    profile, Kernel coordination mode, Provider transport, and Sandbox
+    capacity placement. BirdCoder consumes only the generated Agents product
+    contract and never writes resolved placement facts.
 
 ## 6. Quality, Security, And Commercial Gates
 
@@ -177,6 +193,11 @@ The current delivery scope is:
   the explicit IM ownership boundary for any future human messaging feature;
 - architecture, operations, and release documentation for those surfaces.
 
+The current implementation delivery includes the fail-closed local selection
+and mount-before-Session preflight only. Cloud execution data-plane delivery is
+governed by REQ-2026-0006 and remains outside the enabled product until every
+owner gate is accepted and proven.
+
 Flutter remains outside this cutover and cannot be used as evidence that the
 current migration is complete. H5 evidence is limited to its assistant Session
 Item consumer and does not claim full cross-surface feature parity.
@@ -186,8 +207,10 @@ Item consumer and does not claim full cross-surface feature parity.
 - [REQ-2026-0002 Domain ownership convergence](../requirements/REQ-2026-0002-domain-ownership-convergence.md)
 - [REQ-2026-0003 Cross-application Session Activity Inbox](../requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
 - [REQ-2026-0005 PC Appearance Settings](../requirements/REQ-2026-0005-pc-appearance-settings.md)
+- [REQ-2026-0006 Hybrid local and cloud Agent execution](../requirements/REQ-2026-0006-hybrid-local-cloud-agent-execution.md)
 - [ADR-20260722 Owner-composed stateless workbench](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../../architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
+- [ADR-20260730 Hybrid execution ownership and placement boundaries](../../architecture/decisions/ADR-20260730-hybrid-execution-boundaries.md)
 - [Direct cutover record](../../migrations/MIG-2026-0002-domain-ownership-cutover.md)
 - [Technical architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
 
@@ -220,3 +243,11 @@ items require Agents and Kernel maintainer review. Provider-only observation is
 page-local enrichment and does not close head discovery. Additional composition
 kinds must likewise be added by their owning modules before PC can consume
 them; BirdCoder does not invent aliases or compatibility slots.
+
+Hybrid execution additionally has protected open decisions recorded in
+[REVIEW-20260730](../../engineering/reviews/REVIEW-20260730-hybrid-execution-commercial-gate.md),
+including public target naming and inheritance, local Agents persistence,
+placement/provider binding separation, Kernel/Sandbox ports and fencing,
+cloud Workspace byte authority, isolation provider, quotas, SLOs, topology,
+migration, and release evidence. These questions block cloud implementation
+and commercial readiness claims.

@@ -74,8 +74,8 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return new PromptsSdkPromptService(runtime.promptsClient);
       case 'projectService':
         return runtime.projectService;
-      case 'workspaceService':
-        return runtime.workspaceService;
+      case 'agentWorkspaceService':
+        return runtime.agentWorkspaceService;
       case 'vipMembershipService':
         return new ApiBackedVipMembershipService();
       default:

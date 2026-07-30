@@ -10,12 +10,14 @@ import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const normalized = normalizeCreateNewAgentSessionRequest({
   engineId: ' codex ',
+  executionTarget: 'CLOUD',
   modelId: ' gpt-5 ',
   projectId: ' explicit-project ',
   source: 'file-menu',
 }, 'stale-current-project');
 assert.deepEqual(normalized, {
   engineId: 'codex',
+  executionTarget: 'CLOUD',
   modelId: 'gpt-5',
   projectId: 'explicit-project',
   source: 'file-menu',
@@ -24,6 +26,11 @@ assert.equal(
   buildCreateNewAgentSessionInFlightKey(normalized!),
   buildCreateNewAgentSessionInFlightKey({ ...normalized!, source: 'keyboard-shortcut' }),
   'equivalent overlapping UI intents must share one in-flight identity.',
+);
+assert.notEqual(
+  buildCreateNewAgentSessionInFlightKey(normalized!),
+  buildCreateNewAgentSessionInFlightKey({ ...normalized!, executionTarget: 'LOCAL' }),
+  'local and cloud tasks must not share one in-flight creation identity.',
 );
 
 let persistenceCalls = 0;
@@ -61,6 +68,7 @@ const ensuredSession = await ensureWorkbenchAgentSessionForTurnInput({
     turnSessionCreationCalls += 1;
     assert.deepEqual(request, {
       engineId: 'codex',
+      executionTarget: 'CLOUD',
       modelId: 'gpt-5',
       projectId: 'turn-project',
       source: 'turn-submit',
@@ -77,6 +85,7 @@ const ensuredSession = await ensureWorkbenchAgentSessionForTurnInput({
   currentProjectId: 'turn-project',
   turnInputContent: '123456789012345678901',
   requestedEngineId: 'codex',
+  requestedExecutionTarget: 'CLOUD',
   requestedModelId: 'gpt-5',
   resolveProjectId: () => null,
 });

@@ -12,13 +12,13 @@ import {
   ProjectInventoryStatus,
   type SessionRuntimeStatusLabels,
   WorkbenchNewSessionButton,
-  useDialogFocusManagement,
   type UniversalChatComposerSelection,
   type UniversalChatComposerSubmission,
 } from '@sdkwork/birdcoder-pc-ui';
 import {
   ResizeHandle,
   WorkbenchCodeEngineIcon,
+  useDialogFocusManagement,
   useFixedSizeWindowedRange,
   useRelativeMinuteNow,
 } from '@sdkwork/birdcoder-pc-ui-shell';
@@ -32,6 +32,7 @@ import {
 import {
   Check,
   ChevronDown,
+  ChevronUp,
   Folder,
   FolderOpen,
   Loader2,
@@ -155,9 +156,17 @@ interface StudioChatSidebarProps {
   onLoadMoreProjectSessions?: (
     projectId: string,
     requestedCount: number,
-  ) => Promise<{ hasMore?: boolean; loadedCount?: number }> | {
+    direction?: 'latest' | 'older',
+  ) => Promise<{
     hasMore?: boolean;
+    hasNewer?: boolean;
     loadedCount?: number;
+    windowShifted?: boolean;
+  }> | {
+    hasMore?: boolean;
+    hasNewer?: boolean;
+    loadedCount?: number;
+    windowShifted?: boolean;
   } | void;
   onLoadMoreRemoteMessages: () => void | Promise<void>;
   onCreateAgentSession: (
@@ -565,6 +574,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     visibleSessionCount < menuProject.agentSessions.length ||
     menuProject.agentSessionPageInfo.hasMore === true
   );
+  const canShowNewerSessions = menuProject?.agentSessionPageInfo?.hasNewer === true;
   const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
   const showEngineBusyCurrentSessionIndicator =
     isEngineBusyCurrentSession && Boolean(selectedAgentSessionId);
@@ -661,7 +671,11 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   );
 
   const handleLoadMoreMenuProjectSessions = useCallback(
-    async (projectId: string, requestedCount: number): Promise<void> => {
+    async (
+      projectId: string,
+      requestedCount: number,
+      direction: 'latest' | 'older' = 'older',
+    ): Promise<void> => {
       const normalizedProjectId = projectId.trim();
       if (
         !normalizedProjectId ||
@@ -679,7 +693,11 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       }));
 
       try {
-        const result = await onLoadMoreProjectSessions(normalizedProjectId, nextCount);
+        const result = await onLoadMoreProjectSessions(
+          normalizedProjectId,
+          nextCount,
+          direction,
+        );
         const loadedCount =
           result && typeof result.loadedCount === 'number' && Number.isFinite(result.loadedCount)
             ? Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(result.loadedCount))
@@ -687,6 +705,15 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         setVisibleSessionCountByProjectId((previousState) => {
           const previousCount =
             previousState[normalizedProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+          if (result?.windowShifted === true) {
+            const resolvedCount = Math.min(
+              INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+              loadedCount,
+            );
+            return previousCount === resolvedCount
+              ? previousState
+              : { ...previousState, [normalizedProjectId]: resolvedCount };
+          }
           const resolvedCount = Math.max(previousCount, Math.min(nextCount, loadedCount));
           if (resolvedCount <= previousCount) {
             return previousState;
@@ -993,6 +1020,24 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                         onKeyDown={handleProjectMenuSessionsKeyDown}
                         className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2"
                       >
+                        {canShowNewerSessions ? (
+                          <button
+                            type="button"
+                            className="mb-1 flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-300 disabled:cursor-wait disabled:opacity-60"
+                            disabled={isLoadingMoreSessions}
+                            aria-busy={isLoadingMoreSessions}
+                            onClick={() => {
+                              void handleLoadMoreMenuProjectSessions(
+                                effectiveMenuProjectId,
+                                INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+                                'latest',
+                              );
+                            }}
+                          >
+                            <ChevronUp size={12} aria-hidden="true" />
+                            {t('studio.showLatestSessions')}
+                          </button>
+                        ) : null}
                         {shouldWindowMenuSessions ? (
                           <div style={{ height: menuSessionsWindowedRange.paddingTop }} />
                         ) : null}
@@ -1045,7 +1090,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                             ) : null}
                             {isLoadingMoreSessions
                               ? t('studio.loadingMoreSessions')
-                              : t('studio.showMoreSessions')}
+                              : visibleSessionCount < menuProjectSessions.length
+                                ? t('studio.showMoreSessions')
+                                : t('studio.showOlderSessions')}
                           </button>
                         )}
                       </div>

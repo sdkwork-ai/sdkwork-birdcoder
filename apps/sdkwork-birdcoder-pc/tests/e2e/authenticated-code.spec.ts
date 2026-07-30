@@ -51,11 +51,11 @@ test('password sign-in lands on the authenticated code workbench', async ({ page
   })).toBeVisible({
     timeout: 60_000,
   });
-  await expect(page.getByRole('button', { name: 'New Project' })).toHaveCount(0);
-  await expect(page.getByText('Sessions')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New Project' })).toHaveCount(1);
+  await expect(page.getByText('Projects', { exact: true })).toBeVisible();
   await expect(page.getByText('Project Templates')).toHaveCount(0);
 
-  const codeNewProjectButton = page.getByTitle('New Project').first();
+  const codeNewProjectButton = page.getByRole('button', { name: 'New Project' });
   await expect(codeNewProjectButton).toBeVisible();
   await codeNewProjectButton.click();
   await expect(page.getByRole('dialog', { name: 'Create project' })).toBeVisible();

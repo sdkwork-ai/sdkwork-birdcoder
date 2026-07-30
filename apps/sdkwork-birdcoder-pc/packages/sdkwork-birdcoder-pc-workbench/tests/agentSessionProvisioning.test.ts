@@ -1,9 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  AgentSessionExecutionTargetUnavailableError,
+  AgentSessionRuntimeLocationUnavailableError,
   AgentSessionRuntimeBindingProvisioningError,
   createBoundAgentSession,
+  createLocallyBoundAgentSession,
 } from '../src/workbench/agentSessionProvisioning';
+
+describe('AgentSessionExecutionTargetUnavailableError', () => {
+  it('exposes a typed fail-closed cloud placement failure', () => {
+    expect(new AgentSessionExecutionTargetUnavailableError()).toMatchObject({
+      code: 'cloud_execution_unavailable',
+      executionTarget: 'CLOUD',
+      name: 'AgentSessionExecutionTargetUnavailableError',
+    });
+  });
+});
 
 describe('createBoundAgentSession', () => {
   it('returns the Session and Runtime Binding only after both are created', async () => {
@@ -84,5 +97,81 @@ describe('createBoundAgentSession', () => {
         sessionId: 'session.cleanup-failed',
       });
     }
+  });
+});
+
+describe('createLocallyBoundAgentSession', () => {
+  it('resolves a mounted runtime location before creating the Session', async () => {
+    const callOrder: string[] = [];
+    const session = { sessionId: 'session.local' };
+    const runtimeBinding = { runtimeBindingId: 'binding.local' };
+
+    await expect(createLocallyBoundAgentSession({
+      resolveRuntimeLocationId: vi.fn(async () => {
+        callOrder.push('resolve-runtime-location');
+        return ' runtime-location.local ';
+      }),
+      createSession: vi.fn(async () => {
+        callOrder.push('create-session');
+        return session;
+      }),
+      createRuntimeBinding: vi.fn(async (createdSession, runtimeLocationId) => {
+        callOrder.push(`create-runtime-binding:${runtimeLocationId}`);
+        expect(createdSession).toBe(session);
+        return runtimeBinding;
+      }),
+      deleteCreatedSession: vi.fn(async () => undefined),
+    })).resolves.toEqual({
+      runtimeBinding,
+      runtimeLocationId: 'runtime-location.local',
+      session,
+    });
+
+    expect(callOrder).toEqual([
+      'resolve-runtime-location',
+      'create-session',
+      'create-runtime-binding:runtime-location.local',
+    ]);
+  });
+
+  it('does not create a Session when the runtime location cannot be resolved', async () => {
+    const runtimeLocationError = new Error('Project mount selection was cancelled.');
+    const createSession = vi.fn(async () => ({ sessionId: 'session.unexpected' }));
+    const createRuntimeBinding = vi.fn(async () => ({
+      runtimeBindingId: 'binding.unexpected',
+    }));
+    const deleteCreatedSession = vi.fn(async () => undefined);
+
+    await expect(createLocallyBoundAgentSession({
+      resolveRuntimeLocationId: vi.fn(async () => {
+        throw runtimeLocationError;
+      }),
+      createSession,
+      createRuntimeBinding,
+      deleteCreatedSession,
+    })).rejects.toBe(runtimeLocationError);
+
+    expect(createSession).not.toHaveBeenCalled();
+    expect(createRuntimeBinding).not.toHaveBeenCalled();
+    expect(deleteCreatedSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty runtime location without creating a Session', async () => {
+    const createSession = vi.fn(async () => ({ sessionId: 'session.unexpected' }));
+    const createRuntimeBinding = vi.fn(async () => ({
+      runtimeBindingId: 'binding.unexpected',
+    }));
+    const deleteCreatedSession = vi.fn(async () => undefined);
+
+    await expect(createLocallyBoundAgentSession({
+      resolveRuntimeLocationId: vi.fn(async () => '  '),
+      createSession,
+      createRuntimeBinding,
+      deleteCreatedSession,
+    })).rejects.toBeInstanceOf(AgentSessionRuntimeLocationUnavailableError);
+
+    expect(createSession).not.toHaveBeenCalled();
+    expect(createRuntimeBinding).not.toHaveBeenCalled();
+    expect(deleteCreatedSession).not.toHaveBeenCalled();
   });
 });

@@ -22,8 +22,13 @@ export interface WorkbenchAgentSessionTurnContext {
 
 const MAX_WORKBENCH_TURN_CONTEXT_FILE_CONTENT_CHARACTERS = 65_536;
 
+export const AGENT_SESSION_EXECUTION_TARGETS = ['LOCAL', 'CLOUD'] as const;
+export type AgentSessionExecutionTarget =
+  (typeof AGENT_SESSION_EXECUTION_TARGETS)[number];
+
 export interface CreateNewAgentSessionRequest {
   engineId?: string;
+  executionTarget?: AgentSessionExecutionTarget;
   modelId?: string;
   projectId?: string;
   source?:
@@ -41,6 +46,7 @@ export interface CreateNewAgentSessionRequest {
 
 export interface NormalizedCreateNewAgentSessionRequest {
   engineId?: string;
+  executionTarget?: AgentSessionExecutionTarget;
   modelId?: string;
   projectId: string;
   source: NonNullable<CreateNewAgentSessionRequest['source']>;
@@ -61,6 +67,7 @@ export type CreateWorkbenchAgentSessionFromRequest = (
 
 export interface CreateAgentSessionWithSelectionOptions {
   engineId?: string;
+  executionTarget?: AgentSessionExecutionTarget;
   modelId?: string;
 }
 
@@ -138,12 +145,14 @@ export function normalizeCreateNewAgentSessionRequest(
   const projectId = normalizeOptionalText(request?.projectId) ?? fallbackProjectId.trim();
   if (!projectId) return null;
   const engineId = normalizeOptionalText(request?.engineId);
+  const executionTarget = request?.executionTarget;
   const modelId = normalizeOptionalText(request?.modelId);
   const title = normalizeOptionalText(request?.title);
   return {
     projectId,
     source: request?.source ?? 'global-event',
     ...(engineId ? { engineId } : {}),
+    ...(executionTarget ? { executionTarget } : {}),
     ...(modelId ? { modelId } : {}),
     ...(title ? { title } : {}),
   };
@@ -155,6 +164,7 @@ export function buildCreateNewAgentSessionInFlightKey(
   return [
     request.projectId,
     request.engineId ?? '',
+    request.executionTarget ?? '',
     request.modelId ?? '',
     request.title ?? '',
   ].join('\u001f');
@@ -270,6 +280,7 @@ export async function ensureWorkbenchAgentSessionForTurnInput({
   currentProjectId,
   turnInputContent,
   requestedEngineId,
+  requestedExecutionTarget,
   requestedModelId,
   resolveProjectId,
 }: {
@@ -278,6 +289,7 @@ export async function ensureWorkbenchAgentSessionForTurnInput({
   currentProjectId?: string | null;
   turnInputContent: string;
   requestedEngineId?: string | null;
+  requestedExecutionTarget?: AgentSessionExecutionTarget | null;
   requestedModelId?: string | null;
   resolveProjectId: ResolveWorkbenchProjectId;
 }): Promise<{
@@ -306,6 +318,7 @@ export async function ensureWorkbenchAgentSessionForTurnInput({
 
   const newSession = await createAgentSessionFromRequest({
     engineId: requestedEngineId?.trim() || undefined,
+    executionTarget: requestedExecutionTarget ?? undefined,
     modelId: requestedModelId?.trim() || undefined,
     projectId,
     source: 'turn-submit',

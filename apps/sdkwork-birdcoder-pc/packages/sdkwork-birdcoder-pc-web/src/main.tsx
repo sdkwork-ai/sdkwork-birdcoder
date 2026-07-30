@@ -13,6 +13,7 @@ import {
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
+import { resolveWebTestGitService } from './web/resolveWebTestGitService';
 import App from './App';
 
 async function bootstrapRuntime() {
@@ -36,6 +37,7 @@ async function bootstrapRuntime() {
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
   publishBirdCoderBootstrapProgress({ progress: 52, stage: 'runtime' });
   await bootstrapShellRuntime({
+    gitService: resolveWebTestGitService(),
     host: resolveWebRuntime('global', {
       apiBaseUrl: resolvedApiBaseUrl,
     }),

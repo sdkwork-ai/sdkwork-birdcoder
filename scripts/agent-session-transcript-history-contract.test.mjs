@@ -163,8 +163,8 @@ assert.match(
 );
 assert.match(
   studioPageSource,
-  /handleLoadEarlierSelectedAgentSessionItems[\s\S]*hasMoreRemoteMessages=\{Boolean\(selectedSession\?\.itemPageInfo\?\.hasMore\)\}[\s\S]*isLoadingMoreRemoteMessages=\{isLoadingEarlierSelectedAgentSessionItems\}[\s\S]*onLoadMoreRemoteMessages=\{handleLoadEarlierSelectedAgentSessionItems\}/,
-  'Studio must expose canonical Session history continuation state and action to its chat sidebar.',
+  /handleLoadEarlierSelectedAgentSessionItems[\s\S]*hasMoreRemoteMessages=\{Boolean\([\s\S]*selectedSession\?\.itemPageInfo\?\.hasMore[\s\S]*selectedSession\.itemPageInfo\.retentionLimitReached !== true[\s\S]*\)\}[\s\S]*isLoadingMoreRemoteMessages=\{isLoadingEarlierSelectedAgentSessionItems\}[\s\S]*onLoadMoreRemoteMessages=\{handleLoadEarlierSelectedAgentSessionItems\}/,
+  'Studio must stop canonical Session history continuation after the bounded transcript retention limit is reached.',
 );
 assert.match(
   studioSidebarSource,

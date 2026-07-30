@@ -63,9 +63,16 @@ import {
   updateAgentSessionUserState,
   type AgentSessionUserStateUpdate,
 } from '../services/agentSessionUserStateUpdate.ts';
-import type { WorkbenchAgentSessionTurnContext } from '../workbench/agentSessionCreation.ts';
+import type {
+  AgentSessionExecutionTarget,
+  WorkbenchAgentSessionTurnContext,
+} from '../workbench/agentSessionCreation.ts';
 import type { WorkbenchAgentTurnDriveRef } from '../chat/agentTurnInputQueueStore.ts';
-import { createBoundAgentSession } from '../workbench/agentSessionProvisioning.ts';
+import {
+  AgentSessionExecutionTargetUnavailableError,
+  createBoundAgentSession,
+  createLocallyBoundAgentSession,
+} from '../workbench/agentSessionProvisioning.ts';
 import { createAgentTurnStreamPresentation } from '../workbench/agentTurnStreamPresentation.ts';
 import { useWorkspaceSessionInboxSynchronization } from './useWorkspaceSessionInboxSynchronization.ts';
 import {
@@ -74,13 +81,17 @@ import {
 
 export interface LoadMoreProjectSessionsResult {
   hasMore: boolean;
+  hasNewer: boolean;
   loadedCount: number;
+  windowShifted: boolean;
 }
+
+export type ProjectSessionWindowDirection = 'latest' | 'older';
 
 interface CreateProjectAgentSessionOptions {
   agentId: AgentSessionView['agentId'];
   engineId: AgentSessionView['engineId'];
-  hostMode?: AgentSessionView['hostMode'];
+  executionTarget: AgentSessionExecutionTarget;
   modelId: string;
   providerBindingId: string;
   providerId: string;
@@ -93,6 +104,7 @@ interface UpdateAgentSessionOptions extends AgentSessionUserStateUpdate {
 
 interface ProjectSessionLoadInflightEntry {
   controller: AbortController;
+  direction: ProjectSessionWindowDirection;
   promise: Promise<LoadMoreProjectSessionsResult>;
   targetCount: number;
 }
@@ -611,7 +623,11 @@ export interface UseProjectsOptions {
 }
 
 export function useProjects(options?: UseProjectsOptions) {
-  const { agentSessionService, projectService } = useIDEServices();
+  const {
+    agentSessionService,
+    projectRuntimeLocationService,
+    projectService,
+  } = useIDEServices();
   const { sessionRevision, user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(
     buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
@@ -843,11 +859,12 @@ export function useProjects(options?: UseProjectsOptions) {
     async (
       projectId: string,
       requestedCount: number,
+      direction: ProjectSessionWindowDirection = 'older',
     ): Promise<LoadMoreProjectSessionsResult> => {
       const normalizedProjectId = projectId.trim();
       const targetCount = normalizeProjectAgentSessionTargetCount(requestedCount);
       if (!storeScopeKey || !normalizedProjectId) {
-        return { hasMore: false, loadedCount: 0 };
+        return { hasMore: false, hasNewer: false, loadedCount: 0, windowShifted: false };
       }
 
       while (true) {
@@ -855,12 +872,18 @@ export function useProjects(options?: UseProjectsOptions) {
         if (!existingEntry) {
           break;
         }
-        if (existingEntry.targetCount >= targetCount) {
+        if (
+          existingEntry.direction === direction
+          && (direction === 'latest' || existingEntry.targetCount >= targetCount)
+        ) {
           return existingEntry.promise;
         }
 
         const existingResult = await existingEntry.promise;
-        if (!existingResult.hasMore || existingResult.loadedCount >= targetCount) {
+        if (
+          direction === existingEntry.direction
+          && (!existingResult.hasMore || existingResult.loadedCount >= targetCount)
+        ) {
           return existingResult;
         }
         if (projectSessionLoadInflightRef.current.get(normalizedProjectId) === existingEntry) {
@@ -877,7 +900,9 @@ export function useProjects(options?: UseProjectsOptions) {
         if (!project) {
           return {
             hasMore: false,
+            hasNewer: false,
             loadedCount: 0,
+            windowShifted: false,
           };
         }
 
@@ -888,12 +913,18 @@ export function useProjects(options?: UseProjectsOptions) {
             project,
             targetCount,
             controller.signal,
+            { resetWindow: direction === 'latest' },
           );
           const currentProject = store.snapshot.projects.find(
             (candidate) => candidate.projectId === normalizedProjectId,
           );
           if (!currentProject) {
-            return { hasMore: false, loadedCount: 0 };
+            return {
+              hasMore: false,
+              hasNewer: false,
+              loadedCount: 0,
+              windowShifted: false,
+            };
           }
 
           if (
@@ -908,9 +939,14 @@ export function useProjects(options?: UseProjectsOptions) {
             upsertProjectIntoProjectsStoreByScopeKey(storeScopeKey, synchronized.project);
           }
 
+          const committedProject = getProjectsStore(storeScopeKey).snapshot.projects.find(
+            (candidate) => candidate.projectId === normalizedProjectId,
+          );
           return {
-            hasMore: synchronized.hasMore,
-            loadedCount: synchronized.project.agentSessions.length,
+            hasMore: committedProject?.agentSessionPageInfo?.hasMore ?? synchronized.hasMore,
+            hasNewer: committedProject?.agentSessionPageInfo?.hasNewer ?? synchronized.hasNewer,
+            loadedCount: committedProject?.agentSessions.length ?? 0,
+            windowShifted: synchronized.windowShifted,
           };
         }
 
@@ -918,13 +954,16 @@ export function useProjects(options?: UseProjectsOptions) {
           (candidate) => candidate.projectId === normalizedProjectId,
         );
         return {
-          hasMore: currentProject !== undefined,
+          hasMore: currentProject?.agentSessionPageInfo?.hasMore ?? false,
+          hasNewer: currentProject?.agentSessionPageInfo?.hasNewer ?? false,
           loadedCount: currentProject?.agentSessions.length ?? 0,
+          windowShifted: false,
         };
       })();
 
       const entry: ProjectSessionLoadInflightEntry = {
         controller,
+        direction,
         promise: request,
         targetCount,
       };
@@ -1235,7 +1274,20 @@ export function useProjects(options?: UseProjectsOptions) {
       if (!project) {
         throw new Error(`Agents project ${projectId} is not loaded.`);
       }
-      const { runtimeBinding, session } = await createBoundAgentSession({
+      if (options.executionTarget === 'CLOUD') {
+        throw new AgentSessionExecutionTargetUnavailableError();
+      }
+      const {
+        runtimeBinding,
+        runtimeLocationId,
+        session,
+      } = await createLocallyBoundAgentSession({
+        resolveRuntimeLocationId: () =>
+          projectRuntimeLocationService.resolveProjectRuntimeLocationExecutionId(
+            project.projectId,
+            'file_system',
+            { allowFolderSelection: true },
+          ),
         createSession: () => agentSessionService.createSession({
           agentId: options.agentId,
           projectId: project.projectId,
@@ -1243,12 +1295,13 @@ export function useProjects(options?: UseProjectsOptions) {
           sourceContextKind: 'agent-project',
           title,
         }),
-        createRuntimeBinding: (createdSession) =>
+        createRuntimeBinding: (createdSession, resolvedRuntimeLocationId) =>
           agentSessionService.createRuntimeBinding({
             agentId: createdSession.agentId,
             sessionId: createdSession.sessionId,
           }, {
-            hostMode: options.hostMode ?? 'web',
+            runtimeLocationId: resolvedRuntimeLocationId,
+            hostMode: 'desktop',
             transportKind: 'sdk-stream',
             providerBindingId: options.providerBindingId,
             modelId: options.modelId,
@@ -1268,7 +1321,8 @@ export function useProjects(options?: UseProjectsOptions) {
         providerId: options.providerId,
         providerBindingId: options.providerBindingId,
         runtimeBindingId: runtimeBinding.runtimeBindingId,
-        hostMode: options.hostMode ?? 'web',
+        runtimeLocationId,
+        hostMode: 'desktop',
         transportKind: 'sdk-stream',
       });
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>

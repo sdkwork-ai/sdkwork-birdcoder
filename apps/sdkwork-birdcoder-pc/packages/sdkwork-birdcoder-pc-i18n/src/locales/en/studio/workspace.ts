@@ -63,6 +63,8 @@ export default defineLocaleModule('studio/workspace', {
     "fileMatch": "File match",
     "ranFor": "Ran for {{time}}",
     "showMoreSessions": "Show more",
+    "showOlderSessions": "Older sessions",
+    "showLatestSessions": "Latest sessions",
     "loadingMoreSessions": "Loading more sessions...",
     "failedToLoadMoreSessions": "Failed to load more sessions",
     "collapseSessions": "Collapse"

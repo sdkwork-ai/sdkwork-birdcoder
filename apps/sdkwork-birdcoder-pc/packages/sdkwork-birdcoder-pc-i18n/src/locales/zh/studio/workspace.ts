@@ -67,6 +67,8 @@ export default defineLocaleModule('studio/workspace', {
     fileMatch: '\u6587\u4ef6\u5339\u914d',
     ranFor: '\u5df2\u8fd0\u884c {{time}}',
     showMoreSessions: '\u5c55\u5f00\u66f4\u591a',
+    showOlderSessions: '\u66f4\u65e9\u7684\u4f1a\u8bdd',
+    showLatestSessions: '\u6700\u65b0\u4f1a\u8bdd',
     loadingMoreSessions: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd...',
     failedToLoadMoreSessions: '\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd\u5931\u8d25',
     collapseSessions: '\u6536\u8d77\u4f1a\u8bdd',

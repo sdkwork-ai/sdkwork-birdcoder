@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.hybrid-agent-execution-commercial-readiness",
+  "status": "blocked",
+  "updatedAt": "2026-07-30",
+  "scope": [
+    "sdkwork-birdcoder",
+    "sdkwork-agents",
+    "sdkwork-kernel",
+    "sdkwork-sandbox"
+  ],
+  "summary": "BirdCoder may expose per-Session local or cloud execution only through the Agents product API. Agents owns durable intent and orchestration, Kernel owns placement and execution leases, and Sandbox owns isolated runtime, pool, attachment, and cleanup mechanisms. Cloud execution remains unavailable until every protected upstream gate is approved and proven.",
+  "dependencyDirection": [
+    "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox",
+    "sdkwork-birdcoder -/-> sdkwork-kernel",
+    "sdkwork-birdcoder -/-> sdkwork-sandbox",
+    "sdkwork-agents -/-> sdkwork-sandbox",
+    "sdkwork-sandbox -/-> sdkwork-kernel",
+    "sdkwork-sandbox -/-> sdkwork-agents"
+  ],
+  "vocabulary": {
+    "clientRuntimeTarget": {
+      "owner": "sdkwork-birdcoder runtime composition",
+      "examples": ["browser", "desktop", "server"],
+      "isExecutionTarget": false
+    },
+    "deploymentProfile": {
+      "owner": "deployment composition",
+      "values": ["standalone", "cloud"],
+      "isPerSessionChoice": false
+    },
+    "executionPreference": {
+      "candidateOwner": "sdkwork-agents",
+      "values": ["LOCAL", "CLOUD"],
+      "requiredOnSession": true,
+      "taskOverrideValues": ["LOCAL", "CLOUD"],
+      "automaticOrArbitraryValueAllowed": false,
+      "isResolvedPlacement": false,
+      "humanReviewRequiredBeforePublicApi": true
+    },
+    "resolvedExecutionTarget": {
+      "owner": "sdkwork-kernel",
+      "values": ["client_local", "managed_sandbox"],
+      "serverOwned": true,
+      "clientMaySet": false,
+      "immutableAfterExecutionAccepted": true
+    },
+    "coordinationMode": {
+      "owner": "sdkwork-kernel deployment runtime",
+      "values": ["single", "cluster"],
+      "isExecutionTarget": false,
+      "isPerSessionChoice": false
+    },
+    "runtimeRole": {
+      "owner": "sdkwork-kernel deployment runtime",
+      "values": ["gateway", "coordinator", "worker"],
+      "isExecutionTarget": false,
+      "isPerSessionChoice": false
+    },
+    "fallbackPolicy": {
+      "owner": "sdkwork-kernel execution orchestration",
+      "values": ["none", "before_start_only"],
+      "default": "none",
+      "afterSideEffectFallbackAllowed": false
+    },
+    "dataResidency": {
+      "owner": "sdkwork-agents deployment and persistence composition",
+      "localExecutionAloneImpliesDeviceOnlyResidency": false,
+      "allDataLocalClaimRequiresDeviceLocalAgentsAuthority": true,
+      "sessionPersistenceAuthorityImmutableAfterCreation": true,
+      "implicitCrossResidencyReplicationAllowed": false,
+      "status": "pending-human-review"
+    },
+    "runtimeBinding": {
+      "owner": "sdkwork-agents",
+      "clientMayCreatePlacementBinding": false,
+      "clientMayWriteRuntimeLocationHostOrTransport": false,
+      "opaqueRuntimeLocationRequiredWhenReady": true,
+      "currentLocalPreLaunchTransition": {
+        "status": "temporary",
+        "birdcoderCreatesCombinedRuntimeBinding": true,
+        "requiresOpaqueDeviceRuntimeLocation": true,
+        "mayBeUsedAsCloudPlacementEvidence": false,
+        "mustBeRetiredByGate": "HXE-003"
+      }
+    },
+    "placementLease": {
+      "owner": "sdkwork-kernel",
+      "requiresLeaseToken": true,
+      "requiresMonotonicFencing": true,
+      "leaseCredentialNeverLeavesKernel": true,
+      "agentsPersistsLeaseCredential": false,
+      "callerSelectedNodePoolOrProviderAllowed": false
+    },
+    "sandboxPoolClaim": {
+      "owner": "sdkwork-sandbox",
+      "tenantNeutralBeforeClaim": true,
+      "workspaceAttachmentAfterClaim": true,
+      "releaseRequiresSanitizationEvidence": true
+    }
+  },
+  "capabilityNegotiation": {
+    "authority": "sdkwork-agents",
+    "source": "reviewed live Kernel and Sandbox evidence",
+    "authenticated": true,
+    "contractVersionRequired": true,
+    "expiryRequired": true,
+    "stableUnavailableReasonRequired": true,
+    "deploymentProfileInferenceAllowed": false,
+    "clientRuntimeInferenceAllowed": false,
+    "buildTimeBooleanAcceptedAsCommercialEvidence": false
+  },
+  "dataOwnership": {
+    "workspaceProjectSessionTurnTask": "sdkwork-agents PostgreSQL authority",
+    "runtimePlacementLeaseAndExecutionOwnership": "sdkwork-kernel transient runtime authority",
+    "sandboxRuntimePoolClaimAttachmentAndCleanup": "sdkwork-sandbox authority",
+    "localProjectBytes": "device filesystem selected through a typed BirdCoder host adapter",
+    "cloudProjectBytes": "persistent workspace storage authority attached to an allocated Sandbox",
+    "birdcoderLocalDatabaseAllowedFacts": [
+      "bounded device preferences",
+      "opaque device mount identity",
+      "secure desktop session material through the operating-system credential store"
+    ],
+    "birdcoderLocalDatabaseForbiddenFacts": [
+      "Workspace",
+      "Project",
+      "Session",
+      "Turn",
+      "Task",
+      "Runtime Binding",
+      "Sandbox Pool Claim"
+    ]
+  },
+  "candidateAgentsPlacementPort": {
+    "status": "human-review-required",
+    "operations": [
+      "reserve",
+      "renew",
+      "release",
+      "cancelExecution",
+      "restoreCheckpoint"
+    ],
+    "requestFields": [
+      "tenantId",
+      "organizationId",
+      "ownerUserId",
+      "workspaceId",
+      "projectId",
+      "sessionId",
+      "turnOrTaskId",
+      "executionPreference",
+      "runtimeProfileId",
+      "idempotencyKey",
+      "deadline"
+    ],
+    "responseFields": [
+      "placementId",
+      "executionTarget",
+      "runtimeBindingId",
+      "leaseId",
+      "fencingToken",
+      "expiresAt",
+      "opaqueRuntimeLocationId"
+    ]
+  },
+  "cloudAllocationOrdering": [
+    "agents_authorizes_session_and_execution_intent",
+    "kernel_claims_execution_ownership",
+    "sandbox_admission_reservation_confirmed",
+    "sandbox_verified_node_and_capacity_confirmed",
+    "sandbox_pool_slot_claimed",
+    "sandbox_workspace_network_and_resource_grants_applied",
+    "sandbox_provider_started_and_effective_readiness_verified",
+    "kernel_placement_lease_ready",
+    "agents_runtime_binding_activated",
+    "birdcoder_receives_capability_and_binding_summary"
+  ],
+  "releaseGates": [
+    {
+      "id": "HXE-001",
+      "owner": "sdkwork-birdcoder",
+      "title": "Separate execution target from client host mode",
+      "status": "done"
+    },
+    {
+      "id": "HXE-002",
+      "owner": "sdkwork-birdcoder",
+      "title": "Require an opaque mounted local runtime location before Session binding",
+      "status": "done"
+    },
+    {
+      "id": "HXE-003",
+      "owner": "sdkwork-agents",
+      "title": "Approve and implement Session and Task execution preference plus server-owned placement orchestration",
+      "status": "blocked-human-review"
+    },
+    {
+      "id": "HXE-004",
+      "owner": "sdkwork-kernel",
+      "title": "Approve and implement single and cluster placement leases, routing, cancellation, recovery, and fencing",
+      "status": "blocked-draft-authority"
+    },
+    {
+      "id": "HXE-005",
+      "owner": "sdkwork-sandbox",
+      "title": "Approve and implement production runtime pool, isolation, storage attachment, and sanitization",
+      "status": "blocked-human-review"
+    },
+    {
+      "id": "HXE-006",
+      "owner": "cross-repository-release",
+      "title": "Produce real KVM, multi-tenant isolation, load, failover, recovery, supply-chain, and operational evidence",
+      "status": "blocked-missing-evidence"
+    }
+  ],
+  "authorityEvidence": [
+    "docs/product/requirements/REQ-2026-0006-hybrid-local-cloud-agent-execution.md",
+    "docs/architecture/decisions/ADR-20260730-hybrid-execution-boundaries.md",
+    "docs/engineering/plans/PLAN-2026-0002-commercial-hybrid-execution-delivery.md",
+    "docs/engineering/reviews/REVIEW-20260730-hybrid-execution-commercial-gate.md",
+    "specs/agents-birdcoder-alignment.spec.json",
+    "specs/kernel-birdcoder-alignment.spec.json",
+    "../sdkwork-agents/docs/product/requirements/REQ-2026-0730-hybrid-agent-execution-orchestration.md",
+    "../sdkwork-agents/docs/architecture/decisions/ADR-20260730-hybrid-execution-placement-orchestration.md",
+    "../sdkwork-agents/docs/engineering/reviews/REVIEW-20260730-hybrid-execution-contract.md",
+    "../sdkwork-agents/specs/agent-execution-placement-orchestration.contract.json",
+    "../sdkwork-agents/specs/AGENTS_DOMAIN_SPEC.md",
+    "../sdkwork-agents/specs/AGENTS_SESSION_MODEL_SPEC.md",
+    "../sdkwork-kernel/docs/product/requirements/REQ-2026-0002-distributed-execution-placement-control-plane.md",
+    "../sdkwork-kernel/docs/architecture/decisions/ADR-20260730-distributed-execution-placement-control-plane.md",
+    "../sdkwork-kernel/docs/engineering/reviews/REVIEW-20260730-distributed-execution-placement.md",
+    "../sdkwork-kernel/docs/product/prd/PRD-05-distributed-agent-runtime.md",
+    "../sdkwork-sandbox/docs/product/requirements/REQ-2026-0019-sandbox-runtime-pool-and-fast-allocation.md",
+    "../sdkwork-sandbox/docs/product/requirements/REQ-2026-0021-sandbox-workspace-runtime-transaction-and-checkpoint.md",
+    "../sdkwork-sandbox/docs/engineering/reviews/REVIEW-20260730-sandbox-runtime-pool-architecture-security.md",
+    "../sdkwork-sandbox/docs/engineering/reviews/REVIEW-20260730-sandbox-workspace-runtime-transaction-architecture-security.md",
+    "../sdkwork-sandbox/specs/sandbox-runtime-pool.contract.json",
+    "../sdkwork-sandbox/specs/sandbox-workspace-block-device-attachment.contract.json",
+    "../sdkwork-sandbox/specs/sandbox-multi-tenant-scheduling.contract.json"
+  ],
+  "forbiddenClaimsUntilAllGatesDone": [
+    "cloud execution available",
+    "production Sandbox isolation",
+    "commercial multi-tenant isolation",
+    "high-concurrency distributed execution ready",
+    "runtime pool ready"
+  ],
+  "humanReview": {
+    "required": true,
+    "entryReview": "docs/engineering/reviews/REVIEW-20260730-hybrid-execution-commercial-gate.md",
+    "protectedChanges": [
+      "public executionPreference naming and resolvedExecutionTarget response naming",
+      "Agents API and generated SDK",
+      "Agents database migration",
+      "Kernel placement and RPC boundary",
+      "Sandbox provider isolation and runtime pool",
+      "production topology and deployment",
+      "security and tenant authorization"
+    ],
+    "requiredDecisions": [
+      {
+        "id": "HXR-001",
+        "owner": "sdkwork-agents product and API owners",
+        "status": "pending-human-review",
+        "decision": "Approve executionPreference with LOCAL and CLOUD as user intent, and keep resolvedExecutionTarget plus placement fields server-owned."
+      },
+      {
+        "id": "HXR-002",
+        "owner": "sdkwork-agents database and migration owners",
+        "status": "pending-human-review",
+        "decision": "Approve Session and Task migration, existing-row backfill, organization-scoped stable UUID transition, composite Task-to-Agent organization foreign key, rollback, retention, and standalone/cloud default behavior."
+      },
+      {
+        "id": "HXR-003",
+        "owner": "sdkwork-kernel architecture and runtime owners",
+        "status": "pending-human-review",
+        "decision": "Approve placement reserve, renew, release, cancel, and restore SPI with leases, monotonic fencing, idempotency, immutable accepted placement, and single/cluster parity."
+      },
+      {
+        "id": "HXR-004",
+        "owner": "sdkwork-sandbox architecture, security, and operations owners",
+        "status": "pending-human-review",
+        "decision": "Approve the exact Local and Firecracker delivery-gate dependencies before changing implementationAuthorized."
+      },
+      {
+        "id": "HXR-005",
+        "owner": "workspace storage, KMS, Agents, and Sandbox owners",
+        "status": "pending-human-review",
+        "decision": "Select the block-volume and checkpoint byte authority, encryption-key authority, revision promotion protocol, recovery behavior, and residue-destruction evidence."
+      },
+      {
+        "id": "HXR-006",
+        "owner": "runtime operations and release engineering owners",
+        "status": "pending-human-review",
+        "decision": "Assign reproducible Linux KVM x86_64 and aarch64 runners, Firecracker artifact tuple, signing provenance, node attestation authority, and failure-drill owners."
+      },
+      {
+        "id": "HXR-007",
+        "owner": "sdkwork-agents and sdkwork-kernel runtime owners",
+        "status": "pending-human-review",
+        "decision": "Approve fallbackPolicy values none and before_start_only and remove all implicit cross-target fallback after any accepted or externally visible side effect."
+      },
+      {
+        "id": "HXR-008",
+        "owner": "product, SRE, database, and capacity owners",
+        "status": "pending-human-review",
+        "decision": "Set tested bounds for admission, pool classes, allocation latency, execution deadline, reconnect grace, lifecycle retention, load, failover, recovery, and tenant fairness."
+      },
+      {
+        "id": "HXR-009",
+        "owner": "BirdCoder product, sdkwork-agents, privacy, and deployment owners",
+        "status": "pending-human-review",
+        "decision": "Define whether LOCAL means compute placement only or complete device-only data residency; for complete residency, approve the device-local Agents authority, cloud-session routing boundary, synchronization prohibition or explicit revision-transfer protocol, purge, backup, and recovery evidence."
+      }
+    ]
+  }
+}

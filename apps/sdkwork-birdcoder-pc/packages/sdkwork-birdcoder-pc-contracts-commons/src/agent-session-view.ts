@@ -332,7 +332,10 @@ export interface AgentSessionItemView {
 
 export interface AgentSessionPageInfoView {
   hasMore: boolean;
-  page: number;
+  /** True when this bounded client window no longer starts at the newest Session. */
+  hasNewer: boolean;
+  mode: 'cursor';
+  nextCursor: string | null;
   pageSize: number;
 }
 
@@ -340,6 +343,7 @@ export interface AgentSessionItemPageInfoView {
   hasMore: boolean;
   nextCursor: string | null;
   pageSize: number;
+  retentionLimitReached?: boolean;
 }
 
 export type AgentSessionItemViewSource = Readonly<AgentSessionItemView>;

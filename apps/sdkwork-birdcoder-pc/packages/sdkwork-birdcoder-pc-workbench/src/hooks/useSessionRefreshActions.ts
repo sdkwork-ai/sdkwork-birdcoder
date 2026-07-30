@@ -421,7 +421,10 @@ export function useSessionRefreshActions({
       normalizedAgentSessionId,
       normalizedProjectId,
     ) ?? null;
-    if (!resolvedLocation?.agentSession.itemPageInfo?.hasMore) {
+    if (
+      !resolvedLocation?.agentSession.itemPageInfo?.hasMore
+      || resolvedLocation.agentSession.itemPageInfo.retentionLimitReached === true
+    ) {
       return Promise.resolve();
     }
     const expectedTranscript = {

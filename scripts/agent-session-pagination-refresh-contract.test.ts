@@ -8,6 +8,7 @@ import type {
   AgentSessionActivityPageRequest,
   AgentSessionIdentity,
   AgentSessionItemPageRequest,
+  AgentSessionItemSynchronizationRequest,
   AgentSessionPageRequest,
   AgentSessionReadOptions,
   IAgentSessionService,
@@ -34,6 +35,15 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionRefresh.ts';
 
 const AGENT_ID = 'agent.birdcoder';
+
+function synchronizeSessionItemsThroughList(
+  this: Pick<IAgentSessionService, 'listSessionItems'>,
+  identity: AgentSessionIdentity,
+  request?: AgentSessionItemSynchronizationRequest,
+  options?: AgentSessionReadOptions,
+) {
+  return this.listSessionItems(identity, request, options);
+}
 
 function buildSession(index: number, projectId = 'project.pagination') {
   const timestamp = new Date(Date.UTC(2026, 6, 24, 0, 0, index)).toISOString();
@@ -106,8 +116,8 @@ function buildSelectedSession(sessionId: string): AgentSessionView {
   } as unknown as AgentSessionView;
 }
 
-function buildActivitySummary(index: number) {
-  const session = buildSession(index);
+function buildActivitySummary(index: number, projectId = 'project.pagination') {
+  const session = buildSession(index, projectId);
   return {
     session: {
       ...session,
@@ -159,62 +169,62 @@ function buildActivitySummary(index: number) {
   };
 }
 
-const requestedSessionPages: AgentSessionPageRequest[] = [];
+const requestedActivityPages: AgentSessionActivityPageRequest[] = [];
 const paginatedService = {
-  async listSessionsByProject(request: AgentSessionPageRequest = {}) {
-    requestedSessionPages.push(request);
-    const page = request.page ?? 1;
-    const start = (page - 1) * 20;
+  async listSessionActivitySummaries(request: AgentSessionActivityPageRequest = {}) {
+    requestedActivityPages.push(request);
+    const isFirstPage = request.cursor === undefined;
+    const indexes = isFirstPage
+      ? Array.from({ length: 100 }, (_, index) => index + 1)
+      : [100, ...Array.from({ length: 99 }, (_, index) => index + 101)];
     return {
-      items: Array.from({ length: 20 }, (_, index) => buildSession(start + index + 1)),
+      items: indexes.map((index) => buildActivitySummary(index)),
       pageInfo: {
-        mode: 'offset',
-        page,
-        pageSize: 20,
-        hasMore: page < 3,
+        mode: 'cursor',
+        pageSize: 100,
+        hasMore: isFirstPage,
+        nextCursor: isFirstPage ? 'cursor.project-page-2' : null,
       },
     };
-  },
-  async listRuntimeBindings(_identity: AgentSessionIdentity) {
-    return buildEmptyRuntimeBindingsPage();
-  },
-  async getSessionUserStates(identities: readonly AgentSessionIdentity[]) {
-    return buildSessionUserStates(identities);
   },
 } as unknown as IAgentSessionService;
 
 const firstPage = await loadProjectAgentSessionPage(paginatedService, buildProject(), 5);
-assert.equal(firstPage.project.agentSessions.length, 20);
+assert.equal(firstPage.project.agentSessions.length, 100);
 assert.deepEqual(firstPage.project.agentSessionPageInfo, {
-  page: 1,
-  pageSize: 20,
   hasMore: true,
+  hasNewer: false,
+  mode: 'cursor',
+  nextCursor: 'cursor.project-page-2',
+  pageSize: 100,
 });
 
 const missingUserStateService = {
-  async listSessionsByProject() {
+  async listSessionActivitySummaries() {
+    const activeSummary = buildActivitySummary(101);
+    const archivedSummary = buildActivitySummary(102);
     return {
       items: [
         {
-          ...buildSession(101),
-          agentId: 'agent.code-engine.codex',
-          title: 'State-free active session',
+          ...activeSummary,
+          session: {
+            ...activeSummary.session,
+            agentId: 'agent.code-engine.codex',
+            title: 'State-free active session',
+          },
         },
         {
-          ...buildSession(102),
-          agentId: 'agent.code-engine.codex',
-          status: 'archived',
-          title: 'State-free archived session',
+          ...archivedSummary,
+          session: {
+            ...archivedSummary.session,
+            agentId: 'agent.code-engine.codex',
+            status: 'archived',
+            title: 'State-free archived session',
+          },
         },
       ],
-      pageInfo: { mode: 'offset', page: 1, pageSize: 20, hasMore: false },
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 100, hasMore: false },
     };
-  },
-  async listRuntimeBindings(_identity: AgentSessionIdentity) {
-    return buildEmptyRuntimeBindingsPage();
-  },
-  async getSessionUserStates(_identities: readonly AgentSessionIdentity[]) {
-    return new Map();
   },
 } as unknown as IAgentSessionService;
 const missingUserStatePage = await loadProjectAgentSessionPage(
@@ -258,20 +268,12 @@ const activityHeadOnlySession: AgentSessionView = {
   id: 'session.activity-head-only',
   title: 'Activity head only',
 };
-let pageOneRuntimeBindingReads = 0;
 const pageOneMergeService = {
-  async listSessionsByProject() {
+  async listSessionActivitySummaries() {
     return {
-      items: [buildSession(1), buildSession(3)],
-      pageInfo: { mode: 'offset', page: 1, pageSize: 20, hasMore: false },
+      items: [buildActivitySummary(1), buildActivitySummary(3)],
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 100, hasMore: false },
     };
-  },
-  async listRuntimeBindings(_identity: AgentSessionIdentity) {
-    pageOneRuntimeBindingReads += 1;
-    return buildEmptyRuntimeBindingsPage();
-  },
-  async getSessionUserStates(identities: readonly AgentSessionIdentity[]) {
-    return buildSessionUserStates(identities);
   },
 } as unknown as IAgentSessionService;
 const mergedPageOne = await loadProjectAgentSessionPage(pageOneMergeService, {
@@ -281,29 +283,24 @@ const mergedPageOne = await loadProjectAgentSessionPage(pageOneMergeService, {
 assert.deepEqual(
   new Set(mergedPageOne.project.agentSessions.map((session) => session.id)),
   new Set(['session.pagination.1', 'session.pagination.3', 'session.activity-head-only']),
-  'page one offset hydration must merge with the already loaded activity head',
+  'page one cursor hydration must merge with the already loaded activity head',
 );
 assert.equal(
   mergedPageOne.project.agentSessions.find((session) => session.id === 'session.pagination.1')
     ?.activity,
   pageOneActivitySession.activity,
-  'page one offset hydration must retain the authoritative activity projection',
+  'page one cursor hydration must retain the authoritative activity projection',
 );
 assert.equal(
   mergedPageOne.project.agentSessions.find((session) => session.id === 'session.pagination.1')
     ?.items[0]?.id,
   'item.activity-head',
-  'page one offset hydration must retain an already loaded transcript',
+  'page one cursor hydration must retain an already loaded transcript',
 );
 assert.equal(
   mergedPageOne.project.agentSessions.find((session) => session.id === 'session.activity-head-only'),
   activityHeadOnlySession,
-  'page one offset hydration must retain Sessions outside its bounded page',
-);
-assert.equal(
-  pageOneRuntimeBindingReads,
-  1,
-  'offset hydration must reuse activity-backed runtime metadata and read only new Session bindings',
+  'page one cursor hydration must retain Sessions outside its bounded page',
 );
 
 const cachedPrefix = await loadProjectAgentSessionPage(
@@ -312,16 +309,16 @@ const cachedPrefix = await loadProjectAgentSessionPage(
   15,
 );
 assert.equal(cachedPrefix.project, firstPage.project);
-assert.equal(requestedSessionPages.length, 1, 'a cached visible prefix must not re-fetch page one');
+assert.equal(requestedActivityPages.length, 1, 'a cached visible prefix must not re-fetch page one');
 
 const secondPage = await loadProjectAgentSessionPage(
   paginatedService,
   firstPage.project,
-  25,
+  125,
 );
-assert.deepEqual(requestedSessionPages.map((request) => request.page), [1, 2]);
-assert.equal(secondPage.project.agentSessions.length, 40);
-assert.equal(secondPage.project.agentSessionPageInfo?.page, 2);
+assert.deepEqual(requestedActivityPages.map((request) => request.cursor), [undefined, 'cursor.project-page-2']);
+assert.equal(secondPage.project.agentSessions.length, 199);
+assert.equal(secondPage.project.agentSessionPageInfo?.nextCursor, null);
 assert.equal(secondPage.hasMore, true);
 assert.equal(
   secondPage.project.agentSessions.find((session) => session.id === 'session.pagination.1'),
@@ -329,9 +326,67 @@ assert.equal(
   'appending a server page must preserve existing Session object identity',
 );
 
+const boundedWindowService = {
+  async listSessionActivitySummaries(request: AgentSessionActivityPageRequest = {}) {
+    const pageIndex = request.cursor === undefined
+      ? 0
+      : request.cursor === 'cursor.window.2'
+        ? 1
+        : 2;
+    const start = pageIndex * 100 + 1;
+    return {
+      items: Array.from({ length: 100 }, (_, index) => buildActivitySummary(start + index)),
+      pageInfo: {
+        mode: 'cursor',
+        nextCursor: pageIndex < 2 ? `cursor.window.${pageIndex + 2}` : null,
+        pageSize: 100,
+        hasMore: pageIndex < 2,
+      },
+    };
+  },
+} as unknown as IAgentSessionService;
+const boundedWindowPageOne = await loadProjectAgentSessionPage(
+  boundedWindowService,
+  buildProject(),
+  1,
+);
+const boundedWindowPageTwo = await loadProjectAgentSessionPage(
+  boundedWindowService,
+  boundedWindowPageOne.project,
+  101,
+);
+const boundedWindowPageThree = await loadProjectAgentSessionPage(
+  boundedWindowService,
+  boundedWindowPageTwo.project,
+  201,
+);
+assert.equal(boundedWindowPageThree.project.agentSessions.length, 200);
+assert.equal(boundedWindowPageThree.hasNewer, true);
+assert.equal(boundedWindowPageThree.windowShifted, true);
+assert.equal(boundedWindowPageThree.project.agentSessionPageInfo?.hasNewer, true);
+assert.equal(boundedWindowPageThree.project.agentSessions[0]?.id, 'session.pagination.101');
+assert.equal(boundedWindowPageThree.project.agentSessions.at(-1)?.id, 'session.pagination.300');
+const resetToLatestWindow = await loadProjectAgentSessionPage(
+  boundedWindowService,
+  boundedWindowPageThree.project,
+  1,
+  undefined,
+  { resetWindow: true },
+);
+assert.equal(resetToLatestWindow.project.agentSessions.length, 100);
+assert.equal(resetToLatestWindow.hasNewer, false);
+assert.equal(resetToLatestWindow.windowShifted, true);
+assert.equal(resetToLatestWindow.project.agentSessionPageInfo?.nextCursor, 'cursor.window.2');
+
 const shortPageProject = {
   ...buildProject(),
-  agentSessionPageInfo: { page: 1, pageSize: 20, hasMore: true },
+  agentSessionPageInfo: {
+    hasMore: true,
+    hasNewer: false,
+    mode: 'cursor' as const,
+    nextCursor: 'cursor.short-page.2',
+    pageSize: 100,
+  },
   agentSessions: firstPage.project.agentSessions.slice(0, 3),
 };
 assert.equal(
@@ -342,63 +397,83 @@ assert.equal(
 assert.equal(
   canLoadMoreProjectSessions({
     ...shortPageProject,
-    agentSessionPageInfo: { page: 2, pageSize: 20, hasMore: false },
+    agentSessionPageInfo: {
+      hasMore: false,
+      hasNewer: false,
+      mode: 'cursor',
+      nextCursor: null,
+      pageSize: 100,
+    },
   }, 5),
   false,
 );
 
 const duplicatePageService = {
-  async listSessionsByProject(request: AgentSessionPageRequest = {}) {
+  async listSessionActivitySummaries() {
     return {
-      items: [buildSession(20), ...Array.from({ length: 19 }, (_, index) => buildSession(41 + index))],
-      pageInfo: { mode: 'offset', page: request.page, pageSize: 20, hasMore: false },
-    };
-  },
-  async listRuntimeBindings(_identity: AgentSessionIdentity) {
-    return buildEmptyRuntimeBindingsPage();
-  },
-  async getSessionUserStates(identities: readonly AgentSessionIdentity[]) {
-    return buildSessionUserStates(identities);
-  },
-} as unknown as IAgentSessionService;
-const deduplicatedPage = await loadProjectAgentSessionPage(
-  duplicatePageService,
-  secondPage.project,
-  45,
-);
-assert.equal(deduplicatedPage.project.agentSessions.length, 59);
-assert.equal(new Set(deduplicatedPage.project.agentSessions.map((session) => session.id)).size, 59);
-
-const invalidEmptyPageService = {
-  async listSessionsByProject(request: AgentSessionPageRequest = {}) {
-    return {
-      items: [],
-      pageInfo: { mode: 'offset', page: request.page, pageSize: 20, hasMore: true },
+      items: [buildActivitySummary(201), buildActivitySummary(201)],
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 100, hasMore: false },
     };
   },
 } as unknown as IAgentSessionService;
 await assert.rejects(
-  loadProjectAgentSessionPage(invalidEmptyPageService, secondPage.project, 45),
+  loadProjectAgentSessionPage(duplicatePageService, buildProject(), 1),
+  /duplicate Session identity/u,
+);
+
+const invalidEmptyPageService = {
+  async listSessionActivitySummaries() {
+    return {
+      items: [],
+      pageInfo: {
+        mode: 'cursor',
+        nextCursor: 'cursor.invalid-empty.next',
+        pageSize: 100,
+        hasMore: true,
+      },
+    };
+  },
+} as unknown as IAgentSessionService;
+await assert.rejects(
+  loadProjectAgentSessionPage(invalidEmptyPageService, buildProject(), 1),
   /empty page with hasMore=true/u,
 );
 
-const invalidPageService = {
-  async listSessionsByProject() {
+const invalidCursorService = {
+  async listSessionActivitySummaries() {
     return {
-      items: [buildSession(41)],
-      pageInfo: { mode: 'offset', page: 99, pageSize: 20, hasMore: false },
+      items: [buildActivitySummary(200)],
+      pageInfo: {
+        mode: 'cursor',
+        nextCursor: 'cursor.project-page-2',
+        pageSize: 100,
+        hasMore: true,
+      },
     };
   },
 } as unknown as IAgentSessionService;
 await assert.rejects(
-  loadProjectAgentSessionPage(invalidPageService, secondPage.project, 45),
-  /returned page 99 while page 3 was requested/u,
+  loadProjectAgentSessionPage(invalidCursorService, firstPage.project, 125),
+  /non-progressing cursor page/u,
+);
+
+const escapedProjectService = {
+  async listSessionActivitySummaries() {
+    return {
+      items: [buildActivitySummary(201, 'project.outside-scope')],
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 100, hasMore: false },
+    };
+  },
+} as unknown as IAgentSessionService;
+await assert.rejects(
+  loadProjectAgentSessionPage(escapedProjectService, buildProject(), 1),
+  /escaped its requested Project scope/u,
 );
 
 let continuationSignal: AbortSignal | undefined;
 const cancellablePageService = {
-  async listSessionsByProject(
-    _request?: AgentSessionPageRequest,
+  async listSessionActivitySummaries(
+    _request?: AgentSessionActivityPageRequest,
     options?: AgentSessionReadOptions,
   ) {
     continuationSignal = options?.signal;
@@ -413,7 +488,7 @@ const continuationController = new AbortController();
 const cancelledContinuation = loadProjectAgentSessionPage(
   cancellablePageService,
   firstPage.project,
-  25,
+  125,
   continuationController.signal,
 );
 continuationController.abort(new DOMException('Session continuation cancelled.', 'AbortError'));
@@ -568,6 +643,7 @@ const itemRefreshService = {
     itemReadSignal = options?.signal;
     return buildSession(1);
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(
     identity: AgentSessionIdentity,
     request?: AgentSessionItemPageRequest,
@@ -658,6 +734,7 @@ const recentConversationService = {
     });
     return buildSession(200);
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(
     identity: AgentSessionIdentity,
     request: AgentSessionItemPageRequest = {},
@@ -786,6 +863,7 @@ const wrongSortService = {
     });
     return buildSession(2);
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(identity: AgentSessionIdentity) {
     const { sessionId } = identity;
     return {
@@ -827,6 +905,7 @@ const emptySequenceService = {
     });
     return buildSession(1);
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(identity: AgentSessionIdentity) {
     const { sessionId } = identity;
     return {
@@ -886,6 +965,7 @@ await assert.rejects(
         });
         return buildSession(1);
       },
+      synchronizeSessionItems: synchronizeSessionItemsThroughList,
       async listSessionItems(identity: AgentSessionIdentity) {
         assert.deepEqual(identity, {
           agentId: AGENT_ID,
@@ -944,6 +1024,7 @@ const headReconciliationService = {
       updatedAt: '2026-07-24T00:00:08.000Z',
     };
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(
     identity: AgentSessionIdentity,
     request?: AgentSessionItemPageRequest,
@@ -1066,6 +1147,7 @@ const boundedHeadService = {
       updatedAt: '2026-07-24T00:03:20.000Z',
     };
   },
+  synchronizeSessionItems: synchronizeSessionItemsThroughList,
   async listSessionItems(
     identity: AgentSessionIdentity,
     request?: AgentSessionItemPageRequest,

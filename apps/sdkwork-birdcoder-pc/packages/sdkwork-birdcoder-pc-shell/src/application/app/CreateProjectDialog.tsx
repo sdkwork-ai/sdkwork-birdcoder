@@ -1,12 +1,12 @@
 import {
   memo,
-  useEffect,
+  useCallback,
   useRef,
   type FormEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { Folder, FolderOpen, FolderPlus, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui-shell';
 
 interface CreateProjectDialogProps {
   isCreating: boolean;
@@ -21,13 +21,6 @@ interface CreateProjectDialogProps {
   sourceFolderName: string | null;
 }
 
-const focusableElementSelector = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  '[href]',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
-
 export const CreateProjectDialog = memo(function CreateProjectDialog({
   isCreating,
   isOpen,
@@ -41,48 +34,18 @@ export const CreateProjectDialog = memo(function CreateProjectDialog({
   sourceFolderName,
 }: CreateProjectDialogProps) {
   const { t } = useTranslation();
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const projectNameInputRef = useRef<HTMLInputElement>(null);
   const isBusy = isCreating || isSelectingSourceFolder;
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
+  const handleCloseRequest = useCallback(() => {
+    if (!isBusy) {
+      onClose();
     }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isBusy) {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isBusy, isOpen, onClose]);
-
-  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Tab') {
-      return;
-    }
-
-    const focusableElements = Array.from(
-      dialogRef.current?.querySelectorAll<HTMLElement>(focusableElementSelector) ?? [],
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    if (!firstElement || !lastElement) {
-      event.preventDefault();
-      return;
-    }
-
-    if (event.shiftKey && document.activeElement === firstElement) {
-      event.preventDefault();
-      lastElement.focus();
-    } else if (!event.shiftKey && document.activeElement === lastElement) {
-      event.preventDefault();
-      firstElement.focus();
-    }
-  };
+  }, [isBusy, onClose]);
+  const { dialogRef, onDialogKeyDown } = useDialogFocusManagement<HTMLDivElement>({
+    initialFocusRef: projectNameInputRef,
+    isOpen,
+    onClose: handleCloseRequest,
+  });
 
   if (!isOpen) {
     return null;
@@ -105,7 +68,7 @@ export const CreateProjectDialog = memo(function CreateProjectDialog({
         aria-modal="true"
         className="w-full max-w-[760px] overflow-hidden rounded-lg border border-white/10 bg-[#28282b] text-gray-100 shadow-2xl shadow-black/60 animate-in zoom-in-95 duration-150"
         role="dialog"
-        onKeyDown={handleDialogKeyDown}
+        onKeyDown={onDialogKeyDown}
       >
         <form onSubmit={onSubmit}>
           <header className="flex items-center justify-between gap-4 px-7 pb-5 pt-7 sm:px-8 sm:pt-8">
@@ -133,10 +96,10 @@ export const CreateProjectDialog = memo(function CreateProjectDialog({
                   <Folder size={20} strokeWidth={1.8} />
                 </span>
                 <input
+                  ref={projectNameInputRef}
                   id="birdcoder-create-project-name"
                   type="text"
                   autoComplete="off"
-                  autoFocus
                   disabled={isCreating}
                   value={projectName}
                   onChange={(event) => onNameChange(event.target.value)}

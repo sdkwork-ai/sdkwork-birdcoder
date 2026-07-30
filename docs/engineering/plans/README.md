@@ -5,6 +5,7 @@ Owner: SDKWork maintainers
 Authority: `DOCUMENTATION_SPEC.md`
 
 - [PLAN-2026-0001: Domain boundary cutover](PLAN-2026-0001-domain-boundary-cutover.md)
+- [PLAN-2026-0002: Commercial hybrid execution delivery](PLAN-2026-0002-commercial-hybrid-execution-delivery.md) - blocked.
 
 Plans record sequencing and checkpoints for active work. Product outcomes,
 architecture decisions, machine contracts, and migration evidence remain in

@@ -29,7 +29,7 @@ import {
   resolveSessionRuntimeStatusPresentation,
   type SessionRuntimeStatusLabels,
 } from '@sdkwork/birdcoder-pc-ui';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProjectExplorerHeader } from './ProjectExplorerHeader';
 import { ProjectExplorerModeHeader } from './ProjectExplorerModeHeader';
@@ -37,7 +37,10 @@ import { ProjectExplorerProjectContextMenu } from './ProjectExplorerProjectConte
 import { ProjectExplorerProjectSection } from './ProjectExplorerProjectSection';
 import { ProjectExplorerRootContextMenu } from './ProjectExplorerRootContextMenu';
 import { ProjectExplorerSessionContextMenu } from './ProjectExplorerSessionContextMenu';
-import { canLoadMoreProjectSessions } from './ProjectExplorer.shared';
+import {
+  canLoadMoreProjectSessions,
+  canLoadNewerProjectSessions,
+} from './ProjectExplorer.shared';
 import type {
   ProjectExplorerEngineOption,
   ProjectExplorerOrganizeBy,
@@ -46,6 +49,7 @@ import type {
   ProjectExplorerSortBy,
 } from './ProjectExplorer.shared';
 import type { ProjectExplorerProps } from './ProjectExplorer.types';
+import type { ProjectSessionWindowDirection } from './ProjectExplorer.types';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
 import { TaskSearchDialog } from './TaskSearchDialog';
 import { WorkModeSidebar } from './WorkModeSidebar';
@@ -329,6 +333,7 @@ type SidebarFilteredProjectSessionsEntry = {
 };
 
 type SidebarChronologicalContinuationEntry = {
+  direction: ProjectSessionWindowDirection;
   isLoading: boolean;
   nextVisibleSessionCount: number;
   project: AgentProjectView;
@@ -797,7 +802,11 @@ export const Sidebar = React.memo(function Sidebar({
   );
   const terminalEngineOptions: readonly ProjectExplorerEngineOption[] = [];
   const handleLoadMoreProjectSessions = useCallback(
-    async (projectId: string, requestedCount: number): Promise<void> => {
+    async (
+      projectId: string,
+      requestedCount: number,
+      direction: ProjectSessionWindowDirection = 'older',
+    ): Promise<void> => {
       const normalizedProjectId = projectId.trim();
       if (
         !normalizedProjectId ||
@@ -815,7 +824,11 @@ export const Sidebar = React.memo(function Sidebar({
       }));
 
       try {
-        const result = await onLoadMoreProjectSessions(normalizedProjectId, nextCount);
+        const result = await onLoadMoreProjectSessions(
+          normalizedProjectId,
+          nextCount,
+          direction,
+        );
         const loadedCount =
           result && typeof result.loadedCount === 'number' && Number.isFinite(result.loadedCount)
             ? Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(result.loadedCount))
@@ -823,6 +836,15 @@ export const Sidebar = React.memo(function Sidebar({
         setVisibleSessionCountByProjectId((previousState) => {
           const previousCount =
             previousState[normalizedProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+          if (result?.windowShifted === true) {
+            const resolvedCount = Math.min(
+              INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+              loadedCount,
+            );
+            return previousCount === resolvedCount
+              ? previousState
+              : { ...previousState, [normalizedProjectId]: resolvedCount };
+          }
           const resolvedCount = Math.max(previousCount, Math.min(nextCount, loadedCount));
           if (resolvedCount <= previousCount) {
             return previousState;
@@ -1167,12 +1189,27 @@ export const Sidebar = React.memo(function Sidebar({
 
       return modeRenderProjects
         .filter((project) => showArchived || project.status !== 'archived')
-        .filter(canRequestMoreSidebarProjectSessions)
-        .map((project) => ({
-          isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
-          nextVisibleSessionCount: project.agentSessions.length + SESSION_EXPANSION_BATCH_SIZE,
-          project,
-        }));
+        .flatMap((project) => {
+          const entries: SidebarChronologicalContinuationEntry[] = [];
+          if (project.agentSessionPageInfo?.hasNewer === true) {
+            entries.push({
+              direction: 'latest',
+              isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
+              nextVisibleSessionCount: INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+              project,
+            });
+          }
+          if (canRequestMoreSidebarProjectSessions(project)) {
+            entries.push({
+              direction: 'older',
+              isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
+              nextVisibleSessionCount:
+                project.agentSessions.length + SESSION_EXPANSION_BATCH_SIZE,
+              project,
+            });
+          }
+          return entries;
+        });
     },
     [
       loadingMoreSessionProjectIds,
@@ -1209,6 +1246,7 @@ export const Sidebar = React.memo(function Sidebar({
 
           return {
             canShowMoreSessions: canLoadMoreProjectSessions(project, visibleSessionCount),
+            canShowNewerSessions: canLoadNewerProjectSessions(project),
             filteredSessions,
             isLoadingMoreSessions: loadingMoreSessionProjectIds[project.projectId] === true,
             nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
@@ -1261,6 +1299,7 @@ export const Sidebar = React.memo(function Sidebar({
 
         return {
           canShowMoreSessions: canLoadMoreProjectSessions(project, visibleSessionCount),
+          canShowNewerSessions: canLoadNewerProjectSessions(project),
           filteredSessions,
           isLoadingMoreSessions: loadingMoreSessionProjectIds[project.projectId] === true,
           nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
@@ -1543,6 +1582,8 @@ export const Sidebar = React.memo(function Sidebar({
         expandProjectLabel={t('code.expandProject', { name: entry.project.name })}
         collapseProjectLabel={t('code.collapseProject', { name: entry.project.name })}
         loadMoreSessionsLabel={t('code.showMoreSessions')}
+        loadOlderSessionsLabel={t('code.showOlderSessions')}
+        loadNewestSessionsLabel={t('code.showLatestSessions')}
         loadingMoreSessionsLabel={t('code.loadingMoreSessions')}
         defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
         defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
@@ -1743,15 +1784,31 @@ export const Sidebar = React.memo(function Sidebar({
               ) : null}
               {chronologicalContinuationEntries.map((entry) => (
                 <button
-                  key={`provider-continuation:${entry.project.projectId}`}
+                  key={`provider-continuation:${entry.project.projectId}:${entry.direction}`}
                   type="button"
                   className="mx-2 mt-1 inline-flex min-h-8 items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
                   disabled={entry.isLoading}
-                  onClick={() => handleLoadMoreProjectSessions(entry.project.projectId, entry.nextVisibleSessionCount)}
+                  onClick={() => handleLoadMoreProjectSessions(
+                    entry.project.projectId,
+                    entry.nextVisibleSessionCount,
+                    entry.direction,
+                  )}
                 >
-                  {entry.isLoading ? <Loader2 size={11} className="animate-spin" /> : <ChevronDown size={11} />}
+                  {entry.isLoading ? (
+                    <Loader2 size={11} className="animate-spin" />
+                  ) : entry.direction === 'latest' ? (
+                    <ChevronUp size={11} />
+                  ) : (
+                    <ChevronDown size={11} />
+                  )}
                   <span className="min-w-0 truncate">{entry.project.name}</span>
-                  <span>{entry.isLoading ? t('code.loadingMoreSessions') : t('code.showMoreSessions')}</span>
+                  <span>
+                    {entry.isLoading
+                      ? t('code.loadingMoreSessions')
+                      : entry.direction === 'latest'
+                        ? t('code.showLatestSessions')
+                        : t('code.showOlderSessions')}
+                  </span>
                 </button>
               ))}
             </>
@@ -1769,7 +1826,7 @@ export const Sidebar = React.memo(function Sidebar({
               ) : null}
               {chronologicalContinuationEntries.map((entry) => (
                 <button
-                  key={`chronological-continuation:${entry.project.projectId}`}
+                  key={`chronological-continuation:${entry.project.projectId}:${entry.direction}`}
                   type="button"
                   className="mx-2 mt-1 inline-flex min-h-8 items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
                   disabled={entry.isLoading}
@@ -1778,11 +1835,14 @@ export const Sidebar = React.memo(function Sidebar({
                     handleLoadMoreProjectSessions(
                       entry.project.projectId,
                       entry.nextVisibleSessionCount,
+                      entry.direction,
                     )
                   }
                 >
                   {entry.isLoading ? (
                     <Loader2 size={11} className="shrink-0 animate-spin" aria-hidden="true" />
+                  ) : entry.direction === 'latest' ? (
+                    <ChevronUp size={11} className="shrink-0" aria-hidden="true" />
                   ) : (
                     <ChevronDown size={11} className="shrink-0" aria-hidden="true" />
                   )}
@@ -1790,7 +1850,9 @@ export const Sidebar = React.memo(function Sidebar({
                   <span className="shrink-0">
                     {entry.isLoading
                       ? t('code.loadingMoreSessions')
-                      : t('code.showMoreSessions')}
+                      : entry.direction === 'latest'
+                        ? t('code.showLatestSessions')
+                        : t('code.showOlderSessions')}
                   </span>
                 </button>
               ))}

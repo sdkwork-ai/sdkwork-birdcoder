@@ -101,7 +101,11 @@ assert.doesNotMatch(
   /publishBirdCoderRuntimeEnvPatch\(\{[\s\S]{0,1200}VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone'/,
   "Generic desktop runtime publication must not overwrite cloud deployments as standalone.",
 );
-assert.match(shell, /e\.preventDefault\(\);\s*if \(e\.repeat\) return;/);
+assert.match(
+  shell,
+  /(?<eventName>[a-zA-Z_$][\w$]*)\.preventDefault\(\);\s*if \(\k<eventName>\.repeat\)\s*\{?\s*return;\s*\}?/,
+  "Handled keyboard shortcuts must prevent browser defaults and ignore repeated keydown events.",
+);
 assert.match(
   creation,
   /ensureWorkbenchAgentSessionForTurnInput\([\s\S]*createAgentSessionFromRequest[\s\S]*source: 'turn-submit'[\s\S]*showSuccessToast: false/,
@@ -125,10 +129,10 @@ assert.equal(
   1,
   "All useProjects new-session consumers must converge on the sdkwork-agents Session authority.",
 );
-assert.doesNotMatch(
+assert.match(
   createAgentSessionHandler,
-  /resolveProjectRuntimeLocationExecutionId|runtimeLocationId/,
-  "Provider Session creation must not require a Project terminal runtime location.",
+  /options\.executionTarget === 'CLOUD'[\s\S]*AgentSessionExecutionTargetUnavailableError[\s\S]*createLocallyBoundAgentSession\([\s\S]*resolveRuntimeLocationId:[\s\S]*resolveProjectRuntimeLocationExecutionId[\s\S]*createRuntimeBinding:[\s\S]*runtimeLocationId: resolvedRuntimeLocationId/,
+  "Local Session creation must bind a verified opaque runtime location, while unproven cloud placement fails before Session persistence.",
 );
 assert.match(
   createAgentSessionHandler,
@@ -137,13 +141,18 @@ assert.match(
 );
 assert.match(
   createAgentSessionHandler,
-  /createBoundAgentSession\([\s\S]*deleteCreatedSession:[\s\S]*agentSessionService\.deleteSession/,
+  /createLocallyBoundAgentSession\([\s\S]*deleteCreatedSession:[\s\S]*agentSessionService\.deleteSession/,
   "Provider Session creation must compensate when Runtime Binding provisioning fails.",
 );
 assert.equal(
   (projects.match(/createBoundAgentSession\(/g) ?? []).length,
-  2,
-  "New and forked Sessions with Runtime Bindings must share the compensated provisioning transaction.",
+  1,
+  "Forked Sessions with Runtime Bindings must use the compensated provisioning transaction.",
+);
+assert.equal(
+  (projects.match(/createLocallyBoundAgentSession\(/g) ?? []).length,
+  1,
+  "New local Sessions must use the mounted-location provisioning transaction.",
 );
 assert.match(
   projects,
@@ -167,7 +176,7 @@ assert.match(
 );
 assert.match(
   hook,
-  /error instanceof AgentSessionRuntimeBindingProvisioningError[\s\S]*\? error\.message/,
+  /AgentSessionExecutionTargetUnavailableError[\s\S]*AgentSessionRuntimeBindingProvisioningError[\s\S]*\? error\.message/,
   "Provider provisioning failures must retain their actionable message in the UI.",
 );
 assert.match(

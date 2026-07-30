@@ -13,7 +13,7 @@ export interface AgentWorkspaceViewPage {
   pageInfo: PageInfo;
 }
 
-export interface IWorkspaceService {
+export interface IAgentWorkspaceService {
   ensureDefaultWorkspace(name?: string): Promise<AgentWorkspaceView>;
   createWorkspace(name: string, description?: string): Promise<AgentWorkspaceView>;
   getWorkspaceById(workspaceId: string): Promise<AgentWorkspaceView>;

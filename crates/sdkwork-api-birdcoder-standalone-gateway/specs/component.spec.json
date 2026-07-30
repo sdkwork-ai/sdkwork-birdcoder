@@ -112,18 +112,10 @@
     "layerRole": "runtime-gateway",
     "publicExports": [
       ".",
-      "sdkwork_api_birdcoder_assembly::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::build_app",
-      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
-      "sdkwork_api_iam_assembly::assemble_app_api_contribution",
-      "sdkwork_api_agents_assembly::assemble_app_api_contribution",
-      "sdkwork_api_documents_assembly::assemble_app_api_contribution",
-      "sdkwork_api_drive_assembly::assemble_app_api_contribution",
-      "sdkwork_api_membership_assembly::assemble_app_api_contribution",
-      "sdkwork_api_order_assembly::assemble_app_api_contribution",
-      "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
-      "sdkwork_api_skills_assembly::assemble_app_api_contribution"
+      "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver",
+      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
     ],
     "providedPorts": [
       {

@@ -14,7 +14,11 @@ import {
   type ShouldSelectWorkbenchAgentSession,
   type WorkbenchAgentSessionSelectionContext,
 } from '../workbench/agentSessionCreation.ts';
-import { AgentSessionRuntimeBindingProvisioningError } from '../workbench/agentSessionProvisioning.ts';
+import {
+  AgentSessionExecutionTargetUnavailableError,
+  AgentSessionRuntimeBindingProvisioningError,
+  AgentSessionRuntimeLocationUnavailableError,
+} from '../workbench/agentSessionProvisioning.ts';
 
 interface InFlightAgentSessionCreation {
   failureLogged: boolean;
@@ -84,9 +88,12 @@ export function useWorkbenchAgentSessionCreationActions({
           normalizedRequest.engineId || normalizedRequest.modelId
             ? {
                 engineId: normalizedRequest.engineId,
+                executionTarget: normalizedRequest.executionTarget,
                 modelId: normalizedRequest.modelId,
               }
-            : undefined,
+            : normalizedRequest.executionTarget
+              ? { executionTarget: normalizedRequest.executionTarget }
+              : undefined,
         );
         creation = {
           failureLogged: false,
@@ -123,6 +130,8 @@ export function useWorkbenchAgentSessionCreationActions({
           try {
             addToast(
               error instanceof ProjectRuntimeLocationExecutionUnavailableError
+                || error instanceof AgentSessionExecutionTargetUnavailableError
+                || error instanceof AgentSessionRuntimeLocationUnavailableError
                 || error instanceof AgentSessionRuntimeBindingProvisioningError
                 ? error.message
                 : labels.creationFailed,

@@ -19,11 +19,15 @@ test('keyboard shortcuts can be searched, customized, reassigned, and used', asy
   const sidebar = page.getByRole('complementary', { name: 'Settings navigation' });
   await sidebar.getByRole('button', { name: 'Keyboard Shortcuts' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Keyboard Shortcuts', level: 1 })).toBeVisible();
-  const shortcutSearch = page.getByRole('searchbox', { name: 'Search shortcuts' });
+  const settingsMain = page.getByRole('main');
+  await expect(settingsMain.getByRole('heading', {
+    name: 'Keyboard Shortcuts',
+    level: 1,
+  })).toBeVisible();
+  const shortcutSearch = settingsMain.getByRole('searchbox', { name: 'Search shortcuts' });
   await shortcutSearch.fill('terminal');
-  await expect(page.getByText('New terminal', { exact: true })).toBeVisible();
-  await expect(page.getByText('New task', { exact: true })).toHaveCount(0);
+  await expect(settingsMain.getByText('New terminal', { exact: true })).toBeVisible();
+  await expect(settingsMain.getByText('New task', { exact: true })).toHaveCount(0);
   await shortcutSearch.fill('');
 
   await page.getByRole('button', {

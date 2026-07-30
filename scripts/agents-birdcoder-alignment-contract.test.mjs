@@ -158,3 +158,5 @@ assert.deepEqual(
 
 console.log('agents-birdcoder alignment contract passed.');
 console.log(`tasks: ${spec.tasks.length}/${spec.tasks.length} done`);
+
+await import('./hybrid-execution-commercial-readiness-contract.test.mjs');

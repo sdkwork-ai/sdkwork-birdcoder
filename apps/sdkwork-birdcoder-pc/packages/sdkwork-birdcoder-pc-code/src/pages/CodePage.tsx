@@ -14,6 +14,7 @@ import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/e
 import { subscribeRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
+import { resolveBirdcoderWorkbenchHostMode } from '@sdkwork/birdcoder-pc-workbench/terminal/runtimeTarget';
 import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionActions';
 import { useAgentSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionEngineModelSelection';
 import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
@@ -58,6 +59,7 @@ import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodePageTerminalActions } from './useCodePageTerminalActions';
 import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
+import type { NewTaskExecutionTarget } from './NewTaskRunModeSelector';
 
 const PROJECT_SIDEBAR_ADAPTIVE_MIN_WIDTH = 288;
 const PROJECT_SIDEBAR_ADAPTIVE_MAX_WIDTH = 420;
@@ -66,6 +68,7 @@ const PROJECT_SIDEBAR_MANUAL_MIN_WIDTH = 200;
 const PROJECT_SIDEBAR_MANUAL_MAX_WIDTH = 600;
 const PROJECT_SIDEBAR_MAX_VIEWPORT_RATIO = 0.45;
 const FALLBACK_VIEWPORT_WIDTH = 1_440;
+const CLOUD_SANDBOX_EXECUTION_CAPABILITY_PROVEN = false;
 
 function constrainProjectSidebarWidth(width: number, viewportWidth: number): number {
   const viewportMaximum = Math.max(
@@ -157,6 +160,14 @@ function CodePageComponent({
     pendingNewAgentSessionRequestRef,
   } = useCodeNewAgentSessionRequestState();
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  const localTaskExecutionAvailable =
+    resolveBirdcoderWorkbenchHostMode() === 'desktop';
+  const cloudTaskExecutionAvailable =
+    CLOUD_SANDBOX_EXECUTION_CAPABILITY_PROVEN;
+  const [newTaskExecutionTarget, setNewTaskExecutionTarget] =
+    useState<NewTaskExecutionTarget>(() => (
+      resolveBirdcoderWorkbenchHostMode() === 'desktop' ? 'LOCAL' : 'CLOUD'
+    ));
   const [activeTab, setActiveTab] = useState<'ai' | 'editor' | 'mobile'>('ai');
   const handleActiveTabChange = useCallback((tab: 'ai' | 'editor' | 'mobile') => {
     startTransition(() => {
@@ -350,18 +361,25 @@ function CodePageComponent({
     currentProjectId,
     pendingNewAgentSessionRequestRef,
   ]);
-  const createAgentSessionInProjectWithTranscriptReset = useCallback(async (
+  const prepareNewAgentSessionInProject = useCallback((
     projectId: string,
     requestedEngineId?: string,
     requestedModelId?: string,
   ) => {
-    await createAgentSessionWithTranscriptReset({
-      engineId: requestedEngineId,
-      modelId: requestedModelId,
-      projectId,
-      source: 'code-sidebar',
-    });
-  }, [createAgentSessionWithTranscriptReset]);
+    clearPendingNewAgentSessionRequest();
+    selectProjectWithoutAgentSession(projectId);
+    if (requestedEngineId?.trim()) {
+      setSelectedEngineId(requestedEngineId);
+    }
+    if (requestedModelId?.trim()) {
+      setSelectedModelId(requestedModelId, requestedEngineId);
+    }
+  }, [
+    clearPendingNewAgentSessionRequest,
+    selectProjectWithoutAgentSession,
+    setSelectedEngineId,
+    setSelectedModelId,
+  ]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -1005,6 +1023,8 @@ function CodePageComponent({
       currentProjectId,
       turnInputContent: trimmedContent,
       requestedEngineId: composerSelection?.engineId,
+      requestedExecutionTarget:
+        currentAgentSessionId ? undefined : newTaskExecutionTarget,
       requestedModelId: composerSelection?.modelId,
       resolveProjectId: async () => {
         if (!projects.length) {
@@ -1059,6 +1079,7 @@ function CodePageComponent({
     handleNewProject,
     getLanguageFromPath,
     isChatBusy,
+    newTaskExecutionTarget,
     selectSession,
     projects,
     session?.engineId,
@@ -1343,7 +1364,10 @@ function CodePageComponent({
     projects,
     hasMoreProjects,
     hasProjectsLoadError: Boolean(projectsLoadError && projects.length === 0),
-    hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
+    hasMoreRemoteMessages: Boolean(
+      selectedAgentSession?.itemPageInfo?.hasMore
+      && selectedAgentSession.itemPageInfo.retentionLimitReached !== true,
+    ),
     remoteMessagesLoadError: earlierAgentSessionItemsError,
     isChatBusy,
     isChatEngineBusy,
@@ -1355,6 +1379,8 @@ function CodePageComponent({
     isLoadingMoreProjects,
     isLoadingMoreRemoteMessages: isLoadingEarlierSelectedAgentSessionItems,
     isNewSession: isSelectedAgentSessionNew,
+    cloudTaskExecutionAvailable,
+    localTaskExecutionAvailable,
     isQuickOpenVisible,
     isRunConfigVisible,
     isRunTaskVisible,
@@ -1376,6 +1402,7 @@ function CodePageComponent({
     searchQuery,
     selectedAgentSessionItems,
     selectedFile,
+    newTaskExecutionTarget,
     selectedSessionLastTurnAt: selectedAgentSession?.lastTurnAt,
     selectedSessionAgentId: selectedAgentSession?.agentId ?? null,
     selectedSessionTitle: selectedAgentSession?.title,
@@ -1433,7 +1460,8 @@ function CodePageComponent({
     onForkAgentSessionLocal: handleForkSessionLocal,
     onForkAgentSessionNewTree: handleForkSessionNewTree,
     onMarkAgentSessionUnread: handleMarkSessionUnread,
-    onNewAgentSessionInProject: createAgentSessionInProjectWithTranscriptReset,
+    onNewAgentSessionInProject: prepareNewAgentSessionInProject,
+    onNewTaskExecutionTargetChange: setNewTaskExecutionTarget,
     onNewSessionProjectSelect: handleNewSessionProjectSelect,
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,

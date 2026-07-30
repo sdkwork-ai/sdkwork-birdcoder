@@ -165,6 +165,46 @@ When a Session needs local execution context:
 4. Native paths remain in the Tauri boundary.
 5. A missing mount, id, permission, or binding fails closed.
 
+### Hybrid Execution Extension
+
+The product dimensions are orthogonal:
+
+| Dimension | Examples | Authority |
+| --- | --- | --- |
+| Client runtime target | browser, desktop, server | BirdCoder composition |
+| Deployment profile | standalone, cloud | deployment composition |
+| Session execution target | candidate `LOCAL`, `CLOUD` | Agents product contract |
+| Coordination mode | single, cluster | Kernel runtime |
+| Provider transport | Local, Hybrid, Remote mechanisms | Kernel provider integration |
+| Capacity placement | node, reservation, pool allocation | Sandbox |
+
+No value is inferred from another. In particular, desktop is not synonymous
+with local execution and web is not cloud placement evidence.
+
+The current pre-launch implementation supports only a fail-closed local slice:
+PC resolves the opaque device mount before it creates the Agents Session and
+compensates an incomplete Session if the transitional combined Runtime Binding
+fails. The client-created binding is not commercial placement evidence and is
+retired by the reviewed Agents orchestration cutover.
+
+The proposed commercial dependency direction is:
+
+```text
+BirdCoder -> Agents execution intent/orchestration
+          -> Kernel placement/lease/routing
+          -> Sandbox admission/pool/isolation/attachment/cleanup
+```
+
+BirdCoder has no direct Kernel or Sandbox dependency. Cloud availability must
+come from an authenticated, versioned, expiring Agents capability derived from
+live reviewed Kernel and Sandbox evidence. The current hard-disabled cloud
+gate cannot be enabled by build configuration or deployment profile.
+
+The extension is governed by
+[REQ-2026-0006](../../product/requirements/REQ-2026-0006-hybrid-local-cloud-agent-execution.md),
+[ADR-20260730](../decisions/ADR-20260730-hybrid-execution-boundaries.md), and
+[REVIEW-20260730](../../engineering/reviews/REVIEW-20260730-hybrid-execution-commercial-gate.md).
+
 ### Coding And Work Mode Provider Admission
 
 The left sidebar keeps one Birdcoder header and one persisted mode selector.

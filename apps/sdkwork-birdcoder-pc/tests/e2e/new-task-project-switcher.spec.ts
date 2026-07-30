@@ -85,21 +85,29 @@ async function installSecondProject(page: Page): Promise<void> {
       }
 
       const requestUrl = new URL(route.request().url());
-      const page = Number(requestUrl.searchParams.get('page') ?? 1);
+      const resourceKind = requestUrl.pathname.split('/').at(-1);
+      const pageNumber = Number(requestUrl.searchParams.get('page') ?? 1);
       const pageSize = Number(requestUrl.searchParams.get('page_size') ?? 20);
       await route.fulfill({
         json: {
           code: 0,
           data: {
             items: [],
-            pageInfo: {
-              hasMore: false,
-              mode: 'offset',
-              page,
-              pageSize,
-              totalItems: '0',
-              totalPages: 0,
-            },
+            pageInfo: resourceKind === 'items'
+              ? {
+                  hasMore: false,
+                  mode: 'cursor',
+                  nextCursor: null,
+                  pageSize,
+                }
+              : {
+                  hasMore: false,
+                  mode: 'offset',
+                  page: pageNumber,
+                  pageSize,
+                  totalItems: '0',
+                  totalPages: 0,
+                },
           },
           traceId: 'new-task-project-switcher-session-resources',
         },
@@ -180,6 +188,22 @@ async function installSecondProject(page: Page): Promise<void> {
       },
     });
   });
+  await page.route(
+    '**/app/v3/api/ai/projects/project.e2e-1/sessions/session.e2e-project-switcher',
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        json: {
+          code: 0,
+          data: createSwitchSession('agent.intelligence.claude-code'),
+          traceId: 'new-task-project-switcher-project-session-detail',
+        },
+      });
+    },
+  );
 
   await page.route('**/app/v3/api/ai/projects?**', async (route) => {
     if (route.request().method() !== 'GET') {

@@ -95,7 +95,7 @@
       "./services/impl/ApplicationPublishService",
       "./services/interfaces/IGitService",
       "./services/interfaces/IProjectService",
-      "./services/interfaces/IWorkspaceService",
+      "./services/interfaces/IAgentWorkspaceService",
       "./services/interfaces/IVipMembershipService",
       "./services/skillsSdkClient",
       "./services/mcpSdkClient",

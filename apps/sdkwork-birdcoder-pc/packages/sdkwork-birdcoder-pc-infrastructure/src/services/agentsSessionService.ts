@@ -21,6 +21,7 @@ import type {
   AgentSessionActivityPageRequest,
   AgentSessionIdentity,
   AgentSessionItemPageRequest,
+  AgentSessionItemSynchronizationRequest,
   AgentSessionPageRequest,
   AgentSessionReadOptions,
   AgentTurnCompletion,
@@ -135,8 +136,8 @@ function normalizeSessionItemCursorPage<TItem>(
     ) {
       throw new Error('Agents Session Item list returned a non-progressing cursor.');
     }
-  } else if (nextCursor !== null) {
-    throw new Error('Agents Session Item terminal page must return a null cursor.');
+  } else if (nextCursor !== null && nextCursor !== undefined) {
+    throw new Error('Agents Session Item terminal page must omit or null its cursor.');
   }
   return {
     ...page,
@@ -886,6 +887,22 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     const normalizedIdentity = normalizeAgentSessionIdentity(identity);
     const normalizedRequest = normalizeSessionItemPageRequest(request);
     const response = await this.client.ai.agents.sessionItems.list(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedRequest,
+      toApiRequestOptions(options),
+    );
+    return normalizeSessionItemCursorPage(response, normalizedRequest);
+  }
+
+  async synchronizeSessionItems(
+    identity: AgentSessionIdentity,
+    request: AgentSessionItemSynchronizationRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedRequest = normalizeSessionItemPageRequest(request);
+    const response = await this.client.ai.agents.sessionItems.synchronize(
       normalizedIdentity.agentId,
       normalizedIdentity.sessionId,
       normalizedRequest,

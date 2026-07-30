@@ -1,6 +1,7 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
 import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
+import type { IGitService } from './interfaces/IGitService.ts';
 import { normalizeBirdCoderSdkBaseUrl } from './sdkBaseUrls.ts';
 import {
   resolveBirdCoderRuntimeTopology,
@@ -13,6 +14,7 @@ import {
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   applicationApiBaseUrl?: string;
   documentsClient?: SdkworkDocumentsAppClient;
+  gitService?: IGitService;
   promptsClient?: SdkworkPromptsAppClient;
   platformApiGatewayBaseUrl?: string;
   runtimeTopology?: BirdCoderRuntimeTopology;
@@ -21,6 +23,7 @@ export interface BirdCoderDefaultIdeServicesRuntimeConfig {
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   applicationApiBaseUrl?: string;
   documentsClient?: SdkworkDocumentsAppClient;
+  gitService?: IGitService;
   host?: BirdHostDescriptor;
   promptsClient?: SdkworkPromptsAppClient;
   platformApiGatewayBaseUrl?: string;
@@ -76,6 +79,7 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
       'BirdCoder application SDK base URL',
     ),
     documentsClient: config.documentsClient,
+    gitService: config.gitService,
     promptsClient: config.promptsClient,
     platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
       config.platformApiGatewayBaseUrl,
@@ -93,6 +97,7 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
   configureDefaultBirdCoderIdeServicesRuntime({
     applicationApiBaseUrl: resolveBoundApplicationApiBaseUrl(options),
     documentsClient: options.documentsClient,
+    gitService: options.gitService,
     promptsClient: options.promptsClient,
     platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
       options.platformApiGatewayBaseUrl,

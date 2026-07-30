@@ -23,7 +23,7 @@ async function mockRemoteCapabilityCatalog(page: Page) {
     await route.fulfill({
       contentType: 'application/json',
       json: createPageEnvelope([{
-        agentId: 'agent.claude-code',
+        agentId: 'agent.intelligence.claude-code',
         enabled: true,
         priority: 1,
         serverId: 'filesystem',

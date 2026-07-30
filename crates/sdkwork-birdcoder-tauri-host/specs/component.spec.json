@@ -140,7 +140,7 @@
     "requiredPorts": [
       {
         "name": "standaloneGatewayAppBuilder",
-        "export": "."
+        "export": "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver"
       }
     ],
     "runtimeEntrypoints": [
@@ -182,8 +182,12 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "same-origin-embedded",
+        "sameOriginAllowed": true,
         "cargoDependency": "sdkwork-api-birdcoder-standalone-gateway",
-        "embeddedExecutableExport": "start_embedded_application_gateway",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver",
+        "profileCoverage": [
+          "standalone"
+        ],
         "coverageEvidence": [
           "src/host/state.rs#start_embedded_application_gateway",
           "src/host/state.rs#ensure_desktop_runtime_config"

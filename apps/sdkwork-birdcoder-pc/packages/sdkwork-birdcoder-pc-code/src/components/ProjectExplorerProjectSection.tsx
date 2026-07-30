@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Archive,
+  ChevronUp,
   Folder,
   FolderOpen,
   Loader2,
@@ -26,6 +27,8 @@ export interface ProjectExplorerProjectSectionProps {
   expandProjectLabel: string;
   collapseProjectLabel: string;
   loadMoreSessionsLabel: string;
+  loadOlderSessionsLabel: string;
+  loadNewestSessionsLabel: string;
   loadingMoreSessionsLabel: string;
   defaultNewSessionEngineId: string;
   defaultNewSessionModelId: string;
@@ -60,6 +63,7 @@ export interface ProjectExplorerProjectSectionProps {
   onLoadMoreProjectSessions: (
     projectId: string,
     requestedCount: number,
+    direction?: 'latest' | 'older',
   ) => Promise<void> | void;
 }
 
@@ -77,6 +81,8 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   expandProjectLabel,
   collapseProjectLabel,
   loadMoreSessionsLabel,
+  loadOlderSessionsLabel,
+  loadNewestSessionsLabel,
   loadingMoreSessionsLabel,
   defaultNewSessionEngineId,
   defaultNewSessionModelId,
@@ -198,16 +204,31 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
 
       <div
         id={sessionsRegionId}
-        className="grid min-h-0 transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
-        style={{
-          gridTemplateRows: expanded ? '1fr' : '0fr',
-          opacity: expanded ? 1 : 0,
-        }}
+        className={expanded ? 'grid min-h-0' : 'hidden'}
+        hidden={!expanded}
         aria-hidden={!expanded}
         inert={!expanded}
       >
         <div className="min-h-0 overflow-hidden">
           <div className="flex flex-col mt-0.5">
+          {entry.canShowNewerSessions ? (
+            <button
+              type="button"
+              className="ml-8 mb-1 inline-flex items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
+              disabled={entry.isLoadingMoreSessions === true}
+              aria-busy={entry.isLoadingMoreSessions === true}
+              onClick={() =>
+                onLoadMoreProjectSessions(
+                  project.projectId,
+                  entry.nextVisibleSessionCount,
+                  'latest',
+                )
+              }
+            >
+              <ChevronUp size={11} aria-hidden="true" />
+              {loadNewestSessionsLabel}
+            </button>
+          ) : null}
           {filteredSessions.length > 0 ? (
             visibleSessions.map((session) => (
               <ProjectExplorerSessionRow
@@ -252,7 +273,9 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               ) : null}
               {entry.isLoadingMoreSessions
                 ? loadingMoreSessionsLabel
-                : loadMoreSessionsLabel}
+                : visibleSessions.length < filteredSessions.length
+                  ? loadMoreSessionsLabel
+                  : loadOlderSessionsLabel}
             </button>
           )}
           </div>

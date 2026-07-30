@@ -1350,7 +1350,10 @@ function StudioPageComponent({
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
-        hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
+        hasMoreRemoteMessages={Boolean(
+          selectedSession?.itemPageInfo?.hasMore
+          && selectedSession.itemPageInfo.retentionLimitReached !== true
+        )}
         isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
         remoteMessagesLoadError={earlierAgentSessionItemsError}
         pendingApprovals={pendingApprovals}

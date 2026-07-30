@@ -82,9 +82,7 @@
     "publicExports": [
       ".",
       "sdkwork_api_birdcoder_assembly::assemble_api_router",
-      "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check",
-      "sdkwork_api_agents_assembly::assemble_app_business_runtime",
-      "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
+      "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check"
     ],
     "providedPorts": [
       {

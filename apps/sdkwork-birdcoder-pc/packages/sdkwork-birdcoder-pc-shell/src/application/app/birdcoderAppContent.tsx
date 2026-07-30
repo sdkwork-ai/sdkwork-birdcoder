@@ -1020,6 +1020,9 @@ export function AppContent() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
       const command = resolveKeyboardShortcutCommand(
         event,
         keyboardShortcutBindings,

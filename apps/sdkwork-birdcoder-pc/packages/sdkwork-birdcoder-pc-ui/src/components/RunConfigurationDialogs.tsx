@@ -3,9 +3,8 @@ import {
   BUILTIN_TERMINAL_PROFILES,
 } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';
-import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { Button, useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useId, useRef } from 'react';
-import { useDialogFocusManagement } from '../hooks/useDialogFocusManagement';
 
 export interface RunConfigurationDialogProps {
   open: boolean;

@@ -14,6 +14,7 @@ import {
   useWorkbenchCodeEngineCatalog,
 } from '../workbench/codeEngineCatalog.ts';
 import { resolveBirdcoderWorkbenchHostMode } from '../terminal/runtimeTarget.ts';
+import type { AgentSessionExecutionTarget } from '../workbench/agentSessionCreation.ts';
 
 import { useToast } from '../contexts/ToastProvider.ts';
 import {
@@ -35,7 +36,7 @@ type CreateAgentSessionFn = (
   options: {
     agentId: string;
     engineId: string;
-    hostMode: AgentSessionView['hostMode'];
+    executionTarget: AgentSessionExecutionTarget;
     modelId: string;
     providerBindingId: string;
     providerId: string;
@@ -52,7 +53,12 @@ interface UseWorkbenchChatSelectionOptions {
 
 interface CreateAgentSessionWithSelectionOptions {
   engineId?: string;
+  executionTarget?: AgentSessionExecutionTarget;
   modelId?: string;
+}
+
+function resolveDefaultAgentSessionExecutionTarget(): AgentSessionExecutionTarget {
+  return resolveBirdcoderWorkbenchHostMode() === 'desktop' ? 'LOCAL' : 'CLOUD';
 }
 
 export function useWorkbenchChatSelection({
@@ -174,7 +180,8 @@ export function useWorkbenchChatSelection({
 
       return createAgentSession(projectId, resolvedTitle, {
         ...runtimeIdentity,
-        hostMode: resolveBirdcoderWorkbenchHostMode(),
+        executionTarget:
+          options?.executionTarget ?? resolveDefaultAgentSessionExecutionTarget(),
       });
     },
     [

@@ -29,7 +29,7 @@ export type {
 export * from './services/interfaces/ICatalogService.ts';
 export * from './services/interfaces/IDocumentService.ts';
 export * from './services/interfaces/IProjectService.ts';
-export * from './services/interfaces/IWorkspaceService.ts';
+export * from './services/interfaces/IAgentWorkspaceService.ts';
 export * from './services/interfaces/IGitService.ts';
 export * from './services/interfaces/IPromptService.ts';
 export * from './services/interfaces/IFileSystemService.ts';

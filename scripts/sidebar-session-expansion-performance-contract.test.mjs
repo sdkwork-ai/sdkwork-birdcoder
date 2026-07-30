@@ -73,7 +73,7 @@ for (const [surfaceName, source] of [
   );
   assert.match(
     source,
-    /await onLoadMoreProjectSessions(?:\?\.)?\(normalizedProjectId, nextCount\)/,
+    /await onLoadMoreProjectSessions(?:\?\.)?\(\s*normalizedProjectId,\s*nextCount,\s*direction,\s*\)/,
     `${surfaceName} must await the project-scoped authority callback before exposing another session batch.`,
   );
   assert.match(
@@ -105,7 +105,7 @@ assert.match(
 );
 assert.match(
   projectSectionSource,
-  /onLoadMoreProjectSessions\(project\.projectId, entry\.nextVisibleSessionCount\)/,
+  /onLoadMoreProjectSessions\(\s*project\.projectId,\s*entry\.nextVisibleSessionCount/,
   'Code Show more must send the owning project id and the next +10 target to its callback.',
 );
 assert.match(
@@ -130,13 +130,18 @@ assert.match(
 );
 assert.match(
   agentSessionViewModelsSource,
-  /const currentPageInfo = project\.agentSessionPageInfo;[\s\S]*const requestedPage = currentPageInfo \? currentPageInfo\.page \+ 1 : 1;[\s\S]*pageSize: PROJECT_SESSION_PAGE_SIZE[\s\S]*agentSessionPageInfo: pageInfo/,
-  'The Agents session page loader must persist standard pageInfo and request exactly the next server page.',
+  /const currentPageInfo = resetWindow \? undefined : project\.agentSessionPageInfo;[\s\S]*const requestedCursor = currentPageInfo\?\.nextCursor \?\? undefined;[\s\S]*listSessionActivitySummaries\(\{[\s\S]*cursor: requestedCursor,[\s\S]*pageSize: PROJECT_SESSION_PAGE_SIZE[\s\S]*agentSessionPageInfo: normalizedPageInfo/,
+  'The Agents Session loader must persist standard cursor pageInfo and request exactly the next Activity page.',
 );
 assert.match(
   agentSessionViewModelsSource,
-  /PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY = 6;[\s\S]*mapWithConcurrency\([\s\S]*PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY/,
-  'Project inventory hydration must use bounded concurrency instead of one request per project at once.',
+  /PROJECT_SESSION_PAGE_SIZE = 100;[\s\S]*listSessionActivitySummaries\(/,
+  'Project Session inventory must use one bounded Activity snapshot call instead of per-Session hydration.',
+);
+assert.doesNotMatch(
+  agentSessionViewModelsSource.slice(agentSessionViewModelsSource.indexOf('export async function loadProjectAgentSessionPage')),
+  /listRuntimeBindings|getSessionUserStates|listSessionsByProject/,
+  'Project Session inventory must not issue N+1 runtime, user-state, or offset Session reads.',
 );
 assert.doesNotMatch(
   agentSessionViewModelsSource,
@@ -145,12 +150,12 @@ assert.doesNotMatch(
 );
 assert.match(
   projectsHookSource,
-  /loadedCount:\s*synchronized\.project\.agentSessions\.length/,
-  'Show more must return the authority-confirmed project session count to both IDE surfaces.',
+  /loadedCount:\s*committedProject\?\.agentSessions\.length \?\? 0/,
+  'Show more must return the bounded Store-confirmed Session count to both IDE surfaces.',
 );
 assert.match(
   projectsHookSource,
-  /existingEntry\.targetCount >= targetCount[\s\S]*?await existingEntry\.promise[\s\S]*?existingResult\.loadedCount >= targetCount/,
+  /existingEntry\.direction === direction[\s\S]*?existingEntry\.targetCount >= targetCount[\s\S]*?await existingEntry\.promise[\s\S]*?existingResult\.loadedCount >= targetCount/,
   'A larger concurrent project-session target must wait for and then upgrade a smaller in-flight request.',
 );
 assert.match(
@@ -186,8 +191,8 @@ for (const [surfaceName, source, translationKey] of [
 }
 assert.match(
   sidebarSource,
-  /const chronologicalSessions = useMemo\([\s\S]*buildSidebarGlobalSessions\(\{[\s\S]*projects: renderProjects,[\s\S]*\}\);/,
-  'Chronological mode must flatten only the canonical project inventory already loaded into the bounded, virtualized sidebar.',
+  /const chronologicalSessions = useMemo\([\s\S]*buildSidebarGlobalSessions\(\{[\s\S]*projects: modeRenderProjects,[\s\S]*\}\);/,
+  'Chronological mode must flatten only the current-mode project inventory already loaded into the bounded, virtualized sidebar.',
 );
 assert.match(
   sidebarSource,

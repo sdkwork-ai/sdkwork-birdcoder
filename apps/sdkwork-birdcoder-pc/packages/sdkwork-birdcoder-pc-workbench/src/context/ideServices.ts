@@ -9,7 +9,7 @@ import type {
   IGitService,
   IProjectRuntimeLocationService,
   IProjectService,
-  IWorkspaceService,
+  IAgentWorkspaceService,
   IPromptService,
   IVipMembershipService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -20,7 +20,7 @@ export interface IIDEContext {
   applicationPublishService: IApplicationPublishService;
   catalogService: ICatalogService;
   projectService: IProjectService;
-  workspaceService: IWorkspaceService;
+  agentWorkspaceService: IAgentWorkspaceService;
   promptService: IPromptService;
   documentService: IDocumentService;
   vipMembershipService: IVipMembershipService;
@@ -37,7 +37,7 @@ export function createDefaultIdeContextValue(): IIDEContext {
     applicationPublishService: defaultIdeServices.applicationPublishService,
     catalogService: defaultIdeServices.catalogService,
     projectService: defaultIdeServices.projectService,
-    workspaceService: defaultIdeServices.workspaceService,
+    agentWorkspaceService: defaultIdeServices.agentWorkspaceService,
     promptService: defaultIdeServices.promptService,
     documentService: defaultIdeServices.documentService,
     vipMembershipService: defaultIdeServices.vipMembershipService,

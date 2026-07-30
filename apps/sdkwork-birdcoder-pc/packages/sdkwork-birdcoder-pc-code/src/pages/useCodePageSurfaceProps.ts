@@ -29,6 +29,7 @@ import type {
 import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
 import type { CodeWorkspaceOverlaysProps } from './CodeWorkspaceOverlays';
 import { CodeNewSessionContext } from './CodeNewSessionContext';
+import type { NewTaskExecutionTarget } from './NewTaskRunModeSelector';
 import { getLanguageFromPath } from './CodePageShared';
 import type { CodeEditorWorkspacePanelProps } from './codeEditorWorkspacePanel.types';
 import { useCodePendingInteractions } from './useCodePendingInteractions';
@@ -88,6 +89,8 @@ interface UseCodePageSurfacePropsOptions {
   isLoadingMoreProjects: boolean;
   isLoadingMoreRemoteMessages: boolean;
   isNewSession: boolean;
+  cloudTaskExecutionAvailable: boolean;
+  localTaskExecutionAvailable: boolean;
   isQuickOpenVisible: boolean;
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
@@ -107,6 +110,7 @@ interface UseCodePageSurfacePropsOptions {
   searchQuery: string;
   selectedAgentSessionItems: AgentSessionItemView[];
   selectedEngineId: string;
+  newTaskExecutionTarget: NewTaskExecutionTarget;
   selectedFile?: string | null;
   selectedModelId: string;
   selectedSessionLastTurnAt?: string | null;
@@ -163,6 +167,9 @@ interface UseCodePageSurfacePropsOptions {
   onForkAgentSessionNewTree: NonNullable<ProjectExplorerProps['onForkAgentSessionNewTree']>;
   onMarkAgentSessionUnread: NonNullable<ProjectExplorerProps['onMarkAgentSessionUnread']>;
   onNewAgentSessionInProject: NonNullable<ProjectExplorerProps['onNewAgentSessionInProject']>;
+  onNewTaskExecutionTargetChange: (
+    executionTarget: NewTaskExecutionTarget,
+  ) => void;
   onNewSessionProjectSelect: (projectId: string) => void;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
@@ -243,6 +250,8 @@ export function useCodePageSurfaceProps({
   isLoadingMoreProjects,
   isLoadingMoreRemoteMessages,
   isNewSession,
+  cloudTaskExecutionAvailable,
+  localTaskExecutionAvailable,
   isQuickOpenVisible,
   isRunConfigVisible,
   isRunTaskVisible,
@@ -262,6 +271,7 @@ export function useCodePageSurfaceProps({
   searchQuery,
   selectedAgentSessionItems,
   selectedEngineId,
+  newTaskExecutionTarget,
   selectedFile,
   selectedModelId,
   selectedSessionLastTurnAt,
@@ -314,6 +324,7 @@ export function useCodePageSurfaceProps({
   onForkAgentSessionNewTree,
   onMarkAgentSessionUnread,
   onNewAgentSessionInProject,
+  onNewTaskExecutionTargetChange,
   onNewSessionProjectSelect,
   onNewProject,
   onLoadMoreProjects,
@@ -640,9 +651,13 @@ export function useCodePageSurfaceProps({
     onRestore: onRestoreMessage,
     emptyState: mainChatEmptyState,
     newSessionContext: createElement(CodeNewSessionContext, {
+      cloudExecutionAvailable: cloudTaskExecutionAvailable,
+      executionTarget: newTaskExecutionTarget,
       hasMoreProjects,
       isLoadingMoreProjects,
+      localExecutionAvailable: localTaskExecutionAvailable,
       onLoadMoreProjects,
+      onExecutionTargetChange: onNewTaskExecutionTargetChange,
       onNewProject,
       onProjectSelect: onNewSessionProjectSelect,
       projectGitOverviewState,
@@ -657,6 +672,8 @@ export function useCodePageSurfaceProps({
     hasMoreRemoteMessages,
     remoteMessagesLoadError,
     isLoadingMoreProjects,
+    cloudTaskExecutionAvailable,
+    localTaskExecutionAvailable,
     isLoadingMoreRemoteMessages,
     isChatEngineBusy,
     isChatBusy,
@@ -668,6 +685,7 @@ export function useCodePageSurfaceProps({
     onOpenMessageFile,
     onLoadMoreRemoteMessages,
     onLoadMoreProjects,
+    onNewTaskExecutionTargetChange,
     onNewProject,
     onNewSessionProjectSelect,
     onRestoreMessage,
@@ -681,6 +699,7 @@ export function useCodePageSurfaceProps({
     projectId,
     projectName,
     projects,
+    newTaskExecutionTarget,
     selectedEngineId,
     selectedModelId,
     selectedSessionEngineId,

@@ -45,8 +45,14 @@ assert.match(
 
 assert.match(
   authRoutingSource,
-  /const recoveredTargetTab = resolveInitialAppTab\(recoveredTab, Boolean\(user\)\);[\s\S]*?pendingAuthTargetTabRef\.current = recoveredTargetTab;[\s\S]*?setActiveTab\(recoveredTargetTab\);/u,
+  /const requestedRecoveryTab = recoveredTab;[\s\S]*?appliedRecoveryTargetTabRef\.current === requestedRecoveryTab[\s\S]*?appliedRecoveryTargetTabRef\.current = requestedRecoveryTab;[\s\S]*?const recoveredTargetTab = resolveInitialAppTab\(requestedRecoveryTab, Boolean\(user\)\);[\s\S]*?pendingAuthTargetTabRef\.current = recoveredTargetTab;[\s\S]*?setActiveTab\(recoveredTargetTab\);/u,
   'Authenticated recovery must register its target before the same-commit auth effect can apply the default Code tab.',
+);
+
+assert.match(
+  authRoutingSource,
+  /const bootedIntoAuthSurfaceRef = useRef\(shouldBootIntoAuthSurface\(\)\);[\s\S]*?if \(bootedIntoAuthSurfaceRef\.current\) \{/u,
+  'Recovery must preserve the initial auth-route intent instead of re-reading a hash changed by the app itself.',
 );
 
 assert.match(

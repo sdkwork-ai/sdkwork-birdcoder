@@ -13,7 +13,7 @@ import { ApplicationPublishService } from './impl/ApplicationPublishService.ts';
 import { AgentsDocumentsProjectDocumentService } from './impl/AgentsDocumentsProjectDocumentService.ts';
 import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
-import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
+import { AgentsSdkWorkspaceService } from './impl/AgentsSdkWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
@@ -27,7 +27,7 @@ import type { IFileSystemService } from './interfaces/IFileSystemService.ts';
 import type { IGitService } from './interfaces/IGitService.ts';
 import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntimeLocationService.ts';
 import type { IProjectService } from './interfaces/IProjectService.ts';
-import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
+import type { IAgentWorkspaceService } from './interfaces/IAgentWorkspaceService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
@@ -48,7 +48,7 @@ export interface BirdCoderDefaultIdeServices {
   promptService: IPromptService;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectService: IProjectService;
-  workspaceService: IWorkspaceService;
+  agentWorkspaceService: IAgentWorkspaceService;
   vipMembershipService: IVipMembershipService;
 }
 
@@ -57,6 +57,7 @@ export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
 export interface CreateBirdCoderDefaultIdeServicesOptions {
   agentsClient?: AgentsAppSdkClient;
   documentsClient?: SdkworkDocumentsAppClient;
+  gitService?: IGitService;
   mcpClient?: McpAppSdkClient;
   promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
@@ -75,7 +76,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   projectDeviceMountRegistry: ProjectDeviceMountRegistry;
   projectService: IProjectService;
   skillsClient: SdkworkSkillsAppClient;
-  workspaceService: IWorkspaceService;
+  agentWorkspaceService: IAgentWorkspaceService;
 }
 
 /**
@@ -115,7 +116,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
     projects: agentsClient.ai.agents.projects,
   });
-  const workspaceService = new ApiBackedWorkspaceService(
+  const agentWorkspaceService = new AgentsSdkWorkspaceService(
     agentsClient.ai.agents.workspaces,
   );
   let documentsClient = options.documentsClient ?? runtimeConfig.documentsClient;
@@ -149,16 +150,17 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const applicationPublishService = new ApplicationPublishService({
     projectRuntimeLocationService,
   });
-  const gitService = createTauriProjectGitRuntime({
-    resolveProjectRoot: (projectId) =>
-      projectRuntimeLocationService.resolveProjectLocalWorkingDirectory(
-        projectId,
-        {
-          allowFolderSelection: false,
-          capability: 'git',
-        },
-      ),
-  });
+  const gitService = options.gitService ?? runtimeConfig.gitService
+    ?? createTauriProjectGitRuntime({
+      resolveProjectRoot: (projectId) =>
+        projectRuntimeLocationService.resolveProjectLocalWorkingDirectory(
+          projectId,
+          {
+            allowFolderSelection: false,
+            capability: 'git',
+          },
+        ),
+    });
 
   return {
     agentsClient,
@@ -173,6 +175,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     projectDeviceMountRegistry,
     projectService,
     skillsClient,
-    workspaceService,
+    agentWorkspaceService,
   };
 }

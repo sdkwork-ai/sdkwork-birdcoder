@@ -238,6 +238,7 @@ describe('Agent Session transcript pagination', () => {
   function transcriptService(
     listSessionItems: ReturnType<typeof vi.fn>,
     sessionRecord = transcriptSessionRecord(),
+    synchronizeSessionItems: ReturnType<typeof vi.fn> = listSessionItems,
   ): IAgentSessionService {
     return {
       getSession: vi.fn(async () => sessionRecord),
@@ -252,6 +253,7 @@ describe('Agent Session transcript pagination', () => {
         },
       })),
       listSessionItems,
+      synchronizeSessionItems,
     } as unknown as IAgentSessionService;
   }
 
@@ -306,7 +308,7 @@ describe('Agent Session transcript pagination', () => {
       const low = page === 1 ? 56 : page === 2 ? 6 : 1;
       return Array.from({ length: high - low + 1 }, (_, index) => item(high - index));
     };
-    const listSessionItems = vi.fn(async (
+    const loadSessionItems = async (
       identity: { agentId: string; sessionId: string },
       request: { cursor?: string; pageSize?: number; sort?: string },
     ) => {
@@ -320,7 +322,9 @@ describe('Agent Session transcript pagination', () => {
           pageSize: 50,
         },
       };
-    });
+    };
+    const listSessionItems = vi.fn(loadSessionItems);
+    const synchronizeSessionItems = vi.fn(loadSessionItems);
     const agentSessionService = {
       getSession: vi.fn(async () => sessionRecord),
       getSessionUserStates: vi.fn(async () => new Map()),
@@ -334,6 +338,7 @@ describe('Agent Session transcript pagination', () => {
         },
       })),
       listSessionItems,
+      synchronizeSessionItems,
     } as unknown as IAgentSessionService;
 
     const latest = await refreshAgentSessionItems({
@@ -382,19 +387,23 @@ describe('Agent Session transcript pagination', () => {
     });
     expect(complete.status).toBe('complete');
     expect(complete.loadedItemCount).toBe(0);
-    expect(listSessionItems).toHaveBeenCalledTimes(3);
+    expect(synchronizeSessionItems).toHaveBeenCalledTimes(1);
+    expect(synchronizeSessionItems).toHaveBeenCalledWith(
+      { agentId, sessionId },
+      {
+        cursor: undefined,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(listSessionItems).toHaveBeenCalledTimes(2);
     expect(listSessionItems.mock.calls.map(([identity, request]) => ({
       cursor: request.cursor,
       identity,
       pageSize: request.pageSize,
       sort: request.sort,
     }))).toEqual([
-      {
-        cursor: undefined,
-        identity: { agentId, sessionId },
-        pageSize: 50,
-        sort: '-sequence',
-      },
       {
         cursor: 'cursor.1',
         identity: { agentId, sessionId },
@@ -586,7 +595,9 @@ describe('Agent Session transcript pagination', () => {
     await expect(loadEarlierAgentSessionItems({
       agentSession: selectedSession,
       agentSessionService: transcriptService(listSessionItems),
-    })).rejects.toThrow(hasMore ? 'non-progressing cursor page' : 'null cursor');
+    })).rejects.toThrow(
+      hasMore ? 'non-progressing cursor page' : 'terminal page must omit or null its cursor',
+    );
   });
 });
 
@@ -647,11 +658,21 @@ describe('Agent Session transcript refresh errors', () => {
         pageSize: 50,
       },
     });
+    const synchronizeSessionItems = vi.fn().mockResolvedValue({
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
     const agentSessionService = {
       getSession,
       getSessionUserStates,
       listRuntimeBindings,
       listSessionItems,
+      synchronizeSessionItems,
     } as unknown as IAgentSessionService;
     return {
       agentId,
@@ -661,6 +682,7 @@ describe('Agent Session transcript refresh errors', () => {
       getSessionUserStates,
       listRuntimeBindings,
       listSessionItems,
+      synchronizeSessionItems,
       project: project({ agentSessions: [agentSession] }),
       sessionId,
     };
@@ -699,10 +721,10 @@ describe('Agent Session transcript refresh errors', () => {
     expect(harness.getSessionUserStates).not.toHaveBeenCalled();
   });
 
-  it('rethrows an SDK listSessionItems 404 after getSession succeeds', async () => {
+  it('rethrows an SDK synchronizeSessionItems 404 after getSession succeeds', async () => {
     const harness = createRefreshHarness();
     const error = sdkNotFoundError();
-    harness.listSessionItems.mockRejectedValueOnce(error);
+    harness.synchronizeSessionItems.mockRejectedValueOnce(error);
 
     await expect(refreshTranscript(harness)).rejects.toBe(error);
 
@@ -714,7 +736,7 @@ describe('Agent Session transcript refresh errors', () => {
       identity,
       { signal: expect.any(AbortSignal) },
     );
-    expect(harness.listSessionItems).toHaveBeenCalledWith(
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
       identity,
       {
         cursor: undefined,
@@ -723,6 +745,7 @@ describe('Agent Session transcript refresh errors', () => {
       },
       { signal: expect.any(AbortSignal) },
     );
+    expect(harness.listSessionItems).not.toHaveBeenCalled();
   });
 
   it('keeps transcript data when runtime binding metadata returns 404', async () => {
@@ -800,10 +823,10 @@ describe('Agent Session transcript refresh errors', () => {
       name: 'SdkError',
       problem: { status: 500 },
     });
-    harness.listSessionItems.mockRejectedValueOnce(error);
+    harness.synchronizeSessionItems.mockRejectedValueOnce(error);
 
     await expect(refreshTranscript(harness)).rejects.toBe(error);
-    expect(harness.listSessionItems).toHaveBeenCalledWith(
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
       {
         agentId: harness.agentId,
         sessionId: harness.sessionId,
@@ -815,6 +838,7 @@ describe('Agent Session transcript refresh errors', () => {
       },
       { signal: expect.any(AbortSignal) },
     );
+    expect(harness.listSessionItems).not.toHaveBeenCalled();
   });
 });
 

@@ -4,6 +4,7 @@ import type {
   BirdCoderDeploymentProfile,
   BirdCoderExecutionLocation,
   BirdCoderRuntimeTarget,
+  IGitService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export interface BootstrapShellRuntimeOptions {
@@ -11,6 +12,7 @@ export interface BootstrapShellRuntimeOptions {
   appClient?: BirdCoderAppSdkApiClient;
   deploymentProfile?: BirdCoderDeploymentProfile;
   executionLocation?: BirdCoderExecutionLocation;
+  gitService?: IGitService;
   host?: BirdHostDescriptor;
   platformApiGatewayBaseUrl?: string;
   runtimeTarget?: BirdCoderRuntimeTarget;

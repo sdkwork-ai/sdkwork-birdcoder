@@ -15,6 +15,8 @@ import {
   canCommitAgentSessionToProjectsStore,
   recordAgentSessionTombstoneInProjectsStore,
   removeAgentSessionFromCollection,
+  PROJECT_STORE_MAX_CACHED_SESSIONS,
+  trimProjectsStoreSessionCache,
   updateAgentSessionInCollection,
   upsertAgentSessionIntoCollection,
 } from '../stores/projectsStore.ts';
@@ -26,13 +28,12 @@ export const WORKSPACE_SESSION_INBOX_MAX_RETRY_INTERVAL_MS = 120_000;
 /**
  * 工作区会话收件箱在内存中保留的最大会话数量上限。
  *
- * 当会话总数超过此阈值时，会触发有界裁剪：
- * 1. 保留 pinned / 运行时活跃的会话（不可被裁剪）
- * 2. 其余席位按活动时间从新到旧填充，使用 O(n log k) 最小堆选择而非 O(n log n) 全排序
+ * 当会话总数超过此阈值时，会触发有界裁剪。已加载 transcript、pinned、
+ * 待交互、运行中和 unread 会话依次优先，其余席位按活动时间填充。
  *
- * 该常量直接控制会话收件箱的内存上界，与 ProjectsStore 的 LRU scope 上限相独立。
+ * 该值复用 ProjectsStore 的统一 Session 缓存上限，所有写入路径保持一致。
  */
-export const WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS = 200;
+export const WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS = PROJECT_STORE_MAX_CACHED_SESSIONS;
 const WORKSPACE_SESSION_INBOX_MAX_CURSOR_LENGTH = 2_048;
 
 export function resolveWorkspaceSessionInboxRefreshDelay(
@@ -57,182 +58,6 @@ export interface WorkspaceSessionInboxUpdate {
   hasMore: boolean;
   nextCursor?: string;
   summaries: readonly AgentSessionActivitySummaryRecord[];
-}
-
-function sessionActivityTimestamp(session: AgentSessionView): number {
-  const activityAt = Date.parse(session.activity?.activityAt ?? '');
-  if (Number.isFinite(activityAt)) {
-    return activityAt;
-  }
-  const updatedAt = Date.parse(session.updatedAt);
-  return Number.isFinite(updatedAt) ? updatedAt : 0;
-}
-
-function retainsSessionInboxEntry(session: AgentSessionView): boolean {
-  return session.pinned === true
-    || session.runtimeStatus === 'initializing'
-    || session.runtimeStatus === 'streaming'
-    || session.runtimeStatus === 'awaiting_tool'
-    || session.runtimeStatus === 'awaiting_approval'
-    || session.runtimeStatus === 'awaiting_user';
-}
-
-/**
- * 有界裁剪：保留 pinned / 活跃的条目，剩余容量按会话活动时间从高到低填充。
- *
- * 实现采用大小为 k 的最小堆进行 O(n log k) 的选择，避免对全部候选进行 O(n log n) 全量排序。
- * 当总条目数未超过上限时直接返回原数组，不做任何拷贝。
- */
-function trimWorkspaceSessionInboxWindow(
-  projects: readonly AgentProjectView[],
-  update: WorkspaceSessionInboxUpdate,
-): AgentProjectView[] {
-  if (update.cursor !== undefined) {
-    return projects as AgentProjectView[];
-  }
-
-  // Phase 1: 单次遍历时收集必须保留的键并统计总量
-  const retainedKeys = new Set<string>();
-  let totalSessionCount = 0;
-  for (const project of projects) {
-    for (const session of project.agentSessions) {
-      totalSessionCount += 1;
-      if (retainsSessionInboxEntry(session)) {
-        retainedKeys.add(buildScopedSessionKey(project.projectId, session.id));
-      }
-    }
-  }
-
-  // 未超上限：无需裁剪，直接返回原数组引用
-  if (totalSessionCount <= WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS) {
-    return projects as AgentProjectView[];
-  }
-
-  // Phase 2: 使用最小堆选择剩余容量中最新的候选会话
-  const remainingCapacity = Math.max(
-    0,
-    WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS - retainedKeys.size,
-  );
-  if (remainingCapacity > 0) {
-    const selectedKeys = selectTopSessionKeysByActivity(
-      projects,
-      remainingCapacity,
-      retainedKeys,
-    );
-    for (const key of selectedKeys) {
-      retainedKeys.add(key);
-    }
-  }
-
-  // Phase 3: 按保留键生成裁剪后的 project 列表，未变化的 project 保持引用不变
-  return projects.map((project) => {
-    const filteredSessions = project.agentSessions.filter((session) =>
-      retainedKeys.has(buildScopedSessionKey(project.projectId, session.id)),
-    );
-    return filteredSessions.length === project.agentSessions.length
-      ? project
-      : { ...project, agentSessions: filteredSessions };
-  });
-}
-
-interface SessionActivityEntry {
-  key: string;
-  timestamp: number;
-  sessionId: string;
-}
-
-/**
- * 使用大小为 k 的最小堆选出 top-K 最新会话键。
- * 时间复杂度 O(n log k)，空间复杂度 O(k)。
- * 比较规则与会话活动的排序一致：时间戳大的优先，时间戳相同时 ID 小的优先。
- */
-function selectTopSessionKeysByActivity(
-  projects: readonly AgentProjectView[],
-  k: number,
-  excludedKeys: Set<string>,
-): string[] {
-  if (k <= 0) {
-    return [];
-  }
-
-  const heap: SessionActivityEntry[] = [];
-
-  /**
-   * 比较器：返回负数表示 left 更差（更应居于堆顶）。
-   * 更差 = 时间戳更小，或时间戳相等但 ID 更大。
-   */
-  const compareEntries = (left: SessionActivityEntry, right: SessionActivityEntry): number => {
-    if (left.timestamp !== right.timestamp) {
-      return left.timestamp - right.timestamp;
-    }
-    return right.sessionId.localeCompare(left.sessionId);
-  };
-
-  const sinkDown = (startIndex: number): void => {
-    let index = startIndex;
-    while (true) {
-      const leftIndex = 2 * index + 1;
-      const rightIndex = 2 * index + 2;
-      let worstIndex = index;
-
-      if (
-        leftIndex < heap.length
-        && compareEntries(heap[leftIndex]!, heap[worstIndex]!) < 0
-      ) {
-        worstIndex = leftIndex;
-      }
-      if (
-        rightIndex < heap.length
-        && compareEntries(heap[rightIndex]!, heap[worstIndex]!) < 0
-      ) {
-        worstIndex = rightIndex;
-      }
-      if (worstIndex !== index) {
-        const swapped = heap[index]!;
-        heap[index] = heap[worstIndex]!;
-        heap[worstIndex] = swapped;
-        index = worstIndex;
-      } else {
-        break;
-      }
-    }
-  };
-
-  // 单次遍历全部会话，构建大小为 k 的最小堆
-  for (const project of projects) {
-    for (const session of project.agentSessions) {
-      const key = buildScopedSessionKey(project.projectId, session.id);
-      if (excludedKeys.has(key)) {
-        continue;
-      }
-
-      const timestamp = sessionActivityTimestamp(session);
-      const entry: SessionActivityEntry = { key, timestamp, sessionId: session.id };
-
-      if (heap.length < k) {
-        // 堆未满：插入并上浮
-        heap.push(entry);
-        let childIndex = heap.length - 1;
-        while (childIndex > 0) {
-          const parentIndex = (childIndex - 1) >> 1;
-          if (compareEntries(heap[childIndex]!, heap[parentIndex]!) < 0) {
-            const swapped = heap[childIndex]!;
-            heap[childIndex] = heap[parentIndex]!;
-            heap[parentIndex] = swapped;
-            childIndex = parentIndex;
-          } else {
-            break;
-          }
-        }
-      } else if (compareEntries(entry, heap[0]!) > 0) {
-        // 新条目优于当前堆顶：替换并下沉
-        heap[0] = entry;
-        sinkDown(0);
-      }
-    }
-  }
-
-  return heap.map((entry) => entry.key);
 }
 
 export function mergeWorkspaceSessionInboxUpdates(
@@ -591,11 +416,7 @@ export async function loadWorkspaceSessionInboxUpdate(
   )) {
     throw new Error('Agents Session activity snapshot returned a non-progressing cursor page.');
   }
-  if (!hasMore && nextCursor && !(
-    page.items.length === 0
-    && normalizedCursor !== undefined
-    && nextCursor === normalizedCursor
-  )) {
+  if (!hasMore && nextCursor) {
     throw new Error('Agents Session activity snapshot returned an unexpected terminal cursor.');
   }
   return {
@@ -871,5 +692,5 @@ export function applyWorkspaceSessionInboxUpdate(
       (session) => mergeSummaryView(session, incoming),
     );
   }
-  return trimWorkspaceSessionInboxWindow(nextProjects, update);
+  return trimProjectsStoreSessionCache(nextProjects);
 }

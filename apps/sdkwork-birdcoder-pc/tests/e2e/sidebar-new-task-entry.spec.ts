@@ -2,8 +2,6 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
-const projectSessionsPath = '/app/v3/api/ai/projects/project.e2e-1/sessions';
-
 async function bootstrapAuthenticatedSession(
   page: Page,
   request: APIRequestContext,
@@ -37,7 +35,7 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
   await bootstrapAuthenticatedSession(page, request);
   const sessionCreateBodies: Record<string, unknown>[] = [];
   const pinnedUpdates: boolean[] = [];
-  await page.route(`**${projectSessionsPath}`, async (route) => {
+  await page.route('**/app/v3/api/ai/projects/project.e2e-1/sessions', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.fallback();
       return;
@@ -77,7 +75,7 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
     pinnedSection.getByText('Claude architecture review', { exact: true }),
   ).toBeVisible();
   const brandHeader = page.locator('[data-sidebar-brand-header="true"]');
-  await expect(brandHeader).toContainText('Birdcoder');
+  await expect(brandHeader).toContainText('BirdCoder');
   const sidebarSearchTrigger = brandHeader.locator('[data-sidebar-search-trigger="true"]');
   await expect(sidebarSearchTrigger).toHaveAccessibleName('Search tasks');
   await expect(sidebarSearchTrigger.locator('.lucide-search')).toHaveCount(1);
@@ -184,16 +182,10 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
     throw new Error('The default new-task Provider option must expose its Provider id.');
   }
 
-  const createRequest = page.waitForRequest((candidate) => (
-    candidate.method() === 'POST'
-      && new URL(candidate.url()).pathname === projectSessionsPath
-  ));
   await newTaskTrigger.click();
-  await createRequest;
-
-  expect(sessionCreateBodies).toHaveLength(1);
-  expect(sessionCreateBodies[0]).toMatchObject({
-    agentId: `agent.intelligence.${defaultProviderId}`,
-  });
   await expect(providerMenu).toHaveCount(0);
+  const newSessionComposer = page.locator('[data-new-session-composer="true"]');
+  await expect(newSessionComposer).toBeVisible();
+  await expect(page.getByTestId('universal-chat-new-session-provider-selector')).toBeVisible();
+  expect(sessionCreateBodies).toHaveLength(0);
 });

@@ -51,6 +51,10 @@ Messages. The exact UI boundary is
   records canonical Agents integration.
 - [`kernel-birdcoder-alignment.spec.json`](kernel-birdcoder-alignment.spec.json)
   enforces `BirdCoder -> Agents -> Kernel`.
+- [`hybrid-execution-commercial-readiness.spec.json`](hybrid-execution-commercial-readiness.spec.json)
+  separates client host, deployment profile, per-Session execution preference,
+  server-resolved execution target, Kernel coordination, Sandbox placement, and
+  the protected commercial release gates.
 
 These contracts prohibit a local business database, copied dependency API,
 persistent read authority, dual identifier, or compatibility transport.

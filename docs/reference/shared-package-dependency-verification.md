@@ -17,6 +17,7 @@ families are:
 | Identity and organization scope | `sdkwork-iam-app-sdk` |
 | Membership and benefits | `sdkwork-membership-app-sdk` |
 | External delivery and notifications | `sdkwork-messaging-app-sdk` |
+| Connector and MCP server catalog | `sdkwork-mcp-app-sdk` |
 | Orders | `sdkwork-order-app-sdk` |
 | Saved prompts | `sdkwork-prompts-app-sdk` |
 | Skills | `sdkwork-skills-app-sdk` |

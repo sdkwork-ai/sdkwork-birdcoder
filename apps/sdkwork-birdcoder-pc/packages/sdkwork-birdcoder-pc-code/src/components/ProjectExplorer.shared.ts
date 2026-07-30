@@ -8,11 +8,16 @@ import type {
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;
+  canShowNewerSessions: boolean;
   filteredSessions: AgentSessionView[];
   isLoadingMoreSessions: boolean;
   nextVisibleSessionCount: number;
   project: AgentProjectView;
   visibleSessions: AgentSessionView[];
+}
+
+export function canLoadNewerProjectSessions(project: AgentProjectView): boolean {
+  return project.agentSessionPageInfo?.hasNewer === true;
 }
 
 export function canLoadMoreProjectSessions(

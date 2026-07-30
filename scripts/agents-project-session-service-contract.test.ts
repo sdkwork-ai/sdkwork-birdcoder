@@ -25,6 +25,12 @@ const sessionRetrieveCalls: Array<[
   string,
   { signal?: AbortSignal; timeout?: number },
 ]> = [];
+const sessionItemListCalls: Array<[
+  string,
+  string,
+  Record<string, unknown>,
+  { signal?: AbortSignal; timeout?: number },
+]> = [];
 const codeEngineListCalls: Array<[{ signal?: AbortSignal; timeout?: number }]> = [];
 const missingSessionUserStateIds = new Set<string>();
 let runtimeBindingCreateError: Error | null = null;
@@ -181,6 +187,24 @@ const client = {
           return recoveredRuntimeBinding;
         },
       },
+      sessionItems: {
+        async list(
+          agentId: string,
+          sessionId: string,
+          params: Record<string, unknown>,
+          requestOptions: { signal?: AbortSignal; timeout?: number },
+        ) {
+          sessionItemListCalls.push([agentId, sessionId, params, requestOptions]);
+          return {
+            items: [],
+            pageInfo: {
+              mode: 'cursor',
+              pageSize: params.pageSize,
+              hasMore: false,
+            },
+          };
+        },
+      },
       sessionUserStates: {
         async list(
           agentId: string,
@@ -214,6 +238,25 @@ const client = {
   },
 } as unknown as ConstructorParameters<typeof BirdCoderAgentSessionService>[0]['client'];
 const service = new BirdCoderAgentSessionService({ client });
+
+const sessionItemAbortController = new AbortController();
+const terminalSessionItemPage = await service.listSessionItems(
+  { agentId: 'agent.birdcoder', sessionId: 'session.cursor-contract' },
+  { pageSize: 50, sort: '-sequence' },
+  { signal: sessionItemAbortController.signal, timeoutMs: 3_000 },
+);
+assert.deepEqual(terminalSessionItemPage.pageInfo, {
+  mode: 'cursor',
+  pageSize: 50,
+  hasMore: false,
+  nextCursor: null,
+});
+assert.deepEqual(sessionItemListCalls, [[
+  'agent.birdcoder',
+  'session.cursor-contract',
+  { cursor: undefined, pageSize: 50, sort: '-sequence' },
+  { signal: sessionItemAbortController.signal, timeout: 3_000 },
+]]);
 
 const created = await service.createSession({
   projectId: ' project.contract ',

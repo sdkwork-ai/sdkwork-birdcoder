@@ -149,5 +149,5 @@ export type {
 export type {
   AgentWorkspacePageRequest,
   AgentWorkspaceViewPage,
-  IWorkspaceService,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IWorkspaceService';
+  IAgentWorkspaceService,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentWorkspaceService';
