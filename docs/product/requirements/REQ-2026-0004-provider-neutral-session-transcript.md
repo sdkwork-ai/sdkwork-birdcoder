@@ -78,9 +78,10 @@ framework implementation.
    near the bottom; reading older content is never interrupted by autoscroll.
 10. Reaching the transcript top automatically reveals the next local window or
     starts one cancellable, deduplicated history operation while history remains
-    available. That operation may skip at most ten duplicate-only or
-    filter-only offset pages to obtain a genuinely older visible item and must
-    persist its advanced page metadata even when no visible item is added.
+    available. That operation may skip at most three duplicate-only or
+    filter-only opaque cursor pages to obtain a genuinely older visible item
+    and must persist its advanced page metadata even when no visible item is
+    added.
 11. Revealing or prepending history preserves the current reading anchor and
     does not jump the viewport to the newly inserted first message.
 12. Leaving the sticky-bottom threshold exposes a keyboard-operable return-to-

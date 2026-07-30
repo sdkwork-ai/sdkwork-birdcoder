@@ -23,6 +23,7 @@ import {
   useRelativeMinuteNow,
 } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
+  ProjectInventoryStatus,
   SessionProviderBadge,
   resolveSessionProviderPresentation,
   resolveSessionRuntimeStatusPresentation,
@@ -278,6 +279,8 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
       right.taskSearchProjects ?? right.projects,
     ) &&
     left.hasMoreProjects === right.hasMoreProjects &&
+    left.hasProjectsLoadError === right.hasProjectsLoadError &&
+    left.isLoadingProjects === right.isLoadingProjects &&
     left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.isVisible === right.isVisible &&
     left.selectedProjectId === right.selectedProjectId &&
@@ -290,6 +293,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onDeleteProject === right.onDeleteProject &&
     left.onNewProject === right.onNewProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
+    left.onRetryProjects === right.onRetryProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onOpenFolder === right.onOpenFolder &&
     left.onNewAgentSessionInProject === right.onNewAgentSessionInProject &&
@@ -336,6 +340,8 @@ const EMPTY_SIDEBAR_CHRONOLOGICAL_CONTINUATIONS: SidebarChronologicalContinuatio
 
 export const Sidebar = React.memo(function Sidebar({
   hasMoreProjects = false,
+  hasProjectsLoadError = false,
+  isLoadingProjects = false,
   isLoadingMoreProjects = false,
   isVisible = true,
   projects,
@@ -350,6 +356,7 @@ export const Sidebar = React.memo(function Sidebar({
   onDeleteProject,
   onNewProject,
   onLoadMoreProjects,
+  onRetryProjects,
   onLoadMoreProjectSessions,
   onOpenFolder,
   onNewAgentSessionInProject,
@@ -1238,11 +1245,62 @@ export const Sidebar = React.memo(function Sidebar({
       : EMPTY_SIDEBAR_AGENT_SESSIONS,
     [modeRenderProjects, sortBy, workbenchMode],
   );
+  const workModeProjectEntries = useMemo<SidebarProjectEntry[]>(() => {
+    if (workbenchMode !== 'work') {
+      return EMPTY_SIDEBAR_PROJECT_ENTRIES;
+    }
+
+    return modeRenderProjects
+      .filter((project) => project.status !== 'archived')
+      .map((project) => {
+        const visibleSessionCount =
+          visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        const filteredSessions = resolveProjectViewSessions(
+          project.agentSessions.filter((session) => !session.archived),
+        );
+
+        return {
+          canShowMoreSessions: canLoadMoreProjectSessions(project, visibleSessionCount),
+          filteredSessions,
+          isLoadingMoreSessions: loadingMoreSessionProjectIds[project.projectId] === true,
+          nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
+          project,
+          visibleSessions: filteredSessions.slice(0, visibleSessionCount),
+        };
+      });
+  }, [
+    loadingMoreSessionProjectIds,
+    modeRenderProjects,
+    resolveProjectViewSessions,
+    visibleSessionCountByProjectId,
+    workbenchMode,
+  ]);
   const handleWorkbenchModeChange = useCallback((mode: WorkbenchMode) => {
     closeFloatingMenus();
     setShowSearch(false);
     updatePreferences({ workbenchMode: mode });
   }, [closeFloatingMenus, updatePreferences]);
+  useEffect(() => {
+    if (workbenchMode !== 'work' || !selectedProjectId) {
+      return;
+    }
+
+    setExpandedProjects((previousState) => (
+      previousState[selectedProjectId] === true
+        ? previousState
+        : { ...previousState, [selectedProjectId]: true }
+    ));
+
+    const selectedProject = renderProjects.find(
+      (project) => project.projectId === selectedProjectId,
+    );
+    if (selectedProject?.agentSessionPageInfo === undefined) {
+      void handleLoadMoreProjectSessions(
+        selectedProjectId,
+        INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+      );
+    }
+  }, [handleLoadMoreProjectSessions, renderProjects, selectedProjectId, workbenchMode]);
   useEffect(() => subscribeRevealAgentSession((target) => {
     const projectId = target.projectId.trim();
     if (!projectId) {
@@ -1265,11 +1323,18 @@ export const Sidebar = React.memo(function Sidebar({
     }
   }), [closeFloatingMenus, handleLoadMoreProjectSessions, renderProjects]);
   useEffect(() => {
-    if (organizeBy !== 'project' || !selectedProjectId || !selectedAgentSessionId) {
+    if (
+      (workbenchMode !== 'work' && organizeBy !== 'project')
+      || !selectedProjectId
+      || !selectedAgentSessionId
+    ) {
       return;
     }
 
-    const selectedProjectEntry = projectEntries.find(
+    const activeProjectEntries = workbenchMode === 'work'
+      ? workModeProjectEntries
+      : projectEntries;
+    const selectedProjectEntry = activeProjectEntries.find(
       (entry) => entry.project.projectId === selectedProjectId,
     );
     const selectedSessionIndex = selectedProjectEntry?.filteredSessions.findIndex(
@@ -1291,7 +1356,14 @@ export const Sidebar = React.memo(function Sidebar({
         [selectedProjectId]: requiredVisibleSessionCount,
       };
     });
-  }, [organizeBy, projectEntries, selectedAgentSessionId, selectedProjectId]);
+  }, [
+    organizeBy,
+    projectEntries,
+    selectedAgentSessionId,
+    selectedProjectId,
+    workbenchMode,
+    workModeProjectEntries,
+  ]);
   const shouldWindowChronologicalSessions =
     organizeBy === 'chronological' &&
     chronologicalSessions.length >= CHRONOLOGICAL_WINDOWED_LIST_THRESHOLD;
@@ -1369,7 +1441,7 @@ export const Sidebar = React.memo(function Sidebar({
         return;
       }
 
-      if (!selectedAgentSessionId && organizeBy === 'project') {
+      if (workbenchMode === 'work' || (!selectedAgentSessionId && organizeBy === 'project')) {
         const selectedProjectElement = scrollRegion.querySelector<HTMLElement>(
           '[data-project-selected="true"]',
         );
@@ -1397,6 +1469,8 @@ export const Sidebar = React.memo(function Sidebar({
     selectedProjectId,
     shouldWindowChronologicalSessions,
     visibleChronologicalSessions,
+    workbenchMode,
+    workModeProjectEntries,
   ]);
   const renderFlatSessionRow = (
     session: AgentSessionView,
@@ -1437,6 +1511,61 @@ export const Sidebar = React.memo(function Sidebar({
       onRenameCancel={handleAgentSessionRenameCancel}
     />
   );
+  const renderProjectEntry = (entry: SidebarProjectEntry) => {
+    const selectedVisibleSessionId = entry.visibleSessions.some(
+      (session) =>
+        entry.project.projectId === selectedProjectId &&
+        session.id === selectedAgentSessionId,
+    )
+      ? selectedAgentSessionId
+      : null;
+    const renamingVisibleSessionId = entry.visibleSessions.some(
+      (session) =>
+        entry.project.projectId === renamingAgentSession?.projectId &&
+        session.id === renamingAgentSession?.id,
+    )
+      ? renamingAgentSession?.id ?? null
+      : null;
+
+    return (
+      <ProjectExplorerProjectSection
+        key={entry.project.projectId}
+        entry={entry}
+        relativeTimeNow={relativeTimeNow}
+        expanded={expandedProjects[entry.project.projectId] === true}
+        isSelectedProject={selectedProjectId === entry.project.projectId}
+        selectedVisibleSessionId={selectedVisibleSessionId}
+        renamingVisibleSessionId={renamingVisibleSessionId}
+        sessionRenameValue={renamingVisibleSessionId ? renameValue : ''}
+        isRenamingProject={renamingProjectId === entry.project.projectId}
+        projectRenameValue={renamingProjectId === entry.project.projectId ? renameValue : ''}
+        noSessionsLabel={t('app.noSessions')}
+        expandProjectLabel={t('code.expandProject', { name: entry.project.name })}
+        collapseProjectLabel={t('code.collapseProject', { name: entry.project.name })}
+        loadMoreSessionsLabel={t('code.showMoreSessions')}
+        loadingMoreSessionsLabel={t('code.loadingMoreSessions')}
+        defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
+        defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
+        newSessionInProjectLabel={t('code.newSessionInProject')}
+        runtimeStatusLabels={sessionRuntimeStatusLabels}
+        moreActionsLabel={t('app.moreActions')}
+        onSelectProject={selectProject}
+        onToggleProject={toggleProject}
+        onProjectContextMenu={handleProjectContextMenu}
+        onOpenProjectContextMenuFromButton={openProjectContextMenuFromButton}
+        onNewAgentSessionInProject={onNewAgentSessionInProject}
+        onSelectAgentSession={handleSelectAgentSession}
+        onAgentSessionContextMenu={handleContextMenu}
+        onProjectRenameValueChange={handleRenameValueChange}
+        onProjectRenameSubmit={handleProjectRenameSubmit}
+        onProjectRenameCancel={handleProjectRenameCancel}
+        onSessionRenameValueChange={handleRenameValueChange}
+        onSessionRenameSubmit={handleAgentSessionRenameSubmit}
+        onSessionRenameCancel={handleAgentSessionRenameCancel}
+        onLoadMoreProjectSessions={handleLoadMoreProjectSessions}
+      />
+    );
+  };
   return (
     <div
       className="birdcoder-workbench-sidebar relative flex shrink-0 flex-col border-r text-[length:var(--birdcoder-ui-font-size,12px)] backdrop-blur-xl"
@@ -1456,7 +1585,22 @@ export const Sidebar = React.memo(function Sidebar({
           onModeChange={handleWorkbenchModeChange}
           onToggleSearch={handleOpenTaskSearch}
         />
-        {workbenchMode === 'work' ? (
+        {isLoadingProjects && projects.length === 0 ? (
+          <ProjectInventoryStatus
+            errorLabel={t('code.failedToLoadProjects')}
+            loadingLabel={t('code.loadingProjects')}
+            retryLabel={t('code.retryProjects')}
+            state="loading"
+          />
+        ) : hasProjectsLoadError && projects.length === 0 ? (
+          <ProjectInventoryStatus
+            errorLabel={t('code.failedToLoadProjects')}
+            loadingLabel={t('code.loadingProjects')}
+            retryLabel={t('code.retryProjects')}
+            state="error"
+            onRetry={onRetryProjects}
+          />
+        ) : workbenchMode === 'work' ? (
           <WorkModeSidebar
             labels={{
               assistant: t('app.workAssistant'),
@@ -1466,6 +1610,7 @@ export const Sidebar = React.memo(function Sidebar({
               more: t('app.workMore'),
               newTask: t('app.newTask'),
               noPinnedTasks: t('app.noPinnedTasks'),
+              noProjects: t('app.noProjectsFound'),
               noTasks: t('app.noSessions'),
               pinnedTasks: t('app.pinnedTasks'),
               providerInstalled: t('app.workProviderInstalled'),
@@ -1491,7 +1636,6 @@ export const Sidebar = React.memo(function Sidebar({
               providerInstallTitle: (provider) => t('app.workProviderInstallTitle', { provider }),
               projects: t('app.projects'),
               selectProjectFirst: t('code.selectProjectFirst'),
-              spaces: t('app.workSpaces'),
               tasks: t('app.tasks'),
               workProvidersUnavailable: t('app.workProvidersUnavailable'),
             }}
@@ -1499,7 +1643,11 @@ export const Sidebar = React.memo(function Sidebar({
               ? pinnedSessions.map((session) => renderFlatSessionRow(session, false, 'pinned'))
               : undefined}
             pinnedCount={pinnedSessions.length}
-            projects={modeRenderProjects.filter((project) => project.status !== 'archived')}
+            projectContent={workModeProjectEntries.length > 0
+              ? workModeProjectEntries.map(renderProjectEntry)
+              : undefined}
+            projectCount={workModeProjectEntries.length}
+            scrollRegionRef={scrollRegionRef}
             selectedEngineId={preferences.codeEngineId}
             selectedModelId={preferences.codeModelId}
             selectedProjectId={selectedProjectId}
@@ -1508,9 +1656,8 @@ export const Sidebar = React.memo(function Sidebar({
               : undefined}
             taskCount={workModeTaskSessions.length}
             onCreateSession={handleCreateEngineSession}
-            onOpenExpertTools={() => globalEventBus.emit('openSettings', 'plugins')}
+            onOpenExpertTools={() => globalEventBus.emit('openWorkResources')}
             onOpenMore={() => globalEventBus.emit('openSettings', 'general')}
-            onSelectProject={selectProject}
           />
         ) : (
         <ProjectExplorerHeader
@@ -1574,61 +1721,7 @@ export const Sidebar = React.memo(function Sidebar({
         >
         <div className="flex flex-col gap-1">
           {organizeBy === 'project' ? (
-            projectEntries.map((entry) => {
-              const selectedVisibleSessionId = entry.visibleSessions.some(
-                (session) =>
-                  entry.project.projectId === selectedProjectId &&
-                  session.id === selectedAgentSessionId,
-              )
-                ? selectedAgentSessionId
-                : null;
-              const renamingVisibleSessionId = entry.visibleSessions.some(
-                (session) =>
-                  entry.project.projectId === renamingAgentSession?.projectId &&
-                  session.id === renamingAgentSession?.id,
-              )
-                ? renamingAgentSession?.id ?? null
-                : null;
-
-              return (
-                <ProjectExplorerProjectSection
-                  key={entry.project.projectId}
-                  entry={entry}
-                  relativeTimeNow={relativeTimeNow}
-                  expanded={expandedProjects[entry.project.projectId] === true}
-                  isSelectedProject={selectedProjectId === entry.project.projectId}
-                  selectedVisibleSessionId={selectedVisibleSessionId}
-                  renamingVisibleSessionId={renamingVisibleSessionId}
-                  sessionRenameValue={renamingVisibleSessionId ? renameValue : ''}
-                  isRenamingProject={renamingProjectId === entry.project.projectId}
-                  projectRenameValue={renamingProjectId === entry.project.projectId ? renameValue : ''}
-                  noSessionsLabel={t('app.noSessions')}
-                  expandProjectLabel={t('code.expandProject', { name: entry.project.name })}
-                  collapseProjectLabel={t('code.collapseProject', { name: entry.project.name })}
-                  loadMoreSessionsLabel={t('code.showMoreSessions')}
-                  loadingMoreSessionsLabel={t('code.loadingMoreSessions')}
-                  defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
-                  defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
-                  newSessionInProjectLabel={t('code.newSessionInProject')}
-                  runtimeStatusLabels={sessionRuntimeStatusLabels}
-                  moreActionsLabel={t('app.moreActions')}
-                  onSelectProject={selectProject}
-                  onToggleProject={toggleProject}
-                  onProjectContextMenu={handleProjectContextMenu}
-                  onOpenProjectContextMenuFromButton={openProjectContextMenuFromButton}
-                  onNewAgentSessionInProject={onNewAgentSessionInProject}
-                  onSelectAgentSession={handleSelectAgentSession}
-                  onAgentSessionContextMenu={handleContextMenu}
-                  onProjectRenameValueChange={handleRenameValueChange}
-                  onProjectRenameSubmit={handleProjectRenameSubmit}
-                  onProjectRenameCancel={handleProjectRenameCancel}
-                  onSessionRenameValueChange={handleRenameValueChange}
-                  onSessionRenameSubmit={handleAgentSessionRenameSubmit}
-                  onSessionRenameCancel={handleAgentSessionRenameCancel}
-                  onLoadMoreProjectSessions={handleLoadMoreProjectSessions}
-                />
-              );
-            })
+            projectEntries.map(renderProjectEntry)
           ) : organizeBy === 'provider' ? (
             <>
               {providerEntries.map((entry) => (

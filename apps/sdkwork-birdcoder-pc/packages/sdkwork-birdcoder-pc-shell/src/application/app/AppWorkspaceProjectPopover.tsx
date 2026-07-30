@@ -1,4 +1,4 @@
-import { memo, type MouseEvent, type RefObject } from 'react';
+import { memo, useRef, type MouseEvent, type RefObject } from 'react';
 import {
   Archive,
   Boxes,
@@ -21,6 +21,7 @@ import type {
   AgentWorkspaceView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-workbench';
+import { useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useTranslation } from 'react-i18next';
 import { HeaderLoadingStatus } from './HeaderLoadingStatus.tsx';
 
@@ -156,6 +157,12 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   const selectedWorkspaceName = selectedWorkspace?.name ?? t('app.workspaces');
   const selectedProjectName = activeProjectName ?? t('app.selectProject');
   const canCreateProject = Boolean(selectedWorkspace) && !isProjectCreationPending;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { dialogRef, onDialogKeyDown } = useDialogFocusManagement<HTMLElement>({
+    initialFocusRef: closeButtonRef,
+    isOpen: showPopover,
+    onClose: onClosePopover,
+  });
 
   return (
     <div
@@ -200,9 +207,13 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
 
       {showPopover ? (
         <section
+          ref={dialogRef}
           data-no-drag="true"
           role="dialog"
           aria-label={t('app.workspaceProjectSwitcher')}
+          aria-modal="true"
+          onKeyDownCapture={onDialogKeyDown}
+          tabIndex={-1}
           className="fixed left-1/2 top-11 z-50 flex w-[min(760px,calc(100vw-24px))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#18191d] shadow-[0_20px_64px_rgba(0,0,0,0.58)] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150"
           style={{ height: 'min(560px, calc(100vh - 56px))' }}
         >
@@ -211,6 +222,7 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
               {t('app.workspaceProjectSwitcher')}
             </h2>
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClosePopover}
               className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200"

@@ -894,6 +894,12 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
 
+  ../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+
   ../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-contracts: {}
 
   ../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports: {}
@@ -2264,6 +2270,9 @@ importers:
       '@sdkwork/iam-service':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service
+      '@sdkwork/mcp-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript
       '@sdkwork/messaging-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript
@@ -2363,6 +2372,9 @@ importers:
       '@babel/runtime':
         specifier: 'catalog:'
         version: 7.29.2
+      '@sdkwork/birdcoder-pc-work-resources':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-work-resources
       '@sdkwork/membership-pc-subscription':
         specifier: workspace:*
         version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription
@@ -2457,6 +2469,10 @@ importers:
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.11.0
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure-runtime:
     dependencies:
@@ -2561,6 +2577,9 @@ importers:
       '@sdkwork/birdcoder-pc-user':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-user
+      '@sdkwork/birdcoder-pc-work-resources':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-work-resources
       '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-workbench
@@ -3219,6 +3238,28 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-work-resources:
+    dependencies:
+      '@sdkwork/birdcoder-pc-infrastructure-runtime':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench:
     dependencies:

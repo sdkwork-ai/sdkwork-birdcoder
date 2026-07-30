@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-work-resources",
+    "displayName": "SDKWork BirdCoder Work Resources",
+    "version": "0.1.0",
+    "type": "react-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-work-resources",
+    "domain": "intelligence",
+    "declaredDomain": null,
+    "capability": "work-resources",
+    "status": "standardizing",
+    "languages": ["typescript", "react"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    {"file": "COMPONENT_SPEC.md", "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Local component contract."},
+    {"file": "FRONTEND_SPEC.md", "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md", "purpose": "Frontend and service integration rules."},
+    {"file": "I18N_SPEC.md", "path": "../../../../../../sdkwork-specs/I18N_SPEC.md", "purpose": "Locale ownership and fallback rules."},
+    {"file": "MODULE_SPEC.md", "path": "../../../../../../sdkwork-specs/MODULE_SPEC.md", "purpose": "Package boundaries and dependency direction."},
+    {"file": "SDK_SPEC.md", "path": "../../../../../../sdkwork-specs/SDK_SPEC.md", "purpose": "Generated SDK consumption rules."},
+    {"file": "PAGINATION_SPEC.md", "path": "../../../../../../sdkwork-specs/PAGINATION_SPEC.md", "purpose": "Server-backed list pagination."},
+    {"file": "TEST_SPEC.md", "path": "../../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Verification expectations."},
+    {"file": "CODE_STYLE_SPEC.md", "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored code structure."},
+    {"file": "NAMING_SPEC.md", "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical names."},
+    {"file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules."},
+    {"file": "FRONTEND_CODE_SPEC.md", "path": "../../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md", "purpose": "React source structure."},
+    {"file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection."},
+    {"file": "APP_PC_REACT_UI_SPEC.md", "path": "../../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md", "purpose": "PC React composition."}
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "providedPorts": [{"name": "workResourcesFeature", "export": "."}],
+    "requiredPorts": [
+      {
+        "name": "catalogService",
+        "export": ".",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure-runtime",
+        "sourceExport": "."
+      }
+    ],
+    "publicExports": [".", "./i18n/en", "./i18n/zh"],
+    "runtimeEntrypoints": ["package.json#scripts.typecheck"],
+    "sdkClients": [],
+    "events": [],
+    "configKeys": [],
+    "routeManifest": null,
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": []
+  },
+  "integration": {
+    "authority": "Agents, Skills, and MCP remain the data authorities; BirdCoder owns only this composition UI.",
+    "dependencyPolicy": "Use public package ports and injected services only.",
+    "sdkPolicy": "The feature never creates clients, auth headers, or raw HTTP requests.",
+    "languagePolicy": "Use TypeScript and React package conventions."
+  },
+  "verification": {"commands": ["pnpm --filter @sdkwork/birdcoder-pc-work-resources typecheck"]},
+  "metadata": {"managedBy": "sdkwork-birdcoder", "standardVersion": "2026-07-30"}
+}

@@ -11,6 +11,11 @@ export async function loadStudioPage() {
   return { default: module.StudioPage };
 }
 
+export async function loadWorkResourcesPage() {
+  const module = await import('@sdkwork/birdcoder-pc-work-resources');
+  return { default: module.WorkResourcesPage };
+}
+
 export async function loadMultiWindowProgrammingPage() {
   const module = await import('@sdkwork/birdcoder-pc-multiwindow');
   return { default: module.MultiWindowProgrammingPage };

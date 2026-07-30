@@ -27,6 +27,7 @@ import {
   type AgentTurnActivityPresentation,
 } from './agent-session-item-activity-presentation.ts';
 import {
+  isAgentSessionItemSourceKindRecognized,
   resolveAgentSessionItemProtocolNoticeKind,
   resolveAgentSessionItemSourceKind,
 } from './agent-session-item-transcript.ts';
@@ -325,6 +326,11 @@ function inferAgentSessionItemViewKind(
   activitySummary?: AgentTurnActivityPresentation | null,
   engineId?: string,
 ): AgentSessionItemViewKind {
+  const sourceKind = resolveAgentSessionItemSourceKind(item);
+  if (sourceKind && !isAgentSessionItemSourceKindRecognized(sourceKind)) {
+    return 'unsupported';
+  }
+
   switch (item.role) {
     case 'user':
       return 'user.text';
@@ -345,7 +351,7 @@ function inferAgentSessionItemViewKind(
       }
       return 'assistant.text';
     default:
-      return 'assistant.text';
+      return 'unsupported';
   }
 }
 

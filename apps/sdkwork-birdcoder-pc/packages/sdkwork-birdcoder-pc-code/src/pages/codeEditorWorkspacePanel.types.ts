@@ -31,6 +31,7 @@ export interface CodeEditorWorkspacePanelProps {
   messages: AgentSessionItemView[];
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
+  remoteMessagesLoadError: string | null;
   isNewSession: boolean;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
@@ -86,6 +87,7 @@ export interface EditorChatProps {
   messages: AgentSessionItemView[];
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
+  remoteMessagesLoadError: string | null;
   isNewSession: boolean;
   showComposerEngineSelector: boolean;
   selectedAgentSessionId?: string | null;

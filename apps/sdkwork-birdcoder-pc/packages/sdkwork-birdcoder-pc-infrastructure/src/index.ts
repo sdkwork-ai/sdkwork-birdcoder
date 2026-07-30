@@ -20,6 +20,7 @@ export * from './services/interfaces/IAgentSessionService.ts';
 export * from './services/impl/DriveSandboxProjectFileSystemService.ts';
 export * from './services/sessionService.ts';
 export * from './services/skillsSdkClient.ts';
+export * from './services/mcpSdkClient.ts';
 export * from './services/sdkBaseUrls.ts';
 export type {
   IAdminPolicyService,

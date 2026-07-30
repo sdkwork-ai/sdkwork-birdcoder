@@ -21,15 +21,14 @@ import {
 } from '../stores/projectsStore.ts';
 import {
   buildAgentSessionItemsRefreshScopeKey,
+  isAgentSessionNotFoundError,
   mergeRefreshedAgentSessionIntoCurrent,
   refreshAgentSessionItems,
 } from '../workbench/sessionRefresh.ts';
-import type { HydrateImportedProjectFromAuthorityResult } from '../workbench/importedProjectHydration.ts';
+import type { ImportedProjectSessionInventoryResult } from '../workbench/importedProjectHydration.ts';
 
 const EXECUTING_REFRESH_INTERVAL_MS = 15_000;
 const IDLE_REFRESH_INTERVAL_MS = 60_000;
-const SESSION_IDENTITY_RECOVERY_PAGE_SIZE = 200;
-const SESSION_IDENTITY_RECOVERY_PAGE_LIMIT = 100;
 
 interface SelectedSessionItemsForegroundLoadingState {
   isLoading: boolean;
@@ -47,10 +46,10 @@ export interface UseSelectedAgentSessionItemsOptions {
   selectedAgentSession?: AgentSessionView | null;
   selectedAgentSessionId?: string | null;
   selectedProject?: AgentProjectView | null;
-  synchronizeProjectSessions: (
+  refreshProjectSessionInventory: (
     projectId: string,
     force?: boolean,
-  ) => Promise<HydrateImportedProjectFromAuthorityResult | null>;
+  ) => Promise<ImportedProjectSessionInventoryResult | null>;
 }
 
 function normalize(value: string | null | undefined): string {
@@ -78,52 +77,29 @@ async function findProjectSessionRecordById(
   agentSessionId: string,
   signal: AbortSignal,
 ): Promise<AgentSessionRecord | null> {
-  const seenSessionIds = new Set<string>();
-  for (let page = 1; page <= SESSION_IDENTITY_RECOVERY_PAGE_LIMIT; page += 1) {
-    signal.throwIfAborted();
-    const sessionPage = await agentSessionService.listSessionsByProject({
-      includeArchived: true,
-      page,
-      pageSize: SESSION_IDENTITY_RECOVERY_PAGE_SIZE,
+  try {
+    const session = await agentSessionService.getProjectSession(
       projectId,
-    }, { signal });
+      agentSessionId,
+      { signal },
+    );
     signal.throwIfAborted();
-    const returnedPage = sessionPage.pageInfo.page ?? page;
-    const returnedPageSize = sessionPage.pageInfo.pageSize
-      ?? SESSION_IDENTITY_RECOVERY_PAGE_SIZE;
     if (
-      sessionPage.pageInfo.mode !== 'offset'
-      || returnedPage !== page
-      || returnedPageSize !== SESSION_IDENTITY_RECOVERY_PAGE_SIZE
-      || sessionPage.items.length > SESSION_IDENTITY_RECOVERY_PAGE_SIZE
-      || (sessionPage.pageInfo.hasMore && sessionPage.items.length === 0)
+      normalize(session.agentId) === ''
+      || normalize(session.projectId) !== projectId
+      || normalize(session.sessionId) !== agentSessionId
     ) {
-      throw new Error('Agents project Session identity recovery returned invalid pagination.');
+      throw new Error(
+        'Agents project Session identity recovery returned an invalid Session identity.',
+      );
     }
-    for (const candidate of sessionPage.items) {
-      const candidateAgentId = normalize(candidate.agentId);
-      const candidateProjectId = normalize(candidate.projectId);
-      const candidateSessionId = normalize(candidate.sessionId);
-      if (!candidateAgentId || !candidateSessionId || candidateProjectId !== projectId) {
-        throw new Error(
-          'Agents project Session identity recovery returned an invalid Session identity.',
-        );
-      }
-      if (seenSessionIds.has(candidateSessionId)) {
-        throw new Error(
-          'Agents project Session identity recovery returned a duplicate Session identity.',
-        );
-      }
-      seenSessionIds.add(candidateSessionId);
-      if (candidateSessionId === agentSessionId) {
-        return candidate;
-      }
-    }
-    if (!sessionPage.pageInfo.hasMore) {
+    return session;
+  } catch (error) {
+    if (isAgentSessionNotFoundError(error)) {
       return null;
     }
+    throw error;
   }
-  throw new Error('Agents project Session identity recovery exceeded its page budget.');
 }
 
 export function useSelectedAgentSessionItems({
@@ -137,7 +113,7 @@ export function useSelectedAgentSessionItems({
   selectedAgentSession,
   selectedAgentSessionId,
   selectedProject,
-  synchronizeProjectSessions,
+  refreshProjectSessionInventory,
 }: UseSelectedAgentSessionItemsOptions): boolean {
   const { sessionRevision, user } = useAuth();
   const [foregroundLoadingState, setForegroundLoadingState] =
@@ -153,14 +129,14 @@ export function useSelectedAgentSessionItems({
   const onAgentSessionUnavailableRef = useRef(onAgentSessionUnavailable);
   const selectedAgentSessionRef = useRef(selectedAgentSession);
   const selectedProjectRef = useRef(selectedProject);
-  const synchronizeProjectSessionsRef = useRef(synchronizeProjectSessions);
+  const refreshProjectSessionInventoryRef = useRef(refreshProjectSessionInventory);
   foregroundLoadingStateRef.current = foregroundLoadingState;
   onAgentSessionItemsLoadFailedRef.current = onAgentSessionItemsLoadFailed;
   onAgentSessionItemsLoadedRef.current = onAgentSessionItemsLoaded;
   onAgentSessionUnavailableRef.current = onAgentSessionUnavailable;
   selectedAgentSessionRef.current = selectedAgentSession;
   selectedProjectRef.current = selectedProject;
-  synchronizeProjectSessionsRef.current = synchronizeProjectSessions;
+  refreshProjectSessionInventoryRef.current = refreshProjectSessionInventory;
   const normalizedSessionId = normalize(selectedAgentSessionId);
   const normalizedAgentId = normalize(selectedAgentSession?.agentId);
   const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
@@ -301,26 +277,26 @@ export function useSelectedAgentSessionItems({
           notifyLoadFailed();
           return;
         }
-        let synchronized: HydrateImportedProjectFromAuthorityResult | null;
+        let refreshedInventory: ImportedProjectSessionInventoryResult | null;
         try {
-          synchronized = await synchronizeProjectSessionsRef.current(projectId, true);
+          refreshedInventory = await refreshProjectSessionInventoryRef.current(projectId, true);
         } catch (error) {
           if (!disposed) {
-            console.error('Failed to recover Agents session inventory', error);
+            console.error('Failed to refresh Agents session inventory', error);
             notifyLoadFailed();
           }
           return;
         }
-        if (disposed || !synchronized) {
+        if (disposed || !refreshedInventory) {
           notifyLoadFailed();
           return;
         }
-        authoritativeProject = synchronized.project;
+        authoritativeProject = refreshedInventory.project;
         if (authoritativeProject.projectId !== projectId) {
           notifyLoadFailed();
           return;
         }
-        if (synchronized.deletedSessionIds.includes(normalizedSessionId)) {
+        if (refreshedInventory.deletedSessionIds.includes(normalizedSessionId)) {
           const removalResult = removeAgentSessionFromProjectsStore(
             buildProjectsStoreScopeKey(userScope, authoritativeProject.workspaceId),
             projectId,

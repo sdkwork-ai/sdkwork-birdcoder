@@ -101,7 +101,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   const { project, filteredSessions, visibleSessions } = entry;
   const sessionsRegionId = React.useId();
 
-  const handleProjectRowClick = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleProjectRowClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     onSelectProject(project.projectId);
     onToggleProject(project.projectId, event);
   };
@@ -114,15 +114,22 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
       style={buildProjectExplorerSurfaceStyle(expanded ? '260px' : '44px')}
     >
       <div
-        className={`birdcoder-session-row group relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelectedProject ? 'birdcoder-session-selected' : ''} ${
+        className={`birdcoder-session-row group relative flex items-center gap-2 rounded-md px-2 py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelectedProject ? 'birdcoder-session-selected' : ''} ${
           isSelectedProject ? 'text-white' : 'text-gray-300'
         }`}
-        onClick={handleProjectRowClick}
         onContextMenu={(event) => onProjectContextMenu(event, project.projectId)}
       >
+        {!isRenamingProject ? (
+          <button
+            type="button"
+            aria-label={project.name}
+            className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+            onClick={handleProjectRowClick}
+          />
+        ) : null}
         <button
           type="button"
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:bg-white/10 focus-visible:outline-none ${
+          className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:bg-white/10 focus-visible:outline-none ${
             isSelectedProject
               ? 'text-gray-100 hover:bg-white/10'
               : 'text-gray-400 hover:bg-white/[0.08] hover:text-gray-200 group-hover:text-gray-300'
@@ -150,17 +157,20 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               }
             }}
             onBlur={onProjectRenameCancel}
-            className="min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] font-medium text-white outline-none focus:ring-1 focus:ring-blue-500"
+            className="relative z-10 min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] font-medium text-white outline-none focus:ring-1 focus:ring-blue-500"
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
+          <span className="pointer-events-none relative z-[1] min-w-0 flex-1 truncate font-medium">
+            {project.name}
+          </span>
         )}
         {!isRenamingProject && (
-          <div className="birdcoder-session-action absolute right-2 pointer-events-none flex items-center gap-1 rounded-md px-1 opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div className="birdcoder-session-action pointer-events-none absolute right-2 z-10 flex items-center gap-1 rounded-md px-1 opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             <button
               type="button"
               className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+              aria-label={newSessionInProjectLabel}
               title={newSessionInProjectLabel}
               onClick={(event) => {
                 event.stopPropagation();
@@ -176,6 +186,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
             <button
               type="button"
               className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+              aria-label={moreActionsLabel}
               title={moreActionsLabel}
               onClick={(event) => onOpenProjectContextMenuFromButton(event, project.projectId)}
             >

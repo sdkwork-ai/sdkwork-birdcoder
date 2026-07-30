@@ -38,6 +38,9 @@ const SESSION_USER_STATE_MAX_CONCURRENCY = 4;
 const SESSION_ACTIVITY_CURSOR_MAX_LENGTH = 2_048;
 const SESSION_ACTIVITY_DEFAULT_PAGE_SIZE = 20;
 const SESSION_ACTIVITY_MAX_PAGE_SIZE = 200;
+const SESSION_ITEM_CURSOR_MAX_LENGTH = 2_048;
+const SESSION_ITEM_DEFAULT_PAGE_SIZE = 50;
+const SESSION_ITEM_MAX_PAGE_SIZE = 200;
 const TURN_RECOVERY_DEFAULT_MAX_ATTEMPTS = 300;
 const TURN_RECOVERY_DEFAULT_POLL_INTERVAL_MS = 2_000;
 const TURN_RECOVERY_DISCOVERY_MAX_ATTEMPTS = 5;
@@ -68,6 +71,82 @@ function normalizePageRequest(request: AgentSessionPageRequest = {}) {
     page_size: request.pageSize,
   });
   return { page, pageSize };
+}
+
+function normalizeSessionItemPageRequest(
+  request: AgentSessionItemPageRequest = {},
+) {
+  const pageSize = request.pageSize ?? SESSION_ITEM_DEFAULT_PAGE_SIZE;
+  if (
+    !Number.isSafeInteger(pageSize)
+    || pageSize < 1
+    || pageSize > SESSION_ITEM_MAX_PAGE_SIZE
+  ) {
+    throw new Error('Agents Session Item page size must be between 1 and 200.');
+  }
+  const cursor = request.cursor;
+  if (
+    cursor !== undefined
+    && (
+      cursor.length < 1
+      || cursor.length > SESSION_ITEM_CURSOR_MAX_LENGTH
+      || cursor.trim() !== cursor
+    )
+  ) {
+    throw new Error('Agents Session Item cursor must be an unpadded value between 1 and 2048 characters.');
+  }
+  return {
+    cursor,
+    pageSize,
+    sort: request.sort,
+  };
+}
+
+function normalizeSessionItemCursorPage<TItem>(
+  page: {
+    items: TItem[];
+    pageInfo: {
+      hasMore?: boolean;
+      mode: 'cursor' | 'offset';
+      nextCursor?: string | null;
+      pageSize?: number;
+    };
+  },
+  request: ReturnType<typeof normalizeSessionItemPageRequest>,
+) {
+  const { pageInfo } = page;
+  if (pageInfo.mode !== 'cursor') {
+    throw new Error('Agents Session Item list must use cursor pagination.');
+  }
+  if (pageInfo.pageSize !== request.pageSize) {
+    throw new Error('Agents Session Item list returned an unexpected page size.');
+  }
+  if (typeof pageInfo.hasMore !== 'boolean') {
+    throw new Error('Agents Session Item list omitted its continuation state.');
+  }
+  const nextCursor = pageInfo.nextCursor;
+  if (pageInfo.hasMore) {
+    if (
+      typeof nextCursor !== 'string'
+      || nextCursor.length < 1
+      || nextCursor.length > SESSION_ITEM_CURSOR_MAX_LENGTH
+      || nextCursor.trim() !== nextCursor
+      || nextCursor === request.cursor
+    ) {
+      throw new Error('Agents Session Item list returned a non-progressing cursor.');
+    }
+  } else if (nextCursor !== null) {
+    throw new Error('Agents Session Item terminal page must return a null cursor.');
+  }
+  return {
+    ...page,
+    pageInfo: {
+      hasMore: pageInfo.hasMore,
+      mode: 'cursor' as const,
+      nextCursor: nextCursor ?? null,
+      pageSize: request.pageSize,
+    },
+  };
 }
 
 function toApiRequestOptions(options: AgentSessionReadOptions = {}) {
@@ -474,15 +553,16 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   ): Promise<AgentTurnCompletion> {
     const requestOptions = toApiRequestOptions(options);
     const matchedItems = new Map<string, AgentSessionItemRecord>();
-    let page = 1;
+    let cursor: string | undefined;
     let hasMore = true;
-    while (hasMore && page <= TURN_RECOVERY_MAX_ITEM_PAGES) {
-      const response = await this.client.ai.agents.sessionItems.list(
-        agentId,
-        sessionId,
-        { page, pageSize: TURN_RECOVERY_ITEM_PAGE_SIZE, sort: '-sequence' },
-        requestOptions,
+    let pagesRead = 0;
+    while (hasMore && pagesRead < TURN_RECOVERY_MAX_ITEM_PAGES) {
+      const response = await this.listSessionItems(
+        { agentId, sessionId },
+        { cursor, pageSize: TURN_RECOVERY_ITEM_PAGE_SIZE, sort: '-sequence' },
+        options,
       );
+      pagesRead += 1;
       for (const item of response.items) {
         if (
           item.turnId === turn.turnId
@@ -498,7 +578,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         break;
       }
       hasMore = response.pageInfo.hasMore === true;
-      page += 1;
+      cursor = response.pageInfo.nextCursor ?? undefined;
     }
 
     const missingItemIds = [turn.requestItemId, turn.responseItemId]
@@ -663,6 +743,32 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
+  async getProjectSession(
+    projectId: string,
+    sessionId: string,
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedProjectId = normalizeProjectId(projectId);
+    const normalizedSessionId = sessionId.trim();
+    if (!normalizedSessionId) {
+      throw new Error('Agents Session ID is required for project-scoped retrieval.');
+    }
+    const response = await this.client.ai.agents.projectSessions.retrieve(
+      normalizedProjectId,
+      normalizedSessionId,
+      toApiRequestOptions(options),
+    );
+    if (
+      response.projectId?.trim() !== normalizedProjectId
+      || response.sessionId.trim() !== normalizedSessionId
+    ) {
+      throw new Error(
+        'Agents project-scoped Session response identity does not match the requested resource.',
+      );
+    }
+    return response;
+  }
+
   async listSessions(
     request: AgentProjectSessionPageRequest,
     options: AgentSessionReadOptions = {},
@@ -778,16 +884,14 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     options: AgentSessionReadOptions = {},
   ) {
     const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedRequest = normalizeSessionItemPageRequest(request);
     const response = await this.client.ai.agents.sessionItems.list(
       normalizedIdentity.agentId,
       normalizedIdentity.sessionId,
-      {
-        ...normalizePageRequest(request),
-        sort: request.sort,
-      },
+      normalizedRequest,
       toApiRequestOptions(options),
     );
-    return response;
+    return normalizeSessionItemCursorPage(response, normalizedRequest);
   }
 
   async listTurns(

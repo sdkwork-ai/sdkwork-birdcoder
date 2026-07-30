@@ -88,8 +88,8 @@ budget until continuity and sufficient recent visible context are proven; if
 it cannot prove continuity, the PC replaces the disconnected authority tail
 instead of rendering a silent gap.
 Unconfirmed transient items remain at the newest edge. Upward history loading
-is one cancellable operation and may advance across at most ten offset pages
-that contain only duplicates or filtered internal items before returning.
+is one cancellable operation and may advance across at most three opaque cursor
+pages that contain only duplicates or filtered internal items before returning.
 Pagination metadata advances monotonically when history and head refreshes
 commit concurrently.
 
@@ -103,10 +103,10 @@ worst case, while the common all-canonical path avoids retaining duplicate
 content keys. Temporary indexes are scoped to one commit and are not cached
 across Sessions.
 
-The current Agents Session Item list is an owner-declared P1 offset API. The
-bounded overlap algorithm mitigates insert drift but is not a substitute for
-snapshot-consistent cursor/keyset pagination. That public API evolution remains
-owned by `sdkwork-agents` and requires its owner review and regeneration flow.
+The Agents Session Item list is an owner-declared P1 opaque keyset cursor API.
+The cursor is bound to authenticated scope, Session, filters, and sort order;
+clients reject malformed or non-progressing continuation metadata instead of
+falling back to an offset or guessing a continuation position.
 
 ## Alternatives
 
@@ -159,7 +159,7 @@ and closed for provider-specific modification.
 - File-change contracts cover provider adapters, collection and text budgets,
   bounded line rendering, and refusal to restore incomplete snapshots.
 - Pagination contracts cover bounded head overlap, disconnected-window reset,
-  optimistic-tail retention, duplicate-only offset pages, monotonic commit
+  optimistic-tail retention, duplicate-only cursor pages, monotonic commit
   metadata, and top-prepend scroll anchoring.
 - A 10,000-item performance contract covers canonical deduplication,
   overlapping ordered-window updates, concurrent latest-item retention,

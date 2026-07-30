@@ -75,13 +75,16 @@ interface UseCodePageSurfacePropsOptions {
   filteredProjects: AgentProjectView[];
   projects: AgentProjectView[];
   hasMoreProjects: boolean;
+  hasProjectsLoadError: boolean;
   hasMoreRemoteMessages: boolean;
+  remoteMessagesLoadError: string | null;
   isChatBusy: boolean;
   isChatEngineBusy: boolean;
   isEngineBusyCurrentSession: boolean;
   isDebugConfigVisible: boolean;
   isFindVisible: boolean;
   isMountRecoveryActionPending: boolean;
+  isLoadingProjects: boolean;
   isLoadingMoreProjects: boolean;
   isLoadingMoreRemoteMessages: boolean;
   isNewSession: boolean;
@@ -163,6 +166,7 @@ interface UseCodePageSurfacePropsOptions {
   onNewSessionProjectSelect: (projectId: string) => void;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
+  onRetryProjects: NonNullable<ProjectExplorerProps['onRetryProjects']>;
   onLoadMoreProjectSessions: NonNullable<ProjectExplorerProps['onLoadMoreProjectSessions']>;
   onLoadMoreRemoteMessages: NonNullable<UniversalChatComponentProps['onLoadMoreRemoteMessages']>;
   onNotifyNoResults: NonNullable<CodeWorkspaceOverlaysComponentProps['onNotifyNoResults']>;
@@ -226,13 +230,16 @@ export function useCodePageSurfaceProps({
   filteredProjects,
   projects,
   hasMoreProjects,
+  hasProjectsLoadError,
   hasMoreRemoteMessages,
+  remoteMessagesLoadError,
   isChatBusy,
   isChatEngineBusy,
   isEngineBusyCurrentSession,
   isDebugConfigVisible,
   isFindVisible,
   isMountRecoveryActionPending,
+  isLoadingProjects,
   isLoadingMoreProjects,
   isLoadingMoreRemoteMessages,
   isNewSession,
@@ -310,6 +317,7 @@ export function useCodePageSurfaceProps({
   onNewSessionProjectSelect,
   onNewProject,
   onLoadMoreProjects,
+  onRetryProjects,
   onLoadMoreProjectSessions,
   onLoadMoreRemoteMessages,
   onNotifyNoResults,
@@ -425,6 +433,8 @@ export function useCodePageSurfaceProps({
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
     hasMoreProjects,
+    hasProjectsLoadError,
+    isLoadingProjects,
     isLoadingMoreProjects,
     isVisible: isVisible && isSidebarVisible,
     width: sidebarWidth,
@@ -440,6 +450,7 @@ export function useCodePageSurfaceProps({
     onDeleteProject,
     onNewProject,
     onLoadMoreProjects,
+    onRetryProjects,
     onLoadMoreProjectSessions,
     onOpenFolder,
     onNewAgentSessionInProject,
@@ -467,6 +478,8 @@ export function useCodePageSurfaceProps({
     currentProjectId,
     filteredProjects,
     hasMoreProjects,
+    hasProjectsLoadError,
+    isLoadingProjects,
     isLoadingMoreProjects,
     isSidebarVisible,
     isVisible,
@@ -485,6 +498,7 @@ export function useCodePageSurfaceProps({
     onNewAgentSessionInProject,
     onNewProject,
     onLoadMoreProjects,
+    onRetryProjects,
     onLoadMoreProjectSessions,
     onOpenFolder,
     onOpenAgentSessionInTerminal,
@@ -604,6 +618,7 @@ export function useCodePageSurfaceProps({
     messages: mainChatMessages,
     hasMoreRemoteMessages,
     isLoadingMoreRemoteMessages,
+    remoteMessagesLoadError,
     onLoadMoreRemoteMessages,
     pendingApprovals: activeTab === 'ai' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'ai' ? pendingUserQuestions : [],
@@ -640,6 +655,7 @@ export function useCodePageSurfaceProps({
     currentProjectId,
     hasMoreProjects,
     hasMoreRemoteMessages,
+    remoteMessagesLoadError,
     isLoadingMoreProjects,
     isLoadingMoreRemoteMessages,
     isChatEngineBusy,
@@ -692,6 +708,7 @@ export function useCodePageSurfaceProps({
     messages: editorChatMessages,
     hasMoreRemoteMessages,
     isLoadingMoreRemoteMessages,
+    remoteMessagesLoadError,
     isNewSession,
     pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],
@@ -739,6 +756,7 @@ export function useCodePageSurfaceProps({
     files,
     projectRootPath,
     hasMoreRemoteMessages,
+    remoteMessagesLoadError,
     isChatEngineBusy,
     isChatBusy,
     isLoadingMoreRemoteMessages,

@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-28
+Updated: 2026-07-30
 Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
@@ -236,9 +236,13 @@ Agents Session Activity summary
   -> Code and Studio Session lists
 ```
 
-Every explicit Project refresh invokes the generated Agents App SDK
-`projectSessions.synchronize` operation and then starts a read-only activity
-traversal with a null cursor. A cursor is not a durable change-feed watermark.
+Project and Session list refreshes start a read-only activity traversal with a
+null cursor and never invoke provider synchronization. The explicit local
+folder import or re-import command is the only BirdCoder workflow that calls
+the generated Agents App SDK `projectSessions.synchronize` operation. Its
+partial result retains successful reconciliation while reporting bounded
+skipped/failed issue aggregates. An activity cursor is not a durable
+change-feed watermark.
 Head eligibility and ordering come from Agents-managed Session, Turn,
 Interaction, Runtime Binding, and Session user-state facts. Query-time provider
 observation may enrich only rows already selected in the current page;
@@ -302,6 +306,15 @@ Oversized snapshots are omitted rather than truncated into restorable data.
 Transcript synchronization hashes message content into a fixed-size signature
 so streaming updates do not retain a second full message copy.
 
+Session Item reads use the owner-declared P1 keyset contract. The PC and H5
+consumers request newest-first pages with `sort=-sequence`, validate cursor
+mode, page size, continuation progress, and terminal `nextCursor: null`, then
+restore chronological display order. PC initial/latest refresh is bounded to
+eight 50-item pages and earlier-message loading advances through at most three
+duplicate-only pages per user action. H5 loads one latest page and follows the
+opaque cursor only when the user requests earlier messages. Invalid metadata is
+rejected before any partial transcript commit.
+
 Full Diff review uses a provider-neutral responsive layout resolver. The normal
 three-pane layout remains at readable widths; constrained layouts collapse the
 file explorer before enforcing a 320-pixel chat column, and critically narrow
@@ -310,7 +323,7 @@ preserved until the Diff closes.
 
 #### Commercial Readiness Gaps
 
-Provider identity, explicit synchronization, title authority, and the greenfield
+Provider identity, import-only explicit synchronization, title authority, and the greenfield
 PostgreSQL uniqueness baseline are implemented. Provider identity is scoped by
 tenant, organization, owner, engine-qualified provider binding, provider, and
 provider session identifier; provider titles update only while provider-owned, and

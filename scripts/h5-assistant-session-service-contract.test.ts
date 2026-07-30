@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 
 import type {
+  AgentSessionItemRecord,
   AgentSessionRecord,
   SdkworkAppClient as AgentsAppClient,
 } from '@sdkwork/agents-app-sdk';
 
-import { ensureBirdCoderAssistantSession } from '../apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src/sdk/assistantSessionService.ts';
+import {
+  ensureBirdCoderAssistantSession,
+  listBirdCoderAssistantSessionItems,
+} from '../apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src/sdk/assistantSessionService.ts';
 
 function session(
   sessionId: string,
@@ -76,6 +80,78 @@ const invalidPaginationClient = {
 await assert.rejects(
   ensureBirdCoderAssistantSession({ client: invalidPaginationClient }),
   /missing a usable continuation state/u,
+);
+
+function sessionItem(itemId: string, sequence: string): AgentSessionItemRecord {
+  return {
+    content: `message-${sequence}`,
+    itemId,
+    kind: sequence === '1' ? 'user_input' : 'assistant_message',
+    sequence,
+    sessionId: 'session-items',
+  } as AgentSessionItemRecord;
+}
+
+const sessionItemRequests: unknown[] = [];
+const sessionItemClient = {
+  ai: {
+    agents: {
+      sessionItems: {
+        async list(_agentId: string, _sessionId: string, params: unknown) {
+          sessionItemRequests.push(params);
+          return {
+            items: [sessionItem('item-2', '2'), sessionItem('item-1', '1')],
+            pageInfo: {
+              hasMore: true,
+              mode: 'cursor',
+              nextCursor: 'cursor.older',
+              pageSize: 20,
+            },
+          };
+        },
+      },
+    },
+  },
+} as unknown as AgentsAppClient;
+
+const itemPage = await listBirdCoderAssistantSessionItems('session-items', {
+  client: sessionItemClient,
+});
+assert.deepEqual(sessionItemRequests, [{ cursor: undefined, pageSize: 20, sort: '-sequence' }]);
+assert.deepEqual(itemPage.items.map((item) => item.itemId), ['item-1', 'item-2']);
+assert.deepEqual(itemPage.pageInfo, {
+  hasMore: true,
+  mode: 'cursor',
+  nextCursor: 'cursor.older',
+  pageSize: 20,
+});
+
+const repeatedCursorClient = {
+  ai: {
+    agents: {
+      sessionItems: {
+        async list() {
+          return {
+            items: [],
+            pageInfo: {
+              hasMore: true,
+              mode: 'cursor',
+              nextCursor: 'cursor.same',
+              pageSize: 20,
+            },
+          };
+        },
+      },
+    },
+  },
+} as unknown as AgentsAppClient;
+
+await assert.rejects(
+  listBirdCoderAssistantSessionItems('session-items', {
+    client: repeatedCursorClient,
+    cursor: 'cursor.same',
+  }),
+  /non-progressing cursor/u,
 );
 
 console.log('H5 assistant session pagination contract passed.');

@@ -27,7 +27,9 @@ export interface AgentSessionPageRequest {
   projectId?: string;
 }
 
-export interface AgentSessionItemPageRequest extends AgentSessionPageRequest {
+export interface AgentSessionItemPageRequest {
+  cursor?: string;
+  pageSize?: number;
   sort?: 'sequence' | '-sequence';
 }
 
@@ -77,6 +79,16 @@ export interface AgentSessionIdentity {
 export interface AgentSessionPage<TItem> {
   items: TItem[];
   pageInfo: PageInfo;
+}
+
+export interface AgentSessionCursorPage<TItem> {
+  items: TItem[];
+  pageInfo: {
+    hasMore: boolean;
+    mode: 'cursor';
+    nextCursor: string | null;
+    pageSize: number;
+  };
 }
 
 export interface CreateAgentSessionInput {
@@ -140,6 +152,11 @@ export interface IAgentSessionService {
     identity: AgentSessionIdentity,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionRecord>;
+  getProjectSession(
+    projectId: string,
+    sessionId: string,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionRecord>;
   listSessionActivitySummaries(
     request?: AgentSessionActivityPageRequest,
     options?: AgentSessionReadOptions,
@@ -177,7 +194,7 @@ export interface IAgentSessionService {
     identity: AgentSessionIdentity,
     request?: AgentSessionItemPageRequest,
     options?: AgentSessionReadOptions,
-  ): Promise<AgentSessionPage<AgentSessionItemRecord>>;
+  ): Promise<AgentSessionCursorPage<AgentSessionItemRecord>>;
   listTurns(
     identity: AgentSessionIdentity,
     request?: AgentSessionPageRequest,

@@ -6,12 +6,13 @@ import {
   AssistantReplyMessageRenderer,
   UserTextMessageRenderer,
 } from './renderers/ReplyMessageRenderers.tsx';
+import { UnsupportedMessageRenderer } from './renderers/UnsupportedMessageRenderer.tsx';
 
 const FALLBACK_RENDERER_ENTRY: ChatMessageRendererEntry = {
-  id: 'fallback.assistant.text',
+  id: 'fallback.unsupported',
   match: {},
   priority: 0,
-  Component: AssistantReplyMessageRenderer,
+  Component: UnsupportedMessageRenderer,
   estimateHeight: estimateAgentSessionItemPresentationHeight,
 };
 
@@ -63,6 +64,13 @@ const DEFAULT_CHAT_MESSAGE_RENDERER_ENTRIES: readonly ChatMessageRendererEntry[]
     match: { viewKind: 'reviewer.feedback' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
+  },
+  {
+    id: 'unsupported',
+    match: { viewKind: 'unsupported' },
+    priority: 100,
+    Component: UnsupportedMessageRenderer,
     estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
 ];

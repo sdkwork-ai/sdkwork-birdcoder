@@ -2,6 +2,7 @@ import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
 import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
 import type { SdkworkSkillsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
+import type { McpAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/mcp-app';
 
 import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
 import { createBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
@@ -34,6 +35,7 @@ import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSub
 import { createProjectFileSystemService } from './projectFileSystemServiceFactory.ts';
 import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
 import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
+import { createBirdCoderMcpAppSdkClient } from './mcpSdkClient.ts';
 
 export interface BirdCoderDefaultIdeServices {
   agentSessionService: IAgentSessionService;
@@ -55,6 +57,7 @@ export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
 export interface CreateBirdCoderDefaultIdeServicesOptions {
   agentsClient?: AgentsAppSdkClient;
   documentsClient?: SdkworkDocumentsAppClient;
+  mcpClient?: McpAppSdkClient;
   promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
 }
@@ -66,6 +69,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   documentService: IDocumentService;
   fileSystemService: IFileSystemService;
   gitService: IGitService;
+  mcpClient: McpAppSdkClient;
   promptsClient: SdkworkPromptsAppClient;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectDeviceMountRegistry: ProjectDeviceMountRegistry;
@@ -90,6 +94,11 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const skillsClient =
     options.skillsClient ??
     createBirdCoderSkillsAppSdkClient({
+      platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+    });
+  const mcpClient =
+    options.mcpClient ??
+    createBirdCoderMcpAppSdkClient({
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     });
   const promptsClient =
@@ -158,6 +167,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     documentService,
     fileSystemService,
     gitService,
+    mcpClient,
     promptsClient,
     projectRuntimeLocationService,
     projectDeviceMountRegistry,

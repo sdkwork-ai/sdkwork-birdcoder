@@ -5,6 +5,8 @@ export {
   submitBirdCoderAssistantTurn,
   type BirdCoderAgentSessionItemRole,
   type BirdCoderAgentSessionItemView,
+  type BirdCoderAssistantSessionItemListOptions,
+  type BirdCoderAssistantSessionItemPage,
   type BirdCoderAssistantSessionServiceOptions,
   type BirdCoderAssistantSessionView,
   type BirdCoderAssistantTurnOptions,

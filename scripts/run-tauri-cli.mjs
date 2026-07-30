@@ -7,6 +7,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { resolvePostgresDevProfile } from '../../sdkwork-specs/tools/postgres/postgres-dev-profile.mjs';
+
 import { withRustToolchainPath } from './ensure-tauri-rust-toolchain.mjs';
 import { normalizeViteMode } from './run-vite-host.mjs';
 
@@ -136,6 +138,7 @@ export function createTauriCliPlan({
   platform = process.platform,
   cwd = process.cwd(),
   execPath = process.execPath,
+  resolvePostgresProfile = resolvePostgresDevProfile,
   resolveTauriCliEntrypoint = resolveWorkspaceTauriCliEntrypoint,
 } = {}) {
   const { args, viteMode } = parseArgs(Array.isArray(argv) ? argv : []);
@@ -144,7 +147,22 @@ export function createTauriCliPlan({
   }
 
   const resolvedMode = normalizeViteMode(viteMode ?? env.SDKWORK_VITE_MODE, 'development');
-  const tauriEnv = withRustToolchainPath(env, { platform });
+  const deploymentProfile = String(
+    env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? env.SDKWORK_DEPLOYMENT_PROFILE
+      ?? 'standalone',
+  ).trim();
+  let tauriEnv = withRustToolchainPath(env, { platform });
+  if (
+    args[0] === 'dev'
+    && resolvedMode === 'development'
+    && deploymentProfile === 'standalone'
+  ) {
+    tauriEnv = resolvePostgresProfile({
+      env: tauriEnv,
+      repoRoot: rootDir,
+    }).env;
+  }
   const tauriCliEntrypoint = typeof resolveTauriCliEntrypoint === 'function'
     ? resolveTauriCliEntrypoint({ cwd })
     : '';

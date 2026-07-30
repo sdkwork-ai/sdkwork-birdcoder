@@ -17,6 +17,7 @@
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-settings": "workspace:*",
     "@sdkwork/birdcoder-pc-studio": "workspace:*",
+    "@sdkwork/birdcoder-pc-work-resources": "workspace:*",
     "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",

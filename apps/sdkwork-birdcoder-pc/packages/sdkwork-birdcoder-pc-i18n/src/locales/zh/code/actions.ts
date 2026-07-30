@@ -27,6 +27,10 @@ export default defineLocaleModule('code/actions', {
     projectCreated: '\u9879\u76ee\u5df2\u6210\u529f\u521b\u5efa',
     failedToCreateProject: '\u521b\u5efa\u9879\u76ee\u5931\u8d25',
     openedFolder: '\u5df2\u6253\u5f00\u6587\u4ef6\u5939\uff1a{{name}}',
+    reconnectedFolder: '\u5df2\u91cd\u65b0\u8fde\u63a5\u6587\u4ef6\u5939\uff1a{{name}}',
+    localFolder: '\u672c\u5730\u6587\u4ef6\u5939',
+    providerSessionsPartiallyImported:
+      '\u5df2\u6253\u5f00 {{name}}\uff0c\u4f46\u6709 {{count}} \u4e2a Provider Session \u672a\u80fd\u5bfc\u5165\u3002',
     failedToOpenFolder: '\u6253\u5f00\u6587\u4ef6\u5939\u5931\u8d25',
     deleteMessageTitle: '\u5220\u9664\u6d88\u606f',
     deleteMessageDescription:

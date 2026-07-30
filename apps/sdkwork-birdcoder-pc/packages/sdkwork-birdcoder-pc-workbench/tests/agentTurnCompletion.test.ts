@@ -126,7 +126,12 @@ function createRecoveryService({
   const retrieveSession = vi.fn(async () => completion.session);
   const listItems = vi.fn(async () => ({
     items: completion.items,
-    pageInfo: { hasMore: false },
+    pageInfo: {
+      hasMore: false,
+      mode: 'cursor' as const,
+      nextCursor: null,
+      pageSize: 200,
+    },
   }));
   const retrieveItem = vi.fn(async (
     _agentId: string,
@@ -516,7 +521,7 @@ describe('Agent turn streaming completion contract', () => {
     expect(recovery.listItems).toHaveBeenCalledWith(
       agentId,
       sessionId,
-      { page: 1, pageSize: 200, sort: '-sequence' },
+      { cursor: undefined, pageSize: 200, sort: '-sequence' },
       { signal: undefined, timeout: undefined },
     );
     expect(onDelta).toHaveBeenCalledWith({ content: 'hello', delta: 'hello', index: 0 });

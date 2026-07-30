@@ -7,6 +7,8 @@ export interface ProjectSessionLoadMoreResult {
 
 export interface ProjectExplorerProps {
   hasMoreProjects?: boolean;
+  hasProjectsLoadError?: boolean;
+  isLoadingProjects?: boolean;
   isLoadingMoreProjects?: boolean;
   isVisible?: boolean;
   projects: AgentProjectView[];
@@ -21,6 +23,7 @@ export interface ProjectExplorerProps {
   onDeleteProject: (id: string) => void;
   onNewProject: () => Promise<string | undefined>;
   onLoadMoreProjects?: () => Promise<unknown> | void;
+  onRetryProjects?: () => Promise<unknown> | void;
   onLoadMoreProjectSessions?: (
     projectId: string,
     requestedCount: number,

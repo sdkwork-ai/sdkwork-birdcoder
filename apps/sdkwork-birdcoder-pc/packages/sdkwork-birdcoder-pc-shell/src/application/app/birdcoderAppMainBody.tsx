@@ -20,6 +20,7 @@ import type { SettingsTab } from '@sdkwork/birdcoder-pc-settings';
 import { useBirdcoderTerminalLaunchPlanResolver } from '@sdkwork/birdcoder-pc-workbench/terminal/useBirdcoderTerminalLaunchPlanResolver';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { useTranslation } from 'react-i18next';
 import { PRIMARY_PERSISTED_APP_TABS } from './birdcoderAppConstants.ts';
 import { SurfaceLoader } from './birdcoderAppSurfaceLoader.tsx';
@@ -33,6 +34,7 @@ import {
   TerminalDesktopApp,
   UserPage,
   VipPage,
+  WorkResourcesPage,
 } from './birdcoderAppLazyPages.tsx';
 interface AppMainBodyProps {
   activeTab: AppTab;
@@ -93,6 +95,7 @@ export const AppMainBody = React.memo(function AppMainBody({
 }: AppMainBodyProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const { catalogService } = useIDEServices();
   const handleTerminalLaunchBlocked = React.useCallback(
     (message: string) => addToast(message, 'error'),
     [addToast],
@@ -234,6 +237,14 @@ export const AppMainBody = React.memo(function AppMainBody({
               <AuthShell>
                 <AuthPage />
               </AuthShell>
+            </SurfaceErrorBoundaryWithTranslation>
+          )}
+          {activeTab === 'work-resources' && (
+            <SurfaceErrorBoundaryWithTranslation
+              surface="work-resources"
+              onRecover={() => onActiveTabChange('code')}
+            >
+              <WorkResourcesPage catalogService={catalogService} isVisible />
             </SurfaceErrorBoundaryWithTranslation>
           )}
           {activeTab === 'user' && (

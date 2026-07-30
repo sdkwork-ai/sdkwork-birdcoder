@@ -10,10 +10,10 @@ import type {
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useImportedProjectSessionSynchronization } from '../src/hooks/useImportedProjectSessionSynchronization.ts';
+import { useImportedProjectSessionInventory } from '../src/hooks/useImportedProjectSessionInventory.ts';
 import { useSelectedAgentSessionItems } from '../src/hooks/useSelectedAgentSessionItems.ts';
 import { useSessionRefreshActions } from '../src/hooks/useSessionRefreshActions.ts';
-import type { HydrateImportedProjectFromAuthorityResult } from '../src/workbench/importedProjectHydration.ts';
+import type { ImportedProjectSessionInventoryResult } from '../src/workbench/importedProjectHydration.ts';
 
 const mocks = vi.hoisted(() => ({
   applyProjectSessionActivityRefresh: vi.fn((projects: readonly AgentProjectView[]) => projects),
@@ -21,7 +21,8 @@ const mocks = vi.hoisted(() => ({
     sessionRevision: 0,
     user: { email: 'user-a@example.com', id: 'user-a', name: 'User A' },
   },
-  hydrateImportedProjectFromAuthority: vi.fn(),
+  importProjectProviderSessions: vi.fn(),
+  refreshImportedProjectFromAuthority: vi.fn(),
   getAgentSessionTranscriptRevision: vi.fn(() => 0),
   loadEarlierAgentSessionItems: vi.fn(),
   mergeRefreshedAgentSessionIntoCurrent: vi.fn(
@@ -31,7 +32,7 @@ const mocks = vi.hoisted(() => ({
   peekProjectsStore: vi.fn(),
   refreshAgentSessionItems: vi.fn(),
   removeAgentSessionFromProjectsStore: vi.fn(() => 'removed'),
-  synchronizeProjectSessions: vi.fn(),
+  refreshProjectSessionInventory: vi.fn(),
   upsertAgentSessionIntoProjectsStore: vi.fn(),
   upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged: vi.fn(() => true),
   upsertProjectIntoProjectsStore: vi.fn(),
@@ -55,7 +56,8 @@ vi.mock('../src/stores/projectsStore.ts', () => ({
 }));
 
 vi.mock('../src/workbench/importedProjectHydration.ts', () => ({
-  hydrateImportedProjectFromAuthority: mocks.hydrateImportedProjectFromAuthority,
+  importProjectProviderSessions: mocks.importProjectProviderSessions,
+  refreshImportedProjectFromAuthority: mocks.refreshImportedProjectFromAuthority,
 }));
 
 vi.mock('../src/workbench/sessionRefresh.ts', () => ({
@@ -72,6 +74,14 @@ vi.mock('../src/workbench/sessionRefresh.ts', () => ({
     scope.agentSessionId,
   ].join('\u0001'),
   loadEarlierAgentSessionItems: mocks.loadEarlierAgentSessionItems,
+  isAgentSessionNotFoundError: (error: unknown) => (
+    typeof error === 'object'
+    && error !== null
+    && (
+      ('status' in error && error.status === 404)
+      || ('httpStatus' in error && error.httpStatus === 404)
+    )
+  ),
   mergeRefreshedAgentSessionIntoCurrent: mocks.mergeRefreshedAgentSessionIntoCurrent,
   refreshAgentSessionItems: mocks.refreshAgentSessionItems,
 }));
@@ -136,7 +146,7 @@ function createSession(
 function createImportedProjectResult(
   projectId = 'project-a',
   workspaceId = 'workspace-a',
-): HydrateImportedProjectFromAuthorityResult {
+): ImportedProjectSessionInventoryResult {
   return {
     deletedSessionIds: [],
     deletedSessionTombstones: [],
@@ -145,12 +155,9 @@ function createImportedProjectResult(
   };
 }
 
-const listSessionsByProject = vi.fn<IAgentSessionService['listSessionsByProject']>()
-  .mockResolvedValue({
-    items: [],
-    pageInfo: { hasMore: false, mode: 'offset', page: 1, pageSize: 200 },
-  });
-const agentSessionService = { listSessionsByProject } as unknown as IAgentSessionService;
+const getProjectSession = vi.fn<IAgentSessionService['getProjectSession']>()
+  .mockRejectedValue({ status: 404 });
+const agentSessionService = { getProjectSession } as unknown as IAgentSessionService;
 const projectService = {} as IProjectService;
 const refreshMessages = {
   failedToRefreshProjectSessions: 'Project refresh failed',
@@ -192,7 +199,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: vi.fn(),
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await act(async () => {
@@ -226,7 +233,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: vi.fn(),
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await act(async () => {
@@ -250,7 +257,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
     const project = createProject('project-a');
     const agentSession = {
       ...createSession(project.projectId),
-      itemPageInfo: { hasMore: true, page: 1, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.1', pageSize: 50 },
     } as AgentProjectView['agentSessions'][number];
     const props = {
       selection: { agentSessionId: agentSession.id, projectId: project.projectId },
@@ -270,7 +277,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: vi.fn(),
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     let request!: Promise<void>;
@@ -307,15 +314,15 @@ describe('useSessionRefreshActions request lifecycle', () => {
       .not.toHaveBeenCalled();
   });
 
-  it('commits a history page only against its Agent, page, and transcript revision', async () => {
+  it('commits a history page only against its Agent, cursor, and transcript revision', async () => {
     const project = createProject('project-a');
     const agentSession = {
       ...createSession(project.projectId),
-      itemPageInfo: { hasMore: true, page: 3, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.3', pageSize: 50 },
     };
     const loadedSession = {
       ...agentSession,
-      itemPageInfo: { hasMore: false, page: 4, pageSize: 50 },
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
     };
     mocks.getAgentSessionTranscriptRevision.mockReturnValueOnce(17);
     mocks.loadEarlierAgentSessionItems.mockResolvedValueOnce({
@@ -338,7 +345,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: vi.fn(),
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await act(async () => {
@@ -357,12 +364,110 @@ describe('useSessionRefreshActions request lifecycle', () => {
         {
           agentId: agentSession.agentId,
           hasMore: true,
-          page: 3,
+          nextCursor: 'cursor.3',
           pageSize: 50,
           revision: 17,
         },
         { itemMergeMode: 'ordered-window' },
       );
+  });
+
+  it('keeps a scoped history error visible until a retry succeeds', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const addToast = vi.fn();
+    const project = createProject('project-a');
+    const agentSession = {
+      ...createSession(project.projectId),
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.1', pageSize: 50 },
+    };
+    const loadedSession = {
+      ...agentSession,
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
+    };
+    mocks.loadEarlierAgentSessionItems
+      .mockRejectedValueOnce(new Error('Agents unavailable'))
+      .mockResolvedValueOnce({
+        agentSession: loadedSession,
+        loadedItemCount: 1,
+        projectId: project.projectId,
+        source: 'agents',
+        status: 'loaded',
+      });
+    const { result } = renderHook(() => useSessionRefreshActions({
+      addToast,
+      agentSessionService,
+      getPreservedSelection: () => ({
+        agentSessionId: agentSession.id,
+        projectId: project.projectId,
+      }),
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionLocation: () => ({ agentSession, project }),
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: vi.fn(),
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
+    }));
+
+    await act(async () => {
+      await result.current.handleLoadEarlierAgentSessionItems(
+        agentSession.id,
+        project.projectId,
+      );
+    });
+
+    expect(result.current.earlierAgentSessionItemsError).toBe('Session refresh failed');
+    expect(addToast).toHaveBeenCalledWith('Session refresh failed', 'error');
+
+    await act(async () => {
+      await result.current.handleLoadEarlierAgentSessionItems(
+        agentSession.id,
+        project.projectId,
+      );
+    });
+
+    expect(result.current.earlierAgentSessionItemsError).toBeNull();
+    expect(mocks.loadEarlierAgentSessionItems).toHaveBeenCalledTimes(2);
+    consoleError.mockRestore();
+  });
+
+  it('does not expose a history error after the selected Session changes', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const project = createProject('project-a');
+    const agentSession = {
+      ...createSession(project.projectId),
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.1', pageSize: 50 },
+    };
+    const props = {
+      selection: { agentSessionId: agentSession.id, projectId: project.projectId },
+    };
+    mocks.loadEarlierAgentSessionItems.mockRejectedValueOnce(new Error('Agents unavailable'));
+    const { result, rerender } = renderHook(() => useSessionRefreshActions({
+      addToast: vi.fn(),
+      agentSessionService,
+      getPreservedSelection: () => props.selection,
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionLocation: () => ({ agentSession, project }),
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: vi.fn(),
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
+    }));
+
+    await act(async () => {
+      await result.current.handleLoadEarlierAgentSessionItems(
+        agentSession.id,
+        project.projectId,
+      );
+    });
+    expect(result.current.earlierAgentSessionItemsError).toBe('Session refresh failed');
+
+    props.selection = { agentSessionId: 'session-b', projectId: project.projectId };
+    rerender();
+
+    expect(result.current.earlierAgentSessionItemsError).toBeNull();
+    consoleError.mockRestore();
   });
 
   it('cancels a manual Session refresh when the selected Session changes', async () => {
@@ -401,7 +506,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     let request!: Promise<void>;
@@ -432,11 +537,11 @@ describe('useSessionRefreshActions request lifecycle', () => {
   });
 
   it('does not restore Session A after the live selection changes to Session B', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
     const addToast = vi.fn();
     const restoreSelectionA = vi.fn();
     const restoreSelectionB = vi.fn();
-    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.refreshProjectSessionInventory.mockReturnValueOnce(deferred.promise);
 
     const { result, rerender } = renderHook((props: {
       restoreSelection: (projectId: string, sessionId: string | null) => void;
@@ -450,7 +555,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: props.restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }), {
       initialProps: {
         restoreSelection: restoreSelectionA,
@@ -479,10 +584,10 @@ describe('useSessionRefreshActions request lifecycle', () => {
   });
 
   it('suppresses Store, callback, toast, and state commits after the auth scope changes', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
     const addToast = vi.fn();
     const restoreSelection = vi.fn();
-    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.refreshProjectSessionInventory.mockReturnValueOnce(deferred.promise);
     const props = {
       selection: { agentSessionId: 'session-a', projectId: 'project-a' },
     };
@@ -495,7 +600,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     let request!: Promise<void>;
@@ -508,7 +613,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
     rerender();
     expect(result.current.refreshingProjectId).toBeNull();
     await expect(staleRefreshProjectSessions('project-a')).resolves.toBeUndefined();
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       deferred.resolve(createImportedProjectResult());
@@ -522,10 +627,10 @@ describe('useSessionRefreshActions request lifecycle', () => {
   });
 
   it('suppresses completion after unmount even when the refresh source ignores cancellation', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
     const addToast = vi.fn();
     const restoreSelection = vi.fn();
-    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.refreshProjectSessionInventory.mockReturnValueOnce(deferred.promise);
     const { result, unmount } = renderHook(() => useSessionRefreshActions({
       addToast,
       agentSessionService,
@@ -538,7 +643,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     let request!: Promise<void>;
@@ -557,7 +662,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
   it('treats a superseded coordinated refresh as a neutral completion', async () => {
     const addToast = vi.fn();
     const restoreSelection = vi.fn();
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce(null);
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce(null);
     const { result } = renderHook(() => useSessionRefreshActions({
       addToast,
       agentSessionService,
@@ -570,14 +675,14 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await act(async () => {
       await result.current.handleRefreshProjectSessions('project-a');
     });
 
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledWith('project-a', true);
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledWith('project-a', true);
     expect(addToast).not.toHaveBeenCalled();
     expect(restoreSelection).not.toHaveBeenCalled();
     expect(result.current.refreshingProjectId).toBeNull();
@@ -588,7 +693,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
     const restoreSelection = vi.fn();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const refreshError = new Error('Agents unavailable');
-    mocks.synchronizeProjectSessions.mockRejectedValueOnce(refreshError);
+    mocks.refreshProjectSessionInventory.mockRejectedValueOnce(refreshError);
     const { result } = renderHook(() => useSessionRefreshActions({
       addToast,
       agentSessionService,
@@ -601,7 +706,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await act(async () => {
@@ -637,7 +742,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -669,7 +774,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -703,7 +808,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         selectedAgentSessionId: selectedAgentSession.id,
         selectedProject,
         selectionRefreshToken: 0,
-        synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+        refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
       });
       return <span>{isLoading ? 'loading' : 'idle'}</span>;
     }
@@ -739,7 +844,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         selectedAgentSessionId: selectedAgentSession.id,
         selectedProject,
         selectionRefreshToken: 0,
-        synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+        refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
       }));
 
       expect(result.current).toBe(true);
@@ -801,7 +906,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     expect(result.current).toBe(true);
@@ -847,7 +952,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
           selectedAgentSessionId: selectedAgentSession.id,
           selectedProject,
           selectionRefreshToken,
-          synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+          refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
         }),
       { initialProps: { selectionRefreshToken: 0 } },
     );
@@ -906,7 +1011,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         selectedAgentSessionId: selectedAgentSession.id,
         selectedProject,
         selectionRefreshToken: 0,
-        synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+        refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
       }),
       { initialProps: { selectedAgentSession: firstSession } },
     );
@@ -966,7 +1071,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
           selectedAgentSessionId: selectedAgentSession.id,
           selectedProject,
           selectionRefreshToken: 0,
-          synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+          refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
         }),
       { initialProps: { selectedAgentSession: firstSession } },
     );
@@ -1023,7 +1128,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
           selectedAgentSessionId: selectedAgentSession.id,
           selectedProject,
           selectionRefreshToken: 0,
-          synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+          refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
         }),
       { initialProps: { selectedAgentSession: firstSession } },
     );
@@ -1050,7 +1155,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
   });
 
   it('ignores a late inventory recovery after the selected project changes', async () => {
-    const inventoryRecovery = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
+    const inventoryRecovery = createDeferred<ImportedProjectSessionInventoryResult | null>();
     const firstProject = {
       ...createProject('project-a'),
       agentSessions: [createSession('project-a', 'session-a')],
@@ -1075,7 +1180,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         source: 'agents',
         status: 'failed',
       });
-    mocks.synchronizeProjectSessions.mockReturnValueOnce(inventoryRecovery.promise);
+    mocks.refreshProjectSessionInventory.mockReturnValueOnce(inventoryRecovery.promise);
 
     const { rerender } = renderHook(
       ({ selectedProject }: { selectedProject: AgentProjectView }) => {
@@ -1088,13 +1193,13 @@ describe('useSelectedAgentSessionItems background refresh', () => {
           selectedAgentSessionId: selectedAgentSession.id,
           selectedProject,
           selectionRefreshToken: 0,
-          synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+          refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
         });
       },
       { initialProps: { selectedProject: firstProject } },
     );
 
-    await waitFor(() => expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1));
     rerender({ selectedProject: secondProject });
     await waitFor(() => expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(2));
 
@@ -1125,7 +1230,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const synchronizeB = vi.fn();
 
     const { result, rerender } = renderHook((props: {
-      synchronizeProjectSessions: typeof synchronizeA;
+      refreshProjectSessionInventory: typeof synchronizeA;
     }) => useSelectedAgentSessionItems({
       agentSessionService,
       projectService,
@@ -1133,13 +1238,13 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: props.synchronizeProjectSessions,
+      refreshProjectSessionInventory: props.refreshProjectSessionInventory,
     }), {
-      initialProps: { synchronizeProjectSessions: synchronizeA },
+      initialProps: { refreshProjectSessionInventory: synchronizeA },
     });
     const requestSignal = mocks.refreshAgentSessionItems.mock.calls[0]?.[0].signal;
 
-    rerender({ synchronizeProjectSessions: synchronizeB });
+    rerender({ refreshProjectSessionInventory: synchronizeB });
 
     expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(1);
     expect(requestSignal.aborted).toBe(false);
@@ -1158,7 +1263,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
   });
 
   it('uses the latest unavailable callback without restarting recovery', async () => {
-    const inventoryRecovery = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
+    const inventoryRecovery = createDeferred<ImportedProjectSessionInventoryResult | null>();
     const selectedAgentSession = createSession('project-a');
     const selectedProject = {
       ...createProject('project-a'),
@@ -1173,7 +1278,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       source: 'agents',
       status: 'not-found',
     });
-    mocks.synchronizeProjectSessions.mockReturnValueOnce(inventoryRecovery.promise);
+    mocks.refreshProjectSessionInventory.mockReturnValueOnce(inventoryRecovery.promise);
 
     const { rerender } = renderHook(
       ({ onAgentSessionUnavailable }: {
@@ -1186,12 +1291,12 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         selectedAgentSessionId: selectedAgentSession.id,
         selectedProject,
         selectionRefreshToken: 0,
-        synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+        refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
       }),
       { initialProps: { onAgentSessionUnavailable: onUnavailableA } },
     );
 
-    await waitFor(() => expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1));
     const requestSignal = mocks.refreshAgentSessionItems.mock.calls[0]?.[0].signal;
     rerender({ onAgentSessionUnavailable: onUnavailableB });
 
@@ -1241,7 +1346,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         selectedAgentSessionId: selectedAgentSession.id,
         selectedProject,
         selectionRefreshToken: 0,
-        synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+        refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
       }),
       { initialProps: { isActive: true } },
     );
@@ -1297,7 +1402,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         source: 'agents',
         status: 'refreshed',
       });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce(synchronized);
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce(synchronized);
     const onAgentSessionUnavailable = vi.fn();
 
     const { result } = renderHook(() => useSelectedAgentSessionItems({
@@ -1308,11 +1413,11 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledWith('project-a', true);
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledWith('project-a', true);
     expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(2);
     expect(mocks.refreshAgentSessionItems.mock.calls[1]?.[0].resolvedLocation)
       .toEqual({
@@ -1357,7 +1462,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         source: 'agents',
         status: 'refreshed',
       });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce({
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce({
       ...createImportedProjectResult(),
       project: synchronizedProject,
     });
@@ -1369,7 +1474,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -1399,7 +1504,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       source: 'agents',
       status: 'not-found',
     });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce({
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce({
       ...createImportedProjectResult(),
       project: createProject('project-a'),
     });
@@ -1415,11 +1520,11 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1);
     expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(1);
     expect(mocks.removeAgentSessionFromProjectsStore).toHaveBeenCalledWith(
       'user-a::session:0\u0001workspace-a',
@@ -1445,7 +1550,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       source: 'agents',
       status: 'not-found',
     });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce({
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce({
       ...createImportedProjectResult(),
       deletedSessionIds: [selectedAgentSession.id],
     });
@@ -1459,7 +1564,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -1490,7 +1595,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       source: 'agents',
       status: 'not-found',
     });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce({
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce({
       ...createImportedProjectResult(),
       deletedSessionIds: [selectedAgentSession.id],
     });
@@ -1505,7 +1610,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -1533,7 +1638,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       source: 'agents',
       status: 'not-found',
     });
-    mocks.synchronizeProjectSessions.mockRejectedValueOnce(inventoryError);
+    mocks.refreshProjectSessionInventory.mockRejectedValueOnce(inventoryError);
     const onAgentSessionUnavailable = vi.fn();
 
     const { result } = renderHook(() => useSelectedAgentSessionItems({
@@ -1544,7 +1649,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
@@ -1552,7 +1657,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     expect(mocks.removeAgentSessionFromProjectsStore).not.toHaveBeenCalled();
     expect(onAgentSessionUnavailable).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
-      'Failed to recover Agents session inventory',
+      'Failed to refresh Agents session inventory',
       inventoryError,
     );
     consoleError.mockRestore();
@@ -1583,7 +1688,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         source: 'agents',
         status: 'not-found',
       });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce({
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce({
       ...createImportedProjectResult(),
       project: synchronizedProject,
     });
@@ -1597,11 +1702,11 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: selectedAgentSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1);
     expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(2);
     expect(mocks.removeAgentSessionFromProjectsStore).toHaveBeenCalledWith(
       'user-a::session:0\u0001workspace-a',
@@ -1612,7 +1717,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     expect(onAgentSessionUnavailable).toHaveBeenCalledWith('session-a', 'project-a');
   });
 
-  it('recovers an old Session identity beyond the bounded activity head', async () => {
+  it('recovers an old Session identity with one project-scoped lookup', async () => {
     const selectedProject = createProject('project-a');
     const recoveredSession = createSession(
       selectedProject.projectId,
@@ -1630,11 +1735,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       title: recoveredSession.title,
       updatedAt: recoveredSession.updatedAt,
       version: '1',
-    } as Awaited<ReturnType<IAgentSessionService['getSession']>>;
-    const otherSessionRecord = {
-      ...sessionRecord,
-      sessionId: 'session.other',
-    };
+    } as Awaited<ReturnType<IAgentSessionService['getProjectSession']>>;
     mocks.refreshAgentSessionItems
       .mockResolvedValueOnce({
         agentSessionId: recoveredSession.id,
@@ -1651,16 +1752,8 @@ describe('useSelectedAgentSessionItems background refresh', () => {
         source: 'agents',
         status: 'refreshed',
       });
-    mocks.synchronizeProjectSessions.mockResolvedValueOnce(createImportedProjectResult());
-    listSessionsByProject
-      .mockResolvedValueOnce({
-        items: [otherSessionRecord],
-        pageInfo: { hasMore: true, mode: 'offset', page: 1, pageSize: 200 },
-      })
-      .mockResolvedValueOnce({
-        items: [sessionRecord],
-        pageInfo: { hasMore: false, mode: 'offset', page: 2, pageSize: 200 },
-      });
+    mocks.refreshProjectSessionInventory.mockResolvedValueOnce(createImportedProjectResult());
+    getProjectSession.mockResolvedValueOnce(sessionRecord);
     const onAgentSessionUnavailable = vi.fn();
 
     const { result } = renderHook(() => useSelectedAgentSessionItems({
@@ -1670,23 +1763,16 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       selectedAgentSessionId: recoveredSession.id,
       selectedProject,
       selectionRefreshToken: 0,
-      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
     }));
 
     await waitFor(() => expect(result.current).toBe(false));
-    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
-    expect(listSessionsByProject).toHaveBeenNthCalledWith(1, {
-      includeArchived: true,
-      page: 1,
-      pageSize: 200,
-      projectId: selectedProject.projectId,
-    }, expect.any(Object));
-    expect(listSessionsByProject).toHaveBeenNthCalledWith(2, {
-      includeArchived: true,
-      page: 2,
-      pageSize: 200,
-      projectId: selectedProject.projectId,
-    }, expect.any(Object));
+    expect(mocks.refreshProjectSessionInventory).toHaveBeenCalledTimes(1);
+    expect(getProjectSession).toHaveBeenCalledWith(
+      selectedProject.projectId,
+      recoveredSession.id,
+      { signal: expect.any(AbortSignal) },
+    );
     expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(2);
     expect(mocks.refreshAgentSessionItems.mock.calls[1]?.[0].resolvedLocation?.agentSession)
       .toMatchObject({
@@ -1713,56 +1799,56 @@ describe('useSelectedAgentSessionItems background refresh', () => {
   });
 });
 
-describe('useImportedProjectSessionSynchronization request lifecycle', () => {
-  it('uses the latest synchronized callback after a rerender', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
-    const onSynchronizedA = vi.fn();
-    const onSynchronizedB = vi.fn();
-    const synchronizedResult = createImportedProjectResult();
-    mocks.hydrateImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
+describe('useImportedProjectSessionInventory request lifecycle', () => {
+  it('uses the latest refreshed callback after a rerender', async () => {
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
+    const onRefreshedA = vi.fn();
+    const onRefreshedB = vi.fn();
+    const refreshedResult = createImportedProjectResult();
+    mocks.refreshImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
 
     const { result, rerender } = renderHook((props: {
-      onSynchronized: (value: HydrateImportedProjectFromAuthorityResult) => void;
-    }) => useImportedProjectSessionSynchronization({
+      onRefreshed: (value: ImportedProjectSessionInventoryResult) => void;
+    }) => useImportedProjectSessionInventory({
       agentSessionService,
       knownProjects: [],
-      onSynchronized: props.onSynchronized,
+      onRefreshed: props.onRefreshed,
       projectService,
       userScope: 'user-a::session:0',
       workspaceId: 'workspace-a',
     }), {
-      initialProps: { onSynchronized: onSynchronizedA },
+      initialProps: { onRefreshed: onRefreshedA },
     });
 
-    let request!: Promise<HydrateImportedProjectFromAuthorityResult | null>;
-    const staleSynchronizeImportedProject = result.current.synchronizeImportedProject;
+    let request!: Promise<ImportedProjectSessionInventoryResult | null>;
+    const staleRefreshImportedProject = result.current.refreshImportedProject;
     act(() => {
-      request = staleSynchronizeImportedProject('project-a', true);
+      request = staleRefreshImportedProject('project-a', true);
     });
     await act(async () => {
       await Promise.resolve();
     });
-    rerender({ onSynchronized: onSynchronizedB });
+    rerender({ onRefreshed: onRefreshedB });
     await act(async () => {
-      deferred.resolve(synchronizedResult);
+      deferred.resolve(refreshedResult);
       await request;
     });
 
-    expect(onSynchronizedA).not.toHaveBeenCalled();
-    expect(onSynchronizedB).toHaveBeenCalledWith(synchronizedResult);
+    expect(onRefreshedA).not.toHaveBeenCalled();
+    expect(onRefreshedB).toHaveBeenCalledWith(refreshedResult);
     expect(mocks.mutateProjectsStoreByScopeKey).toHaveBeenCalledTimes(1);
   });
 
   it('invalidates an old request when the workspace changes', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
-    const onSynchronized = vi.fn();
-    mocks.hydrateImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
+    const onRefreshed = vi.fn();
+    mocks.refreshImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
 
     const { result, rerender } = renderHook((props: { workspaceId: string }) =>
-      useImportedProjectSessionSynchronization({
+      useImportedProjectSessionInventory({
         agentSessionService,
         knownProjects: [],
-        onSynchronized,
+        onRefreshed,
         projectService,
         userScope: 'user-a::session:0',
         workspaceId: props.workspaceId,
@@ -1770,54 +1856,54 @@ describe('useImportedProjectSessionSynchronization request lifecycle', () => {
       initialProps: { workspaceId: 'workspace-a' },
     });
 
-    let request!: Promise<HydrateImportedProjectFromAuthorityResult | null>;
-    const staleSynchronizeImportedProject = result.current.synchronizeImportedProject;
+    let request!: Promise<ImportedProjectSessionInventoryResult | null>;
+    const staleRefreshImportedProject = result.current.refreshImportedProject;
     act(() => {
-      request = staleSynchronizeImportedProject('project-a', true);
+      request = staleRefreshImportedProject('project-a', true);
     });
     await act(async () => {
       await Promise.resolve();
     });
     rerender({ workspaceId: 'workspace-b' });
-    expect(mocks.hydrateImportedProjectFromAuthority.mock.calls[0]?.[0].signal.aborted).toBe(true);
-    await expect(staleSynchronizeImportedProject('project-a', true)).resolves.toBeNull();
-    expect(mocks.hydrateImportedProjectFromAuthority).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshImportedProjectFromAuthority.mock.calls[0]?.[0].signal.aborted).toBe(true);
+    await expect(staleRefreshImportedProject('project-a', true)).resolves.toBeNull();
+    expect(mocks.refreshImportedProjectFromAuthority).toHaveBeenCalledTimes(1);
     await act(async () => {
       deferred.resolve(createImportedProjectResult());
       await expect(request).resolves.toBeNull();
     });
 
     expect(mocks.mutateProjectsStoreByScopeKey).not.toHaveBeenCalled();
-    expect(onSynchronized).not.toHaveBeenCalled();
+    expect(onRefreshed).not.toHaveBeenCalled();
   });
 
   it('invalidates an old request on unmount even when its source ignores abort', async () => {
-    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
-    const onSynchronized = vi.fn();
-    mocks.hydrateImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
+    const deferred = createDeferred<ImportedProjectSessionInventoryResult | null>();
+    const onRefreshed = vi.fn();
+    mocks.refreshImportedProjectFromAuthority.mockReturnValueOnce(deferred.promise);
 
-    const { result, unmount } = renderHook(() => useImportedProjectSessionSynchronization({
+    const { result, unmount } = renderHook(() => useImportedProjectSessionInventory({
       agentSessionService,
       knownProjects: [],
-      onSynchronized,
+      onRefreshed,
       projectService,
       userScope: 'user-a::session:0',
       workspaceId: 'workspace-a',
     }));
 
-    let request!: Promise<HydrateImportedProjectFromAuthorityResult | null>;
+    let request!: Promise<ImportedProjectSessionInventoryResult | null>;
     act(() => {
-      request = result.current.synchronizeImportedProject('project-a', true);
+      request = result.current.refreshImportedProject('project-a', true);
     });
     await act(async () => {
       await Promise.resolve();
     });
     unmount();
-    expect(mocks.hydrateImportedProjectFromAuthority.mock.calls[0]?.[0].signal.aborted).toBe(true);
+    expect(mocks.refreshImportedProjectFromAuthority.mock.calls[0]?.[0].signal.aborted).toBe(true);
     deferred.resolve(createImportedProjectResult());
     await expect(request).resolves.toBeNull();
 
     expect(mocks.mutateProjectsStoreByScopeKey).not.toHaveBeenCalled();
-    expect(onSynchronized).not.toHaveBeenCalled();
+    expect(onRefreshed).not.toHaveBeenCalled();
   });
 });

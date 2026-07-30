@@ -3,7 +3,7 @@
 Status: accepted
 Owner: SDKWork maintainers
 Date: 2026-07-27
-Updated: 2026-07-29
+Updated: 2026-07-30
 Requirement: [REQ-2026-0003](../../product/requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOMAIN_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, SECURITY_SPEC.md
 
@@ -37,7 +37,7 @@ Session aggregate nor a durable change feed.
 | Head source of truth | Agents Session, latest relevant Turn, pending Interaction, current Runtime Binding, and Session user state |
 | Provider enrichment | Fresh provider activity evidence may refine only a row already selected in the current page; it cannot create head eligibility or order |
 | Owner projection | Agents computes provider identity, owner fact versions, freshness, activity time, and effective presentation phase; no server-monotonic aggregate activity revision is claimed |
-| BirdCoder integration | Generated Agents SDK behind an injected service port; manual refresh invokes explicit `projectSessions.synchronize` before the read-only activity query |
+| BirdCoder integration | Generated Agents SDK behind an injected service port; normal Project and Session refresh is read-only, while explicit folder import or re-import invokes `projectSessions.synchronize` before re-reading the owner inventory |
 | Provider identity | Tenant, organization, owner, engine-qualified provider binding, provider, and provider session identifier; the baseline constrains stored owner/binding/provider/session-identifier uniqueness |
 | Title authority | Provider inventory may refresh a `provider` title; explicit user rename changes authority to `user` and wins over later inventories |
 | BirdCoder state | Disposable in-memory projection scoped by authenticated subject and Agents Workspace |
@@ -191,10 +191,11 @@ fail closed rather than be presented as a complete cross-application result.
 ## Verification
 
 - Existing Agents API tests cover owner scope, opaque cursor binding, explicit
-  synchronization behavior, provider title authority, provider identity
-  deduplication, deterministic pending Interaction selection, current Runtime Binding
-  behavior, user-state ordering, and freshness semantics for the implemented
-  projection. They do not close the four launch blockers above.
+  import-only synchronization behavior, bounded synchronized/skipped/failed
+  accounting and aggregate issues, provider title authority, provider identity
+  deduplication, deterministic pending Interaction selection, current Runtime
+  Binding behavior, user-state ordering, and freshness semantics for the
+  implemented projection. They do not close the launch blockers above.
 - BirdCoder workbench tests prove snapshot merging, request deduplication,
   invalidation-only coordination, retry/resume behavior, and freshness expiry.
 - Code, Studio, and UI contracts prove provider-first and trailing-status order,

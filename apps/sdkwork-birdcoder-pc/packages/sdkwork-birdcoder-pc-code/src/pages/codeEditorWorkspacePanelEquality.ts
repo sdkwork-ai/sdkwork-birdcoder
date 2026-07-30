@@ -22,6 +22,7 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.messages === right.messages &&
     left.hasMoreRemoteMessages === right.hasMoreRemoteMessages &&
     left.isLoadingMoreRemoteMessages === right.isLoadingMoreRemoteMessages &&
+    left.remoteMessagesLoadError === right.remoteMessagesLoadError &&
     left.isNewSession === right.isNewSession &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&

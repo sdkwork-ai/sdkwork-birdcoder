@@ -177,6 +177,8 @@ export default defineLocaleModule('code/sidebar', {
     expandProject: 'Expand {{name}}',
     collapseProject: 'Collapse {{name}}',
     loadingProjects: 'Loading projects...',
+    failedToLoadProjects: 'Projects could not be loaded',
+    retryProjects: 'Retry',
     loadMoreProjects: 'Load more projects',
     loadingMoreProjects: 'Loading more projects...',
     failedToLoadMoreProjects: 'Failed to load more projects',

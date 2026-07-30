@@ -8,19 +8,51 @@ import {
 } from './run-tauri-cli.mjs';
 
 const modulePath = path.resolve(import.meta.dirname, 'run-tauri-cli.mjs');
+const passthroughPostgresProfile = ({ env }) => ({ env: { ...env } });
+
+let postgresProfileRequest;
 
 const defaultPlan = createTauriCliPlan({
   argv: ['dev'],
   env: {},
   platform: 'linux',
   execPath: '/usr/bin/node',
+  resolvePostgresProfile: (request) => {
+    postgresProfileRequest = request;
+    return {
+      env: {
+        ...request.env,
+        SDKWORK_DATABASE_SCHEMA: 'sdkwork_ai_dev',
+      },
+    };
+  },
   resolveTauriCliEntrypoint: () => '/workspace/sdkwork-birdcoder/node_modules/@tauri-apps/cli/tauri.js',
 });
 
 assert.equal(defaultPlan.command, '/usr/bin/node');
 assert.deepEqual(defaultPlan.args, ['/workspace/sdkwork-birdcoder/node_modules/@tauri-apps/cli/tauri.js', 'dev']);
 assert.equal(defaultPlan.env.SDKWORK_VITE_MODE, 'development');
+assert.equal(defaultPlan.env.SDKWORK_DATABASE_SCHEMA, 'sdkwork_ai_dev');
+assert.equal(postgresProfileRequest.repoRoot, path.resolve(import.meta.dirname, '..'));
 assert.equal(defaultPlan.shell, false);
+
+let cloudPostgresProfileCalled = false;
+const cloudPlan = createTauriCliPlan({
+  argv: ['dev'],
+  env: {
+    SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'cloud',
+  },
+  platform: 'linux',
+  execPath: '/usr/bin/node',
+  resolvePostgresProfile: () => {
+    cloudPostgresProfileCalled = true;
+    return { env: {} };
+  },
+  resolveTauriCliEntrypoint: () => '/workspace/sdkwork-birdcoder/node_modules/@tauri-apps/cli/tauri.js',
+});
+
+assert.equal(cloudPostgresProfileCalled, false);
+assert.equal(cloudPlan.env.SDKWORK_DATABASE_URL, undefined);
 
 assert.deepEqual(
   resolveDesktopApplicationRootEnv({
@@ -91,6 +123,7 @@ const linuxDesktopPlan = createTauriCliPlan({
   platform: 'linux',
   cwd: '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
   execPath: '/usr/bin/node',
+  resolvePostgresProfile: passthroughPostgresProfile,
   resolveTauriCliEntrypoint: () => '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/node_modules/@tauri-apps/cli/tauri.js',
 });
 

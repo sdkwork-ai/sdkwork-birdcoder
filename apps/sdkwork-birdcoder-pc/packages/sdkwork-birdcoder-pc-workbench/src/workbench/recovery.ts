@@ -7,6 +7,7 @@ import type {
 const WORKBENCH_RECOVERY_TABS = new Set<AppTab>([
   'code',
   'studio',
+  'work-resources',
   'terminal',
   'settings',
   'auth',

@@ -11,6 +11,8 @@ export default defineLocaleModule('app/project', {
     serverDirectory: 'Server Directory',
     selectServerDirectory: 'Select a server project directory',
     openedFolder: 'Opened folder: {{name}}',
+    providerSessionsPartiallyImported:
+      'Opened {{name}}, but {{count}} provider sessions could not be imported.',
     failedToOpenFolder: 'Failed to open folder',
     traceRecordingStopped: 'Trace recording stopped',
     traceRecordingStarted: 'Trace recording started',

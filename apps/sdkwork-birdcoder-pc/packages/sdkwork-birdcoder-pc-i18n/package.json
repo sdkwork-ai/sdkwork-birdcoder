@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
+    "@sdkwork/birdcoder-pc-work-resources": "workspace:*",
     "@sdkwork/membership-pc-subscription": "workspace:*",
     "html-parse-stringify": "catalog:",
     "i18next": "catalog:",

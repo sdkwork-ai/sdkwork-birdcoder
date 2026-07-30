@@ -47,6 +47,11 @@ export function isAgentSessionItemKindIncludedInTranscript(kind: string): boolea
   return TRANSCRIPT_AGENT_SESSION_ITEM_KINDS.has(kind);
 }
 
+export function isAgentSessionItemSourceKindRecognized(kind: string): boolean {
+  return TRANSCRIPT_AGENT_SESSION_ITEM_KINDS.has(kind)
+    || INTERNAL_AGENT_SESSION_ITEM_KINDS.has(kind);
+}
+
 export function resolveAgentSessionItemSourceKind(
   item: AgentSessionItemViewSource,
 ): string | undefined {

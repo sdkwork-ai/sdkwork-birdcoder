@@ -15,6 +15,11 @@ export const StudioPage = lazy(async () => {
   return loadStudioPage();
 });
 
+export const WorkResourcesPage = lazy(async () => {
+  const { loadWorkResourcesPage } = await import('./pageLoaders.ts');
+  return loadWorkResourcesPage();
+});
+
 export const MultiWindowProgrammingPage = lazy(async () => {
   const { loadMultiWindowProgrammingPage } = await import('./pageLoaders.ts');
   return loadMultiWindowProgrammingPage();

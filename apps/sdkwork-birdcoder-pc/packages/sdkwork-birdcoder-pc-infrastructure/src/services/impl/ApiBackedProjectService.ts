@@ -52,10 +52,6 @@ function normalizeRequired(value: string, label: string): string {
   return normalized;
 }
 
-function normalizeProjectName(value: string): string {
-  return normalizeRequired(value, 'Project name').toLowerCase();
-}
-
 function buildProjectDrivePolicy(
   input: BindProjectDriveCompositionInput,
 ): ProjectDrivePolicy {
@@ -182,11 +178,12 @@ export class ApiBackedProjectService implements IProjectService {
         ? { workspaceId: request.workspaceId.trim() }
         : {}),
       ...(request.q?.trim() ? { q: request.q.trim() } : {}),
+      ...(request.nameExact?.trim() ? { nameExact: request.nameExact.trim() } : {}),
       ...(request.status ? { status: request.status } : {}),
       ...(request.includeDeleted === undefined
         ? {}
         : { includeDeleted: request.includeDeleted }),
-    });
+    }, request.signal ? { signal: request.signal } : undefined);
     for (const project of response.items) {
       this.rememberProjectVersion(project.projectId, project.version);
     }
@@ -214,27 +211,18 @@ export class ApiBackedProjectService implements IProjectService {
     name: string,
   ): Promise<AgentProjectView | null> {
     const normalizedWorkspaceId = normalizeRequired(workspaceId, 'Workspace ID');
-    const normalizedName = normalizeProjectName(name);
-    const response = await this.projects.list({
+    const response = await this.getProjectsPage({
       includeDeleted: false,
+      nameExact: normalizeRequired(name, 'Project name'),
       page: 1,
-      pageSize: 100,
-      q: normalizeRequired(name, 'Project name'),
+      pageSize: 1,
       workspaceId: normalizedWorkspaceId,
     });
-    const projects = response.items as AgentProjectRecord[];
-    const project = projects
-      .filter((candidate) => normalizeProjectName(candidate.name) === normalizedName)
-      .sort((left, right) =>
-        Number(right.status === 'active') - Number(left.status === 'active')
-          || left.createdAt.localeCompare(right.createdAt)
-          || left.projectId.localeCompare(right.projectId),
-      )[0];
+    const project = response.items[0];
     if (!project) {
       return null;
     }
-    this.rememberProjectVersion(project.projectId, project.version);
-    return mapProject(project);
+    return project;
   }
 
   async createProject(

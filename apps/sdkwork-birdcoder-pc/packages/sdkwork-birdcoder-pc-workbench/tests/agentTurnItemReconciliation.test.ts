@@ -204,7 +204,7 @@ describe('Agent turn item reconciliation', () => {
         versions: { session: '3', latestTurn: '2' },
       },
       runtimeStatus: 'streaming',
-      itemPageInfo: { hasMore: true, page: 3, pageSize: 20 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.3', pageSize: 20 },
       items: [item('item.loaded', 'user')],
     });
     const refreshed: AgentSessionView = {
@@ -225,31 +225,35 @@ describe('Agent turn item reconciliation', () => {
 
     expect(merged.activity).toBe(current.activity);
     expect(merged.runtimeStatus).toBe('streaming');
-    expect(merged.itemPageInfo).toEqual({ hasMore: true, page: 3, pageSize: 20 });
+    expect(merged.itemPageInfo).toEqual({
+      hasMore: true,
+      nextCursor: 'cursor.3',
+      pageSize: 20,
+    });
     expect(merged.items).toEqual(current.items);
   });
 
   it('does not regress a history page committed while a latest refresh was in flight', () => {
     const current = session({
-      itemPageInfo: { hasMore: false, page: 3, pageSize: 20 },
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 20 },
       items: [item('item.history', 'user')],
     });
     const delayedRefresh = session({
-      itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.2', pageSize: 20 },
       items: [item('item.latest', 'assistant')],
     });
 
     expect(
       mergeRefreshedAgentSessionIntoCurrent(current, delayedRefresh).itemPageInfo,
-    ).toEqual({ hasMore: false, page: 3, pageSize: 20 });
+    ).toEqual({ hasMore: false, nextCursor: null, pageSize: 20 });
     expect(
       mergeAgentSessionProjectionForStore(current, delayedRefresh).itemPageInfo,
-    ).toEqual({ hasMore: false, page: 3, pageSize: 20 });
+    ).toEqual({ hasMore: false, nextCursor: null, pageSize: 20 });
   });
 
   it('does not restore a disconnected authority tail when the latest window resets', () => {
     const current = session({
-      itemPageInfo: { hasMore: false, page: 10, pageSize: 50 },
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
       items: [
         item('item.stale', 'user'),
         item('item.concurrent', 'assistant', {
@@ -259,7 +263,7 @@ describe('Agent turn item reconciliation', () => {
       ],
     });
     const refreshed = session({
-      itemPageInfo: { hasMore: true, page: 5, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.reset.5', pageSize: 50 },
       items: [item('item.authority', 'user')],
     });
 
@@ -270,7 +274,7 @@ describe('Agent turn item reconciliation', () => {
     );
     expect(refreshedMerge.itemPageInfo).toEqual({
       hasMore: true,
-      page: 5,
+      nextCursor: 'cursor.reset.5',
       pageSize: 50,
     });
     expect(refreshedMerge.items.map((entry) => entry.id)).toEqual([
@@ -284,7 +288,7 @@ describe('Agent turn item reconciliation', () => {
     );
     expect(storeMerge.itemPageInfo).toEqual({
       hasMore: true,
-      page: 5,
+      nextCursor: 'cursor.reset.5',
       pageSize: 50,
     });
     expect(storeMerge.items.map((entry) => entry.id)).toEqual([
@@ -326,19 +330,23 @@ describe('Agent turn item reconciliation', () => {
         return item(`item-${sequence}`, sequence % 2 === 0 ? 'assistant' : 'user');
       });
     const firstPage = session({
-      itemPageInfo: { hasMore: true, page: 1, pageSize: 20 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.1', pageSize: 20 },
       items: buildItemWindow(26, 45),
     });
     const secondPage = mergeAgentSessionProjectionForStore(
       firstPage,
       session({
-        itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+        itemPageInfo: { hasMore: true, nextCursor: 'cursor.2', pageSize: 20 },
         items: buildItemWindow(6, 45),
       }),
       { itemMergeMode: 'ordered-window' },
     );
 
-    expect(secondPage.itemPageInfo).toEqual({ hasMore: true, page: 2, pageSize: 20 });
+    expect(secondPage.itemPageInfo).toEqual({
+      hasMore: true,
+      nextCursor: 'cursor.1',
+      pageSize: 20,
+    });
     expect(secondPage.items.map((entry) => entry.id)).toEqual(
       buildItemWindow(6, 45).map((entry) => entry.id),
     );
@@ -347,17 +355,17 @@ describe('Agent turn item reconciliation', () => {
     const thirdPage = mergeAgentSessionProjectionForStore(
       {
         ...secondPage,
-        itemPageInfo: { hasMore: false, page: 3, pageSize: 20 },
+        itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 20 },
         items: [...secondPage.items, concurrentLatestItem],
       },
       session({
-        itemPageInfo: { hasMore: true, page: 2, pageSize: 20 },
+        itemPageInfo: { hasMore: true, nextCursor: 'cursor.2', pageSize: 20 },
         items: buildItemWindow(1, 45),
       }),
       { itemMergeMode: 'ordered-window' },
     );
 
-    expect(thirdPage.itemPageInfo).toEqual({ hasMore: false, page: 3, pageSize: 20 });
+    expect(thirdPage.itemPageInfo).toEqual({ hasMore: false, nextCursor: null, pageSize: 20 });
     expect(thirdPage.items.map((entry) => entry.id)).toEqual(
       buildItemWindow(1, 46).map((entry) => entry.id),
     );

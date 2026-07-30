@@ -26,6 +26,7 @@ import studioWorkspace from './studio/workspace.ts';
 import studioActions from './studio/actions.ts';
 import uiContentPreview from './ui/content-preview.ts';
 import userTokenPlanCommerce from './user/token-plan/commerce.ts';
+import workResourcesCatalog from '@sdkwork/birdcoder-pc-work-resources/i18n/en';
 import { buildLocaleResource, type LocaleModule } from '../resource.ts';
 
 export const enModules = [
@@ -57,6 +58,7 @@ export const enModules = [
   studioActions,
   uiContentPreview,
   userTokenPlanCommerce,
+  workResourcesCatalog,
 ] as const satisfies readonly LocaleModule[];
 
 export const enTranslation = buildLocaleResource('en', enModules);

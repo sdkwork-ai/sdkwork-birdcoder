@@ -6,8 +6,9 @@ import type {
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import {
-  hydrateImportedProjectFromAuthority,
-  type HydrateImportedProjectFromAuthorityResult,
+  importProjectProviderSessions as importProjectProviderSessionsFromAuthority,
+  refreshImportedProjectFromAuthority,
+  type ImportedProjectSessionInventoryResult,
 } from '../workbench/importedProjectHydration.ts';
 import {
   buildProjectsStoreScopeKey,
@@ -20,49 +21,47 @@ import {
   type ProjectSessionSynchronizationScope,
 } from '../workbench/projectSessionSynchronization.ts';
 
-export interface UseImportedProjectSessionSynchronizationOptions {
+export interface UseImportedProjectSessionInventoryOptions {
   agentSessionService: IAgentSessionService;
   knownProjects: readonly AgentProjectView[];
-  onSynchronized: (result: HydrateImportedProjectFromAuthorityResult) => void;
+  onRefreshed: (result: ImportedProjectSessionInventoryResult) => void;
   projectService: IProjectService;
   userScope: string;
   workspaceId: string;
 }
 
-interface ActiveProjectSessionSynchronizationScope {
+interface ActiveProjectSessionInventoryScope {
   consumerCount: number;
   scope: ProjectSessionSynchronizationScope;
 }
 
-interface ProjectSessionSynchronizationLifecycleScope {
+interface ProjectSessionInventoryLifecycleScope {
   userScope: string;
   workspaceId: string;
 }
 
-export function useImportedProjectSessionSynchronization({
+export function useImportedProjectSessionInventory({
   agentSessionService,
   knownProjects,
-  onSynchronized,
+  onRefreshed,
   projectService,
   userScope,
   workspaceId,
-}: UseImportedProjectSessionSynchronizationOptions) {
+}: UseImportedProjectSessionInventoryOptions) {
   const coordinatorRef = useRef(
-    createProjectSessionSynchronizationCoordinator<HydrateImportedProjectFromAuthorityResult>(),
+    createProjectSessionSynchronizationCoordinator<ImportedProjectSessionInventoryResult>(),
   );
-  const activeScopesRef = useRef(
-    new Map<string, ActiveProjectSessionSynchronizationScope>(),
-  );
+  const activeScopesRef = useRef(new Map<string, ActiveProjectSessionInventoryScope>());
   const lifecycleGenerationRef = useRef(0);
-  const onSynchronizedRef = useRef(onSynchronized);
-  const lifecycleScopeRef = useRef<ProjectSessionSynchronizationLifecycleScope | null>({
+  const onRefreshedRef = useRef(onRefreshed);
+  const lifecycleScopeRef = useRef<ProjectSessionInventoryLifecycleScope | null>({
     userScope: userScope.trim(),
     workspaceId: workspaceId.trim(),
   });
 
   useLayoutEffect(() => {
-    onSynchronizedRef.current = onSynchronized;
-  }, [onSynchronized]);
+    onRefreshedRef.current = onRefreshed;
+  }, [onRefreshed]);
 
   useLayoutEffect(() => {
     lifecycleScopeRef.current = {
@@ -93,16 +92,16 @@ export function useImportedProjectSessionSynchronization({
     };
   }, [userScope, workspaceId]);
 
-  const invalidateImportedProjectSessionSynchronization = useCallback((projectId: string) => {
+  const invalidateImportedProjectSessionInventory = useCallback((projectId: string) => {
     const scope = resolveScope(projectId);
     if (scope) {
       coordinatorRef.current.invalidate(scope);
     }
   }, [resolveScope]);
 
-  const synchronizeImportedProject = useCallback(async (
+  const runProjectSessionInventoryRequest = useCallback(async (
     projectId: string,
-    force = false,
+    options: { force: boolean; importProviderSessions: boolean },
   ) => {
     const scope = resolveScope(projectId);
     if (!scope) {
@@ -128,7 +127,7 @@ export function useImportedProjectSessionSynchronization({
 
     try {
       const result = await coordinatorRef.current.synchronize(scope, async ({ signal }) => {
-        const result = await hydrateImportedProjectFromAuthority({
+        const request = {
           agentSessionService,
           knownProjects,
           projectId: scope.projectId,
@@ -136,12 +135,15 @@ export function useImportedProjectSessionSynchronization({
           signal,
           userScope: scope.userScope,
           workspaceId: scope.workspaceId,
-        });
-        if (!result) {
+        };
+        const refreshed = options.importProviderSessions
+          ? await importProjectProviderSessionsFromAuthority(request)
+          : await refreshImportedProjectFromAuthority(request);
+        if (!refreshed) {
           throw new Error('The project Session inventory could not be refreshed from Agents.');
         }
-        return result;
-      }, { force });
+        return refreshed;
+      }, { force: options.force });
       const currentLifecycleScope = lifecycleScopeRef.current;
       if (
         lifecycleGenerationRef.current !== lifecycleGeneration
@@ -165,8 +167,8 @@ export function useImportedProjectSessionSynchronization({
           },
         ),
       );
-      if (force) {
-        onSynchronizedRef.current(result);
+      if (options.force) {
+        onRefreshedRef.current(result);
       }
       return result;
     } finally {
@@ -179,8 +181,25 @@ export function useImportedProjectSessionSynchronization({
     }
   }, [agentSessionService, knownProjects, projectService, resolveScope]);
 
+  const refreshImportedProject = useCallback(
+    (projectId: string, force = false) => runProjectSessionInventoryRequest(projectId, {
+      force,
+      importProviderSessions: false,
+    }),
+    [runProjectSessionInventoryRequest],
+  );
+
+  const importProjectProviderSessions = useCallback(
+    (projectId: string) => runProjectSessionInventoryRequest(projectId, {
+      force: true,
+      importProviderSessions: true,
+    }),
+    [runProjectSessionInventoryRequest],
+  );
+
   return {
-    invalidateImportedProjectSessionSynchronization,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
+    invalidateImportedProjectSessionInventory,
+    refreshImportedProject,
   };
 }

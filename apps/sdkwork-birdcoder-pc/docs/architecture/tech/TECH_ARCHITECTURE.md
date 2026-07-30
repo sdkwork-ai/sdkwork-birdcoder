@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-29
+Updated: 2026-07-30
 Specs: DOCUMENTATION_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -55,9 +55,12 @@ Session creation and local execution context use:
 3. the Agents Session;
 4. Agents `sessionRuntimeBindings` with the opaque Tauri runtime id.
 
-The Session list explicitly invokes the generated Agents App SDK Project Session
-synchronization operation and then reads the side-effect-free Agents App API
-Session Activity summary rather than inferring state from the Session version.
+The Session list reads the side-effect-free Agents App API Session Activity
+summary rather than inferring state from the Session version. It does not run
+provider reconciliation. The explicit folder import/re-import workflow alone
+invokes the generated Project Session synchronization command and then performs
+a read-only refresh; partial skipped/failed issue aggregates are presented
+without discarding successfully imported Sessions.
 The owner snapshot composes Session,
 latest relevant Turn, pending Interaction, current Runtime Binding, Session
 user state, provider session identity, owner fact versions, freshness, and the
@@ -153,6 +156,13 @@ registry, and shared React renderers. OpenCode parts, Codex items, Claude
 content blocks, and Gemini events normalize before they reach user, assistant,
 reasoning, tool, lifecycle, interaction, task, resource, or file-change
 components.
+
+Session Item transport uses opaque keyset cursors. Latest hydration requests
+`sort=-sequence`, validates cursor progress and terminal metadata, and restores
+chronological presentation order. Earlier-message loading is cancellable,
+bounded, deduplicated, and exposes a persistent inline retry state. Unknown
+future runtime roles or kinds use the unsupported-content renderer and are not
+coerced into Assistant presentation.
 
 Canonical `turnId` groups transcript rows when available. A user-to-user
 boundary is the rendering-only fallback. Turn position, disclosure state, and

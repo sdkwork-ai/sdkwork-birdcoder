@@ -2,6 +2,7 @@ import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
+  useDialogFocusManagement,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { Code2, X } from 'lucide-react';
@@ -66,23 +67,53 @@ export function StudioPageDialogs({
   onConfirmDelete,
 }: StudioPageDialogsProps) {
   const { t } = useTranslation();
+  const {
+    dialogRef: analyzeDialogRef,
+    onDialogKeyDown: handleAnalyzeDialogKeyDown,
+  } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: isAnalyzeModalVisible && analyzeReport !== null,
+    onClose: onCloseAnalyze,
+  });
+  const {
+    dialogRef: debugDialogRef,
+    onDialogKeyDown: handleDebugDialogKeyDown,
+  } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: isDebugConfigVisible,
+    onClose: onCloseDebugConfig,
+  });
+  const {
+    dialogRef: deleteDialogRef,
+    onDialogKeyDown: handleDeleteDialogKeyDown,
+  } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: deleteConfirmation !== null,
+    onClose: onCancelDelete,
+  });
   return (
     <>
       {isAnalyzeModalVisible && analyzeReport && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
           <div
+            ref={analyzeDialogRef}
             aria-label={t('studio.codeAnalysisReport')}
             aria-modal="true"
             className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
             data-birdcoder-popup-surface="true"
+            onKeyDownCapture={handleAnalyzeDialogKeyDown}
             role="dialog"
+            tabIndex={-1}
           >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200 flex items-center gap-2">
                 <Code2 size={16} className="text-blue-400" />
                 {t('studio.codeAnalysisReport')}
               </h3>
-              <button onClick={onCloseAnalyze} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                aria-label={t('studio.close')}
+                className="text-gray-400 hover:text-white"
+                onClick={onCloseAnalyze}
+                title={t('studio.close')}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -133,6 +164,9 @@ export function StudioPageDialogs({
         configurations={runConfigurations}
         onClose={onCloseRunTask}
         onRun={onRunTask}
+        closeLabel={t('studio.close')}
+        emptyLabel={t('studio.noRunConfigurations')}
+        loadingLabel={t('studio.runDialogLoading')}
       />
 
       <DeferredRunConfigurationDialog
@@ -144,33 +178,44 @@ export function StudioPageDialogs({
         onSubmit={onSubmitRunConfig}
         nameLabel={t('studio.name')}
         commandLabel={t('studio.command')}
-        profileLabel="Profile"
-        workingDirectoryLabel="Working Directory"
-        customDirectoryLabel="Custom Directory"
-        taskGroupLabel="Task Group"
+        profileLabel={t('studio.terminalProfile')}
+        workingDirectoryLabel={t('studio.workingDirectory')}
+        customDirectoryLabel={t('studio.customDirectory')}
+        taskGroupLabel={t('studio.taskGroup')}
         cancelLabel={t('studio.cancel')}
         submitLabel={t('studio.save')}
-        projectLabel="Project"
-        workspaceLabel="Repository Root"
-        customLabel="Custom"
-        devLabel="Dev"
-        buildLabel="Build"
-        testLabel="Test"
-        customGroupLabel="Custom"
+        projectLabel={t('studio.project')}
+        workspaceLabel={t('studio.repositoryRoot')}
+        customLabel={t('studio.custom')}
+        devLabel={t('studio.developmentTask')}
+        buildLabel={t('studio.buildTask')}
+        testLabel={t('studio.testTask')}
+        customGroupLabel={t('studio.custom')}
+        closeLabel={t('studio.close')}
+        loadingLabel={t('studio.runDialogLoading')}
       />
 
       {isDebugConfigVisible && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
           <div
+            ref={debugDialogRef}
             aria-label={t('studio.debugConfig')}
             aria-modal="true"
             className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
             data-birdcoder-popup-surface="true"
+            onKeyDownCapture={handleDebugDialogKeyDown}
             role="dialog"
+            tabIndex={-1}
           >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200">{t('studio.debugConfig')}</h3>
-              <button onClick={onCloseDebugConfig} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                aria-label={t('studio.close')}
+                className="text-gray-400 hover:text-white"
+                onClick={onCloseDebugConfig}
+                title={t('studio.close')}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -226,11 +271,14 @@ export function StudioPageDialogs({
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div
+            ref={deleteDialogRef}
             aria-label={`${t('studio.delete')} ${deleteConfirmation.type}`}
             aria-modal="true"
             className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
             data-birdcoder-popup-surface="true"
+            onKeyDownCapture={handleDeleteDialogKeyDown}
             role="dialog"
+            tabIndex={-1}
           >
             <h3 className="text-lg font-semibold text-white mb-2">
               {t('studio.delete')} {deleteConfirmation.type.charAt(0).toUpperCase() + deleteConfirmation.type.slice(1)}

@@ -30,6 +30,7 @@ export interface ProjectsStore {
   agentSessionTranscriptRevisions: Map<string, number>;
   inventoryVersion: number;
   inflight: Promise<AgentProjectView[]> | null;
+  inflightAbortController: AbortController | null;
   inflightKey: string | null;
   listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
   removedProjectIds: Set<string>;
@@ -43,6 +44,7 @@ export type AgentSessionItemMergeMode =
 
 export interface AgentSessionStoreUpsertOptions {
   itemMergeMode?: AgentSessionItemMergeMode;
+  acceptIncomingItemPageInfo?: boolean;
 }
 
 export interface AgentSessionProjectsStoreUpsertOptions
@@ -53,7 +55,7 @@ export interface AgentSessionProjectsStoreUpsertOptions
 export interface AgentSessionTranscriptRevisionSnapshot {
   agentId: string;
   hasMore: boolean;
-  page: number;
+  nextCursor: string | null;
   pageSize: number;
   revision: number;
 }
@@ -74,7 +76,7 @@ export type AgentSessionStoreRemovalResult =
  * ≈ 10,000 个对象引用，在浏览器可承受范围内。
  */
 const PROJECT_STORE_MAX_CACHED_SCOPES = 5;
-const PROJECT_STORE_MAX_SCOPE_KEY_LENGTH = 256;
+const PROJECT_STORE_MAX_SCOPE_KEY_LENGTH = 384;
 
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
 
@@ -116,6 +118,10 @@ function evictLeastRecentlyUsedScopes(): void {
     const store = projectStoresByScopeKey.get(key)!;
     if (store.listeners.size === 0) {
       // 无订阅者：可安全释放整个 store
+      store.inflightAbortController?.abort(new DOMException(
+        'Project inventory scope was evicted.',
+        'AbortError',
+      ));
       store.agentSessionTombstones.clear();
       store.agentSessionTranscriptRevisions.clear();
       projectStoresByScopeKey.delete(key);
@@ -215,7 +221,7 @@ function areAgentSessionScalarsEqual(
   const hasEqualItemPageInfo =
     left.itemPageInfo === right.itemPageInfo ||
     (
-      left.itemPageInfo?.page === right.itemPageInfo?.page &&
+      left.itemPageInfo?.nextCursor === right.itemPageInfo?.nextCursor &&
       left.itemPageInfo?.pageSize === right.itemPageInfo?.pageSize &&
       left.itemPageInfo?.hasMore === right.itemPageInfo?.hasMore
     );
@@ -647,10 +653,7 @@ function mergeMonotonicSessionItemPageInfo(
   if (!existing || !incoming) {
     return incoming ?? existing;
   }
-  if (existing.page > incoming.page) {
-    return existing;
-  }
-  return incoming;
+  return existing;
 }
 
 function isTransientAgentSessionItem(item: AgentSessionItemView): boolean {
@@ -759,10 +762,12 @@ export function mergeAgentSessionProjectionForStore(
     displayTime: retainExistingActivity ? existing.displayTime : incoming.displayTime,
     itemPageInfo: options.itemMergeMode === 'authority-window-reset'
       ? incoming.itemPageInfo
-      : mergeMonotonicSessionItemPageInfo(
-          existing.itemPageInfo,
-          incoming.itemPageInfo,
-        ),
+      : options.acceptIncomingItemPageInfo
+        ? incoming.itemPageInfo ?? existing.itemPageInfo
+        : mergeMonotonicSessionItemPageInfo(
+            existing.itemPageInfo,
+            incoming.itemPageInfo,
+          ),
     items: options.itemMergeMode === 'authority-window-reset'
       ? mergeResetAgentSessionItemWindow(existing.items, incoming.items)
       : incoming.items.length === 0
@@ -1307,6 +1312,7 @@ export function getProjectsStore(scopeKey: string): ProjectsStore {
     agentSessionTranscriptRevisions: new Map(),
     inventoryVersion: 0,
     inflight: null,
+    inflightAbortController: null,
     inflightKey: null,
     listeners: new Set(),
     removedProjectIds: new Set(),
@@ -1533,7 +1539,10 @@ export function upsertAgentSessionIntoProjectsStore(
       projectsWithMetadata,
       normalizedProjectId,
       agentSession,
-      { itemMergeMode: options.itemMergeMode },
+      {
+        acceptIncomingItemPageInfo: options.acceptIncomingItemPageInfo,
+        itemMergeMode: options.itemMergeMode,
+      },
     );
     const nextSession = nextProjects
       .find((project) => project.projectId === normalizedProjectId)
@@ -1547,7 +1556,7 @@ export function upsertAgentSessionIntoProjectsStore(
       options.itemMergeMode === 'ordered-window'
       || nextSession?.agentId !== previousSession?.agentId
       || nextSession?.itemPageInfo?.hasMore !== previousSession?.itemPageInfo?.hasMore
-      || nextSession?.itemPageInfo?.page !== previousSession?.itemPageInfo?.page
+      || nextSession?.itemPageInfo?.nextCursor !== previousSession?.itemPageInfo?.nextCursor
       || nextSession?.itemPageInfo?.pageSize !== previousSession?.itemPageInfo?.pageSize
     );
     if (authorityWindowWasReset || transcriptWindowChanged) {
@@ -1604,12 +1613,15 @@ export function upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
     || agentSession.projectId.trim() !== normalizedProjectId
     || agentSession.agentId !== expected.agentId
     || !expected.hasMore
+    || !expected.nextCursor
     || !incomingPageInfo
-    || incomingPageInfo.page <= expected.page
+    || incomingPageInfo.nextCursor === expected.nextCursor
+    || (incomingPageInfo.hasMore && !incomingPageInfo.nextCursor)
+    || (!incomingPageInfo.hasMore && incomingPageInfo.nextCursor !== null)
     || incomingPageInfo.pageSize !== expected.pageSize
     || currentSession.agentId !== expected.agentId
     || currentSession.itemPageInfo?.hasMore !== expected.hasMore
-    || currentSession.itemPageInfo?.page !== expected.page
+    || currentSession.itemPageInfo?.nextCursor !== expected.nextCursor
     || currentSession.itemPageInfo?.pageSize !== expected.pageSize
     || getAgentSessionTranscriptRevision(
       scopeKey,
@@ -1624,7 +1636,7 @@ export function upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
     agentSession,
     normalizedWorkspaceId,
     userScope,
-    options,
+    { ...options, acceptIncomingItemPageInfo: true },
   );
   return true;
 }
@@ -1683,6 +1695,11 @@ export function deleteProjectsStore(scopeKey: string): void {
   const store = projectStoresByScopeKey.get(scopeKey);
   if (store) {
     // 主动清理 Map 内部数据，帮助 GC 在长时间运行的应用中更快回收
+    store.inflightAbortController?.abort(new DOMException(
+      'Project inventory scope was released.',
+      'AbortError',
+    ));
+    store.inflightAbortController = null;
     store.agentSessionTombstones.clear();
     store.agentSessionTranscriptRevisions.clear();
     store.removedProjectIds.clear();

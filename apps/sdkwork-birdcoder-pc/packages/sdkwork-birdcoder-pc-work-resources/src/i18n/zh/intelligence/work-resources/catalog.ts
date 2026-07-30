@@ -1,0 +1,45 @@
+const catalog = {
+  name: 'intelligence/work-resources/catalog',
+  resource: {
+    intelligence: {
+      workResources: {
+        title: '工作资源中心',
+        subtitle: '浏览专家、技能和连接器，为工作组合合适的智能能力。',
+        experts: '专家',
+        skills: '技能',
+        connectors: '连接器',
+        search: '搜索资源',
+        searchExperts: '按名称或简介搜索专家',
+        mine: '我的专家',
+        marketplace: '资源市场',
+        featuredScenes: '精选场景',
+        allExperts: '全部专家',
+        featured: '精选',
+        recommended: '推荐',
+        installed: '已安装',
+        installCount: '{{count}} 次安装',
+        active: '运行中',
+        unavailable: '不可用',
+        noResults: '暂无资源',
+        noResultsHint: '请尝试其他关键词，或清除当前筛选。',
+        loadFailed: '资源加载失败。',
+        permissionDenied: '当前账号没有查看这些资源的权限。',
+        retry: '重试',
+        previous: '上一页',
+        next: '下一页',
+        page: '第 {{page}} 页',
+        emptyCategory: '该分类暂时没有资源。',
+        noDescription: '暂无简介。',
+        transport: '传输方式',
+        status: '状态',
+        tools: '{{count}} 个工具',
+        skillsCount: '{{count}} 项技能',
+        expertsCount: '{{count}} 位专家',
+        viewMore: '查看更多',
+      },
+    },
+  },
+} as const;
+
+export default catalog;
+export { catalog };

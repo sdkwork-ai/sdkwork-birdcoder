@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-29
+Updated: 2026-07-30
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -41,9 +41,10 @@ their business semantics.
   Workspace identity.
 - PC does not create a BirdCoder Project or second Project id.
 - PC consumes the paginated Agents Session Activity summary through the
-  generated owner SDK and keeps only a disposable in-memory projection. Manual
-  refresh explicitly synchronizes provider inventory before reading the
-  read-only activity summary; it never sends paths or directory fingerprints.
+  generated owner SDK and keeps only a disposable in-memory projection.
+  Project and Session refreshes are read-only. Only explicit folder import or
+  re-import synchronizes provider inventory, and the command never accepts
+  paths or directory fingerprints from the client.
 - Cross-application head eligibility is driven by Agents-managed Turn,
   Interaction, Runtime Binding, and Session user-state facts. Provider-native
   observation only enriches rows already returned in the current page and
@@ -90,6 +91,10 @@ their business semantics.
   space; Studio does not stack time below the title.
 - Global Session views filter and sort the complete currently loaded inventory
   before rendering or virtualization.
+- Session Item history uses opaque keyset cursors and bounded newest/history
+  windows. Earlier-message failure remains visible with an in-context retry;
+  unknown future content remains visible as unsupported rather than being
+  mislabeled as assistant output.
 - Local storage contains no Project, Session, Conversation, Message, or Skill
   business record.
 - Filesystem and execution actions never use process-CWD or unrelated-mount

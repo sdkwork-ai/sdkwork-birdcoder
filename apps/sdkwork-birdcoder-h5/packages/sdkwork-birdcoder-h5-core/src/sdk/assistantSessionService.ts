@@ -7,7 +7,11 @@ import {
 } from '@sdkwork/agents-app-sdk';
 import { sha256Hash } from '@sdkwork/utils/crypto';
 import { uuid } from '@sdkwork/utils/id';
-import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  MAX_LIST_PAGE_SIZE,
+  normalizeOffsetListQuery,
+} from '@sdkwork/utils/pagination';
 
 import { getBirdCoderH5AgentsAppClient } from './dependencySdkClients.ts';
 
@@ -18,6 +22,16 @@ export type BirdCoderAgentSessionItemRole = 'user' | 'assistant' | 'system';
 export interface BirdCoderAssistantSessionView {
   sessionId: string;
   itemCount: number;
+}
+
+export interface BirdCoderAssistantSessionItemPage {
+  items: BirdCoderAgentSessionItemView[];
+  pageInfo: {
+    hasMore: boolean;
+    mode: 'cursor';
+    nextCursor: string | null;
+    pageSize: number;
+  };
 }
 
 export interface BirdCoderAgentSessionItemView {
@@ -35,10 +49,18 @@ export interface BirdCoderAssistantSessionServiceOptions {
   client?: AgentsAppClient;
 }
 
+export interface BirdCoderAssistantSessionItemListOptions
+  extends BirdCoderAssistantSessionServiceOptions {
+  cursor?: string;
+  pageSize?: number;
+}
+
 export interface BirdCoderAssistantTurnOptions
   extends BirdCoderAssistantSessionServiceOptions {
   driveRefs?: CreateAgentTurnRequest['driveRefs'];
 }
+
+const SESSION_ITEM_CURSOR_MAX_LENGTH = 2_048;
 
 function resolveAgentId(value?: string): string {
   return value?.trim() || BIRDCODER_ASSISTANT_AGENT_ID;
@@ -112,6 +134,76 @@ function isReusableAssistantSession(session: AgentSessionRecord): boolean {
     && (session.status === 'active' || session.status === 'idle');
 }
 
+function normalizeSessionItemListOptions(
+  options: BirdCoderAssistantSessionItemListOptions,
+) {
+  const pageSize = options.pageSize ?? DEFAULT_LIST_PAGE_SIZE;
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > MAX_LIST_PAGE_SIZE) {
+    throw new Error('BirdCoder assistant Session Item page size must be between 1 and 200.');
+  }
+  const cursor = options.cursor;
+  if (
+    cursor !== undefined
+    && (
+      cursor.length < 1
+      || cursor.length > SESSION_ITEM_CURSOR_MAX_LENGTH
+      || cursor.trim() !== cursor
+    )
+  ) {
+    throw new Error('BirdCoder assistant Session Item cursor must be between 1 and 2048 characters.');
+  }
+  return { cursor, pageSize };
+}
+
+function normalizeSessionItemPage(
+  page: Awaited<ReturnType<AgentsAppClient['ai']['agents']['sessionItems']['list']>>,
+  request: ReturnType<typeof normalizeSessionItemListOptions>,
+): BirdCoderAssistantSessionItemPage {
+  const { pageInfo } = page;
+  if (pageInfo.mode !== 'cursor') {
+    throw new Error('BirdCoder assistant Session Item list must use cursor pagination.');
+  }
+  if (pageInfo.pageSize !== request.pageSize) {
+    throw new Error('BirdCoder assistant Session Item list returned an unexpected page size.');
+  }
+  if (typeof pageInfo.hasMore !== 'boolean') {
+    throw new Error('BirdCoder assistant Session Item list omitted its continuation state.');
+  }
+  const nextCursor = pageInfo.nextCursor;
+  if (
+    pageInfo.hasMore
+    && (
+      typeof nextCursor !== 'string'
+      || nextCursor.length < 1
+      || nextCursor.length > SESSION_ITEM_CURSOR_MAX_LENGTH
+      || nextCursor.trim() !== nextCursor
+      || nextCursor === request.cursor
+    )
+  ) {
+    throw new Error('BirdCoder assistant Session Item list returned a non-progressing cursor.');
+  }
+  if (!pageInfo.hasMore && nextCursor !== null) {
+    throw new Error('BirdCoder assistant Session Item terminal page must return a null cursor.');
+  }
+  const items = page.items
+    .map(toSessionItemView)
+    .filter((item) => item.content.length > 0)
+    .sort((left, right) => {
+      const leftSequence = BigInt(left.sequence);
+      const rightSequence = BigInt(right.sequence);
+      return leftSequence < rightSequence ? -1 : leftSequence > rightSequence ? 1 : 0;
+    });
+  return {
+    items,
+    pageInfo: {
+      hasMore: pageInfo.hasMore,
+      mode: 'cursor',
+      nextCursor: nextCursor ?? null,
+      pageSize: request.pageSize,
+    },
+  };
+}
+
 export async function ensureBirdCoderAssistantSession(
   options: BirdCoderAssistantSessionServiceOptions = {},
 ): Promise<BirdCoderAssistantSessionView> {
@@ -157,25 +249,23 @@ export async function ensureBirdCoderAssistantSession(
 
 export async function listBirdCoderAssistantSessionItems(
   sessionId: string,
-  options: BirdCoderAssistantSessionServiceOptions & {
-    page?: number;
-    pageSize?: number;
-  } = {},
-): Promise<BirdCoderAgentSessionItemView[]> {
+  options: BirdCoderAssistantSessionItemListOptions = {},
+): Promise<BirdCoderAssistantSessionItemPage> {
   const normalizedSessionId = sessionId.trim();
   if (!normalizedSessionId) {
     throw new Error('BirdCoder assistant sessionId is required.');
   }
-  const { page, page_size: pageSize } = normalizeOffsetListQuery({
-    page: options.page,
-    page_size: options.pageSize,
-  });
+  const request = normalizeSessionItemListOptions(options);
   const listed = await resolveClient(options).ai.agents.sessionItems.list(
     resolveAgentId(options.agentId),
     normalizedSessionId,
-    { page, pageSize },
+    {
+      cursor: request.cursor,
+      pageSize: request.pageSize,
+      sort: '-sequence',
+    },
   );
-  return listed.items.map(toSessionItemView).filter((item) => item.content.length > 0);
+  return normalizeSessionItemPage(listed, request);
 }
 
 export async function submitBirdCoderAssistantTurn(

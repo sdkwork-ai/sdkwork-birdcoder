@@ -11,6 +11,7 @@ import {
   WindowControlRestoreIcon,
 } from './birdcoderAppWindowControlIcons.tsx';
 interface BirdcoderAppHeaderProps {
+  brandLabel: string;
   centerContent?: React.ReactNode;
   closeButtonRef: React.RefObject<HTMLButtonElement | null>;
   handleClose(): void;
@@ -31,6 +32,7 @@ interface BirdcoderAppHeaderProps {
 }
 
 export function BirdcoderAppHeader({
+  brandLabel,
   centerContent,
   closeButtonRef,
   handleClose,
@@ -67,7 +69,7 @@ export function BirdcoderAppHeader({
           </div>
           <div className="flex min-w-0 items-center">
             <span className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]">
-              BirdCoder
+              {brandLabel}
             </span>
           </div>
         </div>

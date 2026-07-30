@@ -130,17 +130,53 @@ assert.deepEqual(
 );
 assert.deepEqual(
   Object.keys(standaloneDevelopmentProfile).filter((key) => (
-    /^SDKWORK_(?:BIRDCODER|CLAW)_DATABASE/u.test(key)
+    /^SDKWORK_(?:DATABASE_|[A-Z0-9_]+_DATABASE_)/u.test(key)
   )),
   [],
-  'Stateless BirdCoder profiles must not publish application database configuration.',
+  'Tracked BirdCoder profiles must not publish private workspace or application database configuration.',
 );
 
 {
+  const postgresExamplePath = path.join(rootDir, '.env.postgres.example');
   assert.equal(
-    fs.existsSync(path.join(rootDir, '.env.postgres.example')),
-    false,
-    'BirdCoder must not publish an application-owned PostgreSQL profile.',
+    fs.existsSync(postgresExamplePath),
+    true,
+    'BirdCoder must publish the unified workspace PostgreSQL development template.',
+  );
+  const postgresExampleSource = fs.readFileSync(postgresExamplePath, 'utf8');
+  for (const key of [
+    'SDKWORK_DATABASE_ENGINE',
+    'SDKWORK_DATABASE_HOST',
+    'SDKWORK_DATABASE_PORT',
+    'SDKWORK_DATABASE_NAME',
+    'SDKWORK_DATABASE_SCHEMA',
+    'SDKWORK_DATABASE_USERNAME',
+    'SDKWORK_DATABASE_PASSWORD',
+    'SDKWORK_DATABASE_SSL_MODE',
+    'SDKWORK_DATABASE_MAX_CONNECTIONS',
+  ]) {
+    assert.match(
+      postgresExampleSource,
+      new RegExp(`^${key}=`, 'mu'),
+      `.env.postgres.example must declare ${key}.`,
+    );
+  }
+  assert.doesNotMatch(
+    postgresExampleSource,
+    /^SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_/mu,
+    '.env.postgres.example must not declare application- or module-prefixed database keys.',
+  );
+
+  const rootPackage = readJson('package.json');
+  assert.equal(
+    rootPackage.scripts?.['db:postgres:init'],
+    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .',
+    'BirdCoder must expose the standard PostgreSQL initialization command.',
+  );
+  assert.equal(
+    rootPackage.scripts?.['db:postgres:plan'],
+    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run',
+    'BirdCoder must expose the standard PostgreSQL plan command.',
   );
   assert.equal(
     fs.existsSync(
@@ -150,7 +186,7 @@ assert.deepEqual(
       ),
     ),
     false,
-    'BirdCoder assembly must not restore an application database bootstrap.',
+    'BirdCoder assembly must not restore an application-owned database bootstrap.',
   );
 }
 

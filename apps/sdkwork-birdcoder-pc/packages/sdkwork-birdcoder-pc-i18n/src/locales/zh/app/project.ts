@@ -11,6 +11,8 @@ export default defineLocaleModule('app/project', {
     serverDirectory: '\u670d\u52a1\u7aef\u76ee\u5f55',
     selectServerDirectory: '\u9009\u62e9\u670d\u52a1\u7aef\u9879\u76ee\u76ee\u5f55',
     openedFolder: '\u5df2\u6253\u5f00\u6587\u4ef6\u5939\uff1a{{name}}',
+    providerSessionsPartiallyImported:
+      '\u5df2\u6253\u5f00 {{name}}\uff0c\u4f46\u6709 {{count}} \u4e2a Provider Session \u672a\u80fd\u5bfc\u5165\u3002',
     failedToOpenFolder: '\u6253\u5f00\u6587\u4ef6\u5939\u5931\u8d25',
     traceRecordingStopped: '\u8f68\u8ff9\u8bb0\u5f55\u5df2\u505c\u6b62',
     traceRecordingStarted: '\u8f68\u8ff9\u8bb0\u5f55\u5df2\u5f00\u59cb',

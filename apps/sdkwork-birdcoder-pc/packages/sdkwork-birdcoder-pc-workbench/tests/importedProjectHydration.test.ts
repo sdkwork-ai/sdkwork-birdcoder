@@ -6,7 +6,10 @@ import type {
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { AgentSessionActivitySummaryRecord } from '../src/services/agentSessionViewModels.ts';
-import { hydrateImportedProjectFromAuthority } from '../src/workbench/importedProjectHydration.ts';
+import {
+  importProjectProviderSessions,
+  refreshImportedProjectFromAuthority,
+} from '../src/workbench/importedProjectHydration.ts';
 
 const tenantId = '100001';
 const organizationId = '0';
@@ -153,8 +156,8 @@ function service(items: AgentSessionActivitySummaryRecord[]) {
   };
 }
 
-describe('hydrateImportedProjectFromAuthority', () => {
-  it('hydrates one bounded canonical activity head across all supported providers', async () => {
+describe('imported Project Session inventory', () => {
+  it('refreshes one bounded canonical activity head without Provider discovery', async () => {
     const summaries = [
       summary('codex', 'provider.openai'),
       summary('claude-code', 'provider.anthropic'),
@@ -166,7 +169,7 @@ describe('hydrateImportedProjectFromAuthority', () => {
       getProjectById: vi.fn(async () => project()),
     } as unknown as IProjectService;
 
-    const hydrated = await hydrateImportedProjectFromAuthority({
+    const refreshed = await refreshImportedProjectFromAuthority({
       agentSessionService: agentSessionService.value,
       projectId,
       projectService,
@@ -178,7 +181,8 @@ describe('hydrateImportedProjectFromAuthority', () => {
       pageSize: 200,
       projectId,
     }, { signal: expect.any(AbortSignal) });
-    expect(hydrated?.project.agentSessions.map((session) => session.providerId).sort()).toEqual([
+    expect(agentSessionService.synchronizeProjectSessions).not.toHaveBeenCalled();
+    expect(refreshed?.project.agentSessions.map((session) => session.providerId).sort()).toEqual([
       'provider.anthropic',
       'provider.google',
       'provider.openai',
@@ -192,7 +196,7 @@ describe('hydrateImportedProjectFromAuthority', () => {
       getProjectById: vi.fn(async () => project()),
     } as unknown as IProjectService;
 
-    const hydrated = await hydrateImportedProjectFromAuthority({
+    const refreshed = await refreshImportedProjectFromAuthority({
       agentSessionService: agentSessionService.value,
       knownProjects: [project()],
       projectId,
@@ -200,7 +204,7 @@ describe('hydrateImportedProjectFromAuthority', () => {
       workspaceId,
     });
 
-    expect(hydrated?.project.projectId).toBe(projectId);
+    expect(refreshed?.project.projectId).toBe(projectId);
     expect(projectService.getProjectById).not.toHaveBeenCalled();
   });
 
@@ -214,7 +218,7 @@ describe('hydrateImportedProjectFromAuthority', () => {
     });
     const agentSessionService = service([deleted]);
 
-    const hydrated = await hydrateImportedProjectFromAuthority({
+    const refreshed = await refreshImportedProjectFromAuthority({
       agentSessionService: agentSessionService.value,
       projectId,
       projectService: {
@@ -223,13 +227,13 @@ describe('hydrateImportedProjectFromAuthority', () => {
       workspaceId,
     });
 
-    expect(hydrated?.deletedSessionIds).toEqual(['session.deleted']);
-    expect(hydrated?.project.agentSessions).toEqual([]);
+    expect(refreshed?.deletedSessionIds).toEqual(['session.deleted']);
+    expect(refreshed?.project.agentSessions).toEqual([]);
   });
 
   it('rejects a Project returned from a different Workspace before Session reads', async () => {
     const agentSessionService = service([]);
-    const hydrated = await hydrateImportedProjectFromAuthority({
+    const refreshed = await refreshImportedProjectFromAuthority({
       agentSessionService: agentSessionService.value,
       projectId,
       projectService: {
@@ -238,7 +242,31 @@ describe('hydrateImportedProjectFromAuthority', () => {
       workspaceId,
     });
 
-    expect(hydrated).toBeNull();
+    expect(refreshed).toBeNull();
     expect(agentSessionService.listSessionActivitySummaries).not.toHaveBeenCalled();
+  });
+
+  it('runs Provider discovery only for an explicit import before reading the canonical head', async () => {
+    const agentSessionService = service([summary('codex', 'provider.openai')]);
+
+    const imported = await importProjectProviderSessions({
+      agentSessionService: agentSessionService.value,
+      projectId,
+      projectService: {
+        getProjectById: vi.fn(async () => project()),
+      } as unknown as IProjectService,
+      workspaceId,
+    });
+
+    expect(agentSessionService.synchronizeProjectSessions).toHaveBeenCalledWith(
+      projectId,
+      { signal: undefined },
+    );
+    expect(
+      agentSessionService.synchronizeProjectSessions.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      agentSessionService.listSessionActivitySummaries.mock.invocationCallOrder[0],
+    );
+    expect(imported?.project.agentSessions).toHaveLength(1);
   });
 });

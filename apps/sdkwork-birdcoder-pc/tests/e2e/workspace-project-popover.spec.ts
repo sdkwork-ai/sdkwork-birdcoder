@@ -40,6 +40,64 @@ async function installAuthenticatedSession(page: Page, request: APIRequestContex
   }, sessionPayload.data);
 }
 
+test('Workspace and Project Popover keeps keyboard focus inside and restores its trigger', async ({
+  page,
+  request,
+}) => {
+  await installAuthenticatedSession(page, request);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/#/app/code');
+
+  const trigger = page.getByRole('button', { name: 'Workspace and Projects' });
+  await expect(trigger).toBeVisible({ timeout: 60_000 });
+  await trigger.focus();
+  await trigger.click();
+
+  const switcher = page.getByRole('dialog', { name: 'Workspace and Projects' });
+  const closeButton = switcher.getByRole('button', {
+    name: 'Close Workspace and Project switcher',
+  });
+  await expect(switcher).toBeVisible();
+  await expect(closeButton).toBeFocused();
+
+  const focusableElements = switcher.locator([
+    'a[href]',
+    'button:not(:disabled)',
+    'input:not(:disabled)',
+    'select:not(:disabled)',
+    'textarea:not(:disabled)',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(','));
+  const lastFocusableElement = focusableElements.last();
+  await lastFocusableElement.focus();
+  await page.keyboard.press('Tab');
+  await expect(closeButton).toBeFocused();
+
+  await closeButton.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(lastFocusableElement).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(switcher).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+
+  await page.setViewportSize({ width: 520, height: 640 });
+  await trigger.click();
+  await expect(switcher).toBeVisible();
+  const switcherBox = await switcher.boundingBox();
+  expect(switcherBox).not.toBeNull();
+  expect(switcherBox?.x).toBeGreaterThanOrEqual(0);
+  expect((switcherBox?.x ?? 0) + (switcherBox?.width ?? 0)).toBeLessThanOrEqual(520);
+  expect(switcherBox?.y).toBeGreaterThanOrEqual(0);
+  expect((switcherBox?.y ?? 0) + (switcherBox?.height ?? 0)).toBeLessThanOrEqual(640);
+  expect(await switcher.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBe(0);
+  expect(await page.evaluate(() => (
+    document.documentElement.scrollWidth - document.documentElement.clientWidth
+  ))).toBe(0);
+});
+
 test('Workspace and Project Popover opens the dedicated Create project dialog', async ({
   page,
   request,

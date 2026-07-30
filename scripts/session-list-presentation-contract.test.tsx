@@ -123,6 +123,14 @@ function assertLeadingProviderBadge(html: string, surface: string): void {
   assert.doesNotMatch(html, /data-session-engine-slot=/u);
 }
 
+function assertSemanticSessionRowButton(html: string, surface: string): void {
+  assert.match(
+    html,
+    /<button(?:\s|>)/u,
+    `${surface} must expose Session selection through a native button.`,
+  );
+}
+
 function assertFirstVisualProviderBadge(html: string, surface: 'Code' | 'Studio'): void {
   const leadingMarkup = surface === 'Code'
     ? /^<div[^>]*><div[^>]*><span[^>]*data-session-provider-abbreviation=/u
@@ -420,6 +428,8 @@ assertLeadingProviderBadge(codeUnknownHtml, 'Code unknown');
 assertLeadingProviderBadge(studioUnknownHtml, 'Studio unknown');
 assertFirstVisualProviderBadge(codeUnknownHtml, 'Code');
 assertFirstVisualProviderBadge(studioUnknownHtml, 'Studio');
+assertSemanticSessionRowButton(codeUnknownHtml, 'Code');
+assertSemanticSessionRowButton(studioUnknownHtml, 'Studio');
 assertRightAlignedTrailingMetadata(codeUnknownHtml, 'Code unknown');
 assertRightAlignedTrailingMetadata(studioUnknownHtml, 'Studio unknown');
 assert.doesNotMatch(codeUnknownHtml, /Status unavailable/u);

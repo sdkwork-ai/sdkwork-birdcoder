@@ -103,6 +103,10 @@
       "import": "./src/services/skillsSdkClient.ts",
       "types": "./src/services/skillsSdkClient.ts"
     },
+    "./services/mcpSdkClient": {
+      "import": "./src/services/mcpSdkClient.ts",
+      "types": "./src/services/mcpSdkClient.ts"
+    },
     "./services/impl/PromptsSdkPromptService": {
       "import": "./src/services/impl/PromptsSdkPromptService.ts",
       "types": "./src/services/impl/PromptsSdkPromptService.ts"
@@ -189,5 +193,10 @@
     "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": "workspace:*"
   },
-  "scripts": {}
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts"
+  }
 }

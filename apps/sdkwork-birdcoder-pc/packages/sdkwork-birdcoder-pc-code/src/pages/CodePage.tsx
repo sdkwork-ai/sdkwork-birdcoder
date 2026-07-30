@@ -17,7 +17,8 @@ import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/ter
 import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionActions';
 import { useAgentSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionEngineModelSelection';
 import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
-import { useImportedProjectSessionSynchronization } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionSynchronization';
+import { useImportedProjectSessionInventory } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionInventory';
+import { getProviderSessionImportFailureCount } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
@@ -108,6 +109,8 @@ function CodePageComponent({
   const {
     hasMore: hasMoreProjects,
     hasFetched: hasFetchedProjects,
+    error: projectsLoadError,
+    isLoading: isLoadingProjects,
     isLoadingMore: isLoadingMoreProjects,
     projects,
     filteredProjects,
@@ -129,6 +132,7 @@ function CodePageComponent({
     forkAgentSession,
     loadMoreProjects,
     loadMoreProjectSessions,
+    refreshProjects,
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
@@ -516,28 +520,29 @@ function CodePageComponent({
     selectProjectWithoutAgentSession(projectId);
   }, [latestAgentSessionIdByProjectId, selectProjectWithoutAgentSession, selectSession]);
 
-  const handleImportedProjectSessionsSynchronized = useCallback((result: {
+  const handleImportedProjectSessionsRefreshed = useCallback((result: {
     latestAgentSessionId: string | null;
     project: { projectId: string };
   }) => {
-    const synchronizedProjectId = result.project.projectId;
-    if (currentProjectId !== synchronizedProjectId) {
+    const refreshedProjectId = result.project.projectId;
+    if (currentProjectId !== refreshedProjectId) {
       return;
     }
     if (sessionId?.trim() || initialAgentSessionId?.trim()) {
       return;
     }
     if (result.latestAgentSessionId) {
-      selectSession(result.latestAgentSessionId, { projectId: synchronizedProjectId });
+      selectSession(result.latestAgentSessionId, { projectId: refreshedProjectId });
     }
   }, [currentProjectId, initialAgentSessionId, selectSession, sessionId]);
   const {
-    invalidateImportedProjectSessionSynchronization,
-    synchronizeImportedProject,
-  } = useImportedProjectSessionSynchronization({
+    importProjectProviderSessions,
+    invalidateImportedProjectSessionInventory,
+    refreshImportedProject,
+  } = useImportedProjectSessionInventory({
     agentSessionService,
     knownProjects: projects,
-    onSynchronized: handleImportedProjectSessionsSynchronized,
+    onRefreshed: handleImportedProjectSessionsRefreshed,
     projectService,
     userScope,
     workspaceId,
@@ -551,21 +556,22 @@ function CodePageComponent({
       return;
     }
     if (mountRecoveryState.status !== 'recovered') {
-      invalidateImportedProjectSessionSynchronization(currentProjectId);
+      invalidateImportedProjectSessionInventory(currentProjectId);
       return;
     }
 
-    void synchronizeImportedProject(currentProjectId).catch((error) => {
+    void refreshImportedProject(currentProjectId).catch((error) => {
       console.error('Failed to refresh mounted project sessions', error);
     });
   }, [
     currentProjectId,
-    invalidateImportedProjectSessionSynchronization,
+    invalidateImportedProjectSessionInventory,
     isVisible,
     mountRecoveryState.status,
-    synchronizeImportedProject,
+    refreshImportedProject,
   ]);
   const {
+    earlierAgentSessionItemsError,
     handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
@@ -597,7 +603,7 @@ function CodePageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
-    synchronizeProjectSessions: synchronizeImportedProject,
+    refreshProjectSessionInventory: refreshImportedProject,
   });
   const handleRenameSession = useCallback(async (
     agentSessionId: string,
@@ -667,8 +673,17 @@ function CodePageComponent({
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
-        await synchronizeImportedProject(importedProject.projectId, true);
-        addToast(`Opened folder: ${importedProject.projectName}`, 'success');
+        const importedInventory = await importProjectProviderSessions(importedProject.projectId);
+        const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+        addToast(
+          failedSessionCount
+            ? t('code.providerSessionsPartiallyImported', {
+                count: failedSessionCount,
+                name: importedProject.projectName,
+              })
+            : t('code.openedFolder', { name: importedProject.projectName }),
+          failedSessionCount ? 'info' : 'success',
+        );
       }
     } catch (error) {
       console.error("Failed to open folder", error);
@@ -678,7 +693,7 @@ function CodePageComponent({
     addToast,
     activateImportedProject,
     selectFolderAndImportProject,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
     t,
   ]);
 
@@ -691,7 +706,7 @@ function CodePageComponent({
     currentProjectId,
     restoreProjectMount,
     selectProjectFolder,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
   });
 
   const handleArchiveProject = useCallback(async (projectId: string) => {
@@ -1159,7 +1174,7 @@ function CodePageComponent({
     selectedAgentSession,
     selectedAgentSessionId: visibleSessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
-    synchronizeProjectSessions: synchronizeImportedProject,
+    refreshProjectSessionInventory: refreshImportedProject,
   });
   const selectedAgentSessionItems = useMemo(
     () => (isNewAgentSessionCreating ? [] : selectedAgentSession?.items ?? []),
@@ -1327,13 +1342,16 @@ function CodePageComponent({
     filteredProjects,
     projects,
     hasMoreProjects,
+    hasProjectsLoadError: Boolean(projectsLoadError && projects.length === 0),
     hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
+    remoteMessagesLoadError: earlierAgentSessionItemsError,
     isChatBusy,
     isChatEngineBusy,
     isEngineBusyCurrentSession: isSelectedSessionEngineBusy,
     isDebugConfigVisible,
     isFindVisible,
     isMountRecoveryActionPending,
+    isLoadingProjects,
     isLoadingMoreProjects,
     isLoadingMoreRemoteMessages: isLoadingEarlierSelectedAgentSessionItems,
     isNewSession: isSelectedAgentSessionNew,
@@ -1419,6 +1437,7 @@ function CodePageComponent({
     onNewSessionProjectSelect: handleNewSessionProjectSelect,
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,
+    onRetryProjects: refreshProjects,
     onLoadMoreProjectSessions: loadMoreProjectSessions,
     onLoadMoreRemoteMessages: handleLoadEarlierSelectedAgentSessionItems,
     onNotifyNoResults: handleNotifyNoCodeResults,

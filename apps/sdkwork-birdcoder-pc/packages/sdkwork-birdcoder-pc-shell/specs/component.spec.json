@@ -117,7 +117,14 @@
         "export": "."
       }
     ],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "workResourcesFeature",
+        "export": ".",
+        "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+        "sourceExport": "."
+      }
+    ],
     "publicExports": [
       ".",
       "./styles"
@@ -125,7 +132,8 @@
     "runtimeEntrypoints": [],
     "sdkClients": [],
     "events": [
-      "birdcoder-tray-action"
+      "birdcoder-tray-action",
+      "openWorkResources"
     ],
     "configKeys": [],
     "routeManifest": null,

@@ -27,7 +27,10 @@ import {
   buildDesktopTraySessionMenuSnapshot,
   type DesktopTrayAction,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/desktopTraySessionMenu';
-import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
+import {
+  getProviderSessionImportFailureCount,
+  importProjectProviderSessions,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import {
   importSelectedProjectDirectory,
   resolveProjectDirectorySelectionName,
@@ -494,13 +497,13 @@ export function AppContent() {
     [commitActiveAgentSessionSelection, projectsIndex],
   );
 
-  const hydrateImportedProjectSelection = useCallback(
+  const importProjectProviderSessionsAndSelect = useCallback(
     async (projectId: string) => {
       if (pendingImportedProjectIdRef.current !== projectId) {
         return null;
       }
 
-      const hydratedProject = await hydrateImportedProjectFromAuthority({
+      const importedInventory = await importProjectProviderSessions({
         agentSessionService,
         knownProjects: projects,
         projectId,
@@ -508,19 +511,19 @@ export function AppContent() {
         userScope: currentWorkbenchSessionScope,
         workspaceId: selectedWorkspaceId,
       });
-      if (!hydratedProject) {
+      if (!importedInventory) {
         throw new Error('The imported project Session inventory could not be refreshed.');
       }
       if (pendingImportedProjectIdRef.current !== projectId) {
-        return hydratedProject;
+        return importedInventory;
       }
 
       commitActiveAgentSessionSelection(
         projectId,
-        hydratedProject.latestAgentSessionId ?? '',
+        importedInventory.latestAgentSessionId ?? '',
       );
       pendingImportedProjectIdRef.current = '';
-      return hydratedProject;
+      return importedInventory;
     },
     [
       agentSessionService,
@@ -865,6 +868,9 @@ export function AppContent() {
       }
       setActiveTab('settings');
     };
+    const handleOpenWorkResources = () => {
+      setActiveTab('work-resources');
+    };
     const handleTerminalRequest = (req: TerminalCommandRequest) => {
       if (!isProjectTerminalRequest(req)) {
         return;
@@ -910,6 +916,7 @@ export function AppContent() {
     );
     const unsubscribeProjectPathCopy = subscribeCopyProjectLocalPath(handleCopyProjectLocalPath);
     const unsubscribeSettings = globalEventBus.on('openSettings', handleOpenSettings);
+    const unsubscribeWorkResources = globalEventBus.on('openWorkResources', handleOpenWorkResources);
     const unsubscribeTerminalReq = globalEventBus.on('terminalRequest', handleTerminalRequest);
     return () => {
       unsubscribeProjectMountRecovery();
@@ -919,6 +926,7 @@ export function AppContent() {
       unsubscribeProjectReveal();
       unsubscribeProjectPathCopy();
       unsubscribeSettings();
+      unsubscribeWorkResources();
       unsubscribeTerminalReq();
     };
   }, [addToast, projectRuntimeLocationService, setSettingsTab, t]);
@@ -1204,10 +1212,21 @@ export function AppContent() {
           workspaceId: selectedWorkspaceId,
         });
         activateImportedProject(importedProject.projectId);
-        await hydrateImportedProjectSelection(importedProject.projectId);
+        const importedInventory = await importProjectProviderSessionsAndSelect(
+          importedProject.projectId,
+        );
+        const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
         settleProjectCreationRequest(importedProject.projectId);
         closeCreateProjectDialog();
-        addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
+        addToast(
+          failedSessionCount
+            ? t('app.providerSessionsPartiallyImported', {
+                count: failedSessionCount,
+                name: importedProject.projectName,
+              })
+            : t('app.folderProjectCreated', { name: importedProject.projectName }),
+          failedSessionCount ? 'info' : 'success',
+        );
       } else {
         const project = await createProject(normalizedProjectName);
         activateImportedProject(project.projectId);
@@ -1234,7 +1253,7 @@ export function AppContent() {
     closeCreateProjectDialog,
     createProject,
     ensureProject,
-    hydrateImportedProjectSelection,
+    importProjectProviderSessionsAndSelect,
     importProject,
     isProjectCreationPending,
     newProjectName,
@@ -1766,8 +1785,19 @@ export function AppContent() {
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
-        await hydrateImportedProjectSelection(importedProject.projectId);
-        addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
+        const importedInventory = await importProjectProviderSessionsAndSelect(
+          importedProject.projectId,
+        );
+        const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+        addToast(
+          failedSessionCount
+            ? t('app.providerSessionsPartiallyImported', {
+                count: failedSessionCount,
+                name: importedProject.projectName,
+              })
+            : t('app.openedFolder', { name: importedProject.projectName }),
+          failedSessionCount ? 'info' : 'success',
+        );
       }
     } catch (e) {
       console.error("Failed to open folder", e);
@@ -1776,7 +1806,7 @@ export function AppContent() {
   }, [
     activateImportedProject,
     addToast,
-    hydrateImportedProjectSelection,
+    importProjectProviderSessionsAndSelect,
     selectFolderAndImportProject,
     t,
   ]);
@@ -2439,6 +2469,7 @@ export function AppContent() {
         className="birdcoder-app-shell flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
       >
       <BirdcoderAppHeader
+        brandLabel={preferences.workbenchMode === 'work' ? t('app.workMode') : 'BirdCoder'}
         centerContent={shouldShowWorkbenchHeaderChrome ? (
           <div className="flex h-full min-w-0 items-center justify-center">
             <AppWorkspaceProjectPopover

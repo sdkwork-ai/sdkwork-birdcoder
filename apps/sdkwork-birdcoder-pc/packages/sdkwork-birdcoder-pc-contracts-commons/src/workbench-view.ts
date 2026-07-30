@@ -4,7 +4,7 @@ import type {
 } from './agent-session-view.ts';
 import type { WorkbenchEntityId, WorkbenchLongIntegerString } from './workbench-values.ts';
 
-export type AppTab = 'code' | 'studio' | 'multiwindow' | 'terminal' | 'settings' | 'auth' | 'user' | 'vip';
+export type AppTab = 'code' | 'studio' | 'work-resources' | 'multiwindow' | 'terminal' | 'settings' | 'auth' | 'user' | 'vip';
 export interface User { id: WorkbenchEntityId; name: string; email: string; avatarUrl?: string }
 export interface IFileNode { name: string; type: 'file' | 'directory'; path: string; children?: IFileNode[] }
 export interface ProjectFileSystemChangeEvent { kind: 'create' | 'modify' | 'remove' | 'rename' | 'other'; paths: string[] }

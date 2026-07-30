@@ -15,6 +15,7 @@ export const AUTHENTICATED_DEFAULT_APP_TAB: AppTab = 'code';
 const AUTH_REQUIRED_APP_TABS = new Set<AppTab>([
   'code',
   'studio',
+  'work-resources',
   'multiwindow',
   'terminal',
   'user',

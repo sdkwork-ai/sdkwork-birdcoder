@@ -115,7 +115,7 @@ export type AgentSessionItemDisplayRole =
 
 export const AGENT_SESSION_ITEM_VIEW_KINDS = [
   'user.text', 'assistant.text', 'assistant.activity', 'tool.result',
-  'system.notice', 'planner.plan', 'reviewer.feedback',
+  'system.notice', 'planner.plan', 'reviewer.feedback', 'unsupported',
 ] as const;
 export type AgentSessionItemViewKind = (typeof AGENT_SESSION_ITEM_VIEW_KINDS)[number];
 
@@ -336,6 +336,12 @@ export interface AgentSessionPageInfoView {
   pageSize: number;
 }
 
+export interface AgentSessionItemPageInfoView {
+  hasMore: boolean;
+  nextCursor: string | null;
+  pageSize: number;
+}
+
 export type AgentSessionItemViewSource = Readonly<AgentSessionItemView>;
 export type AgentSessionProtocolNoticeKind =
   | 'blocked' | 'cancelled' | 'compression' | 'failed' | 'info' | 'retry'
@@ -374,7 +380,7 @@ export interface AgentSessionView {
   pinned?: boolean;
   archived?: boolean;
   unread?: boolean;
-  itemPageInfo?: AgentSessionPageInfoView;
+  itemPageInfo?: AgentSessionItemPageInfoView;
   items: AgentSessionItemView[];
 }
 

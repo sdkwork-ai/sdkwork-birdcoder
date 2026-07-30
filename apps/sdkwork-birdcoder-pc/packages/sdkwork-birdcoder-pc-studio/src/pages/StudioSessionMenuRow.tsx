@@ -38,6 +38,7 @@ export const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
       type="button"
       onClick={() => onSelectAgentSession(projectId, session.id)}
       data-agent-session-id={session.id}
+      data-studio-session-row="true"
       data-session-project-id={projectId}
       data-session-selected={isSelected ? 'true' : undefined}
       className={`group flex h-10 w-full items-center justify-between gap-2 rounded-md px-2.5 text-sm transition-colors ${

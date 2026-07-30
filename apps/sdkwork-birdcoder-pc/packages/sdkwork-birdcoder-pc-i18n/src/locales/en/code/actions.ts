@@ -27,6 +27,10 @@ export default defineLocaleModule('code/actions', {
     projectCreated: 'Project created successfully',
     failedToCreateProject: 'Failed to create project',
     openedFolder: 'Opened folder: {{name}}',
+    reconnectedFolder: 'Reconnected folder: {{name}}',
+    localFolder: 'Local folder',
+    providerSessionsPartiallyImported:
+      'Opened {{name}}, but {{count}} provider sessions could not be imported.',
     failedToOpenFolder: 'Failed to open folder',
     deleteMessageTitle: 'Delete Message',
     deleteMessageDescription:

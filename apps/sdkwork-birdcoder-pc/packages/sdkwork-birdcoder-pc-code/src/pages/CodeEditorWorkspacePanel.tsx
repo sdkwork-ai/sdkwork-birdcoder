@@ -18,6 +18,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   messages,
   hasMoreRemoteMessages,
   isLoadingMoreRemoteMessages,
+  remoteMessagesLoadError,
   isNewSession,
   pendingApprovals,
   pendingUserQuestions,
@@ -45,6 +46,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       messages={messages}
       hasMoreRemoteMessages={hasMoreRemoteMessages}
       isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+      remoteMessagesLoadError={remoteMessagesLoadError}
       onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
       pendingApprovals={pendingApprovals}
       pendingUserQuestions={pendingUserQuestions}
@@ -102,6 +104,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   messages,
   hasMoreRemoteMessages,
   isLoadingMoreRemoteMessages,
+  remoteMessagesLoadError,
   isNewSession,
   pendingApprovals,
   pendingUserQuestions,
@@ -206,6 +209,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               messages={messages}
               hasMoreRemoteMessages={hasMoreRemoteMessages}
               isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+              remoteMessagesLoadError={remoteMessagesLoadError}
               isNewSession={isNewSession}
               pendingApprovals={pendingApprovals}
               pendingUserQuestions={pendingUserQuestions}

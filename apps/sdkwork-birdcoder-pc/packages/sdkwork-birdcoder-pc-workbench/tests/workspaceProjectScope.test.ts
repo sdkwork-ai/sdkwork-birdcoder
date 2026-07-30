@@ -328,7 +328,7 @@ describe('Workspace-scoped project inventory', () => {
     const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
     const initialSession = {
       ...createSession(project.projectId),
-      itemPageInfo: { hasMore: true, page: 5, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.5', pageSize: 50 },
     };
 
     try {
@@ -343,7 +343,7 @@ describe('Workspace-scoped project inventory', () => {
       const expected = {
         agentId: initialSession.agentId,
         hasMore: initialSession.itemPageInfo.hasMore,
-        page: initialSession.itemPageInfo.page,
+        nextCursor: initialSession.itemPageInfo.nextCursor,
         pageSize: initialSession.itemPageInfo.pageSize,
         revision: getAgentSessionTranscriptRevision(
           scopeKey,
@@ -364,7 +364,7 @@ describe('Workspace-scoped project inventory', () => {
         project.projectId,
         {
           ...initialSession,
-          itemPageInfo: { hasMore: false, page: 6, pageSize: 50 },
+          itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
           updatedAt: '2026-07-25T00:03:00.000Z',
         },
         project.workspaceId,
@@ -385,7 +385,7 @@ describe('Workspace-scoped project inventory', () => {
     const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
     const agentSession = {
       ...createSession(project.projectId),
-      itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.2', pageSize: 50 },
     };
 
     try {
@@ -427,11 +427,11 @@ describe('Workspace-scoped project inventory', () => {
     const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
     const agentSession = {
       ...createSession(project.projectId),
-      itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.2', pageSize: 50 },
     };
     const historyPage = {
       ...agentSession,
-      itemPageInfo: { hasMore: false, page: 3, pageSize: 50 },
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
     };
 
     try {
@@ -446,7 +446,7 @@ describe('Workspace-scoped project inventory', () => {
       const expected = {
         agentId: agentSession.agentId,
         hasMore: agentSession.itemPageInfo.hasMore,
-        page: agentSession.itemPageInfo.page,
+        nextCursor: agentSession.itemPageInfo.nextCursor,
         pageSize: agentSession.itemPageInfo.pageSize,
         revision: getAgentSessionTranscriptRevision(
           scopeKey,
@@ -472,7 +472,11 @@ describe('Workspace-scoped project inventory', () => {
       expect(commit({ ...historyPage, projectId: 'project-stale' })).toBe(false);
       expect(commit({
         ...historyPage,
-        itemPageInfo: { ...historyPage.itemPageInfo, page: expected.page },
+        itemPageInfo: {
+          ...historyPage.itemPageInfo,
+          hasMore: true,
+          nextCursor: expected.nextCursor,
+        },
       })).toBe(false);
       expect(commit({
         ...historyPage,
@@ -481,7 +485,7 @@ describe('Workspace-scoped project inventory', () => {
       expect(commit(historyPage, { ...expected, agentId: 'agent.code-engine.stale' }))
         .toBe(false);
       expect(commit(historyPage, { ...expected, hasMore: false })).toBe(false);
-      expect(commit(historyPage, { ...expected, page: 1 })).toBe(false);
+      expect(commit(historyPage, { ...expected, nextCursor: 'cursor.stale' })).toBe(false);
       expect(commit(historyPage, { ...expected, pageSize: 20 })).toBe(false);
       expect(commit(historyPage, { ...expected, revision: expected.revision - 1 }))
         .toBe(false);

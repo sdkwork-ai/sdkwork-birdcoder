@@ -86,7 +86,20 @@
         "export": "."
       }
     ],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "workResourcesEnglishLocaleFragment",
+        "export": ".",
+        "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+        "sourceExport": "./i18n/en"
+      },
+      {
+        "name": "workResourcesChineseLocaleFragment",
+        "export": ".",
+        "sourcePackage": "@sdkwork/birdcoder-pc-work-resources",
+        "sourceExport": "./i18n/zh"
+      }
+    ],
     "publicExports": [
       "."
     ],
@@ -102,7 +115,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Locale fragments are owned by this package and composed through its package-root export.",
+    "authority": "This package composes its own locale fragments with feature-owned fragments through declared package exports; each feature remains the sole owner of its fully qualified keys.",
     "languagePolicy": "English and Chinese locale trees must have key parity, one owner per fully qualified key, and deterministic fallback."
   },
   "verification": {

@@ -12,13 +12,20 @@ import {
   isProjectMountReadyForSessionSynchronization,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import {
+  getProviderSessionImportFailureCount,
+  type ImportedProjectSessionInventoryResult,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
+import { useTranslation } from 'react-i18next';
 
 interface UseCodeProjectMountRecoveryActionsOptions {
   currentProject: AgentProjectView | null;
   currentProjectId: string;
   restoreProjectMount: () => Promise<ProjectDeviceMountState | null>;
   selectProjectFolder: () => Promise<ProjectDirectorySelection | null>;
-  synchronizeImportedProject: (projectId: string, force?: boolean) => Promise<unknown>;
+  importProjectProviderSessions: (
+    projectId: string,
+  ) => Promise<ImportedProjectSessionInventoryResult | null>;
 }
 
 export function useCodeProjectMountRecoveryActions({
@@ -26,13 +33,14 @@ export function useCodeProjectMountRecoveryActions({
   currentProjectId,
   restoreProjectMount,
   selectProjectFolder,
-  synchronizeImportedProject,
+  importProjectProviderSessions,
 }: UseCodeProjectMountRecoveryActionsOptions) {
   const {
     projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
   const { addToast } = useToast();
+  const { t } = useTranslation();
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
 
   const handleRetryMountRecovery = useCallback(async () => {
@@ -48,8 +56,19 @@ export function useCodeProjectMountRecoveryActions({
         addToast('Select the local folder again to restore file access on this device.', 'error');
         return;
       }
-      await synchronizeImportedProject(currentProjectId, true);
-      addToast(`Reconnected folder: ${currentProject?.name ?? 'Local folder'}`, 'success');
+      const importedInventory = await importProjectProviderSessions(currentProjectId);
+      const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+      addToast(
+        failedSessionCount
+          ? t('code.providerSessionsPartiallyImported', {
+              count: failedSessionCount,
+              name: currentProject?.name ?? t('code.localFolder'),
+            })
+          : t('code.reconnectedFolder', {
+              name: currentProject?.name ?? t('code.localFolder'),
+            }),
+        failedSessionCount ? 'info' : 'success',
+      );
     } catch (error) {
       console.error('Failed to retry local project folder recovery', error);
       addToast(
@@ -66,7 +85,7 @@ export function useCodeProjectMountRecoveryActions({
     currentProject?.name,
     currentProjectId,
     restoreProjectMount,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
   ]);
 
   const handleReimportProjectFolder = useCallback(async () => {
@@ -91,8 +110,17 @@ export function useCodeProjectMountRecoveryActions({
         selection,
       });
       await restoreProjectMount();
-      await synchronizeImportedProject(currentProjectId, true);
-      addToast(`Opened folder: ${reboundProject.projectName}`, 'success');
+      const importedInventory = await importProjectProviderSessions(currentProjectId);
+      const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+      addToast(
+        failedSessionCount
+          ? t('code.providerSessionsPartiallyImported', {
+              count: failedSessionCount,
+              name: reboundProject.projectName,
+            })
+          : t('code.openedFolder', { name: reboundProject.projectName }),
+        failedSessionCount ? 'info' : 'success',
+      );
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
       addToast(
@@ -110,7 +138,7 @@ export function useCodeProjectMountRecoveryActions({
     projectService,
     restoreProjectMount,
     selectProjectFolder,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
   ]);
 
   return {

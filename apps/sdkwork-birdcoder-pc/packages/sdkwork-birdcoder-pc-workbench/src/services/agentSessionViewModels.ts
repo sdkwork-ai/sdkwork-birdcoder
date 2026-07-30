@@ -1,4 +1,5 @@
 import type {
+  AgentSessionItemPageInfoView,
   AgentSessionPageInfoView,
   AgentSessionActivityView,
   AgentSessionItemReasoningView,
@@ -58,7 +59,7 @@ export interface AgentSessionViewContext {
   runtimeBindingStatus?: 'active' | 'deactivated' | 'failed' | 'deleted';
   runtimeBindingUpdatedAt?: string;
   userState?: AgentSessionUserStateRecord | null;
-  itemPageInfo?: AgentSessionPageInfoView;
+  itemPageInfo?: AgentSessionItemPageInfoView;
 }
 
 export interface ProjectAgentSessionPage {
@@ -869,7 +870,7 @@ export async function loadAgentSessionView(
   session: AgentSessionRecord,
   projectId: string,
   items: readonly AgentSessionItemRecord[] = [],
-  itemPageInfo?: AgentSessionPageInfoView,
+  itemPageInfo?: AgentSessionItemPageInfoView,
   signal?: AbortSignal,
   prefetchedUserStates?: ReadonlyMap<string, AgentSessionUserStateRecord>,
   options: LoadAgentSessionViewOptions = {},

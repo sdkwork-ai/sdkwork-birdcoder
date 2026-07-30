@@ -45,6 +45,8 @@ export default defineLocaleModule('chat', {
     copyFailed: 'Unable to copy to clipboard',
     loadEarlierMessages: 'Load earlier messages',
     loadingEarlierMessages: 'Loading earlier messages...',
+    retryLoadingEarlierMessages: 'Retry',
+    unsupportedMessageContent: 'Unsupported session content',
     jumpToLatestMessage: 'Jump to latest message',
     transcriptRegion: 'Conversation messages',
     conversationMap: 'Conversation map',

@@ -39,9 +39,11 @@ export interface ProjectDriveComposition {
 
 export interface AgentProjectPageRequest {
   includeDeleted?: boolean;
+  nameExact?: string;
   page: number;
   pageSize: number;
   q?: string;
+  signal?: AbortSignal;
   status?: AgentProjectView['status'];
   workspaceId: string;
 }

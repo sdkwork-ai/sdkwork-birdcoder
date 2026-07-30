@@ -146,7 +146,7 @@ function services(
 }
 
 describe('manual Project Session refresh', () => {
-  it('explicitly synchronizes before loading the canonical activity head', async () => {
+  it('loads the canonical activity head without triggering Provider discovery', async () => {
     const page = cursorPage([
       summary('session.codex'),
       summary('session.claude'),
@@ -162,14 +162,7 @@ describe('manual Project Session refresh', () => {
       projectService: dependencies.projectService,
     });
 
-    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
-    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledWith(
-      PROJECT_ID,
-      { signal: expect.any(AbortSignal) },
-    );
-    expect(
-      dependencies.synchronizeProjectSessions.mock.invocationCallOrder[0],
-    ).toBeLessThan(dependencies.listSessionActivitySummaries.mock.invocationCallOrder[0]);
+    expect(dependencies.synchronizeProjectSessions).not.toHaveBeenCalled();
     expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
     expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledWith({
       pageSize: 200,
@@ -186,6 +179,82 @@ describe('manual Project Session refresh', () => {
 });
 
 describe('Agent Session transcript pagination', () => {
+  const transcriptAgentId = 'agent.intelligence.cursor';
+  const transcriptSessionId = 'session.cursor.test';
+  const transcriptCreatedAt = '2026-07-27T08:00:00.000Z';
+
+  function transcriptItemRecord(sequence: number): AgentSessionItemRecord {
+    return {
+      content: `message ${sequence}`,
+      createdAt: transcriptCreatedAt,
+      itemId: `item.${sequence}`,
+      kind: 'user_input',
+      sequence: String(sequence),
+      sessionId: transcriptSessionId,
+      status: 'completed',
+    } as AgentSessionItemRecord;
+  }
+
+  function transcriptSession(
+    overrides: Partial<AgentSessionView> = {},
+  ): AgentSessionView {
+    return {
+      agentId: transcriptAgentId,
+      createdAt: transcriptCreatedAt,
+      displayTime: '10:00',
+      engineId: 'cursor-engine',
+      hostMode: 'web',
+      id: transcriptSessionId,
+      items: [],
+      modelId: 'auto',
+      projectId: PROJECT_ID,
+      providerId: 'cursor-provider',
+      runtimeStatus: 'ready',
+      status: 'active',
+      title: 'Cursor transcript',
+      updatedAt: '2026-07-27T10:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  function transcriptSessionRecord(lastItemSequence = '0'): AgentSessionRecord {
+    return {
+      agentId: transcriptAgentId,
+      createdAt: transcriptCreatedAt,
+      lastItemAt: '2026-07-27T10:00:00.000Z',
+      lastItemSequence,
+      organizationId: ORGANIZATION_ID,
+      ownerUserId: OWNER_USER_ID,
+      projectId: PROJECT_ID,
+      sessionId: transcriptSessionId,
+      status: 'active',
+      tenantId: TENANT_ID,
+      title: 'Cursor transcript',
+      updatedAt: '2026-07-27T10:00:00.000Z',
+      version: lastItemSequence,
+    } as AgentSessionRecord;
+  }
+
+  function transcriptService(
+    listSessionItems: ReturnType<typeof vi.fn>,
+    sessionRecord = transcriptSessionRecord(),
+  ): IAgentSessionService {
+    return {
+      getSession: vi.fn(async () => sessionRecord),
+      getSessionUserStates: vi.fn(async () => new Map()),
+      listRuntimeBindings: vi.fn(async () => ({
+        items: [],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset',
+          page: 1,
+          pageSize: 20,
+        },
+      })),
+      listSessionItems,
+    } as unknown as IAgentSessionService;
+  }
+
   it('loads the latest 50 items first and reaches all 105 items through upward pagination', async () => {
     const agentId = 'agent.intelligence.codex';
     const sessionId = 'session.provider.codex.test';
@@ -239,15 +308,15 @@ describe('Agent Session transcript pagination', () => {
     };
     const listSessionItems = vi.fn(async (
       identity: { agentId: string; sessionId: string },
-      request: { page?: number; pageSize?: number; sort?: string },
+      request: { cursor?: string; pageSize?: number; sort?: string },
     ) => {
-      const page = request.page ?? 1;
+      const page = request.cursor === undefined ? 1 : request.cursor === 'cursor.1' ? 2 : 3;
       return {
         items: pageItems(page),
         pageInfo: {
           hasMore: page < 3,
-          mode: 'offset',
-          page,
+          mode: 'cursor' as const,
+          nextCursor: page < 3 ? `cursor.${page}` : null,
           pageSize: 50,
         },
       };
@@ -282,7 +351,7 @@ describe('Agent Session transcript pagination', () => {
     expect(latest.agentSession?.items.at(-1)?.id).toBe('item.105');
     expect(latest.agentSession?.itemPageInfo).toEqual({
       hasMore: true,
-      page: 1,
+      nextCursor: 'cursor.1',
       pageSize: 50,
     });
 
@@ -292,7 +361,7 @@ describe('Agent Session transcript pagination', () => {
     });
     expect(secondPage.agentSession.items).toHaveLength(100);
     expect(secondPage.agentSession.items.at(0)?.id).toBe('item.6');
-    expect(secondPage.agentSession.itemPageInfo?.page).toBe(2);
+    expect(secondPage.agentSession.itemPageInfo?.nextCursor).toBe('cursor.2');
 
     const thirdPage = await loadEarlierAgentSessionItems({
       agentSession: secondPage.agentSession,
@@ -303,7 +372,7 @@ describe('Agent Session transcript pagination', () => {
     expect(thirdPage.agentSession.items.at(-1)?.id).toBe('item.105');
     expect(thirdPage.agentSession.itemPageInfo).toEqual({
       hasMore: false,
-      page: 3,
+      nextCursor: null,
       pageSize: 50,
     });
 
@@ -315,30 +384,209 @@ describe('Agent Session transcript pagination', () => {
     expect(complete.loadedItemCount).toBe(0);
     expect(listSessionItems).toHaveBeenCalledTimes(3);
     expect(listSessionItems.mock.calls.map(([identity, request]) => ({
+      cursor: request.cursor,
       identity,
-      page: request.page,
       pageSize: request.pageSize,
       sort: request.sort,
     }))).toEqual([
       {
+        cursor: undefined,
         identity: { agentId, sessionId },
-        page: 1,
         pageSize: 50,
         sort: '-sequence',
       },
       {
+        cursor: 'cursor.1',
         identity: { agentId, sessionId },
-        page: 2,
         pageSize: 50,
         sort: '-sequence',
       },
       {
+        cursor: 'cursor.2',
         identity: { agentId, sessionId },
-        page: 3,
         pageSize: 50,
         sort: '-sequence',
       },
     ]);
+  });
+
+  it('preserves the oldest loaded cursor when concurrent head items overlap the window', async () => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.oldest-loaded',
+        pageSize: 50,
+      },
+      items: Array.from({ length: 60 }, (_, index) => ({
+        content: `message ${index + 1}`,
+        createdAt: transcriptCreatedAt,
+        id: `item.${index + 1}`,
+        role: 'user' as const,
+        sessionId: transcriptSessionId,
+      })),
+    });
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(65 - index)),
+      pageInfo: {
+        hasMore: true,
+        mode: 'cursor',
+        nextCursor: 'cursor.fresh-head',
+        pageSize: 50,
+      },
+    });
+
+    const result = await refreshAgentSessionItems({
+      agentSessionId: transcriptSessionId,
+      agentSessionService: transcriptService(
+        listSessionItems,
+        transcriptSessionRecord('65'),
+      ),
+      resolvedLocation: {
+        agentSession: selectedSession,
+        project: project({ agentSessions: [selectedSession] }),
+      },
+    });
+
+    expect(result.replaceLoadedAuthorityWindow).toBe(false);
+    expect(result.agentSession?.itemPageInfo).toEqual({
+      hasMore: true,
+      nextCursor: 'cursor.oldest-loaded',
+      pageSize: 50,
+    });
+    expect(result.agentSession?.items).toHaveLength(65);
+    expect(result.agentSession?.items.at(0)?.id).toBe('item.1');
+    expect(result.agentSession?.items.at(-1)?.id).toBe('item.65');
+    expect(listSessionItems).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces a disconnected authority window after the bounded eight-page scan', async () => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.stale-window',
+        pageSize: 50,
+      },
+      items: [{
+        content: 'stale message',
+        createdAt: transcriptCreatedAt,
+        id: 'item.stale',
+        role: 'user',
+        sessionId: transcriptSessionId,
+      }],
+    });
+    const listSessionItems = vi.fn(async (
+      _identity: unknown,
+      request: { cursor?: string },
+    ) => {
+      const pageIndex = request.cursor === undefined
+        ? 1
+        : Number(request.cursor.replace('cursor.head.', '')) + 1;
+      const high = 851 - pageIndex * 50;
+      return {
+        items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(high - index)),
+        pageInfo: {
+          hasMore: true,
+          mode: 'cursor' as const,
+          nextCursor: `cursor.head.${pageIndex}`,
+          pageSize: 50,
+        },
+      };
+    });
+
+    const result = await refreshAgentSessionItems({
+      agentSessionId: transcriptSessionId,
+      agentSessionService: transcriptService(
+        listSessionItems,
+        transcriptSessionRecord('800'),
+      ),
+      resolvedLocation: {
+        agentSession: selectedSession,
+        project: project({ agentSessions: [selectedSession] }),
+      },
+    });
+
+    expect(listSessionItems).toHaveBeenCalledTimes(8);
+    expect(result.replaceLoadedAuthorityWindow).toBe(true);
+    expect(result.agentSession?.itemPageInfo).toEqual({
+      hasMore: true,
+      nextCursor: 'cursor.head.8',
+      pageSize: 50,
+    });
+    expect(result.agentSession?.items.some((item) => item.id === 'item.stale')).toBe(false);
+    expect(result.agentSession?.items).toHaveLength(400);
+  });
+
+  it('bounds duplicate-only history scans while committing cursor progress', async () => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.duplicate.1',
+        pageSize: 50,
+      },
+      items: [{
+        content: 'message 100',
+        createdAt: transcriptCreatedAt,
+        id: 'item.100',
+        role: 'user',
+        sessionId: transcriptSessionId,
+      }],
+    });
+    const listSessionItems = vi.fn(async (
+      _identity: unknown,
+      request: { cursor?: string },
+    ) => {
+      const cursorIndex = Number(request.cursor?.split('.').at(-1));
+      return {
+        items: [transcriptItemRecord(100)],
+        pageInfo: {
+          hasMore: true,
+          mode: 'cursor' as const,
+          nextCursor: `cursor.duplicate.${cursorIndex + 1}`,
+          pageSize: 50,
+        },
+      };
+    });
+
+    const result = await loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    });
+
+    expect(result.status).toBe('loaded');
+    expect(result.loadedItemCount).toBe(0);
+    expect(result.agentSession.itemPageInfo?.nextCursor).toBe('cursor.duplicate.4');
+    expect(listSessionItems.mock.calls.map(([, request]) => request.cursor)).toEqual([
+      'cursor.duplicate.1',
+      'cursor.duplicate.2',
+      'cursor.duplicate.3',
+    ]);
+  });
+
+  it.each([
+    ['non-progressing', true, 'cursor.invalid'],
+    ['non-null terminal', false, 'cursor.unexpected'],
+  ])('rejects %s Session Item cursor metadata', async (_label, hasMore, nextCursor) => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.invalid',
+        pageSize: 50,
+      },
+    });
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: [transcriptItemRecord(100)],
+      pageInfo: {
+        hasMore,
+        mode: 'cursor',
+        nextCursor,
+        pageSize: 50,
+      },
+    });
+
+    await expect(loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    })).rejects.toThrow(hasMore ? 'non-progressing cursor page' : 'null cursor');
   });
 });
 
@@ -394,8 +642,8 @@ describe('Agent Session transcript refresh errors', () => {
       items: [],
       pageInfo: {
         hasMore: false,
-        mode: 'offset',
-        page: 1,
+        mode: 'cursor',
+        nextCursor: null,
         pageSize: 50,
       },
     });
@@ -469,7 +717,7 @@ describe('Agent Session transcript refresh errors', () => {
     expect(harness.listSessionItems).toHaveBeenCalledWith(
       identity,
       {
-        page: 1,
+        cursor: undefined,
         pageSize: 50,
         sort: '-sequence',
       },
@@ -561,7 +809,7 @@ describe('Agent Session transcript refresh errors', () => {
         sessionId: harness.sessionId,
       },
       {
-        page: 1,
+        cursor: undefined,
         pageSize: 50,
         sort: '-sequence',
       },

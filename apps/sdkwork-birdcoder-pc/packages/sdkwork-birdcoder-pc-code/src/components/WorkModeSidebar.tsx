@@ -1,15 +1,12 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   Bot,
   Boxes,
   ChevronDown,
-  Folder,
-  FolderOpen,
   Grid2X2,
   Network,
   Workflow,
 } from 'lucide-react';
-import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import { installWorkbenchWorkProvider } from '@sdkwork/birdcoder-pc-workbench/workbench/workProviderInstallation';
 import { WorkProviderInstallDialog } from './WorkProviderInstallDialog';
@@ -22,6 +19,7 @@ interface WorkModeSidebarLabels {
   more: string;
   newTask: string;
   noPinnedTasks: string;
+  noProjects: string;
   noTasks: string;
   pinnedTasks: string;
   providerInstalled: string;
@@ -41,7 +39,6 @@ interface WorkModeSidebarLabels {
   providerInstallTitle: (provider: string) => string;
   projects: string;
   selectProjectFirst: string;
-  spaces: string;
   tasks: string;
   workProvidersUnavailable: string;
 }
@@ -50,7 +47,9 @@ interface WorkModeSidebarProps {
   labels: WorkModeSidebarLabels;
   pinnedContent?: ReactNode;
   pinnedCount: number;
-  projects: readonly AgentProjectView[];
+  projectContent?: ReactNode;
+  projectCount: number;
+  scrollRegionRef?: RefObject<HTMLDivElement | null>;
   selectedEngineId: string;
   selectedModelId: string;
   selectedProjectId?: string | null;
@@ -59,7 +58,6 @@ interface WorkModeSidebarProps {
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
   onOpenExpertTools: () => void;
   onOpenMore: () => void;
-  onSelectProject: (projectId: string) => void;
 }
 
 interface WorkModeSectionProps {
@@ -105,7 +103,9 @@ export function WorkModeSidebar({
   labels,
   pinnedContent,
   pinnedCount,
-  projects,
+  projectContent,
+  projectCount,
+  scrollRegionRef,
   selectedEngineId,
   selectedModelId,
   selectedProjectId,
@@ -114,10 +114,9 @@ export function WorkModeSidebar({
   onCreateSession,
   onOpenExpertTools,
   onOpenMore,
-  onSelectProject,
 }: WorkModeSidebarProps) {
   const tasksRef = useRef<HTMLElement>(null);
-  const spacesRef = useRef<HTMLElement>(null);
+  const projectsRef = useRef<HTMLElement>(null);
   const [providerToInstall, setProviderToInstall] = useState<string | null>(null);
   const scrollToSection = (section: HTMLElement | null) => {
     section?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -133,7 +132,7 @@ export function WorkModeSidebar({
       id: 'projects',
       icon: Boxes,
       label: labels.projects,
-      onClick: () => scrollToSection(spacesRef.current),
+      onClick: () => scrollToSection(projectsRef.current),
     },
     {
       id: 'expert-tools',
@@ -197,7 +196,10 @@ export function WorkModeSidebar({
         })}
       </nav>
 
-      <div className="project-explorer-scroll-region flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-3">
+      <div
+        ref={scrollRegionRef}
+        className="project-explorer-scroll-region flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-3"
+      >
         <WorkModeSection
           count={pinnedCount}
           dataAttribute="pinned"
@@ -220,27 +222,14 @@ export function WorkModeSidebar({
         </WorkModeSection>
 
         <WorkModeSection
-          count={projects.length}
-          dataAttribute="spaces"
-          label={labels.spaces}
-          sectionRef={spacesRef}
+          count={projectCount}
+          dataAttribute="projects"
+          label={labels.projects}
+          sectionRef={projectsRef}
         >
-          {projects.map((project) => {
-            const isSelected = project.projectId === selectedProjectId;
-            const Icon = isSelected ? FolderOpen : Folder;
-            return (
-              <button
-                key={project.projectId}
-                type="button"
-                className={`flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] transition-colors ${isSelected ? 'birdcoder-session-selected text-gray-100' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'}`}
-                data-work-space-project-id={project.projectId}
-                onClick={() => onSelectProject(project.projectId)}
-              >
-                <Icon size={15} strokeWidth={1.7} className="shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-              </button>
-            );
-          })}
+          {projectContent ?? (
+            <div className="px-2 py-1.5 text-[11px] text-gray-600">{labels.noProjects}</div>
+          )}
         </WorkModeSection>
       </div>
       {providerToInstall ? (

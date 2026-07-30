@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  BirdCoderWorkProviderInstallationError,
   installBirdCoderWorkProvider,
 } from '../../sdkwork-birdcoder-pc-infrastructure/src/platform/workProviderInstallation.ts';
 
@@ -67,12 +66,10 @@ describe('Work Provider desktop installation', () => {
       stderr: 'network unavailable',
     }));
 
-    await expect(installBirdCoderWorkProvider('hermes')).rejects.toEqual(
-      expect.objectContaining<BirdCoderWorkProviderInstallationError>({
-        code: 'install-failed',
-        message: 'network unavailable',
-      }),
-    );
+    await expect(installBirdCoderWorkProvider('hermes')).rejects.toMatchObject({
+      code: 'install-failed',
+      message: 'network unavailable',
+    });
   });
 
   it('requires the desktop host instead of simulating installation in a browser', async () => {

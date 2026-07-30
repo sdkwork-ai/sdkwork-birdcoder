@@ -178,6 +178,8 @@ export default defineLocaleModule('code/sidebar', {
     expandProject: '\u5c55\u5f00 {{name}}',
     collapseProject: '\u6536\u8d77 {{name}}',
     loadingProjects: '\u6b63\u5728\u52a0\u8f7d\u9879\u76ee...',
+    failedToLoadProjects: '\u65e0\u6cd5\u52a0\u8f7d\u9879\u76ee',
+    retryProjects: '\u91cd\u8bd5',
     loadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee',
     loadingMoreProjects: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u9879\u76ee...',
     failedToLoadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee\u5931\u8d25',

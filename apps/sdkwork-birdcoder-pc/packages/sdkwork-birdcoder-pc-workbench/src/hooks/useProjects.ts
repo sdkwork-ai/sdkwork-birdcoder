@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { sha256Hash } from '@sdkwork/utils/crypto';
 import { randomString, uuid } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
@@ -31,7 +32,7 @@ import {
   filterProjectsForInventoryStore,
   getProjectsStore,
   mergeProjectsForStore,
-  mutateProjectsStoreByScopeKey,
+  mutateProjectsStoreByScopeKey as mutateProjectsStoreByScopeKeyInternal,
   normalizeProjectsStoreUserScope,
   peekProjectsStore,
   removeAgentSessionFromCollection,
@@ -96,32 +97,6 @@ interface ProjectSessionLoadInflightEntry {
   targetCount: number;
 }
 
-function fuzzyScore(pattern: string, value: string): number {
-  if (!pattern) {
-    return 1;
-  }
-  if (!value) {
-    return 0;
-  }
-
-  let patternIndex = 0;
-  let valueIndex = 0;
-  let score = 0;
-
-  while (patternIndex < pattern.length && valueIndex < value.length) {
-    if (pattern[patternIndex] === value[valueIndex]) {
-      score += 10;
-      if (patternIndex === valueIndex) {
-        score += 5;
-      }
-      patternIndex += 1;
-    }
-    valueIndex += 1;
-  }
-
-  return patternIndex === pattern.length ? score : 0;
-}
-
 function resolveAgentSessionItemActivitySortTimestamp(timestamp: string): string | undefined {
   const parsedTimestamp = Date.parse(timestamp);
   return Number.isNaN(parsedTimestamp)
@@ -134,27 +109,6 @@ type EditableAgentSessionItem = Omit<
   'sessionId' | 'createdAt' | 'id'
 >;
 
-interface ProjectSearchInventoryAgentSessionEntry {
-  agentSession: AgentSessionView;
-  normalizedTitle: string;
-}
-
-interface ProjectSearchInventoryEntry {
-  agentSessions: ProjectSearchInventoryAgentSessionEntry[];
-  normalizedName: string;
-  project: AgentProjectView;
-}
-
-interface ScoredAgentSessionCandidate {
-  agentSession: AgentSessionView;
-  score: number;
-}
-
-interface ScoredProjectCandidate {
-  project: AgentProjectView;
-  score: number;
-}
-
 type WorkbenchAgentTurnSubmissionContext = WorkbenchAgentSessionTurnContext;
 interface WorkbenchAgentTurnSubmissionOptions {
   accessModeId?: string;
@@ -162,33 +116,8 @@ interface WorkbenchAgentTurnSubmissionOptions {
   metadata?: Record<string, unknown>;
 }
 const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView[] = [];
-const EMPTY_FILTERED_PROJECT_AGENT_SESSIONS: AgentSessionView[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
 const MAX_TARGET_PROJECT_RESOLUTION_PAGES = 20;
-
-interface ProjectsFetchTimeoutBoundary {
-  clear: () => void;
-  promise: Promise<never>;
-}
-
-function createProjectsFetchTimeoutPromise(timeoutMs: number): ProjectsFetchTimeoutBoundary {
-  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-  const promise = new Promise<never>((_resolve, reject) => {
-    timeoutHandle = setTimeout(() => {
-      reject(new Error(`Timed out loading project inventory after ${timeoutMs} ms.`));
-    }, timeoutMs);
-  });
-
-  return {
-    clear: () => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-        timeoutHandle = null;
-      }
-    },
-    promise,
-  };
-}
 
 function sanitizeAgentSessionItemUpdates(
   updates: Partial<AgentSessionItemView>,
@@ -211,123 +140,6 @@ function sanitizeAgentSessionItemUpdates(
 
 function normalizeSearchValue(value: string): string {
   return value.trim().toLowerCase();
-}
-
-function buildProjectSearchInventory(
-  projects: readonly AgentProjectView[],
-): ProjectSearchInventoryEntry[] {
-  return projects.map((project) => ({
-    project,
-    normalizedName: normalizeSearchValue(project.name),
-    agentSessions: project.agentSessions.map((agentSession) => ({
-      agentSession,
-      normalizedTitle: normalizeSearchValue(agentSession.title),
-    })),
-  }));
-}
-
-function areAgentSessionListsIdentical(
-  left: readonly AgentSessionView[],
-  right: readonly AgentSessionView[],
-): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((agentSession, index) => agentSession === right[index]);
-}
-
-function compareScoredAgentSessions(
-  left: ScoredAgentSessionCandidate,
-  right: ScoredAgentSessionCandidate,
-): number {
-  return right.score - left.score;
-}
-
-function compareScoredProjects(
-  left: ScoredProjectCandidate,
-  right: ScoredProjectCandidate,
-): number {
-  return right.score - left.score;
-}
-
-function searchProjectsInventory(
-  projectSearchInventory: readonly ProjectSearchInventoryEntry[],
-  normalizedSearchQuery: string,
-): AgentProjectView[] {
-  if (!normalizedSearchQuery) {
-    return projectSearchInventory.map((entry) => entry.project);
-  }
-
-  const scoredProjects: ScoredProjectCandidate[] = [];
-
-  for (const projectEntry of projectSearchInventory) {
-    const projectScore = fuzzyScore(normalizedSearchQuery, projectEntry.normalizedName);
-    let maxAgentSessionScore = 0;
-    let scoredAgentSessions: ScoredAgentSessionCandidate[] | null = null;
-
-    for (const agentSessionEntry of projectEntry.agentSessions) {
-      const score = fuzzyScore(normalizedSearchQuery, agentSessionEntry.normalizedTitle);
-      if (score <= 0) {
-        continue;
-      }
-
-      maxAgentSessionScore = Math.max(maxAgentSessionScore, score);
-      if (scoredAgentSessions === null) {
-        scoredAgentSessions = [
-          {
-            agentSession: agentSessionEntry.agentSession,
-            score,
-          },
-        ];
-        continue;
-      }
-
-      scoredAgentSessions.push({
-        agentSession: agentSessionEntry.agentSession,
-        score,
-      });
-    }
-
-    const totalScore = Math.max(projectScore, maxAgentSessionScore);
-    if (totalScore <= 0) {
-      continue;
-    }
-
-    let matchedProject = projectEntry.project;
-
-    if (scoredAgentSessions && scoredAgentSessions.length > 0) {
-      if (scoredAgentSessions.length > 1) {
-        scoredAgentSessions.sort(compareScoredAgentSessions);
-      }
-
-      const filteredAgentSessions = scoredAgentSessions.map(
-        (candidate) => candidate.agentSession,
-      );
-      if (!areAgentSessionListsIdentical(projectEntry.project.agentSessions, filteredAgentSessions)) {
-        matchedProject = {
-          ...projectEntry.project,
-          agentSessions: filteredAgentSessions,
-        };
-      }
-    } else if (projectScore > 0) {
-      matchedProject = {
-        ...projectEntry.project,
-        agentSessions: EMPTY_FILTERED_PROJECT_AGENT_SESSIONS,
-      };
-    }
-
-    scoredProjects.push({
-      project: matchedProject,
-      score: totalScore,
-    });
-  }
-
-  if (scoredProjects.length > 1) {
-    scoredProjects.sort(compareScoredProjects);
-  }
-
-  return scoredProjects.map((candidate) => candidate.project);
 }
 
 function normalizeProjectsForInventoryStore(
@@ -648,14 +460,20 @@ function readProjectInventoryPage(
 function readProjectInventoryPageWithTimeout(
   projectService: ReturnType<typeof useIDEServices>['projectService'],
   request: AgentProjectPageRequest,
+  controller: AbortController,
   timeoutMs: number = PROJECTS_FETCH_TIMEOUT_MS,
 ): Promise<AgentProjectViewPage> {
-  const timeoutBoundary = createProjectsFetchTimeoutPromise(timeoutMs);
-  return Promise.race([
-    readProjectInventoryPage(projectService, request),
-    timeoutBoundary.promise,
-  ]).finally(() => {
-    timeoutBoundary.clear();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort(new DOMException(
+      `Timed out loading project inventory after ${timeoutMs} ms.`,
+      'TimeoutError',
+    ));
+  }, timeoutMs);
+  return readProjectInventoryPage(projectService, {
+    ...request,
+    signal: controller.signal,
+  }).finally(() => {
+    clearTimeout(timeoutHandle);
   });
 }
 
@@ -665,7 +483,16 @@ async function fetchProjects(
   pageRequest: AgentProjectPageRequest,
   mode: 'append' | 'replace',
 ): Promise<AgentProjectView[]> {
-  const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
+  const requestKey = [
+    mode,
+    pageRequest.workspaceId,
+    pageRequest.q ?? '',
+    pageRequest.nameExact ?? '',
+    pageRequest.status ?? '',
+    pageRequest.includeDeleted ?? false,
+    pageRequest.page,
+    pageRequest.pageSize,
+  ].join(':');
   if (store.inflight) {
     if (store.inflightKey === requestKey) {
       return store.inflight;
@@ -687,9 +514,11 @@ async function fetchProjects(
   }));
 
   const requestInventoryVersion = store.inventoryVersion;
+  const controller = new AbortController();
   const request = readProjectInventoryPageWithTimeout(
     projectService,
     pageRequest,
+    controller,
     PROJECTS_FETCH_TIMEOUT_MS,
   )
     .then((page) => {
@@ -744,18 +573,20 @@ async function fetchProjects(
     .finally(() => {
       if (store.inflight === request) {
         store.inflight = null;
+        store.inflightAbortController = null;
         store.inflightKey = null;
       }
     });
 
   store.inflight = request;
+  store.inflightAbortController = controller;
   store.inflightKey = requestKey;
   return request;
 }
 
 function disposeProjectsStoreIfUnused(scopeKey: string): void {
   const store = getProjectsStore(scopeKey);
-  if (store.listeners.size > 0) {
+  if (store.listeners.size > 0 || !scopeKey.includes('::search:')) {
     return;
   }
 
@@ -788,6 +619,12 @@ export function useProjects(options?: UseProjectsOptions) {
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
   const workspaceId = options?.workspaceId?.trim() ?? '';
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const normalizedSearchQuery = useMemo(
+    () => normalizeSearchValue(deferredSearchQuery),
+    [deferredSearchQuery],
+  );
   const pageRequest = useMemo<AgentProjectPageRequest>(
     () => {
       const pageSize = options?.limit ?? DEFAULT_LIST_PAGE_SIZE;
@@ -801,10 +638,11 @@ export function useProjects(options?: UseProjectsOptions) {
       return {
         page: offset / pageSize + 1,
         pageSize,
+        ...(normalizedSearchQuery ? { q: normalizedSearchQuery } : {}),
         workspaceId,
       };
     },
-    [options?.limit, options?.offset, workspaceId],
+    [normalizedSearchQuery, options?.limit, options?.offset, workspaceId],
   );
   const baseStoreScopeKey = workspaceId
     ? buildProjectsStoreScopeKey(normalizedUserScope, workspaceId)
@@ -819,10 +657,19 @@ export function useProjects(options?: UseProjectsOptions) {
     });
   }, [normalizedUserScope, workspaceId]);
   const isDefaultPagination =
-    pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE && pageRequest.page === 1;
-  const storeScopeKey = baseStoreScopeKey && !isDefaultPagination
-    ? `${baseStoreScopeKey}::page:${pageRequest.pageSize}:${pageRequest.page}`
-    : baseStoreScopeKey;
+    pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE
+    && pageRequest.page === 1
+    && !normalizedSearchQuery;
+  const paginationScopeSuffix =
+    pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE && pageRequest.page === 1
+      ? ''
+      : `::page:${pageRequest.pageSize}:${pageRequest.page}`;
+  const searchScopeSuffix = normalizedSearchQuery
+    ? `::search:${sha256Hash(normalizedSearchQuery).slice(0, 24)}`
+    : '';
+  const storeScopeKey = baseStoreScopeKey
+    ? `${baseStoreScopeKey}${paginationScopeSuffix}${searchScopeSuffix}`
+    : '';
   const inactiveStoreSnapshotRef = useRef<ProjectsStoreSnapshot>(
     createProjectsStoreSnapshot(),
   );
@@ -870,14 +717,28 @@ export function useProjects(options?: UseProjectsOptions) {
       ),
     );
   }, [storeScopeKey]);
+  const mutateProjectsStoreByScopeKey = useCallback((
+    _scopeKey: string,
+    updater: Parameters<typeof mutateProjectsStoreByScopeKeyInternal>[1],
+    mutationOptions?: Parameters<typeof mutateProjectsStoreByScopeKeyInternal>[2],
+  ) => {
+    const targetScopeKeys = new Set([baseStoreScopeKey, storeScopeKey]);
+    for (const targetScopeKey of targetScopeKeys) {
+      if (targetScopeKey) {
+        mutateProjectsStoreByScopeKeyInternal(
+          targetScopeKey,
+          updater,
+          mutationOptions,
+        );
+      }
+    }
+  }, [baseStoreScopeKey, storeScopeKey]);
   useWorkspaceSessionInboxSynchronization({
     agentSessionService,
     isActive: isActive && isDefaultPagination && storeSnapshot.hasFetched,
     userScope: normalizedUserScope,
     workspaceId,
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
   const projectSessionLoadInflightRef = useRef(
     new Map<string, ProjectSessionLoadInflightEntry>(),
   );
@@ -965,11 +826,18 @@ export function useProjects(options?: UseProjectsOptions) {
       {
         page: (pageInfo.page ?? 1) + 1,
         pageSize: pageInfo.pageSize ?? pageRequest.pageSize,
+        ...(normalizedSearchQuery ? { q: normalizedSearchQuery } : {}),
         workspaceId,
       },
       'append',
     );
-  }, [pageRequest.pageSize, projectService, storeScopeKey, workspaceId]);
+  }, [
+    normalizedSearchQuery,
+    pageRequest.pageSize,
+    projectService,
+    storeScopeKey,
+    workspaceId,
+  ]);
 
   const loadMoreProjectSessions = useCallback(
     async (
@@ -1094,6 +962,7 @@ export function useProjects(options?: UseProjectsOptions) {
       {
         page: 1,
         pageSize: pageRequest.pageSize,
+        ...(normalizedSearchQuery ? { q: normalizedSearchQuery } : {}),
         workspaceId,
       },
       'replace',
@@ -1102,6 +971,7 @@ export function useProjects(options?: UseProjectsOptions) {
     });
   }, [
     isActive,
+    normalizedSearchQuery,
     pageRequest.pageSize,
     projectService,
     storeScopeKey,
@@ -1112,7 +982,9 @@ export function useProjects(options?: UseProjectsOptions) {
     workspaceId,
   ]);
 
-  const normalizedTargetProjectId = options?.targetProjectId?.trim() ?? '';
+  const normalizedTargetProjectId = normalizedSearchQuery
+    ? ''
+    : options?.targetProjectId?.trim() ?? '';
   const [targetResolutionRevision, setTargetResolutionRevision] = useState(0);
   const targetResolutionStateRef = useRef({
     key: '',
@@ -1244,19 +1116,7 @@ export function useProjects(options?: UseProjectsOptions) {
     targetResolutionBudgetExhausted,
   ]);
 
-  const projectSearchInventory = useMemo(() => buildProjectSearchInventory(storeSnapshot.projects), [storeSnapshot.projects]);
-  const normalizedSearchQuery = useMemo(
-    () => normalizeSearchValue(deferredSearchQuery),
-    [deferredSearchQuery],
-  );
-
-  const filteredProjects = useMemo(() => {
-    if (!normalizedSearchQuery) {
-      return storeSnapshot.projects;
-    }
-
-    return searchProjectsInventory(projectSearchInventory, normalizedSearchQuery);
-  }, [normalizedSearchQuery, projectSearchInventory, storeSnapshot.projects]);
+  const filteredProjects = storeSnapshot.projects;
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
     try {
@@ -1493,6 +1353,9 @@ export function useProjects(options?: UseProjectsOptions) {
     try {
       await projectService.deleteProject(projectId);
       removeProjectFromProjectsStore(baseStoreScopeKey, projectId);
+      if (storeScopeKey !== baseStoreScopeKey) {
+        removeProjectFromProjectsStore(storeScopeKey, projectId);
+      }
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1798,7 +1661,7 @@ export function useProjects(options?: UseProjectsOptions) {
         };
       }),
     );
-  }, [baseStoreScopeKey]);
+  }, [baseStoreScopeKey, mutateProjectsStoreByScopeKey]);
 
   const editAgentSessionItem = async (
     _projectId: string,

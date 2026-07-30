@@ -7,6 +7,7 @@ import type {
 import type {
   AgentSessionActivityPageRequest,
   AgentSessionIdentity,
+  AgentSessionItemPageRequest,
   AgentSessionPageRequest,
   AgentSessionReadOptions,
   IAgentSessionService,
@@ -436,8 +437,8 @@ const concurrentRefreshService = {
     });
     assert.equal(
       projectSynchronizationCalls,
-      1,
-      'project refresh must synchronize provider inventory before reading activity',
+      0,
+      'ordinary project refresh must remain read-only',
     );
     activityHeadReads += 1;
     return {
@@ -508,8 +509,8 @@ assert.equal(refreshedProject.projects?.[0]?.agentSessions.length, 60);
 assert.equal(activityHeadReads, 1, 'project refresh must read one bounded activity head page');
 assert.equal(
   projectSynchronizationCalls,
-  1,
-  'project refresh must trigger one explicit provider inventory synchronization call',
+  0,
+  'project refresh must not trigger Provider inventory synchronization',
 );
 assert.equal(activeBindingReads, 0, 'project refresh must not issue RuntimeBinding N+1 reads');
 assert.equal(normalizeProjectAgentSessionTargetCount(Number.NaN), 1);
@@ -556,7 +557,7 @@ await assert.rejects(
 );
 assert.equal(timedOutSignal?.aborted, true, 'refresh timeout must abort the SDK request');
 
-let itemRequest: AgentSessionPageRequest | undefined;
+let itemRequest: AgentSessionItemPageRequest | undefined;
 let itemReadSignal: AbortSignal | undefined;
 const itemRefreshService = {
   async getSession(identity: AgentSessionIdentity, options?: AgentSessionReadOptions) {
@@ -569,7 +570,7 @@ const itemRefreshService = {
   },
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionPageRequest,
+    request?: AgentSessionItemPageRequest,
     options?: AgentSessionReadOptions,
   ) {
     assert.deepEqual(identity, {
@@ -611,7 +612,7 @@ const itemRefreshService = {
           createdAt: '2026-07-24T00:00:01.000Z',
         },
       ],
-      pageInfo: { mode: 'offset', page: 1, pageSize: 50, hasMore: false },
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 50, hasMore: false },
     };
   },
   async listRuntimeBindings(_identity: AgentSessionIdentity) {
@@ -627,7 +628,7 @@ const refreshedItems = await refreshAgentSessionItems({
   agentSessionId: selectedSession.id,
   resolvedLocation: { agentSession: selectedSession, project: buildProject() },
 });
-assert.deepEqual(itemRequest, { page: 1, pageSize: 50, sort: '-sequence' });
+assert.deepEqual(itemRequest, { cursor: undefined, pageSize: 50, sort: '-sequence' });
 assert.equal(refreshedItems.agentSession?.itemPageInfo?.hasMore, false);
 assert.deepEqual(
   refreshedItems.agentSession?.items.map((item) => item.id),
@@ -648,7 +649,7 @@ assert.deepEqual(
   'a recovered Session outside the loaded Project page must hydrate from its known Project location',
 );
 
-const recentConversationPageRequests: AgentSessionPageRequest[] = [];
+const recentConversationPageRequests: AgentSessionItemPageRequest[] = [];
 const recentConversationService = {
   async getSession(identity: AgentSessionIdentity) {
     assert.deepEqual(identity, {
@@ -659,12 +660,12 @@ const recentConversationService = {
   },
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request: AgentSessionPageRequest = {},
+    request: AgentSessionItemPageRequest = {},
   ) {
     const { sessionId } = identity;
     assert.equal(identity.agentId, AGENT_ID);
     recentConversationPageRequests.push(request);
-    const page = request.page ?? 1;
+    const page = request.cursor === undefined ? 1 : Number(request.cursor.split('.').at(-1)) + 1;
     const newestSequence = 200 - ((page - 1) * 50);
     const items = Array.from({ length: 50 }, (_, index) => {
       const sequence = newestSequence - index;
@@ -702,8 +703,8 @@ const recentConversationService = {
     return {
       items,
       pageInfo: {
-        mode: 'offset' as const,
-        page,
+        mode: 'cursor' as const,
+        nextCursor: page < 3 ? `cursor.recent.${page}` : null,
         pageSize: 50,
         hasMore: page < 3,
       },
@@ -724,10 +725,17 @@ const recentConversationWindow = await refreshAgentSessionItems({
 });
 assert.deepEqual(
   recentConversationPageRequests,
-  [1, 2].map((page) => ({ page, pageSize: 50, sort: '-sequence' })),
+  [undefined, 'cursor.recent.1'].map((cursor) => ({
+    cursor,
+    pageSize: 50,
+    sort: '-sequence' as const,
+  })),
   'hidden instruction inputs must not consume the bounded initial conversation-turn target',
 );
-assert.equal(recentConversationWindow.agentSession?.itemPageInfo?.page, 2);
+assert.equal(
+  recentConversationWindow.agentSession?.itemPageInfo?.nextCursor,
+  'cursor.recent.2',
+);
 assert.equal(
   recentConversationWindow.agentSession?.items.filter((item) => item.role === 'user').length,
   8,
@@ -762,7 +770,11 @@ await refreshAgentSessionItems({
 });
 assert.deepEqual(
   recentConversationPageRequests,
-  [1, 2].map((page) => ({ page, pageSize: 50, sort: '-sequence' })),
+  [undefined, 'cursor.recent.1'].map((cursor) => ({
+    cursor,
+    pageSize: 50,
+    sort: '-sequence' as const,
+  })),
   'provisional turns without authority ids must not shorten initial authority hydration',
 );
 
@@ -787,7 +799,12 @@ const wrongSortService = {
         contentType: 'text/plain',
         createdAt: `2026-07-24T02:00:0${sequence}.000Z`,
       })),
-      pageInfo: { mode: 'offset' as const, page: 1, pageSize: 50, hasMore: false },
+      pageInfo: {
+        mode: 'cursor' as const,
+        nextCursor: null,
+        pageSize: 50,
+        hasMore: false,
+      },
     };
   },
 } as unknown as IAgentSessionService;
@@ -823,7 +840,12 @@ const emptySequenceService = {
         contentType: 'text/plain',
         createdAt: '2026-07-24T02:00:01.000Z',
       }],
-      pageInfo: { mode: 'offset' as const, page: 1, pageSize: 50, hasMore: false },
+      pageInfo: {
+        mode: 'cursor' as const,
+        nextCursor: null,
+        pageSize: 50,
+        hasMore: false,
+      },
     };
   },
 } as unknown as IAgentSessionService;
@@ -883,12 +905,12 @@ await assert.rejects(
 
 const refreshedAgentSession = {
   ...refreshedItems.agentSession!,
-  itemPageInfo: { hasMore: true, page: 1, pageSize: 50 },
+  itemPageInfo: { hasMore: true, nextCursor: 'cursor.loaded.1', pageSize: 50 },
 };
 
 const staleHeadSession = {
   ...refreshedAgentSession,
-  itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
+  itemPageInfo: { hasMore: true, nextCursor: 'cursor.loaded.2', pageSize: 50 },
   items: [
     {
       ...refreshedAgentSession.items[0]!,
@@ -902,7 +924,7 @@ const staleHeadSession = {
     },
   ],
 };
-const headReconciliationRequests: number[] = [];
+const headReconciliationRequests: Array<string | undefined> = [];
 const headReconciliationService = {
   async getSession(identity: AgentSessionIdentity) {
     assert.deepEqual(identity, {
@@ -924,12 +946,12 @@ const headReconciliationService = {
   },
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionPageRequest,
+    request?: AgentSessionItemPageRequest,
   ) {
     const { sessionId } = identity;
     assert.equal(identity.agentId, staleHeadSession.agentId);
-    const page = request?.page ?? 1;
-    headReconciliationRequests.push(page);
+    const page = request?.cursor === undefined ? 1 : 2;
+    headReconciliationRequests.push(request?.cursor);
     const pageItems = page === 1
       ? [8, 7, 6]
       : page === 2
@@ -947,8 +969,8 @@ const headReconciliationService = {
         createdAt: `2026-07-24T00:00:0${sequence}.000Z`,
       })),
       pageInfo: {
-        mode: 'offset' as const,
-        page,
+        mode: 'cursor' as const,
+        nextCursor: page === 1 ? 'cursor.head.1' : null,
         pageSize: 50,
         hasMore: page === 1,
       },
@@ -969,7 +991,7 @@ const reconciledHead = await refreshAgentSessionItems({
     project: buildProject(),
   },
 });
-assert.deepEqual(headReconciliationRequests, [1, 2]);
+assert.deepEqual(headReconciliationRequests, [undefined, 'cursor.head.1']);
 assert.deepEqual(
   reconciledHead.agentSession?.items.map((item) => item.id),
   [
@@ -995,7 +1017,7 @@ const unchangedFullyLoadedHead = await refreshAgentSessionItems({
   resolvedLocation: {
     agentSession: {
       ...reconciledHead.agentSession!,
-      itemPageInfo: { hasMore: false, page: 2, pageSize: 50 },
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
     },
     project: buildProject(),
   },
@@ -1024,7 +1046,7 @@ const boundedHeadSession = {
   ...staleHeadSession,
   items: [...staleHeadSession.items, resetOptimisticItem],
 } as unknown as AgentSessionView;
-const boundedHeadRequests: number[] = [];
+const boundedHeadRequests: Array<string | undefined> = [];
 const boundedHeadService = {
   async getSession(identity: AgentSessionIdentity) {
     assert.deepEqual(identity, {
@@ -1046,12 +1068,14 @@ const boundedHeadService = {
   },
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionPageRequest,
+    request?: AgentSessionItemPageRequest,
   ) {
     const { sessionId } = identity;
     assert.equal(identity.agentId, boundedHeadSession.agentId);
-    const page = request?.page ?? 1;
-    boundedHeadRequests.push(page);
+    const page = request?.cursor === undefined
+      ? 1
+      : Number(request.cursor.split('.').at(-1)) + 1;
+    boundedHeadRequests.push(request?.cursor);
     const sequences = Array.from(
       { length: 20 },
       (_, index) => 200 - ((page - 1) * 20) - index,
@@ -1070,8 +1094,8 @@ const boundedHeadService = {
         createdAt: new Date(Date.UTC(2026, 6, 24, 0, 0, sequence)).toISOString(),
       })),
       pageInfo: {
-        mode: 'offset' as const,
-        page,
+        mode: 'cursor' as const,
+        nextCursor: page < 7 ? `cursor.bounded.${page}` : null,
         pageSize: 50,
         hasMore: page < 7,
       },
@@ -1094,10 +1118,21 @@ const resetBoundedHead = await refreshAgentSessionItems({
 });
 assert.deepEqual(
   boundedHeadRequests,
-  [1, 2, 3, 4, 5, 6, 7],
-  'head reconciliation must continue beyond an arbitrary page budget until it reaches the loaded window',
+  [
+    undefined,
+    'cursor.bounded.1',
+    'cursor.bounded.2',
+    'cursor.bounded.3',
+    'cursor.bounded.4',
+    'cursor.bounded.5',
+    'cursor.bounded.6',
+  ],
+  'head reconciliation must use bounded cursor pages until it reaches the loaded window',
 );
-assert.equal(resetBoundedHead.agentSession?.itemPageInfo?.page, 7);
+assert.equal(
+  resetBoundedHead.agentSession?.itemPageInfo?.nextCursor,
+  staleHeadSession.itemPageInfo.nextCursor,
+);
 assert.equal(resetBoundedHead.replaceLoadedAuthorityWindow, false);
 assert.equal(
   resetBoundedHead.agentSession?.items.some((item) => item.id === 'item.head.1'),
@@ -1129,11 +1164,11 @@ assert.deepEqual(
   'initial authority hydration must keep a transient-only local tail at the newest edge',
 );
 
-let earlierItemRequest: AgentSessionPageRequest | undefined;
+let earlierItemRequest: AgentSessionItemPageRequest | undefined;
 const earlierItemsService = {
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionPageRequest,
+    request?: AgentSessionItemPageRequest,
     options?: AgentSessionReadOptions,
   ) {
     assert.deepEqual(identity, {
@@ -1175,7 +1210,7 @@ const earlierItemsService = {
           createdAt: '2026-07-24T00:00:00.000Z',
         },
       ],
-      pageInfo: { mode: 'offset', page: 2, pageSize: 50, hasMore: false },
+      pageInfo: { mode: 'cursor', nextCursor: null, pageSize: 50, hasMore: false },
     };
   },
 } as unknown as IAgentSessionService;
@@ -1186,10 +1221,14 @@ const loadedEarlierItems = await loadEarlierAgentSessionItems({
   },
   agentSessionService: earlierItemsService,
 });
-assert.deepEqual(earlierItemRequest, { page: 2, pageSize: 50, sort: '-sequence' });
+assert.deepEqual(earlierItemRequest, {
+  cursor: refreshedAgentSession.itemPageInfo.nextCursor,
+  pageSize: 50,
+  sort: '-sequence',
+});
 assert.equal(loadedEarlierItems.status, 'loaded');
 assert.deepEqual(loadedEarlierItems.agentSession.itemPageInfo, {
-  page: 2,
+  nextCursor: null,
   pageSize: 50,
   hasMore: false,
 });
@@ -1204,16 +1243,17 @@ assert.deepEqual(
   'an older page must prepend chronologically, deduplicate overlap, and preserve optimistic items',
 );
 
-const duplicateHistoryRequests: number[] = [];
+const duplicateHistoryRequests: string[] = [];
 const duplicateHistoryService = {
   async listSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionPageRequest,
+    request?: AgentSessionItemPageRequest,
   ) {
     const { sessionId } = identity;
     assert.equal(identity.agentId, refreshedAgentSession.agentId);
-    const page = request?.page ?? 1;
-    duplicateHistoryRequests.push(page);
+    const cursor = request?.cursor ?? '';
+    duplicateHistoryRequests.push(cursor);
+    const page = cursor === 'cursor.history.2' ? 3 : 4;
     const pageItems = page === 3 ? [2, 1] : page === 4 ? [0] : [];
     return {
       items: pageItems.map((sequence) => ({
@@ -1229,8 +1269,8 @@ const duplicateHistoryService = {
         createdAt: `2026-07-23T23:59:5${sequence}.000Z`,
       })),
       pageInfo: {
-        mode: 'offset' as const,
-        page,
+        mode: 'cursor' as const,
+        nextCursor: page === 3 ? 'cursor.history.3' : null,
         pageSize: 50,
         hasMore: page === 3,
       },
@@ -1240,17 +1280,17 @@ const duplicateHistoryService = {
 const duplicateHistoryResult = await loadEarlierAgentSessionItems({
   agentSession: {
     ...loadedEarlierItems.agentSession,
-    itemPageInfo: { hasMore: true, page: 2, pageSize: 50 },
+    itemPageInfo: { hasMore: true, nextCursor: 'cursor.history.2', pageSize: 50 },
   },
   agentSessionService: duplicateHistoryService,
 });
 assert.deepEqual(
   duplicateHistoryRequests,
-  [3, 4],
-  'history loading must skip pages containing only overlap after offset drift',
+  ['cursor.history.2', 'cursor.history.3'],
+  'history loading must skip duplicate-only pages while advancing its cursor',
 );
 assert.equal(duplicateHistoryResult.loadedItemCount, 1);
-assert.equal(duplicateHistoryResult.agentSession.itemPageInfo?.page, 4);
+assert.equal(duplicateHistoryResult.agentSession.itemPageInfo?.nextCursor, null);
 assert.equal(
   duplicateHistoryResult.agentSession.items[0]?.id,
   'item.pagination.offset-older',
@@ -1269,15 +1309,16 @@ upsertAgentSessionIntoProjectsStore(
   storedProject.projectId,
   {
     ...refreshedAgentSession,
-    itemPageInfo: { page: 2, pageSize: 50, hasMore: true },
+    itemPageInfo: { nextCursor: 'cursor.incoming.2', pageSize: 50, hasMore: true },
   },
   storeWorkspaceId,
   storeUserScope,
 );
 assert.equal(
-  getProjectsStore(storeScopeKey).snapshot.projects[0]?.agentSessions[0]?.itemPageInfo?.page,
-  2,
-  'pagination metadata must advance even when a continuation page contains only duplicate items',
+  getProjectsStore(storeScopeKey).snapshot.projects[0]
+    ?.agentSessions[0]?.itemPageInfo?.nextCursor,
+  refreshedAgentSession.itemPageInfo.nextCursor,
+  'ordinary Store merges must preserve the established transcript cursor',
 );
 deleteProjectsStore(storeScopeKey);
 
@@ -1285,7 +1326,12 @@ const emptyEarlierItemsService = {
   async listSessionItems(_identity: AgentSessionIdentity) {
     return {
       items: [],
-      pageInfo: { mode: 'offset', page: 2, pageSize: 50, hasMore: true },
+      pageInfo: {
+        mode: 'cursor',
+        nextCursor: 'cursor.empty.next',
+        pageSize: 50,
+        hasMore: true,
+      },
     };
   },
 } as unknown as IAgentSessionService;
@@ -1297,27 +1343,41 @@ await assert.rejects(
   /empty page with hasMore=true/u,
 );
 
-const wrongEarlierItemsPageService = {
+const nonProgressingEarlierItemsCursorService = {
   async listSessionItems(_identity: AgentSessionIdentity) {
     return {
-      items: [],
-      pageInfo: { mode: 'offset', page: 3, pageSize: 50, hasMore: false },
+      items: [{
+        sessionId: refreshedAgentSession.id,
+        itemId: 'item.pagination.cursor-cycle',
+        kind: 'assistant_output' as const,
+        status: 'completed' as const,
+        sequence: '0',
+        content: 'cursor cycle',
+        contentType: 'text/plain',
+        createdAt: '2026-07-24T00:00:00.000Z',
+      }],
+      pageInfo: {
+        mode: 'cursor',
+        nextCursor: refreshedAgentSession.itemPageInfo.nextCursor,
+        pageSize: 50,
+        hasMore: true,
+      },
     };
   },
 } as unknown as IAgentSessionService;
 await assert.rejects(
   loadEarlierAgentSessionItems({
     agentSession: refreshedAgentSession,
-    agentSessionService: wrongEarlierItemsPageService,
+    agentSessionService: nonProgressingEarlierItemsCursorService,
   }),
-  /unexpected page/u,
+  /non-progressing cursor page/u,
 );
 
 let earlierItemSignal: AbortSignal | undefined;
 const cancellableEarlierItemsService = {
   async listSessionItems(
     identity: AgentSessionIdentity,
-    _request?: AgentSessionPageRequest,
+    _request?: AgentSessionItemPageRequest,
     options?: AgentSessionReadOptions,
   ) {
     assert.deepEqual(identity, {

@@ -72,7 +72,7 @@ export function ProjectExplorerModeHeader({
           data-sidebar-mode-trigger="true"
           onClick={() => setIsModeMenuOpen((isOpen) => !isOpen)}
         >
-          <span className="min-w-0 truncate">Birdcoder</span>
+          <span className="min-w-0 truncate">{activeMode === 'work' ? workModeLabel : 'BirdCoder'}</span>
           <ChevronDown
             size={14}
             aria-hidden="true"

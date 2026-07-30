@@ -140,6 +140,7 @@
       "./appSessionTokenManager",
       "./sdk",
       "./sdk/agents-app",
+      "./sdk/mcp-app",
       "./sdk/birdcoder-app",
       "./sdk/documents-app",
       "./sdk/drive-app",
@@ -181,6 +182,12 @@
       {
         "workspace": "sdkwork-agents-app-sdk",
         "permissionModuleId": "ai",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-mcp-app-sdk",
+        "permissionModuleId": "mcp",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },
@@ -247,6 +254,12 @@
         {
           "moduleId": "skills",
           "manifestRef": "../../../../../../sdkwork-skills/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "mcp",
+          "manifestRef": "../../../../../../sdkwork-mcp/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },

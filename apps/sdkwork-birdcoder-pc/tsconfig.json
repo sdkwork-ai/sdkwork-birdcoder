@@ -65,6 +65,9 @@
       "@sdkwork/agents-app-sdk": [
         "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/mcp-app-sdk": [
+        "../../../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript/src/index.ts"
+      ],
       "@sdkwork/sdk-common": [
         "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
       ],
@@ -91,6 +94,9 @@
       ],
       "@sdkwork/birdcoder-pc-workbench": [
         "./packages/sdkwork-birdcoder-pc-workbench/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-pc-work-resources": [
+        "./packages/sdkwork-birdcoder-pc-work-resources/src/index.ts"
       ],
       "@sdkwork/birdcoder-pc-workbench/*": [
         "./packages/sdkwork-birdcoder-pc-workbench/src/*"

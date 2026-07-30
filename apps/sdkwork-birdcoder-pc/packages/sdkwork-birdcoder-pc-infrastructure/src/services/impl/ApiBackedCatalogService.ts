@@ -1,14 +1,20 @@
 import type {
   AgentCompositionSlotRecord,
+  AgentRecord,
   AgentsAppSdkClient,
   McpServerMarketplaceRecord,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
+import type {
+  McpAppSdkClient,
+  McpServerRecord,
+} from '@sdkwork/birdcoder-pc-core/sdk/mcp-app';
 import type {
   SdkworkSkillsAppClient,
   SkillArtifactsPageData,
   SkillInstallationRecord,
   SkillPackageRecord,
   SkillPackagesPageData,
+  SkillRecord,
   SkillsSkillPackagesArtifactsListParams,
   SkillsSkillPackagesListParams,
 } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
@@ -17,7 +23,11 @@ import type {
   ComposerProviderCapabilitiesOptions,
   ComposerProviderCapabilityItem,
   ICatalogService,
+  AgentCatalogListOptions,
+  CatalogPage,
+  CatalogPageInfo,
   InstallSkillPackageOptions,
+  WorkResourceListOptions,
 } from '../interfaces/ICatalogService.ts';
 import {
   createBirdCoderLocalPluginCatalogRuntime,
@@ -26,12 +36,80 @@ import {
 
 export interface ApiBackedCatalogServiceOptions {
   agentsClient: AgentsAppSdkClient;
+  mcpClient: McpAppSdkClient;
   skillsClient: SdkworkSkillsAppClient;
   localPluginRuntime?: LocalPluginCatalogRuntime;
 }
 
 const DEFAULT_COMPOSER_CAPABILITY_PAGE_SIZE = 20;
 const MAX_COMPOSER_CAPABILITY_PAGE_SIZE = 50;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMcpServerRecord(value: unknown): value is McpServerRecord {
+  if (!isRecord(value)) return false;
+  return [value.id, value.uuid, value.server_key, value.name, value.transport]
+    .every((field) => typeof field === 'string');
+}
+
+function toCatalogPageInfo(
+  value: unknown,
+  fallbackPage: number,
+  fallbackPageSize: number,
+): CatalogPageInfo {
+  const pageInfo = isRecord(value) ? value : {};
+  return {
+    mode: pageInfo.mode === 'cursor' ? 'cursor' : 'offset',
+    page: typeof pageInfo.page === 'number' ? pageInfo.page : fallbackPage,
+    pageSize: typeof pageInfo.pageSize === 'number' ? pageInfo.pageSize : fallbackPageSize,
+    totalItems: typeof pageInfo.totalItems === 'string' ? pageInfo.totalItems : undefined,
+    totalPages: typeof pageInfo.totalPages === 'number' ? pageInfo.totalPages : undefined,
+    nextCursor: typeof pageInfo.nextCursor === 'string' || pageInfo.nextCursor === null
+      ? pageInfo.nextCursor
+      : undefined,
+    hasMore: typeof pageInfo.hasMore === 'boolean' ? pageInfo.hasMore : undefined,
+  };
+}
+
+function toCatalogPage<TItem>(
+  value: unknown,
+  fallbackPage: number,
+  fallbackPageSize: number,
+  resourceName: string,
+): CatalogPage<TItem> {
+  const candidate = isRecord(value) && isRecord(value.data) ? value.data : value;
+  if (!isRecord(candidate) || !Array.isArray(candidate.items)) {
+    throw new Error(`${resourceName} catalog returned an invalid page payload.`);
+  }
+
+  return {
+    items: candidate.items as TItem[],
+    pageInfo: toCatalogPageInfo(candidate.pageInfo, fallbackPage, fallbackPageSize),
+  };
+}
+
+function toMcpCatalogPage(
+  value: unknown,
+  fallbackPage: number,
+  fallbackPageSize: number,
+): CatalogPage<McpServerRecord> {
+  const candidate = isRecord(value) && isRecord(value.data) ? value.data : value;
+  if (!isRecord(candidate) || !Array.isArray(candidate.items)) {
+    throw new Error('MCP server catalog returned an invalid page payload.');
+  }
+
+  const items = candidate.items.filter(isMcpServerRecord);
+  if (items.length !== candidate.items.length) {
+    throw new Error('MCP server catalog returned an invalid server record.');
+  }
+
+  return {
+    items,
+    pageInfo: toCatalogPageInfo(candidate.pageInfo, fallbackPage, fallbackPageSize),
+  };
+}
 
 function normalizePage(value: number | undefined): number {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : 1;
@@ -124,11 +202,18 @@ function toSkillCapability(
 
 export class ApiBackedCatalogService implements ICatalogService {
   private readonly agentsClient: AgentsAppSdkClient;
+  private readonly mcpClient: McpAppSdkClient;
   private readonly skillsClient: SdkworkSkillsAppClient;
   private readonly localPluginRuntime: LocalPluginCatalogRuntime;
 
-  constructor({ agentsClient, skillsClient, localPluginRuntime = createBirdCoderLocalPluginCatalogRuntime() }: ApiBackedCatalogServiceOptions) {
+  constructor({
+    agentsClient,
+    mcpClient,
+    skillsClient,
+    localPluginRuntime = createBirdCoderLocalPluginCatalogRuntime(),
+  }: ApiBackedCatalogServiceOptions) {
     this.agentsClient = agentsClient;
+    this.mcpClient = mcpClient;
     this.skillsClient = skillsClient;
     this.localPluginRuntime = localPluginRuntime;
   }
@@ -226,5 +311,63 @@ export class ApiBackedCatalogService implements ICatalogService {
       },
       ...(options.config ? { config: options.config } : {}),
     });
+  }
+
+  async listAgents({
+    page,
+    pageSize,
+    query,
+    scope,
+    signal,
+  }: AgentCatalogListOptions): Promise<CatalogPage<AgentRecord>> {
+    const boundedPage = normalizePage(page);
+    const boundedPageSize = normalizePageSize(pageSize);
+    const result = await this.agentsClient.ai.agents.list(
+      {
+        page: boundedPage,
+        pageSize: boundedPageSize,
+        q: query?.trim() || undefined,
+        scope,
+      },
+      { signal },
+    );
+    return toCatalogPage<AgentRecord>(result, boundedPage, boundedPageSize, 'Agent');
+  }
+
+  async listSkills({
+    page,
+    pageSize,
+    query,
+    signal,
+  }: WorkResourceListOptions = {}): Promise<CatalogPage<SkillRecord>> {
+    const boundedPage = normalizePage(page);
+    const boundedPageSize = normalizePageSize(pageSize);
+    const result = await this.skillsClient.skills.marketplace.list(
+      {
+        page: boundedPage,
+        pageSize: boundedPageSize,
+        q: query?.trim() || undefined,
+      },
+      { signal },
+    );
+    return toCatalogPage<SkillRecord>(result, boundedPage, boundedPageSize, 'Skill');
+  }
+
+  async listConnectors({
+    page,
+    pageSize,
+    query,
+    signal,
+  }: WorkResourceListOptions = {}): Promise<CatalogPage<McpServerRecord>> {
+    signal?.throwIfAborted();
+    const boundedPage = normalizePage(page);
+    const boundedPageSize = normalizePageSize(pageSize);
+    const result = await this.mcpClient.mcp.listServers({
+      page: boundedPage,
+      pageSize: boundedPageSize,
+      q: query?.trim() || undefined,
+    });
+    signal?.throwIfAborted();
+    return toMcpCatalogPage(result, boundedPage, boundedPageSize);
   }
 }

@@ -37,7 +37,8 @@ import {
   useAuth,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
-import { useImportedProjectSessionSynchronization } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionSynchronization';
+import { useImportedProjectSessionInventory } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionInventory';
+import { getProviderSessionImportFailureCount } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import {
@@ -93,6 +94,8 @@ function StudioPageComponent({
   const {
     hasMore: hasMoreProjects,
     hasFetched: hasFetchedProjects,
+    error: projectsLoadError,
+    isLoading: isLoadingProjects,
     isLoadingMore: isLoadingMoreProjects,
     projects,
     filteredProjects,
@@ -104,6 +107,7 @@ function StudioPageComponent({
     deleteAgentSessionItem,
     loadMoreProjects,
     loadMoreProjectSessions,
+    refreshProjects,
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
@@ -455,19 +459,19 @@ function StudioPageComponent({
     setSelectedEngineId,
     setSelectedModelId,
   });
-  const handleImportedProjectSessionsSynchronized = useCallback((result: {
+  const handleImportedProjectSessionsRefreshed = useCallback((result: {
     latestAgentSessionId: string | null;
     project: { projectId: string };
   }) => {
-    const synchronizedProjectId = result.project.projectId;
-    if (currentProjectId !== synchronizedProjectId) {
+    const refreshedProjectId = result.project.projectId;
+    if (currentProjectId !== refreshedProjectId) {
       return;
     }
     if (sessionId?.trim() || normalizedInitialAgentSessionId) {
       return;
     }
     if (result.latestAgentSessionId) {
-      selectAgentSession(result.latestAgentSessionId, { projectId: synchronizedProjectId });
+      selectAgentSession(result.latestAgentSessionId, { projectId: refreshedProjectId });
     }
   }, [
     currentProjectId,
@@ -476,12 +480,13 @@ function StudioPageComponent({
     sessionId,
   ]);
   const {
-    invalidateImportedProjectSessionSynchronization,
-    synchronizeImportedProject,
-  } = useImportedProjectSessionSynchronization({
+    importProjectProviderSessions,
+    invalidateImportedProjectSessionInventory,
+    refreshImportedProject,
+  } = useImportedProjectSessionInventory({
     agentSessionService,
     knownProjects: projects,
-    onSynchronized: handleImportedProjectSessionsSynchronized,
+    onRefreshed: handleImportedProjectSessionsRefreshed,
     projectService,
     userScope,
     workspaceId,
@@ -552,19 +557,19 @@ function StudioPageComponent({
       return;
     }
     if (mountRecoveryState.status !== 'recovered') {
-      invalidateImportedProjectSessionSynchronization(currentProjectId);
+      invalidateImportedProjectSessionInventory(currentProjectId);
       return;
     }
 
-    void synchronizeImportedProject(currentProjectId).catch((error) => {
+    void refreshImportedProject(currentProjectId).catch((error) => {
       console.error('Failed to refresh mounted project sessions', error);
     });
   }, [
     currentProjectId,
-    invalidateImportedProjectSessionSynchronization,
+    invalidateImportedProjectSessionInventory,
     isVisible,
     mountRecoveryState.status,
-    synchronizeImportedProject,
+    refreshImportedProject,
   ]);
 
   useStudioWorkbenchEventBindings({
@@ -667,7 +672,7 @@ function StudioPageComponent({
     selectedAgentSession: selectedSession,
     selectedAgentSessionId: sessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
-    synchronizeProjectSessions: synchronizeImportedProject,
+    refreshProjectSessionInventory: refreshImportedProject,
   });
   const isSelectedAgentSessionHydrating = Boolean(
     sessionId &&
@@ -681,6 +686,7 @@ function StudioPageComponent({
     && !isSelectedAgentSessionItemsLoading
   );
   const {
+    earlierAgentSessionItemsError,
     handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
@@ -712,7 +718,7 @@ function StudioPageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
-    synchronizeProjectSessions: synchronizeImportedProject,
+    refreshProjectSessionInventory: refreshImportedProject,
   });
   const handleLoadEarlierSelectedAgentSessionItems = useCallback(() => {
     const targetAgentSessionId = sessionId.trim();
@@ -1113,8 +1119,19 @@ function StudioPageComponent({
         addToast('Select the local folder again to restore file access on this device.', 'error');
         return;
       }
-      await synchronizeImportedProject(currentProjectId, true);
-      addToast(t('studio.openedFolder', { name: currentProject?.name ?? 'Local folder' }), 'success');
+      const importedInventory = await importProjectProviderSessions(currentProjectId);
+      const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+      addToast(
+        failedSessionCount
+          ? t('studio.providerSessionsPartiallyImported', {
+              count: failedSessionCount,
+              name: currentProject?.name ?? t('studio.localFolder'),
+            })
+          : t('studio.openedFolder', {
+              name: currentProject?.name ?? t('studio.localFolder'),
+            }),
+        failedSessionCount ? 'info' : 'success',
+      );
     } catch (error) {
       console.error('Failed to retry local project folder recovery', error);
       addToast(
@@ -1131,7 +1148,7 @@ function StudioPageComponent({
     currentProject?.name,
     currentProjectId,
     restoreProjectMount,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
     t,
   ]);
 
@@ -1161,8 +1178,17 @@ function StudioPageComponent({
       });
 
       await restoreProjectMount();
-      await synchronizeImportedProject(currentProjectId, true);
-      addToast(t('studio.openedFolder', { name: reboundProject.projectName }), 'success');
+      const importedInventory = await importProjectProviderSessions(currentProjectId);
+      const failedSessionCount = getProviderSessionImportFailureCount(importedInventory);
+      addToast(
+        failedSessionCount
+          ? t('studio.providerSessionsPartiallyImported', {
+              count: failedSessionCount,
+              name: reboundProject.projectName,
+            })
+          : t('studio.openedFolder', { name: reboundProject.projectName }),
+        failedSessionCount ? 'info' : 'success',
+      );
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
       addToast(
@@ -1182,7 +1208,7 @@ function StudioPageComponent({
     projectRuntimeLocationService,
     projectService,
     restoreProjectMount,
-    synchronizeImportedProject,
+    importProjectProviderSessions,
     t,
   ]);
 
@@ -1313,7 +1339,9 @@ function StudioPageComponent({
     >
       <StudioChatSidebar
         hasMoreProjects={hasMoreProjects}
+        hasProjectsLoadError={Boolean(projectsLoadError && projects.length === 0)}
         isVisible={isVisible && isSidebarVisible}
+        isLoadingProjects={isLoadingProjects}
         isLoadingMoreProjects={isLoadingMoreProjects}
         width={chatWidth}
         projects={filteredProjects}
@@ -1324,6 +1352,7 @@ function StudioPageComponent({
         messages={selectedSessionMessages}
         hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
         isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
+        remoteMessagesLoadError={earlierAgentSessionItemsError}
         pendingApprovals={pendingApprovals}
         pendingUserQuestions={pendingUserQuestions}
         emptyState={studioChatEmptyState}
@@ -1343,6 +1372,7 @@ function StudioPageComponent({
         onSelectAgentSession={handleSelectAgentSession}
         onCreateProject={handleCreateSidebarProject}
         onLoadMoreProjects={loadMoreProjects}
+        onRetryProjects={refreshProjects}
         onLoadMoreProjectSessions={loadMoreProjectSessions}
         onLoadMoreRemoteMessages={handleLoadEarlierSelectedAgentSessionItems}
         onCreateAgentSession={createStudioAgentSessionInProject}

@@ -212,6 +212,13 @@
         "required": true
       },
       {
+        "workspace": "sdkwork-mcp-app-sdk",
+        "permissionModuleId": "mcp",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
         "workspace": "sdkwork-order-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
@@ -336,6 +343,20 @@
         ]
       },
       {
+        "workspace": "sdkwork-mcp-app-sdk",
+        "sdkFamily": "sdkwork-mcp-app-sdk",
+        "apiAuthority": "sdkwork-mcp.app",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_MCP_APP_API_BASE_URL"
+        ]
+      },
+      {
         "workspace": "sdkwork-order-app-sdk",
         "sdkFamily": "sdkwork-order-app-sdk",
         "apiAuthority": "sdkwork-order-app-api",
@@ -385,6 +406,7 @@
       "VITE_SDKWORK_IAM_APP_API_BASE_URL",
       "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
       "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
+      "VITE_SDKWORK_MCP_APP_API_BASE_URL",
       "VITE_SDKWORK_ORDER_APP_API_BASE_URL",
       "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
     ],
@@ -438,6 +460,12 @@
           "inheritRoles": true
         },
         {
+          "moduleId": "mcp",
+          "manifestRef": "../../../../sdkwork-mcp/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
           "moduleId": "order",
           "manifestRef": "../../../../sdkwork-order/specs/iam.module.manifest.json",
           "inheritPermissions": true,
@@ -477,7 +505,7 @@
     "authority": "This PC composition root owns presentation and local host capability only; it owns no business database, dependency API, or generated transport.",
     "dependencyPolicy": "Remote capabilities use their generated owner App SDK with one global TokenManager. Standalone-capable dependencies resolve through application.public-ingress only when the standalone gateway mounts the owner api-assembly contribution; cloud dependencies resolve through platform.api-gateway or an explicit owner override. Raw HTTP and copied SDK authority are forbidden.",
     "projectPolicy": "Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, and Runtime Binding facts are canonical sdkwork-agents resources identified by one projectId.",
-    "persistencePolicy": "Only allowlisted device state may persist locally. Agents, Skills, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority.",
+    "persistencePolicy": "Only allowlisted device state may persist locally. Agents, Skills, MCP, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority.",
     "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts and must remain semantically distinct."
   },
   "verification": {

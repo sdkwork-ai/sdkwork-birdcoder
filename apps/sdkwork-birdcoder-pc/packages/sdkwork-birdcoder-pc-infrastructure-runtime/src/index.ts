@@ -98,11 +98,15 @@ export type {
   SubmitAgentTurnInput,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentSessionService';
 export type {
+  AgentCatalogListOptions,
+  CatalogPage,
+  CatalogPageInfo,
   ComposerProviderCapabilities,
   ComposerProviderCapabilitiesOptions,
   ComposerProviderCapabilityItem,
   ComposerProviderCapabilityLoadError,
   ICatalogService,
+  WorkResourceListOptions,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
 export type {
   DocumentListOptions,

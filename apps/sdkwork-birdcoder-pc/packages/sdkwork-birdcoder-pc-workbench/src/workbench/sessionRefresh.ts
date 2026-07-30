@@ -1,6 +1,6 @@
 import type {
+  AgentSessionItemPageInfoView,
   AgentSessionItemView,
-  AgentSessionPageInfoView,
   AgentSessionView,
   AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -40,6 +40,9 @@ import {
 
 const AGENT_SESSION_ITEM_PAGE_SIZE = 50;
 const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
+const AGENT_SESSION_LATEST_ITEM_MAX_PAGES = 8;
+const AGENT_SESSION_EARLIER_DUPLICATE_PAGE_LIMIT = 3;
+const AGENT_SESSION_ITEM_CURSOR_MAX_LENGTH = 2_048;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
@@ -185,34 +188,63 @@ function withAgentRefreshTimeout<T>(
   });
 }
 
-function normalizeOffsetPageInfo(
-  pageInfo: Awaited<ReturnType<IAgentSessionService['listSessions']>>['pageInfo'],
-  requestedPage: number,
+function normalizeSessionItemCursorPageInfo(
+  pageInfo: Awaited<ReturnType<IAgentSessionService['listSessionItems']>>['pageInfo'],
+  requestedCursor: string | undefined,
   requestedPageSize: number,
   label: string,
-): AgentSessionPageInfoView {
-  const page = pageInfo.page ?? requestedPage;
-  const pageSize = pageInfo.pageSize ?? requestedPageSize;
-  if (pageInfo.mode !== 'offset' || page !== requestedPage) {
-    throw new Error(`${label} returned pagination metadata for an unexpected page.`);
+): AgentSessionItemPageInfoView {
+  if (pageInfo.mode !== 'cursor') {
+    throw new Error(`${label} must use cursor pagination.`);
   }
-  if (pageSize !== requestedPageSize) {
-    throw new Error(`${label} returned page size ${pageSize} while ${requestedPageSize} was requested.`);
+  if (pageInfo.pageSize !== requestedPageSize) {
+    throw new Error(
+      `${label} returned page size ${pageInfo.pageSize} while ${requestedPageSize} was requested.`,
+    );
   }
-  return { hasMore: pageInfo.hasMore === true, page, pageSize };
+  const nextCursor = pageInfo.nextCursor;
+  if (pageInfo.hasMore) {
+    if (
+      typeof nextCursor !== 'string'
+      || nextCursor.length < 1
+      || nextCursor.length > AGENT_SESSION_ITEM_CURSOR_MAX_LENGTH
+      || nextCursor.trim() !== nextCursor
+      || nextCursor === requestedCursor
+    ) {
+      throw new Error(`${label} returned a non-progressing cursor page.`);
+    }
+  } else if (nextCursor !== null) {
+    throw new Error(`${label} terminal page must return a null cursor.`);
+  }
+  return {
+    hasMore: pageInfo.hasMore,
+    nextCursor,
+    pageSize: requestedPageSize,
+  };
 }
 
 function validateLoadedItemPageInfo(
-  pageInfo: AgentSessionPageInfoView,
+  pageInfo: AgentSessionItemPageInfoView,
   label: string,
-): AgentSessionPageInfoView {
-  if (!Number.isSafeInteger(pageInfo.page) || pageInfo.page < 1) {
-    throw new Error(`${label} has an invalid current page.`);
-  }
+): AgentSessionItemPageInfoView {
   if (pageInfo.pageSize !== AGENT_SESSION_ITEM_PAGE_SIZE) {
     throw new Error(
       `${label} has page size ${pageInfo.pageSize}; expected ${AGENT_SESSION_ITEM_PAGE_SIZE}.`,
     );
+  }
+  if (
+    pageInfo.hasMore
+    && (
+      typeof pageInfo.nextCursor !== 'string'
+      || pageInfo.nextCursor.length < 1
+      || pageInfo.nextCursor.length > AGENT_SESSION_ITEM_CURSOR_MAX_LENGTH
+      || pageInfo.nextCursor.trim() !== pageInfo.nextCursor
+    )
+  ) {
+    throw new Error(`${label} has an invalid continuation cursor.`);
+  }
+  if (!pageInfo.hasMore && pageInfo.nextCursor !== null) {
+    throw new Error(`${label} terminal page must have a null cursor.`);
   }
   return pageInfo;
 }
@@ -306,16 +338,13 @@ function shouldRetainObservedRuntimeStatus(
 }
 
 function mergeMonotonicSessionItemPageInfo(
-  current: AgentSessionPageInfoView | undefined,
-  incoming: AgentSessionPageInfoView | undefined,
-): AgentSessionPageInfoView | undefined {
+  current: AgentSessionItemPageInfoView | undefined,
+  incoming: AgentSessionItemPageInfoView | undefined,
+): AgentSessionItemPageInfoView | undefined {
   if (!current || !incoming) {
     return incoming ?? current;
   }
-  if (current.page > incoming.page) {
-    return current;
-  }
-  return incoming;
+  return current;
 }
 
 /**
@@ -482,7 +511,7 @@ async function loadSessionView(
   session: AgentSessionRecord,
   project: Pick<AgentProjectView, 'projectId'>,
   items: readonly AgentSessionItemRecord[] = [],
-  itemPageInfo?: AgentSessionPageInfoView,
+  itemPageInfo?: AgentSessionItemPageInfoView,
   signal?: AbortSignal,
   fallbackView?: AgentSessionView,
 ): Promise<AgentSessionView> {
@@ -504,20 +533,20 @@ async function loadSessionView(
 async function loadSessionItemPage(
   service: IAgentSessionService,
   identity: AgentSessionIdentity,
-  requestedPage: number,
+  requestedCursor: string | undefined,
   signal: AbortSignal,
 ): Promise<{
   items: AgentSessionItemRecord[];
-  pageInfo: AgentSessionPageInfoView;
+  pageInfo: AgentSessionItemPageInfoView;
 }> {
   const page = await service.listSessionItems(identity, {
-    page: requestedPage,
+    cursor: requestedCursor,
     pageSize: AGENT_SESSION_ITEM_PAGE_SIZE,
     sort: '-sequence',
   }, { signal });
-  const pageInfo = normalizeOffsetPageInfo(
+  const pageInfo = normalizeSessionItemCursorPageInfo(
     page.pageInfo,
-    requestedPage,
+    requestedCursor,
     AGENT_SESSION_ITEM_PAGE_SIZE,
     'Agents session item list',
   );
@@ -564,7 +593,7 @@ async function loadSessionItemPage(
 }
 
 interface LatestSessionItemWindow {
-  itemPageInfo: AgentSessionPageInfoView;
+  itemPageInfo: AgentSessionItemPageInfoView;
   items: AgentSessionItemRecord[];
   replaceLoadedAuthorityWindow: boolean;
 }
@@ -601,7 +630,7 @@ async function loadLatestSessionItemWindow(
   signal: AbortSignal,
 ): Promise<LatestSessionItemWindow> {
   const authorityItemIds = buildAuthoritySessionItemIds(existingItems);
-  const firstPage = await loadSessionItemPage(service, identity, 1, signal);
+  const firstPage = await loadSessionItemPage(service, identity, undefined, signal);
   const pages = [firstPage];
   const loadedConversationTurnKeys = new Set<string>();
   appendVisibleAuthorityConversationTurnKeys(loadedConversationTurnKeys, firstPage.items);
@@ -618,12 +647,14 @@ async function loadLatestSessionItemWindow(
   while (
     pages.at(-1)?.pageInfo.hasMore
     && (!overlapsLoadedWindow || !hasEnoughConversationContext())
+    && pages.length < AGENT_SESSION_LATEST_ITEM_MAX_PAGES
   ) {
     signal.throwIfAborted();
+    const nextCursor = pages.at(-1)!.pageInfo.nextCursor;
     const nextPage = await loadSessionItemPage(
       service,
       identity,
-      pages.length + 1,
+      nextCursor ?? undefined,
       signal,
     );
     pages.push(nextPage);
@@ -644,25 +675,16 @@ async function loadLatestSessionItemWindow(
 }
 
 function mergeLoadedSessionItemPageInfo(
-  existingPageInfo: AgentSessionPageInfoView | undefined,
-  refreshedPageInfo: AgentSessionPageInfoView,
-  hasUnseenAuthorityItems: boolean,
-): AgentSessionPageInfoView {
+  existingPageInfo: AgentSessionItemPageInfoView | undefined,
+  refreshedPageInfo: AgentSessionItemPageInfoView,
+): AgentSessionItemPageInfoView {
   if (!existingPageInfo) {
     return refreshedPageInfo;
   }
-  const existing = validateLoadedItemPageInfo(
+  return validateLoadedItemPageInfo(
     existingPageInfo,
     'Loaded Agents session item list',
   );
-  return {
-    hasMore: existing.hasMore || (
-      refreshedPageInfo.hasMore
-      && (existing.page === 1 || hasUnseenAuthorityItems)
-    ),
-    page: Math.max(existing.page, refreshedPageInfo.page),
-    pageSize: AGENT_SESSION_ITEM_PAGE_SIZE,
-  };
 }
 
 function normalizeProjectActivitySummaries(
@@ -764,8 +786,6 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  await agentSessionService.synchronizeProjectSessions(normalizedProjectId, { signal });
-  signal?.throwIfAborted();
   const snapshot = await loadProjectSessionActivityHead(
     agentSessionService,
     project,
@@ -801,7 +821,7 @@ export function refreshProjectSessions(
   );
 }
 
-function isAgentSessionNotFoundError(error: unknown): boolean {
+export function isAgentSessionNotFoundError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false;
   }
@@ -923,19 +943,11 @@ async function refreshAgentSessionItemsWithoutTimeout({
       ? retainTransientSessionItems(existingAgentSession.items)
       : existingAgentSession.items
     : [];
-  const existingAuthorityItemIds = buildAuthoritySessionItemIds(
-    existingAgentSession?.items ?? [],
-  );
-  const hasUnseenAuthorityItems = latestItemWindow.items.some((item) => {
-    const itemId = item.itemId.trim();
-    return itemId !== '' && !existingAuthorityItemIds.has(itemId);
-  });
   const itemPageInfo = latestItemWindow.replaceLoadedAuthorityWindow
     ? latestItemWindow.itemPageInfo
     : mergeLoadedSessionItemPageInfo(
         existingAgentSession?.itemPageInfo,
         latestItemWindow.itemPageInfo,
-        hasUnseenAuthorityItems,
       );
   const agentSession = existingAgentSession
     ? {
@@ -1002,27 +1014,25 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
     };
   }
 
-  const validatedPageInfo = validateLoadedItemPageInfo(
+  validateLoadedItemPageInfo(
     currentPageInfo,
     'Loaded Agents session item list',
   );
   const requestSignal = signal ?? new AbortController().signal;
   let currentAgentSession = agentSession;
   let loadedItemCount = 0;
+  let duplicateOnlyPageCount = 0;
   while (true) {
     const loadedPageInfo = validateLoadedItemPageInfo(
       currentAgentSession.itemPageInfo!,
       'Loaded Agents session item list',
     );
-    const requestedPage = loadedPageInfo.page + 1;
-    if (!Number.isSafeInteger(requestedPage)) {
-      throw new Error('Loaded Agents session item list cannot advance beyond the current page.');
-    }
+    const requestedCursor = loadedPageInfo.nextCursor ?? undefined;
 
     const itemPage = await loadSessionItemPage(
       agentSessionService,
       identity,
-      requestedPage,
+      requestedCursor,
       requestSignal,
     );
     const historicalItems = normalizeSessionItemRecords(itemPage.items, currentAgentSession);
@@ -1034,7 +1044,12 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
       itemPageInfo: itemPage.pageInfo,
       items,
     };
-    if (addedItemCount > 0 || !itemPage.pageInfo.hasMore) {
+    duplicateOnlyPageCount = addedItemCount > 0 ? 0 : duplicateOnlyPageCount + 1;
+    if (
+      addedItemCount > 0
+      || !itemPage.pageInfo.hasMore
+      || duplicateOnlyPageCount >= AGENT_SESSION_EARLIER_DUPLICATE_PAGE_LIMIT
+    ) {
       break;
     }
     requestSignal.throwIfAborted();

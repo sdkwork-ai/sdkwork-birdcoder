@@ -78,7 +78,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
 
   return (
     <div
-      className={`${paddingClassName} group birdcoder-session-row relative flex w-full min-w-0 max-w-full cursor-pointer items-center justify-between overflow-hidden rounded-md py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelected ? 'birdcoder-session-selected' : ''} ${
+      className={`${paddingClassName} group birdcoder-session-row relative flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden rounded-md py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelected ? 'birdcoder-session-selected' : ''} ${
         isSelected ? 'text-white' : 'text-gray-400'
       }`}
       data-agent-session-id={session.id}
@@ -86,11 +86,9 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       data-session-project-id={resolvedSessionProjectId}
       data-session-selected={isSelected ? 'true' : undefined}
       style={buildProjectExplorerSurfaceStyle('36px')}
-      title={sessionDetails}
-      onClick={() => onSelectAgentSession(session.id, resolvedSessionProjectId)}
       onContextMenu={(event) => onAgentSessionContextMenu(event, session.id, resolvedSessionProjectId)}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+      <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         {!isPinnedVariant ? (
           <>
             <SessionProviderBadge
@@ -117,7 +115,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
               }
             }}
             onBlur={onRenameCancel}
-            className="min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] text-white outline-none focus:ring-1 focus:ring-blue-500"
+            className="pointer-events-auto min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] text-white outline-none focus:ring-1 focus:ring-blue-500"
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
@@ -157,6 +155,15 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
           />
         </span>
       )}
+      {!isRenaming ? (
+        <button
+          type="button"
+          aria-label={sessionDetails}
+          className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+          title={sessionDetails}
+          onClick={() => onSelectAgentSession(session.id, resolvedSessionProjectId)}
+        />
+      ) : null}
       {!isRenaming && (
         <button
           type="button"

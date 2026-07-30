@@ -59,6 +59,7 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'catalogService':
         return new ApiBackedCatalogService({
           agentsClient: runtime.agentsClient,
+          mcpClient: runtime.mcpClient,
           skillsClient: runtime.skillsClient,
         });
       case 'documentService':

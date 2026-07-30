@@ -31,11 +31,16 @@ assert.match(
 assert.match(
   projectSectionSource,
   /onClick=\{handleProjectRowClick\}/,
-  'clicking the project row must use the project selection and expansion toggle handler',
+  'the semantic project-row button must use the project selection and expansion toggle handler',
 );
 assert.match(
   projectSectionSource,
-  /onSelectProject\(project\.id\);\s*onToggleProject\(project\.id, event\);/s,
+  /<button[\s\S]*aria-label=\{project\.name\}[\s\S]*onClick=\{handleProjectRowClick\}/s,
+  'project selection must be exposed through a native button',
+);
+assert.match(
+  projectSectionSource,
+  /onSelectProject\(project\.projectId\);\s*onToggleProject\(project\.projectId, event\);/s,
   'the project row handler must select the project and toggle its expansion state',
 );
 assert.match(

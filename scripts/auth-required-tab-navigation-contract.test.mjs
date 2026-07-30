@@ -39,6 +39,12 @@ assert.match(
 
 assert.match(
   authRoutingSource,
+  /AUTH_REQUIRED_APP_TABS = new Set<AppTab>\(\[[^\]]*'work-resources'[^\]]*\]\)/,
+  'The Work resources route must require an authenticated session.',
+);
+
+assert.match(
+  authRoutingSource,
   /const recoveredTargetTab = resolveInitialAppTab\(recoveredTab, Boolean\(user\)\);[\s\S]*?pendingAuthTargetTabRef\.current = recoveredTargetTab;[\s\S]*?setActiveTab\(recoveredTargetTab\);/u,
   'Authenticated recovery must register its target before the same-commit auth effect can apply the default Code tab.',
 );

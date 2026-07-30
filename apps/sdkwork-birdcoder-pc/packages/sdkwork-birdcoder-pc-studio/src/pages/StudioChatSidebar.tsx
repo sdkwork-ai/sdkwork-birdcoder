@@ -9,8 +9,10 @@ import {
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   DeferredUniversalChat,
+  ProjectInventoryStatus,
   type SessionRuntimeStatusLabels,
   WorkbenchNewSessionButton,
+  useDialogFocusManagement,
   type UniversalChatComposerSelection,
   type UniversalChatComposerSubmission,
 } from '@sdkwork/birdcoder-pc-ui';
@@ -39,9 +41,13 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StudioSessionMenuRow } from './StudioSessionMenuRow';
+import {
+  focusAdjacentStudioMenuButton,
+  focusPreferredStudioMenuButton,
+} from './studioMenuKeyboardNavigation';
 
 const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
@@ -102,7 +108,9 @@ function buildStudioSidebarSurfaceStyle(containIntrinsicSize: string): CSSProper
 
 interface StudioChatSidebarProps {
   hasMoreProjects: boolean;
+  hasProjectsLoadError: boolean;
   isVisible: boolean;
+  isLoadingProjects: boolean;
   isLoadingMoreProjects: boolean;
   width: number;
   projects: AgentProjectView[];
@@ -113,6 +121,7 @@ interface StudioChatSidebarProps {
   messages: AgentSessionItemView[];
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
+  remoteMessagesLoadError: string | null;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
   emptyState?: ReactNode;
@@ -142,6 +151,7 @@ interface StudioChatSidebarProps {
   onSelectAgentSession: (projectId: string, agentSessionId: string) => void;
   onCreateProject: () => Promise<void>;
   onLoadMoreProjects: () => Promise<unknown> | void;
+  onRetryProjects: () => Promise<unknown> | void;
   onLoadMoreProjectSessions?: (
     projectId: string,
     requestedCount: number,
@@ -188,6 +198,8 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
     <button
       type="button"
       onClick={() => onSelectProject(project.projectId)}
+      data-studio-project-row="true"
+      aria-current={isMenuSelected ? 'true' : undefined}
       className={`group flex h-9 w-full items-center justify-between rounded-md px-2.5 text-sm transition-colors ${
         isMenuSelected
           ? 'bg-white/[0.065] text-gray-100'
@@ -215,6 +227,8 @@ function areStudioChatSidebarPropsEqual(
   return (
     left.isVisible === right.isVisible &&
     left.hasMoreProjects === right.hasMoreProjects &&
+    left.hasProjectsLoadError === right.hasProjectsLoadError &&
+    left.isLoadingProjects === right.isLoadingProjects &&
     left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.width === right.width &&
     areStudioProjectInventoriesEqual(left.projects, right.projects) &&
@@ -225,6 +239,7 @@ function areStudioChatSidebarPropsEqual(
     areStudioChatMessagesEqual(left.messages, right.messages) &&
     left.hasMoreRemoteMessages === right.hasMoreRemoteMessages &&
     left.isLoadingMoreRemoteMessages === right.isLoadingMoreRemoteMessages &&
+    left.remoteMessagesLoadError === right.remoteMessagesLoadError &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&
     left.emptyState === right.emptyState &&
@@ -244,6 +259,7 @@ function areStudioChatSidebarPropsEqual(
     left.onSelectAgentSession === right.onSelectAgentSession &&
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
+    left.onRetryProjects === right.onRetryProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onLoadMoreRemoteMessages === right.onLoadMoreRemoteMessages &&
     left.onCreateAgentSession === right.onCreateAgentSession &&
@@ -263,7 +279,9 @@ function areStudioChatSidebarPropsEqual(
 
 export const StudioChatSidebar = memo(function StudioChatSidebar({
   hasMoreProjects,
+  hasProjectsLoadError,
   isVisible,
+  isLoadingProjects,
   isLoadingMoreProjects,
   width,
   projects,
@@ -274,6 +292,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   messages,
   hasMoreRemoteMessages,
   isLoadingMoreRemoteMessages,
+  remoteMessagesLoadError,
   pendingApprovals,
   pendingUserQuestions,
   emptyState,
@@ -293,6 +312,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onSelectAgentSession,
   onCreateProject,
   onLoadMoreProjects,
+  onRetryProjects,
   onLoadMoreProjectSessions,
   onLoadMoreRemoteMessages,
   onCreateAgentSession,
@@ -318,6 +338,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   }), [t]);
   const { addToast } = useToast();
   const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const closeProjectMenu = useCallback(() => setShowProjectMenu(false), []);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
   >({});
@@ -326,8 +347,17 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   >({});
   const loadingMoreSessionProjectIdsRef = useRef(new Set<string>());
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuSearchInputRef = useRef<HTMLInputElement>(null);
   const projectMenuProjectsRef = useRef<HTMLDivElement>(null);
   const projectMenuSessionsRef = useRef<HTMLDivElement>(null);
+  const {
+    dialogRef: projectMenuDialogRef,
+    onDialogKeyDown: handleProjectMenuDialogKeyDown,
+  } = useDialogFocusManagement<HTMLElement>({
+    initialFocusRef: projectMenuSearchInputRef,
+    isOpen: showProjectMenu,
+    onClose: closeProjectMenu,
+  });
   const renderProjects = useMemo(
     () => deduplicateAgentProjectsForRender(projects),
     [projects],
@@ -352,9 +382,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         return;
       }
       if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
-        setShowProjectMenu(false);
+        closeProjectMenu();
       }
-    }, [showProjectMenu]);
+    }, [closeProjectMenu, showProjectMenu]);
 
   useEffect(() => {
     if (!showProjectMenu) {
@@ -414,11 +444,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     });
   }, [renderProjects]);
 
-  const deferredProjectSearchQuery = useDeferredValue(projectSearchQuery);
   const relativeTimeNow = useRelativeMinuteNow({
     isEnabled: isVisible && showProjectMenu,
   });
-  const normalizedProjectSearchQuery = deferredProjectSearchQuery.trim().toLowerCase();
   const projectsById = useMemo(
     () => new Map(renderProjects.map((project) => [project.projectId, project] as const)),
     [renderProjects],
@@ -452,21 +480,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     if (!showProjectMenu) {
       return EMPTY_STUDIO_PROJECTS;
     }
-
-    if (!normalizedProjectSearchQuery) {
-      return renderProjects;
-    }
-
-    return renderProjects.filter((project) => {
-      if (project.name.toLowerCase().includes(normalizedProjectSearchQuery)) {
-        return true;
-      }
-
-      return project.agentSessions.some((agentSession) =>
-        agentSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
-      ) || project.agentSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-    });
-  }, [normalizedProjectSearchQuery, renderProjects, showProjectMenu]);
+    return renderProjects;
+  }, [renderProjects, showProjectMenu]);
   const effectiveMenuProjectId = useMemo(() => {
     if (!showProjectMenu) {
       return menuActiveProjectId;
@@ -484,14 +499,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       return EMPTY_STUDIO_AGENT_SESSIONS;
     }
 
-    if (!normalizedProjectSearchQuery) {
-      return menuProject.agentSessions;
-    }
-
-    return menuProject.agentSessions.filter((agentSession) =>
-      agentSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
-    );
-  }, [menuProject, normalizedProjectSearchQuery, showProjectMenu]);
+    return menuProject.agentSessions;
+  }, [menuProject, showProjectMenu]);
   const visibleSessionCount =
     visibleSessionCountByProjectId[effectiveMenuProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
   const isLoadingMoreSessions = loadingMoreSessionProjectIds[effectiveMenuProjectId] === true;
@@ -602,8 +611,54 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     agentSessionId: string,
   ) => {
     onSelectAgentSession(projectId, agentSessionId);
-    setShowProjectMenu(false);
-  }, [onSelectAgentSession]);
+    closeProjectMenu();
+  }, [closeProjectMenu, onSelectAgentSession]);
+
+  const handleProjectMenuProjectsKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowRight') {
+        if (focusPreferredStudioMenuButton(
+          projectMenuSessionsRef.current,
+          '[data-studio-session-row="true"][data-session-selected="true"]',
+          '[data-studio-session-row="true"]',
+        )) {
+          event.preventDefault();
+        }
+        return;
+      }
+      if (focusAdjacentStudioMenuButton(
+        event.currentTarget,
+        '[data-studio-project-row="true"]',
+        event.key,
+      )) {
+        event.preventDefault();
+      }
+    },
+    [],
+  );
+
+  const handleProjectMenuSessionsKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowLeft') {
+        if (focusPreferredStudioMenuButton(
+          projectMenuProjectsRef.current,
+          '[data-studio-project-row="true"][aria-current="true"]',
+          '[data-studio-project-row="true"]',
+        )) {
+          event.preventDefault();
+        }
+        return;
+      }
+      if (focusAdjacentStudioMenuButton(
+        event.currentTarget,
+        '[data-studio-session-row="true"]',
+        event.key,
+      )) {
+        event.preventDefault();
+      }
+    },
+    [],
+  );
 
   const handleLoadMoreMenuProjectSessions = useCallback(
     async (projectId: string, requestedCount: number): Promise<void> => {
@@ -693,9 +748,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       }
 
       await onCreateAgentSession(effectiveMenuProjectId, engineId, modelId);
-      setShowProjectMenu(false);
+      closeProjectMenu();
     },
-    [effectiveMenuProjectId, hasEffectiveMenuProject, onCreateAgentSession],
+    [closeProjectMenu, effectiveMenuProjectId, hasEffectiveMenuProject, onCreateAgentSession],
   );
 
   if (!isVisible) {
@@ -739,8 +794,12 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
               {showProjectMenu && (
                 <section
+                  ref={projectMenuDialogRef}
                   role="dialog"
                   aria-label={t('studio.projectSessionSwitcher')}
+                  aria-modal="true"
+                  onKeyDownCapture={handleProjectMenuDialogKeyDown}
+                  tabIndex={-1}
                   className="absolute left-0 top-full z-50 mt-1.5 flex w-[min(680px,calc(100vw-72px))] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#18191d] shadow-[0_20px_64px_rgba(0,0,0,0.58)] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150"
                   data-studio-session-menu="true"
                   style={{ height: 'min(440px, calc(100vh - 112px))' }}
@@ -751,13 +810,14 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                   >
                     <Search size={14} className="shrink-0 text-gray-600" aria-hidden="true" />
                     <input
+                      ref={projectMenuSearchInputRef}
                       type="search"
-                      autoFocus
+                      maxLength={255}
                       value={projectSearchQuery}
                       onChange={(event) => onProjectSearchQueryChange(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === 'Escape') {
-                          setShowProjectMenu(false);
+                          closeProjectMenu();
                         }
                       }}
                       placeholder={t('studio.searchProjects')}
@@ -766,7 +826,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                     />
                     <button
                       type="button"
-                      onClick={() => setShowProjectMenu(false)}
+                      onClick={closeProjectMenu}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
                       aria-label={t('studio.closeProjectSessionSwitcher')}
                       title={t('studio.closeProjectSessionSwitcher')}
@@ -804,9 +864,25 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
                       <div
                         ref={projectMenuProjectsRef}
+                        onKeyDown={handleProjectMenuProjectsKeyDown}
                         className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2"
                       >
-                        {visibleMenuProjects.length > 0 ? (
+                        {isLoadingProjects && renderProjects.length === 0 ? (
+                          <ProjectInventoryStatus
+                            errorLabel={t('studio.failedToLoadProjects')}
+                            loadingLabel={t('studio.loadingProjects')}
+                            retryLabel={t('studio.retryProjects')}
+                            state="loading"
+                          />
+                        ) : hasProjectsLoadError && renderProjects.length === 0 ? (
+                          <ProjectInventoryStatus
+                            errorLabel={t('studio.failedToLoadProjects')}
+                            loadingLabel={t('studio.loadingProjects')}
+                            retryLabel={t('studio.retryProjects')}
+                            state="error"
+                            onRetry={onRetryProjects}
+                          />
+                        ) : visibleMenuProjects.length > 0 ? (
                           <>
                             {shouldWindowMenuProjects ? (
                               <div style={{ height: menuProjectsWindowedRange.paddingTop }} />
@@ -914,6 +990,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
                       <div
                         ref={projectMenuSessionsRef}
+                        onKeyDown={handleProjectMenuSessionsKeyDown}
                         className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2"
                       >
                         {shouldWindowMenuSessions ? (
@@ -1020,6 +1097,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             messages={messages}
             hasMoreRemoteMessages={hasMoreRemoteMessages}
             isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+            remoteMessagesLoadError={remoteMessagesLoadError}
             onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
             pendingApprovals={pendingApprovals}
             pendingUserQuestions={pendingUserQuestions}

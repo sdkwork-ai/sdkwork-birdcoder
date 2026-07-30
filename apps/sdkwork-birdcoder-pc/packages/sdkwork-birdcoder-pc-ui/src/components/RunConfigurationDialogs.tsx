@@ -4,6 +4,8 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { useId, useRef } from 'react';
+import { useDialogFocusManagement } from '../hooks/useDialogFocusManagement';
 
 export interface RunConfigurationDialogProps {
   open: boolean;
@@ -27,6 +29,8 @@ export interface RunConfigurationDialogProps {
   buildLabel: string;
   testLabel: string;
   customGroupLabel: string;
+  closeLabel: string;
+  loadingLabel: string;
 }
 
 export interface RunTaskDialogProps {
@@ -35,6 +39,9 @@ export interface RunTaskDialogProps {
   configurations: ReadonlyArray<RunConfigurationRecord>;
   onClose: () => void;
   onRun: (configuration: RunConfigurationRecord) => void;
+  closeLabel: string;
+  emptyLabel: string;
+  loadingLabel: string;
 }
 
 export function RunConfigurationDialog({
@@ -59,7 +66,15 @@ export function RunConfigurationDialog({
   buildLabel,
   testLabel,
   customGroupLabel,
+  closeLabel,
 }: RunConfigurationDialogProps) {
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const fieldIdPrefix = useId();
+  const { dialogRef, onDialogKeyDown } = useDialogFocusManagement<HTMLDivElement>({
+    initialFocusRef: nameInputRef,
+    isOpen: open,
+    onClose,
+  });
   if (!open) {
     return null;
   }
@@ -67,22 +82,33 @@ export function RunConfigurationDialog({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
       <div
+        ref={dialogRef}
         aria-label={title}
         aria-modal="true"
         className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
         data-birdcoder-popup-surface="true"
+        onKeyDownCapture={onDialogKeyDown}
         role="dialog"
+        tabIndex={-1}
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h3 className="text-sm font-medium text-gray-200">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button
+            type="button"
+            aria-label={closeLabel}
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+            title={closeLabel}
+          >
             <X size={16} />
           </button>
         </div>
         <div className="p-4 flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">{nameLabel}</label>
+            <label htmlFor={`${fieldIdPrefix}-name`} className="block text-xs font-medium text-gray-400 mb-1.5">{nameLabel}</label>
             <input
+              ref={nameInputRef}
+              id={`${fieldIdPrefix}-name`}
               type="text"
               value={draft.name}
               onChange={(event) =>
@@ -95,10 +121,11 @@ export function RunConfigurationDialog({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+            <label htmlFor={`${fieldIdPrefix}-command`} className="block text-xs font-medium text-gray-400 mb-1.5">
               {commandLabel}
             </label>
             <input
+              id={`${fieldIdPrefix}-command`}
               type="text"
               value={draft.command}
               onChange={(event) =>
@@ -112,8 +139,9 @@ export function RunConfigurationDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">{profileLabel}</label>
+              <label htmlFor={`${fieldIdPrefix}-profile`} className="block text-xs font-medium text-gray-400 mb-1.5">{profileLabel}</label>
               <select
+                id={`${fieldIdPrefix}-profile`}
                 value={draft.profileId}
                 onChange={(event) =>
                   onDraftChange({
@@ -131,10 +159,11 @@ export function RunConfigurationDialog({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              <label htmlFor={`${fieldIdPrefix}-working-directory`} className="block text-xs font-medium text-gray-400 mb-1.5">
                 {workingDirectoryLabel}
               </label>
               <select
+                id={`${fieldIdPrefix}-working-directory`}
                 value={draft.cwdMode}
                 onChange={(event) =>
                   onDraftChange({
@@ -152,10 +181,11 @@ export function RunConfigurationDialog({
           </div>
           {draft.cwdMode === 'custom' && (
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              <label htmlFor={`${fieldIdPrefix}-custom-directory`} className="block text-xs font-medium text-gray-400 mb-1.5">
                 {customDirectoryLabel}
               </label>
               <input
+                id={`${fieldIdPrefix}-custom-directory`}
                 type="text"
                 value={draft.customCwd}
                 onChange={(event) =>
@@ -169,8 +199,9 @@ export function RunConfigurationDialog({
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">{taskGroupLabel}</label>
+            <label htmlFor={`${fieldIdPrefix}-task-group`} className="block text-xs font-medium text-gray-400 mb-1.5">{taskGroupLabel}</label>
             <select
+              id={`${fieldIdPrefix}-task-group`}
               value={draft.group}
               onChange={(event) =>
                 onDraftChange({
@@ -206,7 +237,13 @@ export function RunTaskDialog({
   configurations,
   onClose,
   onRun,
+  closeLabel,
+  emptyLabel,
 }: RunTaskDialogProps) {
+  const { dialogRef, onDialogKeyDown } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: open,
+    onClose,
+  });
   if (!open) {
     return null;
   }
@@ -214,21 +251,34 @@ export function RunTaskDialog({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
       <div
+        ref={dialogRef}
         aria-label={title}
         aria-modal="true"
         className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
         data-birdcoder-popup-surface="true"
+        onKeyDownCapture={onDialogKeyDown}
         role="dialog"
+        tabIndex={-1}
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h3 className="text-sm font-medium text-gray-200">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button
+            type="button"
+            aria-label={closeLabel}
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+            title={closeLabel}
+          >
             <X size={16} />
           </button>
         </div>
         <div className="p-4 flex flex-col gap-2">
+          {configurations.length === 0 ? (
+            <p className="px-3 py-4 text-center text-sm text-gray-500">{emptyLabel}</p>
+          ) : null}
           {configurations.map((configuration) => (
             <button
+              type="button"
               key={configuration.id}
               className="w-full text-left px-3 py-2 hover:bg-white/5 rounded-md group flex items-center gap-3 transition-colors"
               onClick={() => onRun(configuration)}

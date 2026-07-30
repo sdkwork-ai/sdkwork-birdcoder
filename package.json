@@ -48,6 +48,8 @@
     "start:capacitor-ios": "pnpm --filter @sdkwork/birdcoder-h5-capacitor start:capacitor-ios",
     "check:iam:sample": "node scripts/run-sample-iam-check.mjs",
     "check:iam-application-bootstrap-standard": "node scripts/dev/sdkwork-birdcoder-iam-application-bootstrap-standard.test.mjs && node --test scripts/dev/sdkwork-birdcoder-iam-consumer-boundary.test.mjs",
+    "db:postgres:init": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .",
+    "db:postgres:plan": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run",
     "check:workspace-package-script-runner": "node scripts/workspace-package-script-runner-contract.test.mjs",
     "build": "pnpm exec sdkwork-app build",
     "build:dev": "node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web build:dev",

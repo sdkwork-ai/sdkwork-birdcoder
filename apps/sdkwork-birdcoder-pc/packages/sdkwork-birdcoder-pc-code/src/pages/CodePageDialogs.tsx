@@ -2,6 +2,7 @@ import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
 } from '@sdkwork/birdcoder-pc-ui/components/DeferredRunDialogs';
+import { useDialogFocusManagement } from '@sdkwork/birdcoder-pc-ui';
 import { Button, ConfirmationDialog } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import { X } from 'lucide-react';
@@ -62,6 +63,20 @@ export const CodePageDialogs = memo(function CodePageDialogs({
     ? t('code.deleteMessageDescription')
     : t('code.deleteSessionDescription');
   const deleteDialogActionLabel = t('app.delete');
+  const {
+    dialogRef: debugDialogRef,
+    onDialogKeyDown: handleDebugDialogKeyDown,
+  } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: isDebugConfigVisible,
+    onClose: onCloseDebugConfig,
+  });
+  const {
+    dialogRef: deleteDialogRef,
+    onDialogKeyDown: handleDeleteDialogKeyDown,
+  } = useDialogFocusManagement<HTMLDivElement>({
+    isOpen: deleteConfirmation !== null && !isProjectRemoval,
+    onClose: onCancelDelete,
+  });
 
   return (
     <>
@@ -74,33 +89,44 @@ export const CodePageDialogs = memo(function CodePageDialogs({
         onSubmit={onSubmitRunConfig}
         nameLabel={t('app.name')}
         commandLabel={t('app.command')}
-        profileLabel="Profile"
-        workingDirectoryLabel="Working Directory"
-        customDirectoryLabel="Custom Directory"
-        taskGroupLabel="Task Group"
+        profileLabel={t('app.terminalProfile')}
+        workingDirectoryLabel={t('app.workingDirectory')}
+        customDirectoryLabel={t('app.customDirectory')}
+        taskGroupLabel={t('app.taskGroup')}
         cancelLabel={t('app.cancel')}
         submitLabel={t('app.run')}
-        projectLabel="Project"
-        workspaceLabel="Repository Root"
-        customLabel="Custom"
-        devLabel="Dev"
-        buildLabel="Build"
-        testLabel="Test"
-        customGroupLabel="Custom"
+        projectLabel={t('app.projectType')}
+        workspaceLabel={t('app.repositoryRoot')}
+        customLabel={t('app.custom')}
+        devLabel={t('app.developmentTask')}
+        buildLabel={t('app.buildTask')}
+        testLabel={t('app.testTask')}
+        customGroupLabel={t('app.custom')}
+        closeLabel={t('app.close')}
+        loadingLabel={t('app.runDialogLoading')}
       />
 
       {isDebugConfigVisible && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
           <div
+            ref={debugDialogRef}
             aria-label={t('app.debugConfiguration')}
             aria-modal="true"
             className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
             data-birdcoder-popup-surface="true"
+            onKeyDownCapture={handleDebugDialogKeyDown}
             role="dialog"
+            tabIndex={-1}
           >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-sm font-medium text-gray-200">{t('app.debugConfiguration')}</h3>
-              <button onClick={onCloseDebugConfig} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                aria-label={t('app.close')}
+                className="text-gray-400 hover:text-white"
+                onClick={onCloseDebugConfig}
+                title={t('app.close')}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -159,6 +185,9 @@ export const CodePageDialogs = memo(function CodePageDialogs({
         configurations={runConfigurations}
         onClose={onCloseRunTask}
         onRun={onRunTask}
+        closeLabel={t('app.close')}
+        emptyLabel={t('app.noRunConfigurations')}
+        loadingLabel={t('app.runDialogLoading')}
       />
 
       {isProjectRemoval && deleteConfirmation ? (
@@ -176,11 +205,14 @@ export const CodePageDialogs = memo(function CodePageDialogs({
       ) : deleteConfirmation ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div
+            ref={deleteDialogRef}
             aria-label={deleteDialogTitle}
             aria-modal="true"
             className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
             data-birdcoder-popup-surface="true"
+            onKeyDownCapture={handleDeleteDialogKeyDown}
             role="dialog"
+            tabIndex={-1}
           >
             <h3 className="text-lg font-semibold text-white mb-2">
               {deleteDialogTitle}

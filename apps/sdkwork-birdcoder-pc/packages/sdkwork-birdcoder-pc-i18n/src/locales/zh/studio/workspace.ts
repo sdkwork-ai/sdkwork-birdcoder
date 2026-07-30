@@ -2,11 +2,14 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('studio/workspace', {
   studio: {
-    searchProjects: '\u641c\u7d22\u9879\u76ee\u6216\u4f1a\u8bdd...',
+    searchProjects: '\u641c\u7d22\u9879\u76ee...',
     projectSessionSwitcher: '\u9879\u76ee\u4e0e\u4f1a\u8bdd',
     closeProjectSessionSwitcher: '\u5173\u95ed\u9879\u76ee\u4e0e\u4f1a\u8bdd',
     projects: '\u9879\u76ee',
     noProjectsFound: '\u672a\u627e\u5230\u9879\u76ee',
+    loadingProjects: '\u6b63\u5728\u52a0\u8f7d\u9879\u76ee...',
+    failedToLoadProjects: '\u65e0\u6cd5\u52a0\u8f7d\u9879\u76ee',
+    retryProjects: '\u91cd\u8bd5',
     loadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee',
     loadingMoreProjects: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u9879\u76ee...',
     failedToLoadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee\u5931\u8d25',
@@ -31,6 +34,8 @@ export default defineLocaleModule('studio/workspace', {
     failedToCreateProject: '\u521b\u5efa\u9879\u76ee\u5931\u8d25',
     localFolder: '\u672c\u5730\u6587\u4ef6\u5939',
     openedFolder: '\u5df2\u6253\u5f00\u6587\u4ef6\u5939\uff1a{{name}}',
+    providerSessionsPartiallyImported:
+      '\u5df2\u6253\u5f00 {{name}}\uff0c\u4f46\u6709 {{count}} \u4e2a Provider Session \u672a\u80fd\u5bfc\u5165\u3002',
     failedToOpenFolder: '\u6253\u5f00\u6587\u4ef6\u5939\u5931\u8d25',
     refreshSessions: '\u5237\u65b0\u4f1a\u8bdd',
     refreshingSessions: '\u6b63\u5728\u5237\u65b0\u4f1a\u8bdd',

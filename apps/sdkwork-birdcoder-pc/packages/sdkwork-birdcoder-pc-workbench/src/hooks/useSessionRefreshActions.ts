@@ -10,7 +10,7 @@ import {
   upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged,
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
-import type { HydrateImportedProjectFromAuthorityResult } from '../workbench/importedProjectHydration.ts';
+import type { ImportedProjectSessionInventoryResult } from '../workbench/importedProjectHydration.ts';
 import {
   loadEarlierAgentSessionItems,
   refreshAgentSessionItems,
@@ -63,6 +63,11 @@ interface ScopedEarlierAgentSessionItemsState {
   userScope: string;
 }
 
+interface ScopedEarlierAgentSessionItemsErrorState
+  extends ScopedEarlierAgentSessionItemsState {
+  message: string;
+}
+
 function isAbortError(error: unknown): boolean {
   return (error instanceof DOMException || error instanceof Error) && error.name === 'AbortError';
 }
@@ -83,10 +88,10 @@ export interface UseSessionRefreshActionsOptions {
     projectId: string,
     agentSessionId: string | null,
   ) => void;
-  synchronizeProjectSessions: (
+  refreshProjectSessionInventory: (
     projectId: string,
     force?: boolean,
-  ) => Promise<HydrateImportedProjectFromAuthorityResult | null>;
+  ) => Promise<ImportedProjectSessionInventoryResult | null>;
 }
 
 export function useSessionRefreshActions({
@@ -99,7 +104,7 @@ export function useSessionRefreshActions({
   resolveAgentSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
-  synchronizeProjectSessions,
+  refreshProjectSessionInventory,
 }: UseSessionRefreshActionsOptions) {
   const { sessionRevision, user } = useAuth();
   const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
@@ -112,6 +117,8 @@ export function useSessionRefreshActions({
     useState<ScopedAgentSessionRefreshState | null>(null);
   const [loadingEarlierAgentSessionScope, setLoadingEarlierAgentSessionScope] =
     useState<ScopedEarlierAgentSessionItemsState | null>(null);
+  const [earlierAgentSessionItemsErrorScope, setEarlierAgentSessionItemsErrorScope] =
+    useState<ScopedEarlierAgentSessionItemsErrorState | null>(null);
   const projectRefreshGenerationRef = useRef(0);
   const agentSessionRefreshGenerationRef = useRef(0);
   const activeAgentSessionRefreshRequestRef =
@@ -129,6 +136,7 @@ export function useSessionRefreshActions({
       'AbortError',
     ));
     setLoadingEarlierAgentSessionScope(null);
+    setEarlierAgentSessionItemsErrorScope(null);
   }, []);
 
   const cancelActiveAgentSessionRefreshRequest = useCallback(() => {
@@ -192,7 +200,7 @@ export function useSessionRefreshActions({
 
     setRefreshingProjectScope({ projectId: targetProjectId, userScope });
     try {
-      const result = await synchronizeProjectSessions(targetProjectId, true);
+      const result = await refreshProjectSessionInventory(targetProjectId, true);
       if (
         projectRefreshGenerationRef.current !== requestGeneration
         || activeUserScopeRef.current !== userScope
@@ -231,7 +239,7 @@ export function useSessionRefreshActions({
     messages,
     resolveProjectName,
     isPreservedSelectionStillCurrent,
-    synchronizeProjectSessions,
+    refreshProjectSessionInventory,
     userScope,
   ]);
 
@@ -402,6 +410,7 @@ export function useSessionRefreshActions({
     }
 
     const scopeKey = `${userScope}\u0001${normalizedProjectId}\u0001${normalizedAgentSessionId}`;
+    setEarlierAgentSessionItemsErrorScope(null);
     const activeRequest = activeEarlierItemsRequestRef.current;
     if (activeRequest?.scopeKey === scopeKey) {
       return activeRequest.promise;
@@ -418,7 +427,7 @@ export function useSessionRefreshActions({
     const expectedTranscript = {
       agentId: resolvedLocation.agentSession.agentId,
       hasMore: resolvedLocation.agentSession.itemPageInfo.hasMore,
-      page: resolvedLocation.agentSession.itemPageInfo.page,
+      nextCursor: resolvedLocation.agentSession.itemPageInfo.nextCursor,
       pageSize: resolvedLocation.agentSession.itemPageInfo.pageSize,
       revision: getAgentSessionTranscriptRevision(
         buildProjectsStoreScopeKey(userScope, resolvedLocation.project.workspaceId),
@@ -461,11 +470,25 @@ export function useSessionRefreshActions({
             { itemMergeMode: 'ordered-window' },
           );
         }
+        setEarlierAgentSessionItemsErrorScope(null);
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) {
           return;
         }
         console.error('Failed to load earlier coding session messages', error);
+        const latestSelection = getPreservedSelectionRef.current();
+        if (
+          activeUserScopeRef.current === userScope
+          && latestSelection.agentSessionId?.trim() === normalizedAgentSessionId
+          && latestSelection.projectId.trim() === normalizedProjectId
+        ) {
+          setEarlierAgentSessionItemsErrorScope({
+            agentSessionId: normalizedAgentSessionId,
+            message: messages.failedToRefreshSessionMessages,
+            projectId: normalizedProjectId,
+            userScope,
+          });
+        }
         addToast(messages.failedToRefreshSessionMessages, 'error');
       } finally {
         if (activeEarlierItemsRequestRef.current?.controller === controller) {
@@ -490,8 +513,16 @@ export function useSessionRefreshActions({
     loadingEarlierAgentSessionScope?.userScope === userScope
     && loadingEarlierAgentSessionScope.agentSessionId === selectedAgentSessionId
     && loadingEarlierAgentSessionScope.projectId === selectedProjectId;
+  const hasEarlierItemsErrorForCurrentSelection =
+    earlierAgentSessionItemsErrorScope?.userScope === userScope
+    && earlierAgentSessionItemsErrorScope.agentSessionId === selectedAgentSessionId
+    && earlierAgentSessionItemsErrorScope.projectId === selectedProjectId;
 
   return {
+    earlierAgentSessionItemsError:
+      hasEarlierItemsErrorForCurrentSelection
+        ? earlierAgentSessionItemsErrorScope.message
+        : null,
     handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,

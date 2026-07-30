@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-07-29
+Updated: 2026-07-30
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Background And Problem
@@ -56,8 +56,8 @@ Non-goals:
   remote code execution.
 - Emulating a missing document composition type with a different composition
   slot.
-- Modifying or claiming completion for H5 or Flutter in this Rust-and-PC
-  cutover.
+- Claiming Flutter completion from this Rust-and-PC delivery. H5 changes remain
+  limited to compatibility with the canonical Agents Session Item contract.
 
 ## 4. User Scenarios
 
@@ -99,9 +99,13 @@ Non-goals:
    Project inventory, creation, and import require the selected `workspaceId`.
 4. PC AI workflows use canonical Agents Sessions and Session Items without a
    local Session or transcript authority.
-5. A manual Project Session refresh calls the generated Agents App SDK
-   `projectSessions.synchronize` operation before it reads the owner-scoped,
-   paginated Session Activity summary. The read endpoint is side-effect free.
+5. Project, Session, and Session Activity refreshes are read-only generated
+   Agents App SDK calls and never invoke provider inventory synchronization.
+   Provider Session reconciliation runs only in the explicit folder import or
+   re-import workflow through `projectSessions.synchronize`. That command
+   returns synchronized, skipped, and failed counts plus bounded aggregate
+   issues, so malformed provider records do not discard valid imports.
+   The Session Activity read endpoint is side-effect free.
    The disposable in-memory projection incorporates Turn, Interaction, Runtime
    Binding, user-state, provider identity, activity fact-version, and freshness
    changes even when the Session version is unchanged. Browser and desktop
@@ -137,7 +141,15 @@ Non-goals:
     time below it.
 14. The Header renders Workspace selection on the left and the selected
     Workspace's Project inventory on the right.
-15. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
+15. Project inventory uses server-side Workspace scope, query search, and
+    case-insensitive `name_exact` lookup. Project Session inventory remains
+    bounded offset pagination. Session transcripts use opaque keyset cursors;
+    clients request the newest page with `sort=-sequence`, restore chronological
+    presentation order, and advance only with `pageInfo.nextCursor`.
+16. Unsupported future Session Item roles or kinds remain visible through a
+    bounded unsupported-content presentation instead of being misclassified as
+    assistant output or silently discarded.
+17. Rust, PC, and touched H5 documentation, contracts, generated SDKs, and runtime behavior
     remain mutually consistent.
 
 ## 6. Quality, Security, And Commercial Gates
@@ -147,7 +159,7 @@ Non-goals:
 | Cohesion | Every business fact has one owner with its own API, SDK, persistence, and lifecycle. |
 | Coupling | Integration uses generated owner SDKs, stable identifiers, and explicit ports. |
 | Security | Authorization fails closed; local paths, tokens, and device-state payloads do not enter server APIs or logs. |
-| Performance | Owner-side pagination is preserved; loaded Sessions are globally filtered and sorted before render virtualization; PC view adaptation stays in memory. |
+| Performance | Owner-side pagination is preserved; Session Item reads use keyset cursors and bounded latest/history windows; loaded Sessions are globally filtered and sorted before render virtualization; PC view adaptation stays in memory. |
 | Reliability | Missing mounts, runtime bindings, topology, unsupported composition types, and stale or unavailable activity fail closed; background refresh preserves explicit selection. |
 | Reproducibility | API assembly and SDK generation are repeatable and generated files are not hand-edited. |
 | Operations | The gateway deploys statelessly with health, readiness, metrics, rollback, and dependency diagnostics. |
@@ -159,13 +171,15 @@ The current delivery scope is:
 
 - Rust assembly, gateway, System routes, and Tauri host;
 - PC browser and desktop packages;
+- H5 assistant transcript compatibility with the Agents cursor contract;
 - BirdCoder System-only App SDK;
 - owner SDK integration for Agents, Skills, IAM, Drive, and Documents, plus
   the explicit IM ownership boundary for any future human messaging feature;
 - architecture, operations, and release documentation for those surfaces.
 
-H5 and Flutter remain outside this cutover and cannot be used as evidence that
-the current migration is complete.
+Flutter remains outside this cutover and cannot be used as evidence that the
+current migration is complete. H5 evidence is limited to its assistant Session
+Item consumer and does not claim full cross-surface feature parity.
 
 ## 8. Linked Requirements
 

@@ -8,7 +8,7 @@ import type { IProjectService } from '../services/interfaces/IProjectService.ts'
 import { resolveLatestAgentSessionIdForProject } from './agentSessionSelection.ts';
 import { refreshProjectSessions } from './sessionRefresh.ts';
 
-export interface HydrateImportedProjectFromAuthorityOptions {
+export interface RefreshImportedProjectFromAuthorityOptions {
   agentSessionService: IAgentSessionService;
   knownProjects?: readonly AgentProjectView[];
   projectId: string;
@@ -18,16 +18,17 @@ export interface HydrateImportedProjectFromAuthorityOptions {
   workspaceId: string;
 }
 
-export interface HydrateImportedProjectFromAuthorityResult {
+export interface ImportedProjectSessionInventoryResult {
   deletedSessionIds: string[];
   deletedSessionTombstones: AgentSessionView[];
   latestAgentSessionId: string | null;
   project: AgentProjectView;
+  providerImport?: Awaited<ReturnType<IAgentSessionService['synchronizeProjectSessions']>>;
 }
 
-export async function hydrateImportedProjectFromAuthority(
-  options: HydrateImportedProjectFromAuthorityOptions,
-): Promise<HydrateImportedProjectFromAuthorityResult | null> {
+export async function refreshImportedProjectFromAuthority(
+  options: RefreshImportedProjectFromAuthorityOptions,
+): Promise<ImportedProjectSessionInventoryResult | null> {
   const projectId = options.projectId.trim();
   const workspaceId = options.workspaceId.trim();
   if (!projectId || !workspaceId) {
@@ -65,4 +66,26 @@ export async function hydrateImportedProjectFromAuthority(
     ),
     project: refreshedProject,
   };
+}
+
+export async function importProjectProviderSessions(
+  options: RefreshImportedProjectFromAuthorityOptions,
+): Promise<ImportedProjectSessionInventoryResult | null> {
+  const projectId = options.projectId.trim();
+  if (!projectId) {
+    return null;
+  }
+  const providerImport = await options.agentSessionService.synchronizeProjectSessions(projectId, {
+    signal: options.signal,
+  });
+  options.signal?.throwIfAborted();
+  const refreshed = await refreshImportedProjectFromAuthority(options);
+  return refreshed ? { ...refreshed, providerImport } : null;
+}
+
+export function getProviderSessionImportFailureCount(
+  result: ImportedProjectSessionInventoryResult | null,
+): string | null {
+  const count = result?.providerImport?.failedSessionCount;
+  return count && count !== '0' ? count : null;
 }

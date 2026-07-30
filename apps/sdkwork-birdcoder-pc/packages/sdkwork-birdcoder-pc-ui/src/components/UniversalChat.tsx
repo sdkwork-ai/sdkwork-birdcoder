@@ -83,6 +83,7 @@ import {
 import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import { ChatTranscriptJumpToLatestButton } from './ChatTranscriptJumpToLatestButton';
+import { RemoteTranscriptPaginationStatus } from './RemoteTranscriptPaginationStatus.tsx';
 import { reconcileTranscriptProjectionReferences } from './transcriptProjection';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
@@ -220,6 +221,7 @@ export interface UniversalChatProps {
   messages: AgentSessionItemView[];
   hasMoreRemoteMessages?: boolean;
   isLoadingMoreRemoteMessages?: boolean;
+  remoteMessagesLoadError?: string | null;
   onLoadMoreRemoteMessages?: () => void | Promise<void>;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
@@ -368,6 +370,7 @@ interface UniversalChatTranscriptProps {
   isActive: boolean;
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
+  remoteMessagesLoadError?: string | null;
   isLive: boolean;
   layout: 'sidebar' | 'main';
   localeKey: string;
@@ -466,6 +469,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   hasMoreRemoteMessages,
   isActive,
   isLoadingMoreRemoteMessages,
+  remoteMessagesLoadError,
   isLive,
   layout,
   localeKey: _localeKey,
@@ -879,25 +883,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   return (
     <>
       {!hasEarlierMessages && hasMoreRemoteMessages && messages.length > 0 ? (
-        <div className="flex shrink-0 items-center justify-center px-4 py-2">
-          <button
-            type="button"
-            className="inline-flex h-7 items-center justify-center gap-1.5 rounded border border-white/10 bg-white/[0.03] px-2.5 text-xs text-gray-400 transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
-            disabled={isLoadingMoreRemoteMessages || isRequestingRemoteMessages}
-            onClick={handleLoadMoreRemoteMessages}
-          >
-            {isLoadingMoreRemoteMessages || isRequestingRemoteMessages ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <ChevronUp size={12} />
-            )}
-            <span>
-              {isLoadingMoreRemoteMessages || isRequestingRemoteMessages
-                ? environmentRef.current?.t('chat.loadingEarlierMessages') ?? 'Loading earlier messages...'
-                : environmentRef.current?.t('chat.loadEarlierMessages') ?? 'Load earlier messages'}
-            </span>
-          </button>
-        </div>
+        <RemoteTranscriptPaginationStatus
+          error={remoteMessagesLoadError}
+          isLoading={isLoadingMoreRemoteMessages || isRequestingRemoteMessages}
+          loadLabel={environmentRef.current?.t('chat.loadEarlierMessages') ?? 'Load earlier messages'}
+          loadingLabel={environmentRef.current?.t('chat.loadingEarlierMessages') ?? 'Loading earlier messages...'}
+          retryLabel={environmentRef.current?.t('chat.retryLoadingEarlierMessages') ?? 'Retry'}
+          onLoad={handleLoadMoreRemoteMessages}
+        />
       ) : null}
       {isLoadingEarlierMessages ? (
         <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-500">
@@ -1022,6 +1015,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.emptyState !== nextProps.emptyState ||
     previousProps.hasMoreRemoteMessages !== nextProps.hasMoreRemoteMessages ||
     previousProps.isLoadingMoreRemoteMessages !== nextProps.isLoadingMoreRemoteMessages ||
+    previousProps.remoteMessagesLoadError !== nextProps.remoteMessagesLoadError ||
     previousProps.navigationRequest !== nextProps.navigationRequest ||
     previousProps.onLoadMoreRemoteMessages !== nextProps.onLoadMoreRemoteMessages ||
     previousProps.scrollCoordinator !== nextProps.scrollCoordinator
@@ -1048,6 +1042,7 @@ export const UniversalChat = memo(function UniversalChat({
   messages,
   hasMoreRemoteMessages = false,
   isLoadingMoreRemoteMessages = false,
+  remoteMessagesLoadError,
   onLoadMoreRemoteMessages,
   pendingApprovals = [],
   pendingUserQuestions = [],
@@ -3288,6 +3283,7 @@ export const UniversalChat = memo(function UniversalChat({
               hasMoreRemoteMessages={hasMoreRemoteMessages}
               isActive={isActive}
               isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+              remoteMessagesLoadError={remoteMessagesLoadError}
               isLive={isBusy || isEngineBusy}
               layout={layout}
               localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}

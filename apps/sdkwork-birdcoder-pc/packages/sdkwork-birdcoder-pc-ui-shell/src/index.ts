@@ -38,6 +38,9 @@ export type { StartupScreenProps, StartupStage } from './components/StartupScree
 export { useFixedSizeWindowedRange } from './components/useFixedSizeWindowedRange';
 export { useRelativeMinuteNow } from './components/useRelativeMinuteNow';
 
+export { useDialogFocusManagement } from './hooks/useDialogFocusManagement';
+export type { UseDialogFocusManagementOptions } from './hooks/useDialogFocusManagement';
+
 export { Button, buttonVariants } from './components/ui/button';
 export type { ButtonProps } from './components/ui/button';
 

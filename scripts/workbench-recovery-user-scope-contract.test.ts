@@ -96,6 +96,16 @@ const normalizedLegacySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapsh
   cleanExit: false,
 });
 
+const normalizedWorkResourcesSnapshot = recoveryModule.normalizeWorkbenchRecoverySnapshot({
+  activeTab: 'work-resources',
+});
+
+assert.equal(
+  normalizedWorkResourcesSnapshot.activeTab,
+  'work-resources',
+  'workbench recovery must preserve the authenticated Work resources route.',
+);
+
 assert.equal(
   normalizedLegacySnapshot.userScope,
   'anonymous',

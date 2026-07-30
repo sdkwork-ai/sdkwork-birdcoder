@@ -1,0 +1,45 @@
+const catalog = {
+  name: 'intelligence/work-resources/catalog',
+  resource: {
+    intelligence: {
+      workResources: {
+        title: 'Work resources',
+        subtitle: 'Browse agents, skills, and connected tools for your work.',
+        experts: 'Experts',
+        skills: 'Skills',
+        connectors: 'Connectors',
+        search: 'Search resources',
+        searchExperts: 'Search experts by name or description',
+        mine: 'My experts',
+        marketplace: 'Marketplace',
+        featuredScenes: 'Featured scenes',
+        allExperts: 'All experts',
+        featured: 'Featured',
+        recommended: 'Recommended',
+        installed: 'Installed',
+        installCount: '{{count}} installs',
+        active: 'Active',
+        unavailable: 'Unavailable',
+        noResults: 'No resources found',
+        noResultsHint: 'Try another search or clear the current filter.',
+        loadFailed: 'Resources could not be loaded.',
+        permissionDenied: 'You do not have permission to view these resources.',
+        retry: 'Retry',
+        previous: 'Previous page',
+        next: 'Next page',
+        page: 'Page {{page}}',
+        emptyCategory: 'No resources in this category yet.',
+        noDescription: 'No description provided.',
+        transport: 'Transport',
+        status: 'Status',
+        tools: '{{count}} tools',
+        skillsCount: '{{count}} skills',
+        expertsCount: '{{count}} experts',
+        viewMore: 'View more',
+      },
+    },
+  },
+} as const;
+
+export default catalog;
+export { catalog };
