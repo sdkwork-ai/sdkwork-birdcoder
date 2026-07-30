@@ -973,6 +973,104 @@ describe('useTranscriptScrollCoordinator runtime behavior', () => {
     expect(onLoadMoreMessages).toHaveBeenCalledTimes(2);
   });
 
+  it('loads the next remote page after local expansion, remote prepend, and history navigation', async () => {
+    const animationFrames = installAnimationFrameController();
+    const geometry = new TranscriptGeometry();
+    geometry.scrollHeight = 4_000;
+    geometry.scrollTop = 0;
+    let transactionToken = 0;
+    const coordinator = {
+      beginPrepend: vi.fn((): TranscriptPrependTransaction => {
+        transactionToken += 1;
+        return {
+          anchor: null,
+          metrics: {
+            clientHeight: geometry.clientHeight,
+            scrollHeight: geometry.scrollHeight,
+            scrollTop: geometry.scrollTop,
+          },
+          scopeKey: 'session-a',
+          token: transactionToken,
+        };
+      }),
+      cancelPrepend: vi.fn(),
+      completePrepend: vi.fn(),
+    };
+    const pageTwo = createDeferredPromise();
+    const pageThree = createDeferredPromise();
+    const onLoadMoreMessages = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(() => pageTwo.promise)
+      .mockImplementationOnce(() => pageThree.promise);
+    const initialMessages = createProgressiveTranscriptMessages(50);
+    const prependedMessages = createProgressiveTranscriptMessages(100);
+    const harness = await mountProgressiveTranscriptHarness({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+    });
+
+    await act(async () => {
+      geometry.container!.dispatchEvent(new WheelEvent('wheel', { deltaY: -1_000 }));
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(coordinator.beginPrepend).toHaveBeenCalledTimes(1);
+    expect(coordinator.completePrepend).toHaveBeenCalledTimes(1);
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(1);
+
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: initialMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: true,
+        onLoadMoreMessages,
+      },
+    });
+    await act(async () => {
+      pageTwo.resolve();
+      await pageTwo.promise;
+      await Promise.resolve();
+    });
+    geometry.setNativeScrollTop(2_000);
+    await harness.render({
+      coordinator,
+      geometry,
+      messages: prependedMessages,
+      remoteHistory: {
+        hasMoreMessages: true,
+        isLoadingMessages: false,
+        onLoadMoreMessages,
+      },
+      requestedMessageIndex: 89,
+    });
+
+    geometry.setNativeScrollTop(0);
+    await act(async () => {
+      geometry.container!.dispatchEvent(new WheelEvent('wheel', { deltaY: -1_000 }));
+      geometry.container!.dispatchEvent(new Event('scroll'));
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      pageThree.resolve();
+      await pageThree.promise;
+      await Promise.resolve();
+    });
+    await animationFrames.flushFrame();
+    expect(onLoadMoreMessages).toHaveBeenCalledTimes(2);
+  });
+
   it('reveals a requested local history row without sequential top-load gestures', async () => {
     const geometry = new TranscriptGeometry();
     const coordinator = {
