@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-07-30
+Updated: 2026-07-31
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Background And Problem
@@ -102,6 +102,11 @@ Non-goals:
    unavailable until Agents proves a reviewed Kernel placement and isolated
    Sandbox capability for the requested policy; there is no fallback between
    targets.
+10. While a Session Turn is active, a developer submits, edits, reorders, or
+    removes later inputs. Agents persists those inputs in FIFO order and the
+    next eligible input executes only after the preceding Turn reaches an
+    authoritative terminal state. The queue survives BirdCoder restarts,
+    reconnects, and window changes without duplicating accepted Turns.
 
 ## 5. Functional Requirements
 
@@ -157,16 +162,36 @@ Non-goals:
     case-insensitive `name_exact` lookup. Project Session inventory remains
     bounded offset pagination. Session transcripts use opaque keyset cursors;
     clients request the newest page with `sort=-sequence`, restore chronological
-    presentation order, and advance only with `pageInfo.nextCursor`.
+    presentation order, and advance only with `pageInfo.nextCursor`. PC keeps a
+    bounded in-memory transcript and preserves the expanded window when late
+    Agent or Provider metadata enriches the selected Session.
 16. Unsupported future Session Item roles or kinds remain visible through a
     bounded unsupported-content presentation instead of being misclassified as
     assistant output or silently discarded.
-17. Rust, PC, and touched H5 documentation, contracts, generated SDKs, and runtime behavior
-   remain mutually consistent.
+17. Rust, PC, documentation, contracts, generated SDKs, and runtime behavior
+    remain mutually consistent. This delivery does not add H5, Flutter, or
+    other client presentation work.
 18. Execution target is distinct from client runtime target, deployment
     profile, Kernel coordination mode, Provider transport, and Sandbox
     capacity placement. BirdCoder consumes only the generated Agents product
     contract and never writes resolved placement facts.
+19. Session is the canonical agent-continuation term throughout BirdCoder.
+    Codex `thread`, `threadId`, and `findInThread` names remain confined to the
+    raw Codex provider adapter and protocol fixtures, where they are converted
+    to Agents Session identity, `providerSessionId`, and Session-named
+    application commands. BirdCoder introduces no Thread DTO, store, service,
+    event, route, persistence model, or UI terminology. Find, archive, rename,
+    pin, and navigation operate on the current Session or its existing user
+    state.
+20. Agents owns the durable Turn input queue for each owner-scoped Agent and
+    Session. BirdCoder consumes it through the generated Agents App SDK and
+    retains only a bounded, disposable projection. Claiming is atomic and
+    fenced; dispatch uses the queue-owned idempotency key and payload hash.
+    Failed heads pause FIFO execution until retry, edit, or removal. Clear
+    removes queued and failed entries while preserving an executing lease;
+    Session deletion removes the owned queue. Logout clears only the local
+    projection, and focus, visibility, connectivity, or cross-window
+    invalidation causes an authoritative re-read.
 
 ## 6. Quality, Security, And Commercial Gates
 
@@ -175,8 +200,8 @@ Non-goals:
 | Cohesion | Every business fact has one owner with its own API, SDK, persistence, and lifecycle. |
 | Coupling | Integration uses generated owner SDKs, stable identifiers, and explicit ports. |
 | Security | Authorization fails closed; local paths, tokens, and device-state payloads do not enter server APIs or logs. |
-| Performance | Owner-side pagination is preserved; Session Item reads use keyset cursors and bounded latest/history windows; loaded Sessions are globally filtered and sorted before render virtualization; PC view adaptation stays in memory. |
-| Reliability | Missing mounts, runtime bindings, topology, unsupported composition types, and stale or unavailable activity fail closed; background refresh preserves explicit selection. |
+| Performance | Owner-side pagination is preserved; Session Item reads use keyset cursors and bounded latest/history windows; the Turn input queue and its PC projection have explicit entry and character budgets; transcript retention, provider payload traversal, and live runtime-event processing have explicit character, node, item, and frame budgets; loaded Sessions are globally filtered and sorted before render virtualization. |
+| Reliability | Missing mounts, runtime bindings, topology, unsupported composition types, and stale or unavailable activity fail closed; background refresh preserves explicit selection; queue claims are atomic, leased, fenced, and idempotent across restart, reconnect, and multiple windows. |
 | Reproducibility | API assembly and SDK generation are repeatable and generated files are not hand-edited. |
 | Operations | The gateway deploys statelessly with health, readiness, metrics, rollback, and dependency diagnostics. |
 | Release | Rust, PC, API, SDK, IAM, architecture, documentation, and security gates pass with no accepted debt list; REQ-2026-0003 owner launch blockers are closed by Agents/Kernel review and executable evidence. |
@@ -187,7 +212,6 @@ The current delivery scope is:
 
 - Rust assembly, gateway, System routes, and Tauri host;
 - PC browser and desktop packages;
-- H5 assistant transcript compatibility with the Agents cursor contract;
 - BirdCoder System-only App SDK;
 - owner SDK integration for Agents, Skills, IAM, Drive, and Documents, plus
   the explicit IM ownership boundary for any future human messaging feature;
@@ -208,9 +232,11 @@ Item consumer and does not claim full cross-surface feature parity.
 - [REQ-2026-0003 Cross-application Session Activity Inbox](../requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
 - [REQ-2026-0005 PC Appearance Settings](../requirements/REQ-2026-0005-pc-appearance-settings.md)
 - [REQ-2026-0006 Hybrid local and cloud Agent execution](../requirements/REQ-2026-0006-hybrid-local-cloud-agent-execution.md)
+- [REQ-2026-0007 Durable Turn input queue](../requirements/REQ-2026-0007-durable-turn-input-queue.md)
 - [ADR-20260722 Owner-composed stateless workbench](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../../architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
 - [ADR-20260730 Hybrid execution ownership and placement boundaries](../../architecture/decisions/ADR-20260730-hybrid-execution-boundaries.md)
+- [ADR-20260731 Durable Turn input queue](../../architecture/decisions/ADR-20260731-durable-turn-input-queue.md)
 - [Direct cutover record](../../migrations/MIG-2026-0002-domain-ownership-cutover.md)
 - [Technical architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
 

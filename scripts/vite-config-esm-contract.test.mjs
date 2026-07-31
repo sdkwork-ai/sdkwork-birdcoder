@@ -604,16 +604,96 @@ assert.equal(
   true,
   'Web Vite production build must minify CSS on all platforms.',
 );
+const resolveWebModulePreloadDependencies =
+  webConfig.build?.modulePreload?.resolveDependencies;
+assert.equal(
+  typeof resolveWebModulePreloadDependencies,
+  'function',
+  'Web Vite config must govern entry modulepreload dependencies.',
+);
+const preloadProbeDependencies = [
+  'assets/vendor-react-core-probe.js',
+  'assets/birdcoder-shell-app-probe.js',
+  'assets/birdcoder-shell-runtime~probe.js',
+  'assets/birdcoder-code-runtime-probe.js',
+  'assets/birdcoder-settings-surface~probe.js',
+  'assets/ui-model-picker-probe.js',
+];
+assert.deepEqual(
+  resolveWebModulePreloadDependencies(
+    'index-probe.js',
+    preloadProbeDependencies,
+    { hostId: 'index.html', hostType: 'html' },
+  ),
+  ['assets/vendor-react-core-probe.js'],
+  'Web entry HTML must not preload the heavy shell or coding-workbench runtime.',
+);
+assert.deepEqual(
+  resolveWebModulePreloadDependencies(
+    'feature-probe.js',
+    preloadProbeDependencies,
+    { hostId: 'feature-probe.js', hostType: 'js' },
+  ),
+  preloadProbeDependencies,
+  'Lazy JS hosts must retain their dependency preload graph.',
+);
 assertLucideRollupWarningFilter(
   webConfig.build?.rollupOptions?.onwarn,
   'Web Vite config',
 );
-const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
-assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
-assert.notEqual(
-  webConfig.build?.rollupOptions?.output?.onlyExplicitManualChunks,
+const webOutput = webConfig.build?.rollupOptions?.output;
+const webCodeSplitting = webOutput?.codeSplitting;
+assert.equal(
+  webConfig.build?.rollupOptions?.preserveEntrySignatures,
+  false,
+  'Web Vite config must allow entry-aware dynamic facades to merge without invalid signatures.',
+);
+assert.equal(
+  webOutput?.manualChunks,
+  undefined,
+  'Web Vite config must use the native Rolldown codeSplitting API instead of deprecated manualChunks.',
+);
+assert.equal(
+  webOutput?.strictExecutionOrder,
   true,
-  'Web Vite config must allow Rollup to merge manual-chunk dependencies; forcing explicit-only chunks creates cross-chunk initialization cycles.',
+  'Web Vite config must preserve module execution order across governed chunks.',
+);
+assert.equal(
+  typeof webCodeSplitting,
+  'object',
+  'Web Vite config must declare governed Rolldown code splitting.',
+);
+assert.equal(
+  webCodeSplitting?.includeDependenciesRecursively,
+  true,
+  'Web Vite chunks must recursively capture dependencies so manual ownership cannot create invalid initialization cycles.',
+);
+const webChunkGroups = webCodeSplitting?.groups ?? [];
+const mermaidParserChunkGroup = webChunkGroups.find((group) => group?.priority === 100);
+const entryAwareChunkGroup = webChunkGroups.find((group) => group?.entriesAware === true);
+assert.equal(
+  typeof mermaidParserChunkGroup?.name,
+  'function',
+  'Web Vite config must give the Mermaid parser a stable high-priority chunk owner.',
+);
+assert.equal(
+  entryAwareChunkGroup?.entriesAwareMergeThreshold,
+  32 * 1024,
+  'Web Vite config must merge tiny entry-aware chunk fragments without collapsing lazy capability boundaries.',
+);
+const webManualChunks = entryAwareChunkGroup?.name;
+assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose chunk-name governance.');
+assert.equal(
+  mermaidParserChunkGroup.name('/repo/node_modules/@mermaid-js/parser/dist/index.js'),
+  'vendor-mermaid-parser',
+  'Web Vite config must keep the Mermaid parser intact across diagram dynamic entries.',
+);
+assert.equal(
+  webManualChunks(
+    '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMermaid.tsx',
+  ),
+  null,
+  'Web Vite config must leave the Mermaid component as a native dynamic entry facade.',
 );
 for (const platformUtilsModuleId of [
   '/repo/sdkwork-utils/packages/sdkwork-utils-typescript/dist/string.js',
@@ -662,6 +742,67 @@ assert.equal(
   'vite-preload-helper',
   'Web Vite config must isolate the Vite preload helper so lazy runtime chunks cannot form artificial circular chunk edges through helper placement.',
 );
+for (const markdownVendorModuleId of [
+  '/repo/node_modules/ccount/index.js',
+  '/repo/node_modules/escape-string-regexp/index.js',
+  '/repo/node_modules/longest-streak/index.js',
+  '/repo/node_modules/markdown-table/index.js',
+  '/repo/node_modules/react-markdown/lib/index.js',
+  '/repo/node_modules/remark-gfm/index.js',
+]) {
+  assert.equal(
+    webManualChunks(markdownVendorModuleId),
+    'vendor-markdown',
+    `Web Vite config must keep the complete Markdown dependency family together so lazy Markdown entry chunks remain acyclic for ${markdownVendorModuleId}.`,
+  );
+}
+for (const codeHighlightVendorModule of [
+  {
+    chunkName: 'vendor-babel-runtime',
+    moduleIds: [
+      '/repo/node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js',
+      '/repo/node_modules/@babel/runtime/helpers/esm/toConsumableArray.js',
+    ],
+  },
+  {
+    chunkName: 'vendor-code-highlight',
+    moduleIds: [
+      '/repo/node_modules/character-entities/index.js',
+      '/repo/node_modules/character-reference-invalid/index.js',
+      '/repo/node_modules/hastscript/lib/create-h.js',
+      '/repo/node_modules/is-alphabetical/index.js',
+      '/repo/node_modules/is-alphanumerical/index.js',
+      '/repo/node_modules/is-decimal/index.js',
+      '/repo/node_modules/is-hexadecimal/index.js',
+      '/repo/node_modules/parse-entities/lib/index.js',
+      '/repo/node_modules/react-syntax-highlighter/dist/esm/default-highlight.js',
+    ],
+  },
+]) {
+  for (const codeHighlightVendorModuleId of codeHighlightVendorModule.moduleIds) {
+    assert.equal(
+      webManualChunks(codeHighlightVendorModuleId),
+      codeHighlightVendorModule.chunkName,
+      `Web Vite config must isolate the complete code-highlighting dependency graph from the UniversalChatCodeBlock dynamic entry for ${codeHighlightVendorModuleId}.`,
+    );
+  }
+}
+assert.equal(
+  webManualChunks('/repo/node_modules/stylis/src/Serializer.js'),
+  'vendor-mermaid',
+  'Web Vite config must keep Mermaid styling dependencies out of the UniversalChatMermaid dynamic entry facade.',
+);
+for (const modelPickerModuleId of [
+  '/repo/sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker/src/index.ts',
+  '/repo/sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker/src/ModelPicker.tsx',
+  '/repo/sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker/src/modelPickerMenuLayout.ts',
+]) {
+  assert.equal(
+    webManualChunks(modelPickerModuleId),
+    'ui-model-picker',
+    `Web Vite config must isolate the shared model picker from the UniversalChat dynamic entry so its chunk graph remains acyclic for ${modelPickerModuleId}.`,
+  );
+}
 for (const platformFileSystemModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriRuntime.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
@@ -902,6 +1043,24 @@ for (const productSurfaceModule of [
     chunkName: 'birdcoder-code-workbench',
     moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-platform-i18n',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/index.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-platform-sdk-common',
+    moduleIds: [
+      '/repo/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/http/base-client.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-platform-api-client',
+    moduleIds: [
+      '/repo/sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/api/ai.ts',
     ],
   },
   {

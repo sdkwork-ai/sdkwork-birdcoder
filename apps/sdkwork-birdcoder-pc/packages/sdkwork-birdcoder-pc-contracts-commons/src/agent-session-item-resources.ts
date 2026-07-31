@@ -24,8 +24,8 @@ const MAX_RESOURCE_LOCATION_CHARACTERS = 4_096;
 const MAX_RESOURCE_DESCRIPTION_CHARACTERS = 4_000;
 const MAX_RESOURCE_EXCERPT_CHARACTERS = 4_000;
 const MAX_RESOURCE_MIME_TYPE_CHARACTERS = 128;
-const MAX_RESOURCE_THREAD_IDS = 16;
-const MAX_RESOURCE_THREAD_ID_CHARACTERS = 256;
+const MAX_RESOURCE_SESSION_IDS = 16;
+const MAX_RESOURCE_SESSION_ID_CHARACTERS = 256;
 
 const RESOURCE_KIND_SET = new Set<string>(BIRDCODER_AGENT_SESSION_ITEM_RESOURCE_KINDS);
 const RESOURCE_ORIGIN_KIND_SET = new Set<string>(['file', 'symbol', 'resource']);
@@ -99,22 +99,22 @@ function projectResourceCitation(
   const lineStart = readNonNegativeInteger(value.lineStart);
   const lineEnd = readNonNegativeInteger(value.lineEnd);
   const note = readBoundedString(value.note, MAX_RESOURCE_DESCRIPTION_CHARACTERS);
-  const threadIds = Array.isArray(value.threadIds)
-    ? value.threadIds
-        .slice(0, MAX_RESOURCE_THREAD_IDS)
-        .flatMap((threadId) => {
-          const normalized = readBoundedString(threadId, MAX_RESOURCE_THREAD_ID_CHARACTERS);
+  const sessionIds = Array.isArray(value.sessionIds)
+    ? value.sessionIds
+        .slice(0, MAX_RESOURCE_SESSION_IDS)
+        .flatMap((sessionId) => {
+          const normalized = readBoundedString(sessionId, MAX_RESOURCE_SESSION_ID_CHARACTERS);
           return normalized ? [normalized] : [];
         })
     : [];
-  if (lineStart === undefined && lineEnd === undefined && !note && threadIds.length === 0) {
+  if (lineStart === undefined && lineEnd === undefined && !note && sessionIds.length === 0) {
     return undefined;
   }
   return {
     ...(lineStart !== undefined ? { lineStart } : {}),
     ...(lineEnd !== undefined ? { lineEnd } : {}),
     ...(note ? { note } : {}),
-    ...(threadIds.length > 0 ? { threadIds } : {}),
+    ...(sessionIds.length > 0 ? { sessionIds } : {}),
   };
 }
 

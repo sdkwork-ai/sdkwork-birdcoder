@@ -33,6 +33,43 @@ The Agents database prefix registry owns the canonical `ai_agent_*` physical
 namespace. PC declares no database table, migration, ORM entity, or alternate
 Workspace/Project/Session identifier.
 
+## Durable Turn Input Queue
+
+Agents owns the authenticated Turn input queue nested by Agent and Session. PC
+uses the generated Agents App SDK through the injected Session service and
+keeps only a bounded, disposable in-memory projection. It never writes queue
+content to Web Storage, Tauri device state, or another local database.
+
+Busy submissions are persisted before the composer clears. Atomic
+`claim_next`, lease, fencing token, and queue-owned
+`idempotencyKey + payloadHash` serialize execution across windows and transport
+recovery. Completed Turns advance FIFO; uncertain acceptance remains executing;
+failed or cancelled heads pause until edit, retry, reorder, or removal.
+Executing entries are immutable. Clear preserves executing work, Session
+deletion purges the nested queue, and logout clears only the local projection.
+Startup, focus, visibility, online, and cross-window invalidation rehydrate
+from Agents.
+
+## Session Naming Boundary
+
+Session is the only BirdCoder name for an agent work continuation. Shell, UI,
+stores, services, events, view models, and authored contracts use Session
+terminology and the canonical Agents Session identity. They must not introduce
+a Thread DTO, identifier, store, service, route, event, or persistence model.
+
+Codex `thread`, `threadId`, and `findInThread` are provider-native protocol
+names. Only the Codex provider adapter and exact raw protocol fixtures may read
+those names. The adapter must convert them before output to the canonical
+Session identity, `providerSessionId`, and Session-named commands such as
+`findInSessionTranscript`. Archive, rename, pin, navigation, and transcript
+find reuse the existing Session and Session user-state capabilities.
+
+Current-Session transcript find uses `Ctrl/Cmd+F`; project file search uses
+`Ctrl/Cmd+Shift+F`. Transcript find is scoped by the stable Session transcript
+key, clears on Session change, retains at most 150 matches, highlights rendered
+matches and the active result, supports wrapped next/previous navigation, and
+restores focus when closed.
+
 ## Workbench Mode Provider Contract
 
 The Birdcoder sidebar has one persistent mode selector and one stable header
@@ -92,8 +129,10 @@ The machine-readable authority and enforcement evidence live in
 ```bash
 pnpm --dir apps/sdkwork-birdcoder-pc typecheck
 pnpm --dir apps/sdkwork-birdcoder-pc check:component-spec-paths
+pnpm test:browser:smoke
 pnpm check:agents-birdcoder-alignment
 pnpm check:api-transport-standard
 pnpm check:local-business-storage-boundary
 pnpm check:desktop
+pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentTurnInputQueue.test.ts agentTurnInputQueueHook.test.tsx
 ```

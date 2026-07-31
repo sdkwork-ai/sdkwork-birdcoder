@@ -20,6 +20,9 @@ describe('keyboard shortcut domain', () => {
     expect(KEYBOARD_SHORTCUT_COMMANDS.every((command) => command in defaults)).toBe(true);
     expect(defaults).toEqual(DEFAULT_KEYBOARD_SHORTCUT_BINDINGS);
     expect(defaults.newSession).toEqual(['Mod+KeyN']);
+    expect(defaults.openCommandMenu).toEqual(['Mod+KeyK']);
+    expect(defaults.findInSessionTranscript).toEqual(['Mod+KeyF']);
+    expect(defaults.findInFiles).toEqual(['Mod+Shift+KeyF']);
     expect(defaults.previousAgentSession).toEqual([
       'Mod+Shift+BracketLeft',
       'Mod+PageUp',
@@ -65,6 +68,10 @@ describe('keyboard shortcut domain', () => {
       ctrlKey: false,
       metaKey: true,
     };
+    const ctrlK = {
+      ...ctrlN,
+      code: 'KeyK',
+    };
 
     expect(keyboardEventToShortcut(ctrlN, false)).toBe('Mod+KeyN');
     expect(keyboardEventToShortcut(commandOrControlN, true)).toBe('Mod+KeyN');
@@ -75,6 +82,8 @@ describe('keyboard shortcut domain', () => {
       .toBe('newSession');
     expect(resolveKeyboardShortcutCommand(ctrlN, DEFAULT_KEYBOARD_SHORTCUT_BINDINGS, true))
       .toBeNull();
+    expect(resolveKeyboardShortcutCommand(ctrlK, DEFAULT_KEYBOARD_SHORTCUT_BINDINGS, false))
+      .toBe('openCommandMenu');
   });
 
   it('formats shortcuts for desktop platforms without losing key meaning', () => {

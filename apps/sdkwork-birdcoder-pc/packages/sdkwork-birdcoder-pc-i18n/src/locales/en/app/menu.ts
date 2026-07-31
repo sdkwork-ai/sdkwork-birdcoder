@@ -4,6 +4,10 @@ export default defineLocaleModule('app/menu', {
   app: {
     menu: {
       file: 'File',
+      commandMenu: 'Command menu',
+      commandMenuSearch: 'Search commands',
+      commandMenuNoResults: 'No matching commands',
+      closeCommandMenu: 'Close command menu',
       newSession: 'New task',
       openFolder: 'Open Server Folder...',
       save: 'Save',
@@ -25,6 +29,8 @@ export default defineLocaleModule('app/menu', {
       toggleTerminal: 'Toggle Terminal',
       toggleDiffPanel: 'Toggle Diff Panel',
       find: 'Find',
+      findInSessionTranscript: 'Find in Session',
+      findInFiles: 'Find in Files',
       zoomIn: 'Zoom In',
       zoomOut: 'Zoom Out',
       actualSize: 'Actual Size',

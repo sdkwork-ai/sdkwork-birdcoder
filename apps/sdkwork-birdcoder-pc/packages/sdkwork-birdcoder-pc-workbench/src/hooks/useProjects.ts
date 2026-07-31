@@ -74,6 +74,11 @@ import {
   createLocallyBoundAgentSession,
 } from '../workbench/agentSessionProvisioning.ts';
 import { createAgentTurnStreamPresentation } from '../workbench/agentTurnStreamPresentation.ts';
+import {
+  projectAgentTurnRuntimeEvent,
+  projectAgentTurnRuntimeToolCall,
+} from '../workbench/agentTurnRuntimePresentation.ts';
+import { preserveAcceptedAgentTurnDeliveryError } from '../workbench/agentTurnDeliveryOutcome.ts';
 import { useWorkspaceSessionInboxSynchronization } from './useWorkspaceSessionInboxSynchronization.ts';
 import {
   invalidateWorkspaceSessionInboxSynchronization,
@@ -109,6 +114,24 @@ interface ProjectSessionLoadInflightEntry {
   targetCount: number;
 }
 
+interface ActiveAgentTurnDelivery {
+  cancellationConfirmed: boolean;
+  controller: AbortController;
+  turnId: string;
+}
+
+function buildActiveAgentTurnKey(agentId: string, sessionId: string): string {
+  return `${agentId}\u0001${sessionId}`;
+}
+
+function isAgentTurnNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as { status?: unknown; statusCode?: unknown };
+  return candidate.status === 404 || candidate.statusCode === 404;
+}
+
 function resolveAgentSessionItemActivitySortTimestamp(timestamp: string): string | undefined {
   const parsedTimestamp = Date.parse(timestamp);
   return Number.isNaN(parsedTimestamp)
@@ -126,6 +149,17 @@ interface WorkbenchAgentTurnSubmissionOptions {
   accessModeId?: string;
   driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
   metadata?: Record<string, unknown>;
+  queueExecution?: {
+    accessModeId?: string;
+    agentId: string;
+    clientRequestId: string;
+    idempotencyKey: string;
+    payloadHash: string;
+    queueEntryId: string;
+    requestedModelId?: string;
+    runtimeBindingId?: string;
+    sessionId: string;
+  };
 }
 const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
@@ -758,6 +792,11 @@ export function useProjects(options?: UseProjectsOptions) {
   const projectSessionLoadInflightRef = useRef(
     new Map<string, ProjectSessionLoadInflightEntry>(),
   );
+  const activeAgentTurnDeliveriesRef = useRef(new Map<string, ActiveAgentTurnDelivery>());
+
+  useEffect(() => {
+    activeAgentTurnDeliveriesRef.current.clear();
+  }, [baseStoreScopeKey]);
 
   useEffect(() => {
     const abortInflightSessionLoads = () => {
@@ -1734,6 +1773,101 @@ export function useProjects(options?: UseProjectsOptions) {
     throw new Error('Agents session items are immutable and cannot be deleted in place.');
   };
 
+  const cancelAgentTurn = async (
+    projectId: string,
+    agentSessionId: string,
+  ) => {
+    const selectedSession = findAgentSessionInCollection(
+      storeScopeKey
+        ? getProjectsStore(storeScopeKey).snapshot.projects
+        : storeSnapshot.projects,
+      projectId,
+      agentSessionId,
+    );
+    if (!selectedSession) {
+      throw new Error(`Agent session ${agentSessionId} is not loaded for project ${projectId}.`);
+    }
+
+    const identity = {
+      agentId: selectedSession.agentId,
+      sessionId: selectedSession.id,
+    };
+    const activeTurnKey = buildActiveAgentTurnKey(identity.agentId, identity.sessionId);
+    const activeDelivery = activeAgentTurnDeliveriesRef.current.get(activeTurnKey);
+    const submittedTurnId = activeDelivery?.turnId;
+    let activeTurn: Awaited<ReturnType<typeof agentSessionService.getTurn>> | null = null;
+    if (submittedTurnId) {
+      try {
+        const submittedTurn = await agentSessionService.getTurn(identity, submittedTurnId);
+        if (submittedTurn.status === 'requested' || submittedTurn.status === 'running') {
+          activeTurn = submittedTurn;
+        } else {
+          activeAgentTurnDeliveriesRef.current.delete(activeTurnKey);
+        }
+      } catch (error: unknown) {
+        if (!isAgentTurnNotFoundError(error)) {
+          throw error;
+        }
+      }
+    }
+    if (!activeTurn) {
+      const turnPage = await agentSessionService.listTurns(identity, {
+        page: 1,
+        pageSize: 200,
+      });
+      activeTurn = turnPage.items
+        .filter((turn) => turn.status === 'requested' || turn.status === 'running')
+        .sort((left, right) => {
+          const leftTimestamp = Date.parse(left.startedAt ?? left.updatedAt ?? left.createdAt);
+          const rightTimestamp = Date.parse(right.startedAt ?? right.updatedAt ?? right.createdAt);
+          const leftSortTimestamp = Number.isNaN(leftTimestamp) ? 0 : leftTimestamp;
+          const rightSortTimestamp = Number.isNaN(rightTimestamp) ? 0 : rightTimestamp;
+          return rightSortTimestamp - leftSortTimestamp
+            || right.turnId.localeCompare(left.turnId);
+        })[0] ?? null;
+    }
+    if (!activeTurn) {
+      return null;
+    }
+
+    const cancelledTurn = await agentSessionService.cancelTurn(
+      identity,
+      activeTurn.turnId,
+      {
+        expectedVersion: activeTurn.version,
+        requestedAt: new Date().toISOString(),
+      },
+    );
+    if (cancelledTurn.status !== 'cancelled') {
+      throw new Error(`Agent Turn ${cancelledTurn.turnId} was not cancelled.`);
+    }
+    if (
+      activeDelivery
+      && activeAgentTurnDeliveriesRef.current.get(activeTurnKey) === activeDelivery
+      && activeDelivery.turnId === cancelledTurn.turnId
+    ) {
+      activeDelivery.cancellationConfirmed = true;
+      activeAgentTurnDeliveriesRef.current.delete(activeTurnKey);
+      activeDelivery.controller.abort(new DOMException(
+        'Agent Turn was cancelled by the user.',
+        'AbortError',
+      ));
+    }
+    const activityAt = cancelledTurn.cancelledAt
+      ?? cancelledTurn.cancelRequestedAt
+      ?? cancelledTurn.updatedAt;
+    mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+      updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+        ...agentSession,
+        runtimeStatus: cancelledTurn.status === 'cancelled' ? 'ready' : agentSession.runtimeStatus,
+        updatedAt: activityAt,
+        lastRuntimeEventAt: activityAt,
+      })),
+    );
+    void invalidateWorkspaceSessionInbox();
+    return cancelledTurn;
+  };
+
   const submitAgentTurnInput = async (
     projectId: string,
     agentSessionId: string,
@@ -1751,7 +1885,18 @@ export function useProjects(options?: UseProjectsOptions) {
     if (!selectedSession) {
       throw new Error(`Agent session ${agentSessionId} is not loaded for project ${projectId}.`);
     }
-    const runtimeBindingId = selectedSession.runtimeBindingId?.trim();
+    const queueExecution = options?.queueExecution;
+    if (
+      queueExecution
+      && (
+        queueExecution.agentId.trim() !== selectedSession.agentId
+        || queueExecution.sessionId.trim() !== selectedSession.id
+      )
+    ) {
+      throw new Error('Queued Agent Turn execution identity does not match the selected Session.');
+    }
+    const runtimeBindingId = queueExecution?.runtimeBindingId?.trim()
+      || selectedSession.runtimeBindingId?.trim();
     if (!runtimeBindingId) {
       throw new Error(
         `Agent session ${agentSessionId} does not have an active runtime binding.`,
@@ -1759,6 +1904,13 @@ export function useProjects(options?: UseProjectsOptions) {
     }
 
     const turnId = `turn.${uuid()}`;
+    const activeTurnKey = buildActiveAgentTurnKey(selectedSession.agentId, selectedSession.id);
+    const activeDelivery: ActiveAgentTurnDelivery = {
+      cancellationConfirmed: false,
+      controller: new AbortController(),
+      turnId,
+    };
+    activeAgentTurnDeliveriesRef.current.set(activeTurnKey, activeDelivery);
     const optimisticItem = buildOptimisticAgentSessionItem(
       agentSessionId,
       content,
@@ -1767,6 +1919,7 @@ export function useProjects(options?: UseProjectsOptions) {
       options,
     );
     const streamingItem = buildStreamingAgentSessionItem(optimisticItem);
+    const runtimeToolCallsById = new Map<string, Record<string, unknown>>();
     const streamPresentation = createAgentTurnStreamPresentation((assistantContent) => {
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
@@ -1809,17 +1962,28 @@ export function useProjects(options?: UseProjectsOptions) {
         agentId: selectedSession.agentId,
         sessionId: selectedSession.id,
       }, {
-        ...(options?.accessModeId ? { accessModeId: options.accessModeId } : {}),
+        ...(queueExecution?.clientRequestId
+          ? { clientRequestId: queueExecution.clientRequestId }
+          : {}),
+        ...(queueExecution?.idempotencyKey
+          ? { idempotencyKey: queueExecution.idempotencyKey }
+          : {}),
+        ...(queueExecution?.payloadHash
+          ? { payloadHash: queueExecution.payloadHash }
+          : {}),
+        ...(queueExecution?.accessModeId || options?.accessModeId
+          ? { accessModeId: queueExecution?.accessModeId ?? options?.accessModeId }
+          : {}),
         content,
         contentType: 'text/plain',
         ...(options?.driveRefs?.length ? { driveRefs: [...options.driveRefs] } : {}),
-        requestedModelId: selectedSession.modelId === 'auto'
-          ? undefined
-          : selectedSession.modelId,
+        requestedModelId: queueExecution?.requestedModelId
+          ?? (selectedSession.modelId === 'auto' ? undefined : selectedSession.modelId),
         runtimeBindingId,
         turnId,
         turnMode: 'interactive',
       }, {
+        signal: activeDelivery.controller.signal,
         onAccepted: () => {
           didAuthorityAcceptTurn = true;
           shouldPreserveOptimisticTurn = true;
@@ -1832,7 +1996,49 @@ export function useProjects(options?: UseProjectsOptions) {
         onDelta: ({ content: assistantContent }) => {
           streamPresentation.update(assistantContent);
         },
+        onRuntimeEvent: (event) => {
+          const projection = projectAgentTurnRuntimeEvent(event, new Date().toISOString());
+          const toolCall = projectAgentTurnRuntimeToolCall(event);
+          if (toolCall) {
+            runtimeToolCallsById.set(toolCall.id, toolCall.record);
+          }
+          mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+            updateAgentSessionInCollection(
+              projects,
+              projectId,
+              agentSessionId,
+              (agentSession) => {
+                const items = toolCall
+                  ? appendAgentSessionItemIfMissing(agentSession.items, streamingItem)
+                  : agentSession.items;
+                return {
+                  ...agentSession,
+                  items: toolCall
+                    ? replaceAgentSessionItemById(items, streamingItem.id, {
+                        tool_calls: [...runtimeToolCallsById.values()],
+                      })
+                    : items,
+                  ...(projection.providerSessionId
+                    ? { providerSessionId: projection.providerSessionId }
+                    : {}),
+                  ...(projection.runtimeStatus
+                    ? {
+                        runtimeStatus: projection.runtimeStatus,
+                        updatedAt: projection.activityAt,
+                      }
+                    : {}),
+                  lastRuntimeEventAt: projection.activityAt,
+                  ...(projection.runtimeStatus === 'awaiting_approval'
+                    || projection.runtimeStatus === 'awaiting_user'
+                    ? { lastAttentionAt: projection.activityAt }
+                    : {}),
+                };
+              },
+            ),
+          );
+        },
       });
+      await streamPresentation.drain();
       streamPresentation.close();
       const submittedItems = toAgentSessionTranscriptItemViews(
         completed.items,
@@ -1856,7 +2062,7 @@ export function useProjects(options?: UseProjectsOptions) {
               reconciledItems,
             ),
             runtimeStatus:
-              completed.turn.status === 'failed' || completed.turn.status === 'cancelled'
+              completed.turn.status === 'failed'
                 ? 'failed'
                 : 'ready',
             updatedAt: activityAt,
@@ -1875,6 +2081,17 @@ export function useProjects(options?: UseProjectsOptions) {
       return submittedItems.find((item) => item.role === 'user') ?? submittedItems.at(-1);
     } catch (error: unknown) {
       streamPresentation.close();
+      if (activeDelivery.cancellationConfirmed && activeDelivery.controller.signal.aborted) {
+        mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+          updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+            ...agentSession,
+            items: removeAgentSessionItemById(agentSession.items, streamingItem.id),
+            runtimeStatus: 'ready',
+          })),
+        );
+        void invalidateWorkspaceSessionInbox();
+        return optimisticItem;
+      }
       if (!shouldPreserveOptimisticTurn) {
         mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
           updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) =>
@@ -1898,7 +2115,13 @@ export function useProjects(options?: UseProjectsOptions) {
         ...previousSnapshot,
         error: message,
       }));
-      throw error;
+      throw shouldPreserveOptimisticTurn
+        ? preserveAcceptedAgentTurnDeliveryError(error)
+        : error;
+    } finally {
+      if (activeAgentTurnDeliveriesRef.current.get(activeTurnKey) === activeDelivery) {
+        activeAgentTurnDeliveriesRef.current.delete(activeTurnKey);
+      }
     }
   };
 
@@ -1931,6 +2154,7 @@ export function useProjects(options?: UseProjectsOptions) {
     deleteAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
+    cancelAgentTurn,
     submitAgentTurnInput,
     loadMoreProjects,
     loadMoreProjectSessions,

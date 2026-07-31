@@ -8,16 +8,27 @@ import type {
   AgentSessionRecord,
   AgentSessionRuntimeBindingRecord,
   AgentSessionStatus,
+  AgentTurnInputQueueEntry,
   AgentTurnRecord,
+  AgentTurnRuntimeEvent,
   AnswerAgentInteractionRequest,
   AppUpdateAgentSessionRequest,
   ApproveAgentInteractionRequest,
+  CancelAgentTurnRequest,
   ClaimAgentInteractionRequest,
+  ClaimNextAgentTurnInputQueueEntryRequest,
+  ClaimNextAgentTurnInputQueueEntryResult,
   CreateAgentSessionRuntimeBindingRequest,
+  CreateAgentTurnInputQueueEntryRequest,
   CreateAgentTurnRequest,
+  FailAgentTurnInputQueueEntryRequest,
+  Int64String,
   PageInfo,
   ProjectSessionSynchronizationResult,
+  ReorderAgentTurnInputQueueEntriesRequest,
+  RetryAgentTurnInputQueueEntryRequest,
   SessionActivitySummary,
+  UpdateAgentTurnInputQueueEntryRequest,
   UpdateAgentSessionUserStateRequest,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 
@@ -119,6 +130,8 @@ export interface SubmitAgentTurnInput
     | 'runtimeBindingId'
     | 'turnId'
   > {
+  idempotencyKey?: string;
+  payloadHash?: string;
   turnMode?: CreateAgentTurnRequest['turnMode'];
 }
 
@@ -132,6 +145,7 @@ export interface SubmitAgentTurnOptions extends AgentSessionReadOptions {
   onAccepted?: () => void;
   onDelta?: (delta: Readonly<AgentTurnStreamDelta>) => void;
   onDeliveryUncertain?: () => void;
+  onRuntimeEvent?: (event: Readonly<AgentTurnRuntimeEvent>) => void;
 }
 
 export interface AgentTurnCompletion {
@@ -210,6 +224,63 @@ export interface IAgentSessionService {
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentTurnRecord>>;
+  getTurn(
+    identity: AgentSessionIdentity,
+    turnId: string,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnRecord>;
+  cancelTurn(
+    identity: AgentSessionIdentity,
+    turnId: string,
+    request: CancelAgentTurnRequest,
+  ): Promise<AgentTurnRecord>;
+  listTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionPage<AgentTurnInputQueueEntry>>;
+  createTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    request: CreateAgentTurnInputQueueEntryRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnInputQueueEntry>;
+  clearTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    options?: AgentSessionReadOptions,
+  ): Promise<{ clearedCount: Int64String }>;
+  reorderTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    request: ReorderAgentTurnInputQueueEntriesRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnInputQueueEntry[]>;
+  claimNextTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    request: ClaimNextAgentTurnInputQueueEntryRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<ClaimNextAgentTurnInputQueueEntryResult>;
+  updateTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: UpdateAgentTurnInputQueueEntryRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnInputQueueEntry>;
+  removeTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    expectedVersion: Int64String,
+    options?: AgentSessionReadOptions,
+  ): Promise<void>;
+  failTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: FailAgentTurnInputQueueEntryRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnInputQueueEntry>;
+  retryTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: RetryAgentTurnInputQueueEntryRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentTurnInputQueueEntry>;
   submitTurn(
     identity: AgentSessionIdentity,
     input: SubmitAgentTurnInput,

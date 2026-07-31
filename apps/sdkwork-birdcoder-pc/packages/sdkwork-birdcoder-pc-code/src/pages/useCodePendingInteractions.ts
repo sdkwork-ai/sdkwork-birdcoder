@@ -29,8 +29,10 @@ export function useCodePendingInteractions({
 }: UseCodePendingInteractionsOptions) {
   const {
     approvals: pendingApprovals,
+    error: pendingInteractionsError,
     isLoading: arePendingInteractionsLoading,
     questions: pendingUserQuestions,
+    refreshPendingInteractions,
     submitApprovalDecision,
     submitQuestionAnswer,
   } = useAgentSessionPendingInteractions(
@@ -60,11 +62,17 @@ export function useCodePendingInteractions({
     }
   }, [onRefreshAgentSessionItems, projectId, sessionId, submitQuestionAnswer]);
 
+  const onRetryPendingInteractions = useCallback(async () => {
+    await refreshPendingInteractions();
+  }, [refreshPendingInteractions]);
+
   return {
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
+    onRetryPendingInteractions,
     pendingApprovals,
     pendingUserQuestions,
+    pendingInteractionsError,
     arePendingInteractionsLoading,
   };
 }

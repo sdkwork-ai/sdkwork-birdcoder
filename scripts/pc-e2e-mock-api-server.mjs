@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import http from 'node:http';
+import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import {
   createAppbaseFailure,
   createAppbaseSuccess,
@@ -34,6 +36,33 @@ const projects = [createAgentProjectFixture()];
 const projectDriveId = 'drive.e2e-project';
 const projectDriveRootEntryId = 'drive-entry-project-root';
 const e2eCursorPrefix = 'e2e.cursor.v1.';
+const codexProviderSessionId = '019b23e7-0f4b-7ae1-8b42-2ed4d6b68211';
+const providerSessionIdsBySessionId = new Map([
+  ['e2e-claude-session', 'claude-provider-continuation-4d03c81e'],
+  ['e2e-codex-session', codexProviderSessionId],
+  ['e2e-opencode-session', 'opencode-provider-continuation-795b74aa'],
+  ['e2e-gemini-session', 'gemini-provider-continuation-a2db156c'],
+  ['e2e-openclaw-session', 'openclaw-provider-continuation-0be32864'],
+  ['e2e-hermes-session', 'hermes-provider-continuation-fcab0271'],
+  ...Array.from({ length: 38 }, (_, index) => [
+    `e2e-history-session-${index + 1}`,
+    `codex-provider-history-${String(index + 1).padStart(2, '0')}-6d31f9a8`,
+  ]),
+]);
+let nextDynamicProviderSessionSequence = 1;
+
+function resolveMockProviderSessionId(sessionId) {
+  const existing = providerSessionIdsBySessionId.get(sessionId);
+  if (existing) {
+    return existing;
+  }
+  const providerSessionId = `mock-provider-continuation-${String(
+    nextDynamicProviderSessionSequence,
+  ).padStart(4, '0')}-a17c5e92`;
+  nextDynamicProviderSessionSequence += 1;
+  providerSessionIdsBySessionId.set(sessionId, providerSessionId);
+  return providerSessionId;
+}
 
 function createE2ECursor(scope, offset) {
   const payload = Buffer.from(JSON.stringify({ offset, scope }), 'utf8').toString('base64url');
@@ -112,10 +141,10 @@ const sessions = [
     sessionId: 'e2e-codex-session',
     agentId: 'agent.intelligence.codex',
     title: 'Codex implementation',
-    itemCount: '105',
-    lastItemSequence: '105',
+    itemCount: '112',
+    lastItemSequence: '112',
     lastItemAt: '2026-01-01T00:20:00.000Z',
-    version: '105',
+    version: '112',
     updatedAt: '2026-01-01T00:20:00.000Z',
   }),
   createAgentSessionFixture({
@@ -261,6 +290,10 @@ const sessionItemsBySessionId = new Map([
                 '  A["Provider message"] --> B{"Structured?"}',
                 '  B -->|Yes| C["Render diagram"]',
                 '  B -->|No| D["Show source"]',
+                '```',
+                '',
+                '```typescript',
+                'const productionRuntimeReady: boolean = true;',
                 '```',
               ].join('\n'),
             }],
@@ -565,17 +598,17 @@ const sessionItemsBySessionId = new Map([
   ],
   [
     'e2e-codex-session',
-    Array.from({ length: 105 }, (_, index) => {
-      const sequence = 105 - index;
+    Array.from({ length: 112 }, (_, index) => {
+      const sequence = 112 - index;
       const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
-      if (sequence === 105) {
+      if (sequence === 112) {
         return {
           sessionId: 'e2e-codex-session',
-          itemId: 'e2e-codex-item-105',
+          itemId: 'e2e-codex-item-112',
           turnId: 'e2e-codex-turn-1',
           kind: 'tool_result',
           status: 'completed',
-          sequence: '105',
+          sequence: '112',
           content: null,
           contentType: 'application/json',
           toolName: 'provider_event',
@@ -595,6 +628,59 @@ const sessionItemsBySessionId = new Map([
           createdAt,
         };
       }
+      const providerItemBySequence = {
+        111: {
+          id: 'e2e-codex-context-compaction-1',
+          type: 'contextCompaction',
+          source: 'manual',
+        },
+        110: {
+          id: 'e2e-codex-image-view-3',
+          type: 'imageView',
+          path: 'E:\\workspace\\codex-image-after-sleep.png',
+        },
+        109: {
+          id: 'e2e-codex-sleep-between-images',
+          type: 'sleep',
+          durationMs: 25,
+        },
+        108: {
+          id: 'e2e-codex-image-view-2',
+          type: 'imageView',
+          path: 'E:\\workspace\\codex-image-consecutive-2.png',
+        },
+        107: {
+          id: 'e2e-codex-image-view-1',
+          type: 'imageView',
+          path: 'E:\\workspace\\codex-image-consecutive-1.png',
+        },
+        106: {
+          id: 'e2e-codex-exited-review-mode-1',
+          type: 'exitedReviewMode',
+          review: 'INTERNAL_CODEX_EXITED_REVIEW_MODE_MUST_NOT_RENDER',
+        },
+        105: {
+          id: 'e2e-codex-entered-review-mode-1',
+          type: 'enteredReviewMode',
+          review: 'INTERNAL_CODEX_ENTERED_REVIEW_MODE_MUST_NOT_RENDER',
+        },
+      }[sequence];
+      if (providerItemBySequence) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: `e2e-codex-item-${sequence}`,
+          turnId: 'e2e-codex-turn-1',
+          kind: 'tool_result',
+          status: 'completed',
+          sequence: String(sequence),
+          content: null,
+          contentType: 'application/json',
+          toolName: 'provider_event',
+          toolCallId: String(providerItemBySequence.id),
+          toolResult: providerItemBySequence,
+          createdAt,
+        };
+      }
       if (sequence === 104) {
         return {
           sessionId: 'e2e-codex-session',
@@ -608,7 +694,7 @@ const sessionItemsBySessionId = new Map([
           toolName: 'apply_patch',
           toolCallId: 'e2e-codex-file-change-1',
           toolResult: {
-            threadId: 'e2e-codex-session',
+            threadId: codexProviderSessionId,
             turnId: 'e2e-codex-turn-1',
             item: {
               id: 'e2e-codex-file-change-1',
@@ -641,7 +727,7 @@ const sessionItemsBySessionId = new Map([
           toolResult: {
             method: 'item/completed',
             params: {
-              threadId: 'e2e-codex-session',
+              threadId: codexProviderSessionId,
               turnId: 'e2e-codex-turn-1',
               completedAtMs: Date.parse(createdAt),
               item: {
@@ -814,7 +900,116 @@ const sessionItemsBySessionId = new Map([
 let createdWorkspaceSequence = 0;
 let createdProjectSequence = 0;
 let createdDriveEntrySequence = 0;
+let createdInteractionSequence = 0;
 let completedTurnSequence = 0;
+let createdTurnInputQueueSequence = 0;
+let mutableFixtureGeneration = 0;
+const sessionInteractionsByKey = new Map();
+const sessionInteractionClaimsByKey = new Map();
+const sessionTurnDeliveriesByKey = new Map();
+const sessionTurnInputQueuesByKey = new Map();
+const sessionTurnInputQueueClaimTokensByEntryId = new Map();
+
+function buildSessionTurnDeliveryKey(agentId, sessionId, turnId) {
+  return `${agentId}\u0001${sessionId}\u0001${turnId}`;
+}
+
+function buildSessionInteractionKey(agentId, sessionId, interactionId) {
+  return `${agentId}\u0001${sessionId}\u0001${interactionId}`;
+}
+
+function buildSessionTurnInputQueueKey(agentId, sessionId) {
+  return `${agentId}\u0001${sessionId}`;
+}
+
+function getSessionTurnInputQueue(agentId, sessionId) {
+  const key = buildSessionTurnInputQueueKey(agentId, sessionId);
+  const existing = sessionTurnInputQueuesByKey.get(key);
+  if (existing) {
+    return existing;
+  }
+  const queue = [];
+  sessionTurnInputQueuesByKey.set(key, queue);
+  return queue;
+}
+
+function findTurnDeliveryByIdempotencyKey(agentId, sessionId, idempotencyKey) {
+  return [...sessionTurnDeliveriesByKey.values()].find((delivery) => (
+    delivery.fixtureGeneration === mutableFixtureGeneration
+    && delivery.turn.agentId === agentId
+    && delivery.turn.sessionId === sessionId
+    && delivery.turn.idempotencyKey === idempotencyKey
+  ));
+}
+
+function hasActiveSessionTurn(agentId, sessionId) {
+  return [...sessionTurnDeliveriesByKey.values()].some((delivery) => (
+    delivery.fixtureGeneration === mutableFixtureGeneration
+    && delivery.turn.agentId === agentId
+    && delivery.turn.sessionId === sessionId
+    && (delivery.turn.status === 'requested' || delivery.turn.status === 'running')
+  ));
+}
+
+function hashE2ETurnInputQueuePayload(entry) {
+  return `sha256:e2e-${Buffer.from(JSON.stringify({
+    accessModeId: entry.accessModeId,
+    attachmentNames: entry.attachmentNames,
+    content: entry.content,
+    contentType: entry.contentType,
+    driveRefs: entry.driveRefs,
+    requestedModelId: entry.requestedModelId,
+    runtimeBindingId: entry.runtimeBindingId,
+    turnMode: entry.turnMode,
+  }), 'utf8').toString('base64url').slice(0, 48)}`;
+}
+
+const mutableFixtureBaseline = structuredClone({
+  projectDriveEntries,
+  projectDriveFileContents: [...projectDriveFileContents.entries()],
+  projects,
+  sessionItemsBySessionId: [...sessionItemsBySessionId.entries()],
+  sessions,
+  workspaces,
+});
+
+function restoreArrayFixture(target, baseline) {
+  target.splice(0, target.length, ...structuredClone(baseline));
+}
+
+function restoreMapFixture(target, baselineEntries) {
+  target.clear();
+  for (const [key, value] of structuredClone(baselineEntries)) {
+    target.set(key, value);
+  }
+}
+
+function resetMutableFixtureState() {
+  mutableFixtureGeneration += 1;
+  createdWorkspaceSequence = 0;
+  createdProjectSequence = 0;
+  createdDriveEntrySequence = 0;
+  createdInteractionSequence = 0;
+  completedTurnSequence = 0;
+  createdTurnInputQueueSequence = 0;
+  sessionInteractionsByKey.clear();
+  sessionInteractionClaimsByKey.clear();
+  sessionTurnDeliveriesByKey.clear();
+  sessionTurnInputQueuesByKey.clear();
+  sessionTurnInputQueueClaimTokensByEntryId.clear();
+  restoreArrayFixture(workspaces, mutableFixtureBaseline.workspaces);
+  restoreArrayFixture(projects, mutableFixtureBaseline.projects);
+  restoreArrayFixture(projectDriveEntries, mutableFixtureBaseline.projectDriveEntries);
+  restoreArrayFixture(sessions, mutableFixtureBaseline.sessions);
+  restoreMapFixture(
+    projectDriveFileContents,
+    mutableFixtureBaseline.projectDriveFileContents,
+  );
+  restoreMapFixture(
+    sessionItemsBySessionId,
+    mutableFixtureBaseline.sessionItemsBySessionId,
+  );
+}
 
 function createSessionRuntimeBinding(session) {
   const runtimeByAgentId = {
@@ -862,7 +1057,7 @@ function createSessionRuntimeBinding(session) {
     providerBindingId: runtime.providerBindingId,
     modelId: runtime.modelId,
     providerId: runtime.providerId,
-    providerSessionId: `provider.${session.sessionId}`,
+    providerSessionId: resolveMockProviderSessionId(session.sessionId),
     status: 'active',
     isCurrent: true,
     version: session.version,
@@ -1071,6 +1266,7 @@ async function writeSse(
   events,
   eventIntervalMs = 0,
   onCompletion,
+  shouldWriteEvent,
 ) {
   response.writeHead(statusCode, {
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -1084,6 +1280,9 @@ async function writeSse(
   });
   response.flushHeaders();
   for (const [index, event] of events.entries()) {
+    if (shouldWriteEvent?.(event) === false) {
+      break;
+    }
     if (event.eventType === 'completion') {
       onCompletion?.();
     }
@@ -1111,6 +1310,437 @@ async function readJsonBody(request) {
   } catch {
     return {};
   }
+}
+
+function findTurnInputQueueSession(agentId, sessionId) {
+  return sessions.find((item) => item.agentId === agentId && item.sessionId === sessionId);
+}
+
+function createTurnInputQueueFailure(message, code) {
+  return {
+    statusCode: Number(code),
+    payload: createAppbaseFailure(message, String(code)),
+  };
+}
+
+function createTurnInputQueueEntryFixture(agentId, sessionId, queue, body) {
+  const content = String(body.content ?? '').trim();
+  const requestedAt = String(body.requestedAt ?? '').trim();
+  if (!content || Number.isNaN(Date.parse(requestedAt))) {
+    return null;
+  }
+  createdTurnInputQueueSequence += 1;
+  const queueEntryId = String(
+    body.queueEntryId ?? `queue-entry.e2e-${createdTurnInputQueueSequence}`,
+  );
+  const entry = {
+    queueEntryId,
+    sessionId,
+    agentId,
+    content,
+    displayText: String(body.displayText ?? content),
+    contentType: String(body.contentType ?? 'text/plain'),
+    attachmentNames: Array.isArray(body.attachmentNames) ? body.attachmentNames : [],
+    driveRefs: Array.isArray(body.driveRefs) ? body.driveRefs : [],
+    turnMode: String(body.turnMode ?? 'interactive'),
+    runtimeBindingId: body.runtimeBindingId ?? null,
+    requestedModelId: body.requestedModelId ?? null,
+    accessModeId: body.accessModeId ?? null,
+    idempotencyKey: `${queueEntryId}.v0`,
+    payloadHash: '',
+    clientRequestId: queueEntryId,
+    position: String(queue.length + 1),
+    status: 'queued',
+    claimOwner: null,
+    claimExpiresAt: null,
+    fencingToken: '0',
+    errorCode: null,
+    errorDetail: null,
+    version: '0',
+    createdAt: requestedAt,
+    updatedAt: requestedAt,
+    claimedAt: null,
+    failedAt: null,
+  };
+  entry.payloadHash = hashE2ETurnInputQueuePayload(entry);
+  return entry;
+}
+
+function handleTurnInputQueueCollection({
+  agentId,
+  body,
+  method,
+  searchParams,
+  sessionId,
+}) {
+  if (!findTurnInputQueueSession(agentId, sessionId)) {
+    return createTurnInputQueueFailure('Agent Session not found.', 404);
+  }
+  const queue = getSessionTurnInputQueue(agentId, sessionId);
+  if (method === 'GET') {
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(queue, {
+        page: Number(searchParams.get('page') ?? 1),
+        pageSize: Number(searchParams.get('page_size') ?? 32),
+      }),
+    };
+  }
+  if (queue.length >= 32) {
+    return createTurnInputQueueFailure('Agent Turn input queue is full.', 409);
+  }
+  const entry = createTurnInputQueueEntryFixture(agentId, sessionId, queue, body);
+  if (!entry) {
+    return createTurnInputQueueFailure(
+      'Queued Agent Turn input requires content and requestedAt.',
+      400,
+    );
+  }
+  queue.push(entry);
+  return {
+    statusCode: 201,
+    payload: createBirdCoderDataEnvelope(entry),
+  };
+}
+
+function reconcileExecutingTurnInputQueueEntry(queue, agentId, sessionId, requestedAt) {
+  const executingIndex = queue.findIndex((entry) => entry.status === 'executing');
+  if (executingIndex < 0) {
+    return null;
+  }
+  const entry = queue[executingIndex];
+  const delivery = findTurnDeliveryByIdempotencyKey(
+    agentId,
+    sessionId,
+    entry.idempotencyKey,
+  );
+  if (delivery?.turn.status === 'completed') {
+    queue.splice(executingIndex, 1);
+    sessionTurnInputQueueClaimTokensByEntryId.delete(entry.queueEntryId);
+    queue.forEach((queuedEntry, index) => {
+      queuedEntry.position = String(index + 1);
+    });
+    return null;
+  }
+  if (delivery?.turn.status === 'failed' || delivery?.turn.status === 'cancelled') {
+    Object.assign(entry, {
+      claimExpiresAt: null,
+      claimOwner: null,
+      errorCode: delivery.turn.status === 'cancelled' ? 'turn_cancelled' : 'turn_failed',
+      errorDetail: `Authoritative Turn ${delivery.turn.status}.`,
+      failedAt: requestedAt,
+      status: 'failed',
+      updatedAt: requestedAt,
+      version: (BigInt(entry.version) + 1n).toString(),
+    });
+    sessionTurnInputQueueClaimTokensByEntryId.delete(entry.queueEntryId);
+    return { entry, outcome: 'blocked' };
+  }
+  if (delivery || Date.parse(String(entry.claimExpiresAt ?? '')) > Date.parse(requestedAt)) {
+    return { entry, outcome: 'busy' };
+  }
+  Object.assign(entry, {
+    claimExpiresAt: null,
+    claimOwner: null,
+    status: 'queued',
+    updatedAt: requestedAt,
+    version: (BigInt(entry.version) + 1n).toString(),
+  });
+  sessionTurnInputQueueClaimTokensByEntryId.delete(entry.queueEntryId);
+  return null;
+}
+
+function handleTurnInputQueueClear(queue) {
+  const retained = queue.filter((entry) => entry.status === 'executing');
+  const clearedCount = queue.length - retained.length;
+  queue.splice(0, queue.length, ...retained);
+  retained.forEach((entry, index) => {
+    entry.position = String(index + 1);
+  });
+  return {
+    statusCode: 200,
+    payload: createAppbaseSuccess({ clearedCount: String(clearedCount) }),
+  };
+}
+
+function handleTurnInputQueueReorder(queue, body) {
+  const orderedEntries = Array.isArray(body.orderedEntries) ? body.orderedEntries : [];
+  const mutableEntries = queue.filter((entry) => entry.status !== 'executing');
+  if (
+    orderedEntries.length !== mutableEntries.length
+    || new Set(orderedEntries.map((entry) => entry.queueEntryId)).size !== orderedEntries.length
+  ) {
+    return createTurnInputQueueFailure(
+      'orderedEntries must contain the full mutable queue.',
+      400,
+    );
+  }
+  const mutableById = new Map(mutableEntries.map((entry) => [entry.queueEntryId, entry]));
+  const reordered = [];
+  for (const orderedEntry of orderedEntries) {
+    const entry = mutableById.get(String(orderedEntry.queueEntryId ?? ''));
+    if (!entry || entry.version !== String(orderedEntry.expectedVersion ?? '')) {
+      return createTurnInputQueueFailure('Queued Turn input version mismatch.', 409);
+    }
+    entry.version = (BigInt(entry.version) + 1n).toString();
+    entry.updatedAt = String(body.requestedAt ?? entry.updatedAt);
+    reordered.push(entry);
+  }
+  const executing = queue.filter((entry) => entry.status === 'executing');
+  queue.splice(0, queue.length, ...executing, ...reordered);
+  queue.forEach((entry, index) => {
+    entry.position = String(index + 1);
+  });
+  return {
+    statusCode: 200,
+    payload: createAppbaseSuccess({ items: queue }),
+  };
+}
+
+function handleTurnInputQueueClaim(queue, agentId, sessionId, body) {
+  const requestedAt = String(body.requestedAt ?? '').trim();
+  const requestedAtMs = Date.parse(requestedAt);
+  const leaseSeconds = Number(body.leaseSeconds ?? 120);
+  const claimOwner = String(body.claimOwner ?? '').trim();
+  if (
+    Number.isNaN(requestedAtMs)
+    || !Number.isInteger(leaseSeconds)
+    || leaseSeconds < 1
+    || leaseSeconds > 300
+    || !claimOwner
+  ) {
+    return createTurnInputQueueFailure('Invalid queued Turn input claim request.', 400);
+  }
+
+  const reconciliation = reconcileExecutingTurnInputQueueEntry(
+    queue,
+    agentId,
+    sessionId,
+    requestedAt,
+  );
+  if (reconciliation) {
+    return {
+      statusCode: 200,
+      payload: createAppbaseSuccess({ claimToken: null, ...reconciliation }),
+    };
+  }
+  if (hasActiveSessionTurn(agentId, sessionId)) {
+    return {
+      statusCode: 200,
+      payload: createAppbaseSuccess({
+        claimToken: null,
+        entry: null,
+        outcome: 'active_turn',
+      }),
+    };
+  }
+  const head = queue[0];
+  if (!head) {
+    return {
+      statusCode: 200,
+      payload: createAppbaseSuccess({ claimToken: null, entry: null, outcome: 'empty' }),
+    };
+  }
+  if (head.status === 'failed') {
+    return {
+      statusCode: 200,
+      payload: createAppbaseSuccess({ claimToken: null, entry: head, outcome: 'blocked' }),
+    };
+  }
+
+  head.status = 'executing';
+  head.claimOwner = claimOwner;
+  head.claimExpiresAt = new Date(requestedAtMs + leaseSeconds * 1_000).toISOString();
+  head.claimedAt = requestedAt;
+  head.updatedAt = requestedAt;
+  head.fencingToken = (BigInt(head.fencingToken) + 1n).toString();
+  head.version = (BigInt(head.version) + 1n).toString();
+  const claimToken = `queue-claim.e2e-${createdTurnInputQueueSequence}-${head.fencingToken}`;
+  sessionTurnInputQueueClaimTokensByEntryId.set(head.queueEntryId, claimToken);
+  return {
+    statusCode: 200,
+    payload: createAppbaseSuccess({ claimToken, entry: head, outcome: 'claimed' }),
+  };
+}
+
+function handleTurnInputQueueCommand({ agentId, body, command, sessionId }) {
+  if (!findTurnInputQueueSession(agentId, sessionId)) {
+    return createTurnInputQueueFailure('Agent Session not found.', 404);
+  }
+  const queue = getSessionTurnInputQueue(agentId, sessionId);
+  if (command === 'clear') {
+    return handleTurnInputQueueClear(queue);
+  }
+  if (command === 'reorder') {
+    return handleTurnInputQueueReorder(queue, body);
+  }
+  return handleTurnInputQueueClaim(queue, agentId, sessionId, body);
+}
+
+function updateTurnInputQueueEntryFixture(entry, body, requestedAt) {
+  const content = String(body.content ?? '').trim();
+  if (!content) {
+    return false;
+  }
+  Object.assign(entry, {
+    accessModeId: body.accessModeId ?? null,
+    attachmentNames: Array.isArray(body.attachmentNames) ? body.attachmentNames : [],
+    content,
+    contentType: String(body.contentType ?? 'text/plain'),
+    displayText: String(body.displayText ?? content),
+    driveRefs: Array.isArray(body.driveRefs) ? body.driveRefs : [],
+    errorCode: null,
+    errorDetail: null,
+    failedAt: null,
+    requestedModelId: body.requestedModelId ?? null,
+    runtimeBindingId: body.runtimeBindingId ?? null,
+    status: 'queued',
+    turnMode: String(body.turnMode ?? 'interactive'),
+    updatedAt: requestedAt,
+    version: (BigInt(entry.version) + 1n).toString(),
+  });
+  entry.idempotencyKey = `${entry.queueEntryId}.v${entry.version}`;
+  entry.clientRequestId = entry.idempotencyKey;
+  entry.payloadHash = hashE2ETurnInputQueuePayload(entry);
+  return true;
+}
+
+function failTurnInputQueueEntryFixture(entry, body, requestedAt) {
+  const claimToken = sessionTurnInputQueueClaimTokensByEntryId.get(entry.queueEntryId);
+  if (
+    entry.status !== 'executing'
+    || claimToken !== String(body.claimToken ?? '')
+    || entry.fencingToken !== String(body.fencingToken ?? '')
+  ) {
+    return false;
+  }
+  Object.assign(entry, {
+    claimExpiresAt: null,
+    claimOwner: null,
+    errorCode: String(body.errorCode ?? 'turn_dispatch_rejected'),
+    errorDetail: body.errorDetail ?? null,
+    failedAt: requestedAt,
+    status: 'failed',
+    updatedAt: requestedAt,
+    version: (BigInt(entry.version) + 1n).toString(),
+  });
+  sessionTurnInputQueueClaimTokensByEntryId.delete(entry.queueEntryId);
+  return true;
+}
+
+function retryTurnInputQueueEntryFixture(entry, requestedAt) {
+  if (entry.status !== 'failed') {
+    return false;
+  }
+  Object.assign(entry, {
+    errorCode: null,
+    errorDetail: null,
+    failedAt: null,
+    status: 'queued',
+    updatedAt: requestedAt,
+    version: (BigInt(entry.version) + 1n).toString(),
+  });
+  entry.idempotencyKey = `${entry.queueEntryId}.v${entry.version}`;
+  entry.clientRequestId = entry.idempotencyKey;
+  return true;
+}
+
+function handleTurnInputQueueEntry({
+  agentId,
+  body,
+  command,
+  method,
+  queueEntryId,
+  searchParams,
+  sessionId,
+}) {
+  if (!findTurnInputQueueSession(agentId, sessionId)) {
+    return createTurnInputQueueFailure('Agent Session not found.', 404);
+  }
+  const queue = getSessionTurnInputQueue(agentId, sessionId);
+  const entryIndex = queue.findIndex((entry) => entry.queueEntryId === queueEntryId);
+  const entry = queue[entryIndex];
+  if (!entry) {
+    return createTurnInputQueueFailure('Queued Agent Turn input not found.', 404);
+  }
+  if (method === 'DELETE') {
+    const expectedVersion = String(searchParams.get('expected_version') ?? '');
+    if (entry.status === 'executing' || entry.version !== expectedVersion) {
+      return createTurnInputQueueFailure('Queued Turn input cannot be deleted.', 409);
+    }
+    queue.splice(entryIndex, 1);
+    sessionTurnInputQueueClaimTokensByEntryId.delete(queueEntryId);
+    queue.forEach((queuedEntry, index) => {
+      queuedEntry.position = String(index + 1);
+    });
+    return { statusCode: 204, payload: null };
+  }
+
+  const expectedVersion = String(body.expectedVersion ?? '');
+  const requestedAt = String(body.requestedAt ?? '').trim();
+  if (entry.version !== expectedVersion || Number.isNaN(Date.parse(requestedAt))) {
+    return createTurnInputQueueFailure('Queued Turn input version mismatch.', 409);
+  }
+  if (method === 'PATCH') {
+    if (entry.status === 'executing') {
+      return createTurnInputQueueFailure(
+        'Executing queued Turn input cannot be edited.',
+        409,
+      );
+    }
+    if (!updateTurnInputQueueEntryFixture(entry, body, requestedAt)) {
+      return createTurnInputQueueFailure('Queued Agent Turn input content is required.', 400);
+    }
+  } else if (command === 'fail') {
+    if (!failTurnInputQueueEntryFixture(entry, body, requestedAt)) {
+      return createTurnInputQueueFailure('Queued Turn input claim is stale.', 409);
+    }
+  } else if (command === 'retry') {
+    if (!retryTurnInputQueueEntryFixture(entry, requestedAt)) {
+      return createTurnInputQueueFailure(
+        'Only a failed queued Turn input can be retried.',
+        409,
+      );
+    }
+  } else {
+    return null;
+  }
+  return {
+    statusCode: 200,
+    payload: createBirdCoderDataEnvelope(entry),
+  };
+}
+
+function handleTurnInputQueueRoute({ body, method, pathname, request, searchParams }) {
+  const collectionMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turn_input_queue$/u.exec(pathname);
+  const commandMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turn_input_queue\/(?<command>clear|reorder|claim_next)$/u.exec(pathname);
+  const entryMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turn_input_queue\/(?<queueEntryId>[^/]+)(?:\/(?<command>fail|retry))?$/u.exec(pathname);
+  if (!collectionMatch && !commandMatch && !entryMatch) {
+    return null;
+  }
+  if (!isAuthenticatedRequest(request)) {
+    return createTurnInputQueueFailure('No authenticated SDKWork IAM user.', 401);
+  }
+  if (collectionMatch && (method === 'GET' || method === 'POST')) {
+    return handleTurnInputQueueCollection({
+      ...collectionMatch.groups,
+      body,
+      method,
+      searchParams,
+    });
+  }
+  if (commandMatch && method === 'POST') {
+    return handleTurnInputQueueCommand({ ...commandMatch.groups, body });
+  }
+  if (entryMatch && (method === 'PATCH' || method === 'DELETE' || method === 'POST')) {
+    return handleTurnInputQueueEntry({
+      ...entryMatch.groups,
+      body,
+      method,
+      searchParams,
+    });
+  }
+  return createTurnInputQueueFailure('Unsupported queued Turn input operation.', 405);
 }
 
 function handleRoute(method, url, request, body) {
@@ -1171,6 +1801,7 @@ function handleRoute(method, url, request, body) {
       };
     }
 
+    resetMutableFixtureState();
     return { statusCode: 200, payload: createAppbaseSuccess(createIamSessionData()) };
   }
 
@@ -1655,6 +2286,98 @@ function handleRoute(method, url, request, body) {
     };
   }
 
+  const sessionTurnCancelMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turns\/(?<turnId>[^/]+)\/cancel$/u.exec(pathname);
+  if (sessionTurnCancelMatch && method === 'POST') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+    const { agentId, sessionId, turnId } = sessionTurnCancelMatch.groups;
+    const session = sessions.find((item) => (
+      item.agentId === agentId && item.sessionId === sessionId
+    ));
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+    const turnDeliveryKey = buildSessionTurnDeliveryKey(agentId, sessionId, turnId);
+    const turnDelivery = sessionTurnDeliveriesByKey.get(turnDeliveryKey);
+    if (!turnDelivery || turnDelivery.fixtureGeneration !== mutableFixtureGeneration) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Turn not found.', '404'),
+      };
+    }
+    const expectedVersion = String(body.expectedVersion ?? '').trim();
+    const requestedAt = String(body.requestedAt ?? '').trim();
+    if (!/^(?:0|[1-9]\d*)$/u.test(expectedVersion) || Number.isNaN(Date.parse(requestedAt))) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure(
+          'Agent Turn cancellation requires expectedVersion and requestedAt.',
+          '400',
+        ),
+      };
+    }
+    if (turnDelivery.turn.version !== expectedVersion) {
+      return {
+        statusCode: 409,
+        payload: createAppbaseFailure('Agent Turn version mismatch.', '409'),
+      };
+    }
+    if (turnDelivery.turn.status !== 'requested' && turnDelivery.turn.status !== 'running') {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure('Agent Turn cannot be cancelled.', '400'),
+      };
+    }
+    turnDelivery.turn = {
+      ...turnDelivery.turn,
+      status: 'cancelled',
+      responseItemId: null,
+      outputTokens: '0',
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      version: (BigInt(expectedVersion) + 1n).toString(),
+      updatedAt: requestedAt,
+      completedAt: requestedAt,
+      cancelRequestedAt: requestedAt,
+      cancelledAt: requestedAt,
+    };
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(turnDelivery.turn),
+    };
+  }
+
+  const sessionTurnResourceMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turns\/(?<turnId>[^/]+)$/u.exec(pathname);
+  if (sessionTurnResourceMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+    const { agentId, sessionId, turnId } = sessionTurnResourceMatch.groups;
+    const turnDelivery = sessionTurnDeliveriesByKey.get(
+      buildSessionTurnDeliveryKey(agentId, sessionId, turnId),
+    );
+    if (!turnDelivery || turnDelivery.fixtureGeneration !== mutableFixtureGeneration) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Turn not found.', '404'),
+      };
+    }
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(turnDelivery.turn),
+    };
+  }
+
   const sessionTurnsMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turns$/u.exec(pathname);
   if (sessionTurnsMatch && method === 'POST') {
     if (!isAuthenticatedRequest(request)) {
@@ -1690,6 +2413,7 @@ function handleRoute(method, url, request, body) {
     const assistantSequence = previousSequence + 2;
     const completedAt = new Date().toISOString();
     const turnId = String(body.turnId ?? `turn.e2e-${completedTurnSequence}`);
+    const turnFixtureGeneration = mutableFixtureGeneration;
     const userItemId = `item.e2e-${completedTurnSequence}-user`;
     const assistantItemId = `item.e2e-${completedTurnSequence}-assistant`;
     const commonItemFields = {
@@ -1725,7 +2449,7 @@ function handleRoute(method, url, request, body) {
       outputTokens: '6',
       modelId: body.requestedModelId ?? null,
     };
-    const turn = {
+    const runningTurn = {
       turnId,
       tenantId: session.tenantId,
       organizationId: session.organizationId,
@@ -1737,15 +2461,15 @@ function handleRoute(method, url, request, body) {
       idempotencyKey: String(body.idempotencyKey ?? `e2e-${completedTurnSequence}`),
       payloadHash: String(body.payloadHash ?? `e2e-${completedTurnSequence}`),
       requestItemId: userItemId,
-      responseItemId: assistantItemId,
+      responseItemId: null,
       turnMode: body.turnMode ?? 'interactive',
-      status: 'completed',
+      status: 'running',
       requestedModelId: body.requestedModelId ?? null,
       modelId: body.requestedModelId ?? null,
       inputTokens: '0',
-      outputTokens: '6',
+      outputTokens: '0',
       cachedTokens: '0',
-      finishReason: 'stop',
+      finishReason: null,
       attemptCount: 1,
       maxAttempts: 1,
       availableAt: completedAt,
@@ -1754,8 +2478,29 @@ function handleRoute(method, url, request, body) {
       createdAt: completedAt,
       updatedAt: completedAt,
       startedAt: completedAt,
+      completedAt: null,
+      cancelRequestedAt: null,
+      cancelledAt: null,
+      retentionUntil: null,
+    };
+    const completedTurn = {
+      ...runningTurn,
+      responseItemId: assistantItemId,
+      status: 'completed',
+      outputTokens: '6',
+      finishReason: 'stop',
       completedAt,
     };
+    const turnDeliveryKey = buildSessionTurnDeliveryKey(
+      session.agentId,
+      session.sessionId,
+      turnId,
+    );
+    const turnDelivery = {
+      fixtureGeneration: turnFixtureGeneration,
+      turn: runningTurn,
+    };
+    sessionTurnDeliveriesByKey.set(turnDeliveryKey, turnDelivery);
 
     const sessionUpdate = {
       itemCount: String(currentItems.length + 2),
@@ -1768,10 +2513,16 @@ function handleRoute(method, url, request, body) {
     const completedSession = { ...session, ...sessionUpdate };
     let isCommitted = false;
     const commitTurn = () => {
-      if (isCommitted) {
+      if (
+        isCommitted
+        || turnFixtureGeneration !== mutableFixtureGeneration
+        || sessionTurnDeliveriesByKey.get(turnDeliveryKey) !== turnDelivery
+        || turnDelivery.turn.status === 'cancelled'
+      ) {
         return;
       }
       isCommitted = true;
+      turnDelivery.turn = completedTurn;
       Object.assign(session, sessionUpdate);
       sessionItemsBySessionId.set(
         session.sessionId,
@@ -1781,15 +2532,23 @@ function handleRoute(method, url, request, body) {
 
     const completion = createBirdCoderDataEnvelope({
       session: completedSession,
-      turn,
+      turn: completedTurn,
       items: [userItem, assistantItem],
     });
     if (searchParams.get('stream') === 'true') {
       const deltaBoundary = Math.max(1, Math.floor(assistantItem.content.length / 2));
+      const streamEventIntervalMs = content.startsWith('E2E durable queue blocker')
+        ? 5_000
+        : 2_000;
       return {
         statusCode: 200,
         onSseCompletion: commitTurn,
-        sseEventIntervalMs: 2_000,
+        shouldWriteSseEvent: () => (
+          turnFixtureGeneration === mutableFixtureGeneration
+          && sessionTurnDeliveriesByKey.get(turnDeliveryKey) === turnDelivery
+          && turnDelivery.turn.status !== 'cancelled'
+        ),
+        sseEventIntervalMs: streamEventIntervalMs,
         sseEvents: [
           {
             eventType: 'delta',
@@ -1868,6 +2627,334 @@ function handleRoute(method, url, request, body) {
     };
   }
 
+  const sessionInteractionsMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/interactions$/u.exec(pathname);
+  if (sessionInteractionsMatch && (method === 'GET' || method === 'POST')) {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+    const { agentId, sessionId } = sessionInteractionsMatch.groups;
+    const session = sessions.find((item) => (
+      item.agentId === agentId && item.sessionId === sessionId
+    ));
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+
+    if (method === 'GET') {
+      const page = Number(searchParams.get('page') ?? 1);
+      const pageSize = Number(searchParams.get('page_size') ?? 20);
+      const kind = searchParams.get('kind')?.trim() ?? '';
+      const status = searchParams.get('status')?.trim() ?? '';
+      if (
+        !Number.isSafeInteger(page)
+        || page < 1
+        || !Number.isSafeInteger(pageSize)
+        || pageSize < 1
+        || pageSize > 200
+        || (kind && kind !== 'approval' && kind !== 'user_question')
+        || (
+          status
+          && !['pending', 'resolved', 'rejected', 'expired', 'cancelled'].includes(status)
+        )
+      ) {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure('Agent Interaction filters are invalid.', '400'),
+        };
+      }
+      const interactions = [...sessionInteractionsByKey.values()]
+        .filter((entry) => (
+          entry.fixtureGeneration === mutableFixtureGeneration
+          && entry.agentId === agentId
+          && entry.interaction.sessionId === sessionId
+          && (!kind || entry.interaction.kind === kind)
+          && (!status || entry.interaction.status === status)
+        ))
+        .map((entry) => entry.interaction)
+        .sort((left, right) => (
+          Date.parse(left.createdAt) - Date.parse(right.createdAt)
+          || left.interactionId.localeCompare(right.interactionId)
+        ));
+      return {
+        statusCode: 200,
+        payload: createBirdCoderListEnvelope(interactions, { page, pageSize }),
+      };
+    }
+
+    const kind = String(body.kind ?? '').trim();
+    const prompt = String(body.prompt ?? '').trim();
+    const requestedAt = String(body.requestedAt ?? '').trim();
+    const rawOptions = body.options ?? [];
+    if (
+      (kind !== 'approval' && kind !== 'user_question')
+      || !prompt
+      || Number.isNaN(Date.parse(requestedAt))
+      || !Array.isArray(rawOptions)
+      || rawOptions.some((option) => (
+        !option
+        || typeof option !== 'object'
+        || !String(option.value ?? '').trim()
+        || !String(option.label ?? '').trim()
+      ))
+    ) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure('Agent Interaction creation payload is invalid.', '400'),
+      };
+    }
+    createdInteractionSequence += 1;
+    const interactionId = String(
+      body.interactionId ?? `interaction.e2e-${createdInteractionSequence}`,
+    ).trim();
+    const interactionKey = buildSessionInteractionKey(agentId, sessionId, interactionId);
+    if (!interactionId || sessionInteractionsByKey.has(interactionKey)) {
+      return {
+        statusCode: interactionId ? 409 : 400,
+        payload: createAppbaseFailure(
+          interactionId ? 'Agent Interaction already exists.' : 'Agent Interaction ID is required.',
+          interactionId ? '409' : '400',
+        ),
+      };
+    }
+    const interaction = {
+      interactionId,
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
+      sessionId,
+      turnId: String(body.turnId ?? '').trim() || null,
+      runtimeBindingId: String(body.runtimeBindingId ?? '').trim() || null,
+      providerInteractionId: String(body.providerInteractionId ?? '').trim()
+        || `provider-interaction.e2e-${createdInteractionSequence}`,
+      kind,
+      status: 'pending',
+      prompt,
+      options: rawOptions.map((option) => ({
+        value: String(option.value).trim(),
+        label: String(option.label).trim(),
+      })),
+      resolution: null,
+      claimOwner: null,
+      claimExpiresAt: null,
+      fencingToken: '0',
+      version: '1',
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
+      resolvedAt: null,
+      retentionUntil: String(body.retentionUntil ?? '').trim() || null,
+    };
+    sessionInteractionsByKey.set(interactionKey, {
+      agentId,
+      fixtureGeneration: mutableFixtureGeneration,
+      interaction,
+    });
+    return {
+      statusCode: 201,
+      payload: createBirdCoderDataEnvelope(interaction),
+    };
+  }
+
+  const sessionInteractionResourceMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/interactions\/(?<interactionId>[^/]+)(?:\/(?<action>claim|approve|answer))?$/u.exec(pathname);
+  if (
+    sessionInteractionResourceMatch
+    && (method === 'GET' || method === 'POST')
+  ) {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+    const {
+      action,
+      agentId,
+      interactionId,
+      sessionId,
+    } = sessionInteractionResourceMatch.groups;
+    const session = sessions.find((item) => (
+      item.agentId === agentId && item.sessionId === sessionId
+    ));
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+    const interactionKey = buildSessionInteractionKey(agentId, sessionId, interactionId);
+    const entry = sessionInteractionsByKey.get(interactionKey);
+    if (!entry || entry.fixtureGeneration !== mutableFixtureGeneration) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Interaction not found.', '404'),
+      };
+    }
+    if (method === 'GET' && !action) {
+      return {
+        statusCode: 200,
+        payload: createBirdCoderDataEnvelope(entry.interaction),
+      };
+    }
+    if (method !== 'POST' || !action) {
+      return {
+        statusCode: 405,
+        payload: createAppbaseFailure('Agent Interaction method is not supported.', '405'),
+      };
+    }
+
+    const requestedAt = String(body.requestedAt ?? '').trim();
+    const expectedVersion = String(body.expectedVersion ?? '').trim();
+    if (
+      Number.isNaN(Date.parse(requestedAt))
+      || !/^(?:0|[1-9]\d*)$/u.test(expectedVersion)
+      || entry.interaction.version !== expectedVersion
+      || entry.interaction.status !== 'pending'
+    ) {
+      return {
+        statusCode: 409,
+        payload: createAppbaseFailure('Agent Interaction version or status is invalid.', '409'),
+      };
+    }
+
+    if (action === 'claim') {
+      const claimOwner = String(body.claimOwner ?? '').trim();
+      const leaseSeconds = Number(body.leaseSeconds ?? 30);
+      const activeClaim = sessionInteractionClaimsByKey.get(interactionKey);
+      if (
+        !claimOwner
+        || !Number.isSafeInteger(leaseSeconds)
+        || leaseSeconds < 1
+        || leaseSeconds > 3_600
+        || (
+          activeClaim
+          && activeClaim.fixtureGeneration === mutableFixtureGeneration
+          && Date.parse(activeClaim.claimExpiresAt) > Date.parse(requestedAt)
+        )
+      ) {
+        return {
+          statusCode: activeClaim ? 409 : 400,
+          payload: createAppbaseFailure('Agent Interaction claim is invalid.', activeClaim ? '409' : '400'),
+        };
+      }
+      const version = (BigInt(entry.interaction.version) + 1n).toString();
+      const fencingToken = (BigInt(entry.interaction.fencingToken) + 1n).toString();
+      const claimExpiresAt = new Date(
+        Date.parse(requestedAt) + leaseSeconds * 1_000,
+      ).toISOString();
+      const claimToken = `claim.e2e-${createdInteractionSequence}-${version}`;
+      entry.interaction = {
+        ...entry.interaction,
+        claimOwner,
+        claimExpiresAt,
+        fencingToken,
+        version,
+        updatedAt: requestedAt,
+      };
+      sessionInteractionClaimsByKey.set(interactionKey, {
+        claimExpiresAt,
+        claimToken,
+        fencingToken,
+        fixtureGeneration: mutableFixtureGeneration,
+      });
+      return {
+        statusCode: 200,
+        payload: createBirdCoderDataEnvelope({
+          interaction: entry.interaction,
+          claimToken,
+          claimExpiresAt,
+          fencingToken,
+        }),
+      };
+    }
+
+    const claim = sessionInteractionClaimsByKey.get(interactionKey);
+    if (
+      !claim
+      || claim.fixtureGeneration !== mutableFixtureGeneration
+      || claim.claimToken !== String(body.claimToken ?? '').trim()
+      || claim.fencingToken !== String(body.fencingToken ?? '').trim()
+      || Date.parse(claim.claimExpiresAt) <= Date.parse(requestedAt)
+    ) {
+      return {
+        statusCode: 409,
+        payload: createAppbaseFailure('Agent Interaction claim is invalid or expired.', '409'),
+      };
+    }
+
+    let status;
+    let resolution;
+    if (action === 'approve') {
+      if (entry.interaction.kind !== 'approval' || typeof body.approved !== 'boolean') {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure('Agent approval resolution is invalid.', '400'),
+        };
+      }
+      const reason = String(body.reason ?? '').trim();
+      status = body.approved ? 'resolved' : 'rejected';
+      resolution = {
+        outcome: body.approved ? 'approved' : 'rejected',
+        ...(reason ? { reason } : {}),
+      };
+    } else {
+      const rejected = body.rejected === true;
+      const answer = String(body.answer ?? '').trim();
+      const selectedOptionValue = String(body.selectedOptionValue ?? '').trim();
+      if (
+        entry.interaction.kind !== 'user_question'
+        || (!rejected && !answer)
+        || (
+          selectedOptionValue
+          && !entry.interaction.options.some((option) => option.value === selectedOptionValue)
+        )
+      ) {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure('Agent question resolution is invalid.', '400'),
+        };
+      }
+      status = rejected ? 'rejected' : 'resolved';
+      resolution = rejected
+        ? { outcome: 'rejected' }
+        : {
+            outcome: 'answered',
+            answer,
+            ...(selectedOptionValue ? { selectedOptionValue } : {}),
+          };
+    }
+
+    entry.interaction = {
+      ...entry.interaction,
+      status,
+      resolution,
+      claimOwner: null,
+      claimExpiresAt: null,
+      version: (BigInt(entry.interaction.version) + 1n).toString(),
+      updatedAt: requestedAt,
+      resolvedAt: requestedAt,
+    };
+    sessionInteractionClaimsByKey.delete(interactionKey);
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(entry.interaction),
+    };
+  }
+
+  const turnInputQueueRoute = handleTurnInputQueueRoute({
+    body,
+    method,
+    pathname,
+    request,
+    searchParams,
+  });
+  if (turnInputQueueRoute) {
+    return turnInputQueueRoute;
+  }
+
   const sessionChildMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/(?<resource>checkpoints|interactions|items|runtime_bindings|turns|user_state)$/u.exec(pathname);
   if (sessionChildMatch && (method === 'GET' || method === 'PATCH')) {
     if (!isAuthenticatedRequest(request)) {
@@ -1938,6 +3025,27 @@ function handleRoute(method, url, request, body) {
         }),
       };
     }
+    if (sessionChildMatch.groups.resource === 'turns') {
+      const page = Number(searchParams.get('page') ?? 1);
+      const pageSize = Number(searchParams.get('page_size') ?? 20);
+      const status = searchParams.get('status')?.trim();
+      const turns = [...sessionTurnDeliveriesByKey.values()]
+        .filter((turnDelivery) => (
+          turnDelivery.fixtureGeneration === mutableFixtureGeneration
+          && turnDelivery.turn.agentId === session.agentId
+          && turnDelivery.turn.sessionId === session.sessionId
+          && (!status || turnDelivery.turn.status === status)
+        ))
+        .map((turnDelivery) => turnDelivery.turn)
+        .sort((left, right) => (
+          Date.parse(right.createdAt) - Date.parse(left.createdAt)
+          || right.turnId.localeCompare(left.turnId)
+        ));
+      return {
+        statusCode: 200,
+        payload: createBirdCoderListEnvelope(turns, { page, pageSize }),
+      };
+    }
     const items = sessionChildMatch.groups.resource === 'runtime_bindings'
       ? [createSessionRuntimeBinding(session)]
       : [];
@@ -1956,47 +3064,93 @@ function handleRoute(method, url, request, body) {
   };
 }
 
-const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url ?? '/', `http://${host}`);
-  const body = request.method === 'POST' || request.method === 'PATCH'
-    ? await readJsonBody(request)
-    : {};
-  const route = handleRoute(request.method ?? 'GET', url, request, body);
+export function createPcE2EMockApiServer() {
+  return http.createServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', `http://${host}`);
+    const body = request.method === 'POST' || request.method === 'PATCH'
+      ? await readJsonBody(request)
+      : {};
+    const route = handleRoute(request.method ?? 'GET', url, request, body);
 
-  if (route.sseEvents) {
-    await writeSse(
-      request,
-      response,
-      route.statusCode,
-      route.sseEvents,
-      route.sseEventIntervalMs,
-      route.onSseCompletion,
-    );
-    return;
-  }
+    if (route.sseEvents) {
+      await writeSse(
+        request,
+        response,
+        route.statusCode,
+        route.sseEvents,
+        route.sseEventIntervalMs,
+        route.onSseCompletion,
+        route.shouldWriteSseEvent,
+      );
+      return;
+    }
 
-  if (route.payload === null) {
-    response.writeHead(204, {
-      ...corsHeaders(request),
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
-    });
-    response.end();
-    return;
-  }
+    if (route.payload === null) {
+      response.writeHead(204, {
+        ...corsHeaders(request),
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
+      });
+      response.end();
+      return;
+    }
 
-  writeJson(request, response, route.statusCode, route.payload);
-});
-
-server.listen(port, host, () => {
-  process.stdout.write(`pc e2e mock api listening on http://${host}:${port}\n`);
-});
-
-function shutdown() {
-  server.close(() => {
-    process.exit(0);
+    writeJson(request, response, route.statusCode, route.payload);
   });
 }
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+export function startPcE2EMockApiServer() {
+  const server = createPcE2EMockApiServer();
+  return new Promise((resolve, reject) => {
+    const handleError = (error) => {
+      server.off('listening', handleListening);
+      reject(error);
+    };
+    const handleListening = () => {
+      server.off('error', handleError);
+      process.stdout.write(`pc e2e mock api listening on http://${host}:${port}\n`);
+      resolve(server);
+    };
+    server.once('error', handleError);
+    server.once('listening', handleListening);
+    server.listen(port, host);
+  });
+}
+
+export function closePcE2EMockApiServer(server) {
+  if (!server?.listening) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+    server.closeAllConnections?.();
+  });
+}
+
+async function runCli() {
+  const server = await startPcE2EMockApiServer();
+  const shutdown = () => {
+    closePcE2EMockApiServer(server).then(
+      () => process.exit(0),
+      (error) => {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      },
+    );
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+}
+
+if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  runCli().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

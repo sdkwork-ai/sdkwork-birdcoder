@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Code2, X } from 'lucide-react';
+import { Code2, Search, X } from 'lucide-react';
 import {
   WindowControlMaximizeIcon,
   WindowControlMinimizeIcon,
@@ -13,6 +13,8 @@ import {
 interface BirdcoderAppHeaderProps {
   brandLabel: string;
   centerContent?: React.ReactNode;
+  commandMenuLabel?: string;
+  commandMenuShortcut?: string;
   closeButtonRef: React.RefObject<HTMLButtonElement | null>;
   handleClose(): void;
   handleMaximize(): void;
@@ -27,6 +29,7 @@ interface BirdcoderAppHeaderProps {
   onDragStart(event: React.DragEvent<HTMLDivElement>): void;
   onPointerDown(event: React.PointerEvent<HTMLDivElement>): void;
   onContextMenu(event: React.MouseEvent<HTMLDivElement>): void;
+  onOpenCommandMenu?: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
   titleBarDragSurfaceClass: string;
 }
@@ -34,6 +37,8 @@ interface BirdcoderAppHeaderProps {
 export function BirdcoderAppHeader({
   brandLabel,
   centerContent,
+  commandMenuLabel,
+  commandMenuShortcut,
   closeButtonRef,
   handleClose,
   handleMaximize,
@@ -48,6 +53,7 @@ export function BirdcoderAppHeader({
   onDragStart,
   onPointerDown,
   onContextMenu,
+  onOpenCommandMenu,
   t,
   titleBarDragSurfaceClass,
 }: BirdcoderAppHeaderProps) {
@@ -95,6 +101,19 @@ export function BirdcoderAppHeader({
         className="flex items-center justify-end h-full animate-in fade-in slide-in-from-top-2 fill-mode-both"
         style={{ animationDelay: '100ms' }}
       >
+        {onOpenCommandMenu && commandMenuLabel ? (
+          <button
+            type="button"
+            onClick={onOpenCommandMenu}
+            aria-label={commandMenuLabel}
+            title={commandMenuShortcut
+              ? `${commandMenuLabel} (${commandMenuShortcut})`
+              : commandMenuLabel}
+            className="mr-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Search aria-hidden="true" size={15} />
+          </button>
+        ) : null}
         {isDesktopWindowAvailable ? (
           <div className="flex h-full items-center">
             <button

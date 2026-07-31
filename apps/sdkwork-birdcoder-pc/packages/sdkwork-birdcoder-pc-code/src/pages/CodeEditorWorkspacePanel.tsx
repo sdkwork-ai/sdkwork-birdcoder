@@ -22,8 +22,12 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   isNewSession,
   pendingApprovals,
   pendingUserQuestions,
+  hasPendingInteractionsLoadError,
+  isLoadingPendingInteractions,
   showComposerEngineSelector,
   selectedAgentSessionId,
+  selectedAgentSessionAgentId,
+  selectedAgentSessionRuntimeBindingId,
   selectedAgentSessionScopeKey,
   selectedEngineId,
   selectedModelId,
@@ -32,13 +36,17 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onStopTurn,
   onLoadMoreRemoteMessages,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
+  onRetryPendingInteractions,
   onViewChanges,
 }: EditorChatProps) {
   return (
     <DeferredUniversalChat
+      agentId={selectedAgentSessionAgentId || undefined}
+      runtimeBindingId={selectedAgentSessionRuntimeBindingId || undefined}
       sessionId={selectedAgentSessionId || undefined}
       sessionScopeKey={selectedAgentSessionScopeKey || undefined}
       isActive={isActive}
@@ -50,9 +58,13 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
       pendingApprovals={pendingApprovals}
       pendingUserQuestions={pendingUserQuestions}
+      hasPendingInteractionsLoadError={hasPendingInteractionsLoadError}
+      isLoadingPendingInteractions={isLoadingPendingInteractions}
       onSendMessage={onSendMessage}
+      onStopTurn={onStopTurn}
       onSubmitApprovalDecision={onSubmitApprovalDecision}
       onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+      onRetryPendingInteractions={onRetryPendingInteractions}
       isBusy={isBusy}
       isEngineBusy={isEngineBusy}
       selectedEngineId={selectedEngineId}
@@ -100,6 +112,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   explorerWidth,
   chatWidth,
   selectedAgentSessionId,
+  selectedAgentSessionAgentId,
+  selectedAgentSessionRuntimeBindingId,
   selectedAgentSessionScopeKey,
   messages,
   hasMoreRemoteMessages,
@@ -108,6 +122,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   isNewSession,
   pendingApprovals,
   pendingUserQuestions,
+  hasPendingInteractionsLoadError,
+  isLoadingPendingInteractions,
   chatEmptyState,
   isBusy,
   isEngineBusy,
@@ -130,9 +146,11 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onStopTurn,
   onLoadMoreRemoteMessages,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
+  onRetryPendingInteractions,
   onViewChanges,
   onRestoreMessage,
   onEditMessage,
@@ -205,6 +223,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
           <div className="min-h-0 flex-1">
             <CodeEditorWorkspaceChatPanel
               selectedAgentSessionId={selectedAgentSessionId}
+              selectedAgentSessionAgentId={selectedAgentSessionAgentId}
+              selectedAgentSessionRuntimeBindingId={selectedAgentSessionRuntimeBindingId}
               selectedAgentSessionScopeKey={selectedAgentSessionScopeKey}
               messages={messages}
               hasMoreRemoteMessages={hasMoreRemoteMessages}
@@ -213,6 +233,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               isNewSession={isNewSession}
               pendingApprovals={pendingApprovals}
               pendingUserQuestions={pendingUserQuestions}
+              hasPendingInteractionsLoadError={hasPendingInteractionsLoadError}
+              isLoadingPendingInteractions={isLoadingPendingInteractions}
               chatEmptyState={chatEmptyState}
               isActive={isActive && diffLayout.showChatPanel}
               isBusy={isBusy}
@@ -221,9 +243,11 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               selectedEngineId={selectedEngineId}
               selectedModelId={selectedModelId}
               onSendMessage={onSendMessage}
+              onStopTurn={onStopTurn}
               onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
               onSubmitApprovalDecision={onSubmitApprovalDecision}
               onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+              onRetryPendingInteractions={onRetryPendingInteractions}
               onSelectedEngineIdChange={onSelectedEngineIdChange}
               onSelectedModelIdChange={onSelectedModelIdChange}
               onViewChanges={onViewChanges}

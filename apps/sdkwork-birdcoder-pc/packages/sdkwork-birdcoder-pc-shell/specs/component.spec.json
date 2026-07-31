@@ -149,6 +149,7 @@
   },
   "verification": {
     "commands": [
+      "pnpm test",
       "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root ."
     ]
   },

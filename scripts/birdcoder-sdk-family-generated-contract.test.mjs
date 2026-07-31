@@ -39,8 +39,9 @@ run(process.execPath, [
 ]);
 
 run(
-  'cargo',
+  process.execPath,
   [
+    'scripts/run-cargo.mjs',
     'check',
     '--manifest-path',
     path.join(

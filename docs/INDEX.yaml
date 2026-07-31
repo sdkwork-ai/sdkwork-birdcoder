@@ -15,6 +15,16 @@ entries:
     layer: work
     audience: [architecture, engineering, security, operations]
     status: accepted
+  - id: REQ-2026-0007
+    path: docs/product/requirements/REQ-2026-0007-durable-turn-input-queue.md
+    layer: work
+    audience: [product, architecture, engineering, security, operations]
+    status: accepted
+  - id: ADR-20260731
+    path: docs/architecture/decisions/ADR-20260731-durable-turn-input-queue.md
+    layer: work
+    audience: [architecture, engineering, security, operations]
+    status: accepted
   - id: PLAN-2026-0001
     path: docs/engineering/plans/PLAN-2026-0001-domain-boundary-cutover.md
     layer: work

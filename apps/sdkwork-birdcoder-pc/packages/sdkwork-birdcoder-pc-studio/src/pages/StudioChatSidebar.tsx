@@ -125,6 +125,8 @@ interface StudioChatSidebarProps {
   remoteMessagesLoadError: string | null;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
+  hasPendingInteractionsLoadError?: boolean;
+  isLoadingPendingInteractions?: boolean;
   emptyState?: ReactNode;
   isBusy: boolean;
   isEngineBusy: boolean;
@@ -141,6 +143,7 @@ interface StudioChatSidebarProps {
     composerSelection?: UniversalChatComposerSelection,
     submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
+  onStopTurn: () => void | Promise<void>;
   onSubmitApprovalDecision: (
     interactionId: string,
     request: AgentApprovalDecisionInput,
@@ -149,6 +152,7 @@ interface StudioChatSidebarProps {
     interactionId: string,
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
+  onRetryPendingInteractions: () => void | Promise<void>;
   onSelectAgentSession: (projectId: string, agentSessionId: string) => void;
   onCreateProject: () => Promise<void>;
   onLoadMoreProjects: () => Promise<unknown> | void;
@@ -251,6 +255,8 @@ function areStudioChatSidebarPropsEqual(
     left.remoteMessagesLoadError === right.remoteMessagesLoadError &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&
+    left.hasPendingInteractionsLoadError === right.hasPendingInteractionsLoadError &&
+    left.isLoadingPendingInteractions === right.isLoadingPendingInteractions &&
     left.emptyState === right.emptyState &&
     left.isBusy === right.isBusy &&
     left.isEngineBusy === right.isEngineBusy &&
@@ -263,8 +269,10 @@ function areStudioChatSidebarPropsEqual(
     left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
     left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
     left.onSendMessage === right.onSendMessage &&
+    left.onStopTurn === right.onStopTurn &&
     left.onSubmitApprovalDecision === right.onSubmitApprovalDecision &&
     left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
+    left.onRetryPendingInteractions === right.onRetryPendingInteractions &&
     left.onSelectAgentSession === right.onSelectAgentSession &&
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
@@ -304,6 +312,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   remoteMessagesLoadError,
   pendingApprovals,
   pendingUserQuestions,
+  hasPendingInteractionsLoadError,
+  isLoadingPendingInteractions,
   emptyState,
   isBusy,
   isEngineBusy,
@@ -316,8 +326,10 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onStopTurn,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
+  onRetryPendingInteractions,
   onSelectAgentSession,
   onCreateProject,
   onLoadMoreProjects,
@@ -1139,6 +1151,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
         <div className="flex-1 min-h-0">
           <DeferredUniversalChat
+            agentId={currentAgentSession?.agentId}
+            runtimeBindingId={currentAgentSession?.runtimeBindingId}
             sessionId={selectedAgentSessionId || undefined}
             sessionScopeKey={transcriptSessionScopeKey}
             messages={messages}
@@ -1148,9 +1162,13 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
             pendingApprovals={pendingApprovals}
             pendingUserQuestions={pendingUserQuestions}
+            hasPendingInteractionsLoadError={hasPendingInteractionsLoadError}
+            isLoadingPendingInteractions={isLoadingPendingInteractions}
             onSendMessage={onSendMessage}
+            onStopTurn={onStopTurn}
             onSubmitApprovalDecision={onSubmitApprovalDecision}
             onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+            onRetryPendingInteractions={onRetryPendingInteractions}
             isBusy={isBusy}
             isEngineBusy={isEngineBusy}
             selectedEngineId={currentChatEngineId}

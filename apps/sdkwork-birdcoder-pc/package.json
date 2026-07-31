@@ -25,6 +25,7 @@
     "test": "pnpm test:unit",
     "test:unit": "node ../../scripts/run-local-tsx.mjs ../../scripts/auth-surface-routing-contract.test.ts && node ../../scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench test",
     "test:e2e": "node ../../scripts/run-pc-playwright-e2e.mjs",
+    "test:browser:smoke": "node ../../scripts/run-pc-production-web-runtime-smoke.mjs",
     "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
     "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
     "stop": "pnpm exec sdkwork-app stop --root ../..",

@@ -250,6 +250,18 @@ export function resolveViteWindowsRealpathPatchEntry() {
   return pathToFileURL(path.resolve(__dirname, 'vite-windows-realpath-patch.mjs')).href;
 }
 
+export function forwardViteHostTerminationSignal(child, signal) {
+  if (
+    !child
+    || child.exitCode !== null
+    || child.signalCode !== null
+    || child.killed
+  ) {
+    return false;
+  }
+  return child.kill(signal);
+}
+
 function compareVersionLike(left, right) {
   return String(left ?? '').localeCompare(String(right ?? ''), undefined, {
     numeric: true,
@@ -445,6 +457,16 @@ export async function runCli() {
     stdio: 'inherit',
     shell: false,
   });
+  let terminationSignal = null;
+
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.once(signal, () => {
+      terminationSignal ??= signal;
+      if (!forwardViteHostTerminationSignal(child, signal)) {
+        process.exit(0);
+      }
+    });
+  }
 
   child.on('error', (error) => {
     console.error(`[run-vite-host] ${error.message}`);
@@ -452,6 +474,9 @@ export async function runCli() {
   });
 
   child.on('exit', (code, signal) => {
+    if (terminationSignal) {
+      process.exit(code ?? 0);
+    }
     if (signal) {
       console.error(`[run-vite-host] process exited with signal ${signal}`);
       process.exit(1);

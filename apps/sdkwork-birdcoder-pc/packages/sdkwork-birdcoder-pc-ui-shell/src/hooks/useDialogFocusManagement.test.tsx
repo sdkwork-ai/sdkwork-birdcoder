@@ -28,6 +28,7 @@ function DialogFocusHarness({ onObservedKey }: { onObservedKey: (key: string) =>
           tabIndex={-1}
         >
           <input ref={initialFocusRef} aria-label="Search" />
+          <button type="button" tabIndex={-1}>Managed option</button>
           <button type="button" onClick={() => setIsOpen(false)}>Close</button>
         </div>
       ) : null}
@@ -48,7 +49,7 @@ describe('useDialogFocusManagement', () => {
     const close = screen.getByRole('button', { name: 'Close' });
     await waitFor(() => expect(document.activeElement).toBe(search));
     expect(Array.from(dialog.querySelectorAll('input:not(:disabled),button:not(:disabled)')))
-      .toEqual([search, close]);
+      .toHaveLength(3);
     close.focus();
     fireEvent.keyDown(close, { charCode: 9, code: 'Tab', key: 'Tab', keyCode: 9 });
     expect(onObservedKey).toHaveBeenCalledWith('Tab');

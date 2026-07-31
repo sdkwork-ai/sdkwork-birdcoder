@@ -2,701 +2,326 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import type { AgentTurnInputQueueEntry } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
+
 import {
   clearWorkbenchAgentTurnInputQueueMemory,
-  clearWorkbenchQueuedAgentTurnInputs,
-  canFlushWorkbenchQueuedAgentTurnInputs,
-  createWorkbenchAgentTurnInputQueueFlushGateState,
-  dequeueWorkbenchQueuedAgentTurnInput,
-  enqueueWorkbenchQueuedAgentTurnInput,
-  markWorkbenchQueuedAgentTurnDispatchStarted,
   MAX_QUEUED_AGENT_TURN_INPUT_SCOPES,
   MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE,
-  observeWorkbenchQueuedAgentTurnBusyState,
-  peekWorkbenchQueuedAgentTurnInputs,
-  restoreWorkbenchQueuedAgentTurnInputsToFront,
-  settleWorkbenchQueuedAgentTurnDispatch,
+  removeWorkbenchQueuedAgentTurnInputProjection,
   setWorkbenchQueuedAgentTurnInputs,
+  upsertWorkbenchQueuedAgentTurnInput,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts';
-import {
-  clearWorkbenchChatInputDraftMemory,
-  MAX_AGENT_TURN_INPUT_CHARACTERS,
-  peekWorkbenchChatInputDraft,
-  setWorkbenchChatInputDraft,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/draftStore.ts';
 
-const universalChatSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
-  'utf8',
-);
-const pendingInteractionsSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx'),
-  'utf8',
-);
-const authContextSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts'),
-  'utf8',
-);
+const requestedAt = '2026-07-31T00:00:00.000Z';
+const agentId = 'agent.code-engine.codex';
+const sessionId = 'session.queue-contract';
 
-function indexOfSourcePattern(source: string, pattern: RegExp, startIndex = 0): number {
-  const match = pattern.exec(source.slice(startIndex));
-  return match?.index === undefined ? -1 : startIndex + match.index;
+function createQueueEntry(
+  queueEntryId: string,
+  overrides: Partial<AgentTurnInputQueueEntry> = {},
+): AgentTurnInputQueueEntry {
+  return {
+    accessModeId: 'full_access',
+    agentId,
+    attachmentNames: [],
+    claimExpiresAt: null,
+    claimOwner: null,
+    claimedAt: null,
+    clientRequestId: `${queueEntryId}.request`,
+    content: `content:${queueEntryId}`,
+    contentType: 'text/plain',
+    createdAt: requestedAt,
+    displayText: `display:${queueEntryId}`,
+    driveRefs: [],
+    errorCode: null,
+    errorDetail: null,
+    failedAt: null,
+    fencingToken: '0',
+    idempotencyKey: `${queueEntryId}.idempotency`,
+    payloadHash: `sha256:${queueEntryId}`,
+    position: '1',
+    queueEntryId,
+    requestedModelId: 'gpt-5',
+    runtimeBindingId: 'runtime-binding.queue-contract',
+    sessionId,
+    status: 'queued',
+    turnMode: 'interactive',
+    updatedAt: requestedAt,
+    version: '0',
+    ...overrides,
+  };
 }
 
-const handleSendStartIndex = universalChatSource.indexOf('const handleSend = async');
-const handleSendEndIndex = universalChatSource.indexOf('useEffect(() => {', handleSendStartIndex);
-const universalChatHandleSendSource = universalChatSource.slice(
-  handleSendStartIndex,
-  handleSendEndIndex,
-);
-const markQueuedTurnDispatchStartedStartIndex = universalChatSource.indexOf(
-  'const markQueuedTurnDispatchStarted = useCallback',
-);
-const markQueuedTurnDispatchStartedEndIndex = universalChatSource.indexOf(
-  'const syncHistoryPrompts',
-  markQueuedTurnDispatchStartedStartIndex,
-);
-const markQueuedTurnDispatchStartedSource =
-  markQueuedTurnDispatchStartedStartIndex >= 0 &&
-  markQueuedTurnDispatchStartedEndIndex > markQueuedTurnDispatchStartedStartIndex
-    ? universalChatSource.slice(
-        markQueuedTurnDispatchStartedStartIndex,
-        markQueuedTurnDispatchStartedEndIndex,
-      )
-    : '';
-const busyObserverEffectStartIndex = indexOfSourcePattern(
+async function readSource(path: string): Promise<string> {
+  return readFile(resolve(path), 'utf8');
+}
+
+const [
+  queueProjectionSource,
+  queueHookSource,
   universalChatSource,
-  /useEffect\(\(\) => \{\r?\n    setQueuedTurnFlushGate\(\(previousState\) =>\r?\n      observeWorkbenchQueuedAgentTurnBusyState/u,
-);
-const busyObserverEffectEndIndex = indexOfSourcePattern(
-  universalChatSource,
-  /useEffect\(\(\) => \{\r?\n    clearQueuedTurnDispatchSettlementTimer\(\);/u,
-  busyObserverEffectStartIndex,
-);
-const busyObserverEffectSource =
-  busyObserverEffectStartIndex >= 0 &&
-  busyObserverEffectEndIndex > busyObserverEffectStartIndex
-    ? universalChatSource.slice(busyObserverEffectStartIndex, busyObserverEffectEndIndex)
-    : '';
-const submitPendingUserQuestionAnswerStartIndex = universalChatSource.indexOf(
-  'const submitPendingUserQuestionAnswer = useCallback',
-);
-const submitPendingApprovalDecisionStartIndex = universalChatSource.indexOf(
-  'const submitPendingApprovalDecision = useCallback',
-);
-const submitPendingUserQuestionAnswerSource =
-  submitPendingUserQuestionAnswerStartIndex >= 0 &&
-  submitPendingApprovalDecisionStartIndex > submitPendingUserQuestionAnswerStartIndex
-    ? universalChatSource.slice(
-        submitPendingUserQuestionAnswerStartIndex,
-        submitPendingApprovalDecisionStartIndex,
-      )
-    : '';
-const handleSubmitPendingApprovalDecisionStartIndex = universalChatSource.indexOf(
-  'const handleSubmitPendingApprovalDecision = useCallback',
-);
-const submitPendingApprovalDecisionSource =
-  submitPendingApprovalDecisionStartIndex >= 0 &&
-  handleSubmitPendingApprovalDecisionStartIndex > submitPendingApprovalDecisionStartIndex
-    ? universalChatSource.slice(
-        submitPendingApprovalDecisionStartIndex,
-        handleSubmitPendingApprovalDecisionStartIndex,
-      )
-    : '';
-const commonsIndexSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts'),
-  'utf8',
-);
-
-clearWorkbenchQueuedAgentTurnInputs('project-a/session-a');
-clearWorkbenchQueuedAgentTurnInputs('project-b/session-a');
-clearWorkbenchQueuedAgentTurnInputs('project-a/session-b');
-
-enqueueWorkbenchQueuedAgentTurnInput('project-a/session-a', 'first');
-enqueueWorkbenchQueuedAgentTurnInput('project-a/session-a', 'second');
-enqueueWorkbenchQueuedAgentTurnInput('project-b/session-a', 'other-scope');
-
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-a').map((turnInput) => turnInput.text),
-  ['first', 'second'],
-  'queued turn inputs must stay FIFO within a session scope.',
-);
-
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-b/session-a').map((turnInput) => turnInput.text),
-  ['other-scope'],
-  'queued turn inputs must be isolated by the full session scope, not just the raw session id.',
-);
-
-assert.equal(
-  dequeueWorkbenchQueuedAgentTurnInput('project-a/session-a')?.text,
-  'first',
-  'queued turn input dequeue must remove exactly the oldest item.',
-);
-
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-a').map((turnInput) => turnInput.text),
-  ['second'],
-  'dequeue must leave later queued turn inputs in place.',
-);
-
-setWorkbenchQueuedAgentTurnInputs('project-a/session-b', [
-  { id: 'queued-turn-input-third', text: 'third' },
+  sessionServiceSource,
+  authContextSource,
+  workbenchIndexSource,
+] = await Promise.all([
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentTurnInputQueue.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts'),
 ]);
-restoreWorkbenchQueuedAgentTurnInputsToFront(
-  'project-a/session-b',
-  [
-    { id: 'queued-turn-input-failed-first', text: 'failed-first' },
-    { id: 'queued-turn-input-failed-second', text: 'failed-second' },
-  ],
-);
 
+clearWorkbenchAgentTurnInputQueueMemory();
+
+const second = createQueueEntry('queue-entry.second', { position: '2' });
+const first = createQueueEntry('queue-entry.first', { position: '1' });
+const otherSession = createQueueEntry('queue-entry.other-session', {
+  position: '1',
+  sessionId: 'session.other',
+});
+
+const initialProjection = setWorkbenchQueuedAgentTurnInputs(sessionId, [second]);
+assert.deepEqual(initialProjection.map((entry) => entry.queueEntryId), ['queue-entry.second']);
 assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-b').map((turnInput) => turnInput.text),
-  ['failed-first', 'failed-second', 'third'],
-  'failed queued dispatches must be restored to the front without dropping newer queued input.',
-);
-
-restoreWorkbenchQueuedAgentTurnInputsToFront(
-  'project-a/session-b',
-  [{ id: 'queued-turn-input-failed-first', text: 'failed-first' }],
-);
-
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-b').map((turnInput) => turnInput.text),
-  ['failed-first', 'failed-second', 'third'],
-  'failed queued dispatch restoration must be idempotent by turn-input identity so repeated recovery does not create duplicate React keys.',
-);
-
-clearWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text');
-const repeatedQueueAfterFirstEnqueue = enqueueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-duplicate-text',
-  'repeat',
-);
-const repeatedQueueAfterSecondEnqueue = enqueueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-duplicate-text',
-  'repeat',
-);
-assert.notEqual(
-  repeatedQueueAfterFirstEnqueue[0]?.id,
-  repeatedQueueAfterSecondEnqueue[1]?.id,
-  'separately queued duplicate text must receive distinct stable identities.',
-);
-const failedRepeatedTurnInput = dequeueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-duplicate-text',
-);
-restoreWorkbenchQueuedAgentTurnInputsToFront(
-  'project-a/session-duplicate-text',
-  failedRepeatedTurnInput ? [failedRepeatedTurnInput] : [],
-);
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text').map(
-    (turnInput) => turnInput.text,
+  setWorkbenchQueuedAgentTurnInputs('session.other', [otherSession]).map(
+    (entry) => entry.queueEntryId,
   ),
-  ['repeat', 'repeat'],
-  'identity-based restoration must preserve intentionally duplicated queued text.',
+  ['queue-entry.other-session'],
+  'remote projections must remain isolated by the full Session scope key.',
 );
-assert.equal(
-  new Set(
-    peekWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text').map(
-      (turnInput) => turnInput.id,
+
+const orderedProjection = upsertWorkbenchQueuedAgentTurnInput(sessionId, first);
+assert.deepEqual(
+  orderedProjection.map((entry) => entry.queueEntryId),
+  ['queue-entry.first', 'queue-entry.second'],
+  'the disposable projection must preserve the authoritative numeric FIFO position.',
+);
+assert.ok(Object.isFrozen(orderedProjection));
+assert.ok(Object.isFrozen(orderedProjection[0]));
+assert.ok(Object.isFrozen(orderedProjection[0]?.attachmentNames));
+assert.ok(Object.isFrozen(orderedProjection[0]?.driveRefs));
+
+const executingFirst = createQueueEntry('queue-entry.first', {
+  claimExpiresAt: '2026-07-31T00:00:30.000Z',
+  claimOwner: 'birdcoder-window-a',
+  claimedAt: requestedAt,
+  fencingToken: '1',
+  position: '1',
+  status: 'executing',
+  version: '1',
+});
+assert.match(
+  upsertWorkbenchQueuedAgentTurnInput(sessionId, executingFirst)[0]?.status ?? '',
+  /^executing$/u,
+  'an authoritative version update must replace the same stable queue entry identity.',
+);
+assert.deepEqual(
+  removeWorkbenchQueuedAgentTurnInputProjection(
+    sessionId,
+    executingFirst.queueEntryId,
+  ).map((entry) => entry.queueEntryId),
+  ['queue-entry.second'],
+  'projection removal must target the stable server queueEntryId, never message text.',
+);
+
+assert.throws(
+  () => setWorkbenchQueuedAgentTurnInputs(sessionId, [first, first]),
+  /invalid or duplicate entry ID/u,
+  'duplicate stable IDs must be rejected before they can produce ambiguous mutations or React keys.',
+);
+assert.throws(
+  () => setWorkbenchQueuedAgentTurnInputs(
+    sessionId,
+    Array.from(
+      { length: MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE + 1 },
+      (_, index) => createQueueEntry(`queue-entry.capacity-${index}`, { position: `${index + 1}` }),
     ),
-  ).size,
-  2,
-  'identity-based queued turn inputs must keep duplicate text renderable with unique React keys.',
-);
-
-clearWorkbenchQueuedAgentTurnInputs('project-a/session-attachments');
-enqueueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-attachments',
-  'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
-  { accessModeId: ' full_access ', engineId: ' codex ', modelId: ' gpt-5 ' },
-  {
-    attachmentContent: ' \n\n[DRIVE_MEDIA:{"id":"design"}]\n ',
-    attachmentNames: [' design.png ', 'notes.txt', 'design.png'],
-    driveRefs: [
-      {
-        driveNodeId: ' drive-node-design ',
-        driveSpaceId: ' drive-space-design ',
-        resourceRole: 'image',
-      },
-      {
-        driveNodeId: 'drive-node-design',
-        driveSpaceId: 'drive-space-design',
-        resourceRole: 'image',
-      },
-    ],
-    displayText: ' Review this ',
-  },
-);
-const queuedAttachmentTurnInput = dequeueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-attachments',
-);
-assert.deepEqual(
-  queuedAttachmentTurnInput,
-  {
-    id: queuedAttachmentTurnInput?.id,
-    text: 'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
-    composerSelection: {
-      accessModeId: 'full_access',
-      engineId: 'codex',
-      modelId: 'gpt-5',
-    },
-    attachmentContent: '[DRIVE_MEDIA:{"id":"design"}]',
-    attachmentNames: ['design.png', 'notes.txt'],
-    driveRefs: [{
-      driveNodeId: 'drive-node-design',
-      driveSpaceId: 'drive-space-design',
-      resourceRole: 'image',
-    }],
-    displayText: 'Review this',
-  },
-  'queued attachment turns must preserve a clean display value separately from their full submission payload.',
-);
-restoreWorkbenchQueuedAgentTurnInputsToFront(
-  'project-a/session-attachments',
-  queuedAttachmentTurnInput ? [queuedAttachmentTurnInput] : [],
-);
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-attachments')[0],
-  queuedAttachmentTurnInput,
-  'attachment presentation and payload metadata must survive dequeue and failed-dispatch restoration.',
-);
-
-clearWorkbenchQueuedAgentTurnInputs('project-a/session-drive-refs');
-enqueueWorkbenchQueuedAgentTurnInput(
-  'project-a/session-drive-refs',
-  'Review the uploaded design',
-  undefined,
-  {
-    driveRefs: [
-      {
-        driveNodeId: ' node-design ',
-        driveSpaceId: ' space-project ',
-        resourceRole: 'image',
-      },
-      {
-        driveNodeId: 'node-design',
-        driveSpaceId: 'space-project',
-        resourceRole: 'image',
-      },
-    ],
-  },
-);
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-drive-refs')[0]?.driveRefs,
-  [{
-    driveNodeId: 'node-design',
-    driveSpaceId: 'space-project',
-    resourceRole: 'image',
-  }],
-  'queued attachment submission must preserve normalized, deduplicated Drive references.',
+  ),
+  /at most 32 entries/u,
+  'the client projection must enforce the same bounded Session capacity as the API.',
 );
 assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-too-many-drive-refs',
-    'Review many files',
-    undefined,
-    {
-      driveRefs: Array.from({ length: 65 }, (_, index) => ({
-        driveNodeId: `node-${index}`,
-        driveSpaceId: 'space-project',
-        resourceRole: 'attachment' as const,
-      })),
-    },
-  ),
-  /at most 64 Drive references/u,
-  'queued attachment submission must enforce the authoritative Drive reference count.',
-);
-
-clearWorkbenchAgentTurnInputQueueMemory();
-assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-oversized',
-    'x'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS + 1),
-  ),
-  /1048576 characters or fewer/u,
-  'a queued turn must reject payloads above the authoritative Agent Turn limit.',
-);
-
-for (let index = 0; index < MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE; index += 1) {
-  enqueueWorkbenchQueuedAgentTurnInput('project-a/session-count-bound', `message-${index}`);
-}
-assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-count-bound',
-    'one-too-many',
-  ),
-  /at most 32 messages/u,
-  'a session queue must reject entries beyond its bounded FIFO capacity.',
-);
-
-clearWorkbenchAgentTurnInputQueueMemory();
-const maximumQueuedTurnText = 'x'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS);
-for (let index = 0; index < 4; index += 1) {
-  enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-content-bound',
-    maximumQueuedTurnText,
-  );
-}
-assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-content-bound',
-    'exceeds-retained-budget',
-  ),
-  /in-memory content budget/u,
-  'a session queue must account for all retained payload text instead of only its item count.',
-);
-
-clearWorkbenchAgentTurnInputQueueMemory();
-for (let scopeIndex = 0; scopeIndex < 4; scopeIndex += 1) {
-  for (let inputIndex = 0; inputIndex < 4; inputIndex += 1) {
-    enqueueWorkbenchQueuedAgentTurnInput(
-      `project-a/session-global-content-${scopeIndex}`,
-      maximumQueuedTurnText,
-    );
-  }
-}
-assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    'project-a/session-global-content-overflow',
-    'exceeds-global-budget',
-  ),
-  /global in-memory content budget/u,
-  'queued messages must enforce a global retained-character budget across session scopes.',
+  () => setWorkbenchQueuedAgentTurnInputs(sessionId, [
+    createQueueEntry('queue-entry.memory-budget', { content: 'x'.repeat(4 * 1_048_576 + 1) }),
+  ]),
+  /Session memory budget/u,
+  'untrusted remote projection content must not exceed the per-Session memory budget.',
 );
 
 clearWorkbenchAgentTurnInputQueueMemory();
 for (let index = 0; index < MAX_QUEUED_AGENT_TURN_INPUT_SCOPES; index += 1) {
-  enqueueWorkbenchQueuedAgentTurnInput(`project-a/session-scope-${index}`, 'queued');
-}
-assert.throws(
-  () => enqueueWorkbenchQueuedAgentTurnInput(
-    `project-a/session-scope-${MAX_QUEUED_AGENT_TURN_INPUT_SCOPES}`,
-    'one-scope-too-many',
-  ),
-  /at most 32 session scopes/u,
-  'queued messages must not accumulate across an unbounded number of abandoned sessions.',
-);
-
-clearWorkbenchAgentTurnInputQueueMemory();
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-scope-0'),
-  [],
-  'global queue clearing must release every authenticated session scope.',
-);
-enqueueWorkbenchQueuedAgentTurnInput('project-a/session-after-clear', 'usable');
-assert.deepEqual(
-  peekWorkbenchQueuedAgentTurnInputs('project-a/session-after-clear').map((input) => input.text),
-  ['usable'],
-  'queue storage must remain usable after an authenticated-memory clear.',
-);
-
-clearWorkbenchChatInputDraftMemory();
-for (let index = 0; index < 5; index += 1) {
-  setWorkbenchChatInputDraft(
-    `project-a/draft-session-${index}`,
-    `${index}${'d'.repeat(MAX_AGENT_TURN_INPUT_CHARACTERS - 1)}`,
+  setWorkbenchQueuedAgentTurnInputs(
+    `session.scope-${index}`,
+    [createQueueEntry(`queue-entry.scope-${index}`, { sessionId: `session.scope-${index}` })],
   );
 }
-assert.equal(
-  peekWorkbenchChatInputDraft('project-a/draft-session-0'),
-  '',
-  'draft memory must evict the oldest inactive scope when its global character budget is reached.',
+assert.throws(
+  () => setWorkbenchQueuedAgentTurnInputs(
+    'session.scope-overflow',
+    [createQueueEntry('queue-entry.scope-overflow', { sessionId: 'session.scope-overflow' })],
+  ),
+  /at most 32 Session scopes/u,
+  'the process projection must remain bounded when many Session tabs are opened.',
 );
-assert.equal(
-  peekWorkbenchChatInputDraft('project-a/draft-session-4').length,
-  MAX_AGENT_TURN_INPUT_CHARACTERS,
-  'draft memory pruning must preserve the newest active-session candidate.',
-);
-clearWorkbenchChatInputDraftMemory();
-assert.equal(
-  peekWorkbenchChatInputDraft('project-a/draft-session-4'),
-  '',
-  'authenticated-memory clearing must release every retained draft.',
-);
-
-let flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: false,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  true,
-  'queued flush gate must allow flushing while the active composer is idle and no post-dispatch turn is pending.',
-);
-
-flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, false);
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: false,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  false,
-  'queued flush gate must block the next queued dispatch immediately after turn creation even before runtimeStatus renders busy.',
-);
-
-flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, true);
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: true,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  false,
-  'queued flush gate must keep blocking while the engine is streaming.',
-);
-
-flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, false);
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: false,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  true,
-  'queued flush gate must reopen only after a busy-to-idle runtime transition is observed.',
-);
-
-flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
-flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, true);
-flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, false);
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: false,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  true,
-  'queued flush gate must reopen after the local dispatch busy state settles even when provider runtime busy was never observed.',
-);
-
-flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
-flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, false);
-flushGateState = settleWorkbenchQueuedAgentTurnDispatch(flushGateState);
-assert.equal(
-  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
-    disabled: false,
-    editingQueueIndex: -1,
-    isActive: true,
-    isComposerBusy: false,
-    isQueueExpanded: false,
-    queueLength: 1,
-  }),
-  true,
-  'queued flush gate must have an explicit settle path so a batched submission that never renders busy cannot leave turn settlement stuck forever.',
-);
-
-assert.match(
-  commonsIndexSource,
-  /export \* from '\.\/chat\/agentTurnInputQueueStore\.ts';/,
-  'Workbench must export the canonical AgentTurnInput queue store.',
-);
+clearWorkbenchAgentTurnInputQueueMemory();
 
 assert.doesNotMatch(
-  universalChatSource,
-  /const \[agentTurnInputQueue,\s*setAgentTurnInputQueue\] = useState<string\[\]>\(\[\]\);/,
-  'UniversalChat must not keep queued turn inputs in component-local state because queues must survive rerenders and stay isolated by session scope.',
+  queueProjectionSource,
+  /localStorage|sessionStorage|indexedDB/u,
+  'the browser projection must not become a second persistence authority.',
 );
-
-assert.match(
-  universalChatSource,
-  /useWorkbenchAgentTurnInputQueue\(normalizedQueueScopeKey\)/,
-  'UniversalChat must bind queued turn inputs to the canonical session-scoped queue store.',
-);
-
-assert.match(
-  universalChatSource,
-  /dequeueQueuedTurnInput\(\)/,
-  'UniversalChat must atomically dequeue one queued turn input when it starts an automatic dispatch.',
-);
-
-assert.match(
-  universalChatSource,
-  /void dispatchQueuedAgentTurnInput\(nextQueuedAgentTurnInput\);/,
-  'UniversalChat must automatically flush the next queued turn input when the active session becomes idle.',
-);
-
-assert.match(
-  markQueuedTurnDispatchStartedSource,
-  /isDispatchingMessageRef\.current/,
-  'UniversalChat must close the queued-turn-input flush gate using the local dispatch busy state as well as provider runtime busy so queues cannot deadlock when provider busy is not observed.',
-);
-
-assert.match(
-  markQueuedTurnDispatchStartedSource,
-  /markWorkbenchQueuedAgentTurnDispatchStarted\([\s\S]*isTurnDispatchBusy[\s\S]*\)/,
-  'UniversalChat must pass the resolved dispatch busy signal into the queued-turn-input flush gate.',
-);
-
-assert.match(
-  busyObserverEffectSource,
-  /observeWorkbenchQueuedAgentTurnBusyState\([\s\S]*isComposerTurnBlocked[\s\S]*\)/,
-  'UniversalChat must observe full turn-blocked transitions before allowing the next queued turn to flush.',
-);
-
-assert.match(
-  universalChatSource,
-  /settleWorkbenchQueuedAgentTurnDispatch/,
-  'UniversalChat must use an explicit queued-turn settlement path for sends that complete before React renders a busy transition.',
-);
-
-assert.match(
-  submitPendingUserQuestionAnswerSource,
-  /await Promise\.resolve\(onSubmitUserQuestionAnswer\(interactionId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
-  'Submitting a pending user-question answer must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
-);
-
-assert.match(
-  submitPendingApprovalDecisionSource,
-  /await Promise\.resolve\(onSubmitApprovalDecision\(interactionId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
-  'Submitting a pending approval decision must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
-);
-
-assert.match(
-  universalChatSource,
-  /canFlushWorkbenchQueuedAgentTurnInputs\(/,
-  'UniversalChat must use the canonical flush-gate predicate instead of ad hoc queue flushing conditions.',
-);
-
 assert.doesNotMatch(
-  universalChatSource,
-  /const fullText = \[\.\.\.agentTurnInputQueue,\s*currentInput\]\.filter\(Boolean\)\.join\('\\n\\n'\);/,
-  'UniversalChat must not collapse multiple queued turn inputs and the current draft into one turn.',
+  queueProjectionSource,
+  /enqueueWorkbenchQueuedAgentTurnInput|dequeueWorkbenchQueuedAgentTurnInput|restoreWorkbenchQueuedAgentTurnInputsToFront/u,
+  'removed memory-owned enqueue, dequeue, and restoration APIs must stay removed.',
+);
+assert.match(
+  workbenchIndexSource,
+  /export \* from '\.\/chat\/agentTurnInputQueueStore\.ts';[\s\S]*export \* from '\.\/hooks\/useAgentTurnInputQueue\.ts';/u,
+  'the queue controller and projection must be exposed through the Workbench package boundary.',
 );
 
+assert.match(
+  queueHookSource,
+  /listTurnInputQueueEntries\([\s\S]*replaceQueuedTurnInputProjection\(page\.items\)[\s\S]*setHydratedIdentityKey/u,
+  'mount and restart recovery must hydrate the queue from the authoritative service before processing.',
+);
+assert.match(
+  queueHookSource,
+  /generationRef\.current \+= 1;[\s\S]*controller\.abort\(\)/u,
+  'Session identity changes must invalidate and abort stale hydration work.',
+);
+assert.match(
+  queueHookSource,
+  /generation !== generationRef\.current/gmu,
+  'stale processing generations must be fenced from a newly selected Session.',
+);
+assert.match(
+  queueHookSource,
+  /claimNextTurnInputQueueEntry\([\s\S]*claimOwner: claimOwnerRef\.current[\s\S]*leaseSeconds: QUEUE_CLAIM_LEASE_SECONDS/u,
+  'each window must compete through an atomic server claim with a bounded lease.',
+);
+assert.match(
+  queueHookSource,
+  /claim\.outcome === 'blocked'[\s\S]*claim\.outcome === 'busy' \|\| claim\.outcome === 'active_turn'/u,
+  'failed heads and authoritative active Turns must block unsafe queue advancement.',
+);
+assert.match(
+  queueHookSource,
+  /dispatchOutcome === 'rejected'[\s\S]*failTurnInputQueueEntry\([\s\S]*claimToken: claim\.claimToken[\s\S]*fencingToken: claim\.entry\.fencingToken/u,
+  'rejected delivery must transition through the server using claim and fencing tokens.',
+);
+assert.match(
+  queueHookSource,
+  /dispatchOutcome === 'accepted_uncertain'[\s\S]*scheduleReconciliation\(\)/u,
+  'uncertain acceptance must reconcile instead of duplicating a possibly accepted Turn.',
+);
+assert.match(
+  queueHookSource,
+  /QUEUE_PROCESSING_ITERATION_LIMIT = 34[\s\S]*for \(let iteration = 0; iteration < QUEUE_PROCESSING_ITERATION_LIMIT/u,
+  'queue draining must be bounded per processing pass to protect the UI thread and service.',
+);
+assert.match(
+  queueHookSource,
+  /BroadcastChannel\(QUEUE_BROADCAST_CHANNEL\)[\s\S]*event\.data\.sourceId !== sourceIdRef\.current[\s\S]*void hydrate\(\)/u,
+  'other application windows must refresh their disposable projection after mutations.',
+);
+assert.match(
+  queueHookSource,
+  /addEventListener\('focus', refresh\)[\s\S]*addEventListener\('online', refresh\)[\s\S]*addEventListener\('visibilitychange', refreshWhenVisible\)/u,
+  'focus, reconnect, and visibility recovery must converge on server state.',
+);
+assert.match(
+  queueHookSource,
+  /if \(mutationRef\.current\)[\s\S]*mutation is already in progress/u,
+  'overlapping user mutations must be rejected instead of racing optimistic versions.',
+);
+for (const operation of [
+  'createTurnInputQueueEntry',
+  'clearTurnInputQueueEntries',
+  'reorderTurnInputQueueEntries',
+  'updateTurnInputQueueEntry',
+  'removeTurnInputQueueEntry',
+  'retryTurnInputQueueEntry',
+] as const) {
+  assert.match(queueHookSource, new RegExp(`agentSessionService\\.${operation}\\(`, 'u'));
+}
+
+assert.match(
+  sessionServiceSource,
+  /this\.client\.ai\.agents\.turnInputQueueEntries\.list\(/u,
+  'the infrastructure adapter must consume the generated Agents App SDK queue family.',
+);
+for (const generatedMethod of [
+  'create',
+  'clear',
+  'reorder',
+  'claimNext',
+  'update',
+  'delete',
+  'fail',
+  'retry',
+] as const) {
+  assert.match(
+    sessionServiceSource,
+    new RegExp(`this\\.client\\.ai\\.agents\\.turnInputQueueEntries\\.${generatedMethod}\\(`, 'u'),
+    `the ${generatedMethod} queue operation must remain on the generated SDK family.`,
+  );
+}
 assert.doesNotMatch(
-  universalChatSource,
-  /agentTurnInputQueue\.map\(\(msg, idx\)[\s\S]*key=\{idx\}/,
-  'UniversalChat must not render queued turn inputs with array-index keys because recovery/reorder operations require stable queue item identity.',
+  sessionServiceSource.slice(
+    sessionServiceSource.indexOf('async listTurnInputQueueEntries('),
+    sessionServiceSource.indexOf('async submitTurn('),
+  ),
+  /fetch\(|axios\.|Authorization|Access-Token/u,
+  'queue integration must not bypass the generated SDK with raw transport or manual auth.',
 );
 
 assert.match(
   universalChatSource,
-  /agentTurnInputQueue\.map\(\(queuedAgentTurnInput, idx\)[\s\S]*key=\{queuedAgentTurnInput\.id\}/,
-  'UniversalChat must render queued turn inputs with the canonical turn-input identity.',
-);
-
-assert.match(
-  universalChatSource,
-  /\(\(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \? canQueueTypedMessage : canSendQueuedOrTypedMessage\)/,
-  'UniversalChat send button must allow typed turn input to enter the queue while the active turn is blocked.',
-);
-
-assert.match(
-  universalChatHandleSendSource,
-  /canFlushQueuedAgentTurnInputFromUserAction\s*=\s*canFlushWorkbenchQueuedAgentTurnInputs\(\s*queuedTurnFlushGateRef\.current,\s*\{[\s\S]*queueLength:\s*agentTurnInputQueue\.length,[\s\S]*\}\s*,?\s*\)/,
-  'Manual submit actions must evaluate the same queued-turn-input flush gate as automatic flushes before dispatching a queued turn.',
-);
-
-assert.match(
-  universalChatHandleSendSource,
-  /if \(!canFlushQueuedAgentTurnInputFromUserAction\) \{\s*return;\s*\}[\s\S]*const nextQueuedAgentTurnInput = dequeueQueuedTurnInput\(\);/,
-  'Manual submit actions must not dequeue queued turn inputs while the post-dispatch turn-settlement gate is closed.',
-);
-
-assert.match(
-  universalChatHandleSendSource,
-  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedTurnInput\(currentSubmission,\s*currentComposerSelection,\s*queuePresentation\);/,
-  'Manual typed sends must enter the queue with the current composer selection while a just-created turn is waiting for runtime busy observation.',
-);
-
-assert.match(
-  universalChatSource,
-  /const isAwaitingQueuedTurnSettlement =\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement;[\s\S]*const canSubmitPendingUserQuestionAnswer/s,
-  'UniversalChat composer affordances must read the queued-turn settlement gate before deriving send/queue button state.',
-);
-
-assert.match(
-  universalChatSource,
-  /const canQueueTypedMessage =[\s\S]*\(isBusy \|\| isAwaitingQueuedTurnSettlement\)[\s\S]*!hasPendingUserQuestionReplyTarget[\s\S]*hasComposerSubmissionContent[\s\S]*!isComposerAttachmentSubmissionBlocked;/,
-  'UniversalChat must show queue affordances while a just-created turn is awaiting runtime busy observation, even if runtimeStatus has not rendered busy yet.',
-);
-
-assert.match(
-  universalChatSource,
-  /\(\(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \? canQueueTypedMessage : canSendQueuedOrTypedMessage\)/,
-  'UniversalChat send button enablement must use the same post-dispatch settlement gate as handleSend so the button does not advertise direct send while clicks will enqueue.',
-);
-
-assert.match(
-  universalChatSource,
-  /setInputValue\(\(previousInputValue\) =>\s*resolveComposerInputAfterSendFailure\(submittedDisplayTextSnapshot,\s*previousInputValue\),?\s*\)/,
-  'Manual send failure recovery must restore only visible draft text without leaking attachment payloads into the textarea.',
-);
-
-assert.match(
-  universalChatSource,
-  /catch \(error\) \{[\s\S]*restoreQueuedTurnInputsToFront\(\[submittedAgentTurnInput\]\);[\s\S]*t\('chat\.sendMessageFailed'\)/,
-  'Queued auto-flush failure recovery must restore the dispatched queued turn input to the front of the queue.',
-);
-
-assert.match(
-  universalChatSource,
-  /maxLength=\{hasPendingUserQuestionReplyTarget[\s\S]*MAX_AGENT_INTERACTION_ANSWER_CHARACTERS[\s\S]*MAX_AGENT_TURN_INPUT_CHARACTERS\}/u,
-  'the shared composer must apply the narrower Interaction answer limit while replying to a question.',
-);
-assert.match(
-  universalChatHandleSendSource,
-  /currentSubmission\.length > MAX_AGENT_TURN_INPUT_CHARACTERS[\s\S]*chat\.messageTooLong/u,
-  'the composer must reject combined text and attachment payloads above the Agent Turn limit.',
-);
-assert.match(
-  universalChatHandleSendSource,
-  /try \{[\s\S]*enqueueQueuedTurnInput\([\s\S]*catch \(error\)[\s\S]*chat\.messageQueueFull/u,
-  'queue memory-budget failures must become visible feedback instead of unhandled event errors.',
-);
-assert.match(
-  universalChatHandleSendSource,
-  /driveRefs = readyAttachments\.flatMap[\s\S]*driveRefs\.length > 0 \? \{ driveRefs \} : undefined/u,
-  'direct attachment turns must submit canonical Drive references separately from display content.',
+  /const shouldQueueComposerSubmission =\s*isComposerTurnBlocked \|\| agentTurnInputQueue\.length > 0;/u,
+  'typed input must queue while a Turn is active or an earlier queue entry still owns FIFO priority.',
 );
 assert.match(
   universalChatSource,
-  /submittedAgentTurnInput\.driveRefs\?\.length[\s\S]*\{ driveRefs: submittedAgentTurnInput\.driveRefs \}/u,
-  'queued attachment turns must retain their Drive references through deferred dispatch.',
+  /if \(shouldQueueComposerSubmission\)[\s\S]*await enqueueAgentTurnInput\(\{[\s\S]*clearInputValue\(\);[\s\S]*clearComposerAttachments\(\);/u,
+  'the composer must clear visible input only after the durable create operation succeeds.',
 );
+for (const queueAction of [
+  'clearAgentTurnInputQueue',
+  'updateAgentTurnInput',
+  'reorderAgentTurnInputs',
+  'retryAgentTurnInput',
+  'removeAgentTurnInput',
+] as const) {
+  assert.match(
+    universalChatSource,
+    new RegExp(`${queueAction}\\(`, 'u'),
+    `UnifiedChat must expose the ${queueAction} lifecycle action.`,
+  );
+}
 assert.match(
   universalChatSource,
-  /submittedAgentTurnInput\.composerSelection \?\? currentComposerSelection/u,
-  'queued turns must dispatch their snapshotted engine, model, and access mode selection.',
+  /queuedAgentTurnInput\.status === 'executing'[\s\S]*removeAgentTurnInput\(queuedAgentTurnInput\)/u,
+  'executing entries must keep destructive removal disabled while queued and failed entries remain removable.',
 );
-assert.match(
-  pendingInteractionsSource,
-  /maxLength=\{MAX_AGENT_INTERACTION_ANSWER_CHARACTERS\}/u,
-  'pending Interaction answer drafts must be bounded in component state.',
-);
-assert.match(
-  pendingInteractionsSource,
-  /maxLength=\{MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS\}/u,
-  'pending approval reason drafts must be bounded in component state.',
-);
+
 assert.match(
   authContextSource,
-  /function clearAuthenticatedConversationMemory\(\): void \{[\s\S]*clearWorkbenchAgentTurnInputQueueMemory\(\);[\s\S]*clearWorkbenchChatInputDraftMemory\(\);[\s\S]*clearChatPresentationMemory\(\);[\s\S]*\}/u,
-  'authenticated conversation queues, drafts, and recall must share one local-memory cleanup boundary.',
+  /function clearAuthenticatedConversationMemory\(\): void \{[\s\S]*clearWorkbenchAgentTurnInputQueueMemory\(\);/u,
+  'logout must clear the user-scoped in-memory projection.',
 );
 assert.match(
   authContextSource,
   /const logout = useCallback\(async \(\) => \{[\s\S]*try \{[\s\S]*await authService\.logout\(\);[\s\S]*\} finally \{[\s\S]*clearAuthenticatedConversationMemory\(\);/u,
-  'logout must clear user-scoped conversation memory even when the remote logout request fails.',
+  'projection cleanup must run even when remote logout fails.',
+);
+assert.doesNotMatch(
+  authContextSource,
+  /clearTurnInputQueueEntries/u,
+  'logout must never delete the durable server queue that is required after application restart.',
 );
 
 console.log('agent turn input queue contract passed.');

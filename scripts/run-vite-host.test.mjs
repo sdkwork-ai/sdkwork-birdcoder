@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   applyViteHostBuildRuntimeEnv,
   createViteHostPlan,
+  forwardViteHostTerminationSignal,
   normalizeViteMode,
   resolveInstalledVitePackageRoot,
   resolveWorkspaceRootDir,
@@ -16,6 +17,27 @@ import {
   stripModeArg,
   stripProfileArgs,
 } from './run-vite-host.mjs';
+
+const forwardedSignals = [];
+const activeViteChild = {
+  exitCode: null,
+  killed: false,
+  signalCode: null,
+  kill(signal) {
+    forwardedSignals.push(signal);
+    return true;
+  },
+};
+assert.equal(forwardViteHostTerminationSignal(activeViteChild, 'SIGTERM'), true);
+assert.deepEqual(forwardedSignals, ['SIGTERM']);
+assert.equal(
+  forwardViteHostTerminationSignal({ ...activeViteChild, killed: true }, 'SIGTERM'),
+  false,
+);
+assert.equal(
+  forwardViteHostTerminationSignal({ ...activeViteChild, exitCode: 0 }, 'SIGTERM'),
+  false,
+);
 
 assert.equal(normalizeViteMode('dev'), 'development');
 assert.equal(normalizeViteMode('Production'), 'production');

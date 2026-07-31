@@ -48,7 +48,13 @@ Messages. The exact UI boundary is
   System read permissions.
 - [`topology.spec.json`](topology.spec.json) declares runtime topology.
 - [`agents-birdcoder-alignment.spec.json`](agents-birdcoder-alignment.spec.json)
-  records canonical Agents integration.
+  records canonical Agents integration and enforces the Session-only naming
+  boundary across BirdCoder production source. Provider-native Thread aliases
+  require an explicit adapter allowlist and must normalize to `providerSessionId`.
+- [`codex-desktop-parity.spec.json`](codex-desktop-parity.spec.json)
+  records the versioned Codex desktop reference artifact, capability-by-capability
+  parity state, canonical Session mapping, verification evidence, and contract
+  blockers.
 - [`kernel-birdcoder-alignment.spec.json`](kernel-birdcoder-alignment.spec.json)
   enforces `BirdCoder -> Agents -> Kernel`.
 - [`hybrid-execution-commercial-readiness.spec.json`](hybrid-execution-commercial-readiness.spec.json)

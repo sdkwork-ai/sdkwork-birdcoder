@@ -1,0 +1,1023 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.codex-desktop-parity",
+  "updatedAt": "2026-07-31",
+  "goalStatus": "active",
+  "summary": "BirdCoder incrementally aligns the current Codex desktop coding workbench while preserving SDKWork canonical Session semantics and generated SDK ownership.",
+  "completionPolicy": {
+    "requiredCapabilityStatus": "aligned-and-verified",
+    "requireNoOpenBlockers": true,
+    "requireRealProviderE2E": true,
+    "requireDesktopAndNarrowVisualRegression": true,
+    "requirePerPresentationFixtureEvidence": true,
+    "prohibitSingleFeatureCompletion": true
+  },
+  "reference": {
+    "application": "OpenAI Codex",
+    "packageFamilyName": "OpenAI.Codex",
+    "build": "26.721.11231.0",
+    "rendererPackageVersion": "26.721.81911",
+    "platform": "windows-x64",
+    "runtime": "electron",
+    "providerRuntime": {
+      "version": "0.146.0-alpha.3.1",
+      "executablePath": "app/resources/codex.exe",
+      "executableSha256": "39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3"
+    },
+    "browserRuntime": {
+      "nodeVersion": "24.14.0",
+      "cuaManifestPath": "app/resources/cua_node/manifest.json",
+      "cuaManifestSha256": "e8f2e647ccf0f5627ee2f9beda1f7ab5daac9dd716470132e167bb0c414e63e0",
+      "pluginVersion": "26.721.81911",
+      "pluginManifestPath": "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
+      "pluginManifestSha256": "7066eec3cfc42e9990b471509ab3c1c7d1eaedcec550491e71a1d3962151acca"
+    },
+    "protocolSource": {
+      "commit": "a05bcda3dbd68729caa2f11027b7f43974fda298",
+      "threadItemSchemaPath": "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts",
+      "threadItemSchemaSha256": "57190566ac2ec5a64a595ecfb80fb8fe6900f29136d77944097e7b6a6f3acd38"
+    },
+    "artifacts": [
+      {
+        "path": "app/resources/app.asar",
+        "sha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
+        "sizeBytes": 209375503
+      },
+      {
+        "path": "AppxManifest.xml",
+        "sha256": "dca0d6940c2da5249569ce0bc241078aebbe1d79d3277f14d3b8c7afbe819f97",
+        "sizeBytes": 3759
+      },
+      {
+        "path": "app/resources/app.asar::package.json",
+        "sha256": "fb2f8c6862f5bbe220a157795177b2ffdcb29cb9ba96d39346f9b807f28393dc",
+        "sizeBytes": 5536
+      },
+      {
+        "path": "app/resources/codex.exe",
+        "sha256": "39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3",
+        "sizeBytes": 353628464
+      },
+      {
+        "path": "app/resources/owl-electron-app.json",
+        "runtimeArchiveSha256": "67a92588efe976b08220a9c1a2436f03178aa5eb64d43ed29dac034b0a47477a"
+      },
+      {
+        "path": "app/resources/cua_node/manifest.json",
+        "sha256": "e8f2e647ccf0f5627ee2f9beda1f7ab5daac9dd716470132e167bb0c414e63e0",
+        "sizeBytes": 538
+      },
+      {
+        "path": "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
+        "sha256": "7066eec3cfc42e9990b471509ab3c1c7d1eaedcec550491e71a1d3962151acca",
+        "sizeBytes": 2193
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/automations-page-CNlcT7yo.js",
+        "sha256": "3bdf115c9fc72298d04510177a343ba8c6b3436a3f77f71abe5baf6c443affe7",
+        "sizeBytes": 84851
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js",
+        "sha256": "dd35124bd1dc1d64f9206b5a5946175f2795ca88c7c9237c03b390bf11020839",
+        "sizeBytes": 651835
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js",
+        "sha256": "c3b75cff167c750a2e22f531996fdb3e3ca7db593ec0a209903d5307c12d63e8",
+        "sizeBytes": 92415
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/remote-connections-settings-DwcGEEux.js",
+        "sha256": "30780436d7f6f0238b709a2fb85503a9ed4ea453dd6a83846412f82e7bcab2b7",
+        "sizeBytes": 158510
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/remote-conversation-page-DebkGSyJ.js",
+        "sha256": "f3028786d1acead0b2622b97f8499b10044e639fa59fd79f5b560881d3e2658b",
+        "sizeBytes": 66842
+      }
+    ],
+    "installationVerification": {
+      "status": "verified",
+      "verifiedAt": "2026-07-31",
+      "packageFullName": "OpenAI.Codex_26.721.11231.0_x64__2p2nqsd0c76g0",
+      "packageVersion": "26.721.11231.0",
+      "artifactPath": "app/resources/app.asar",
+      "artifactSha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
+      "artifactSizeBytes": 209375503
+    },
+    "evidencePolicy": "Record hashes, paths, protocol shapes, observable behavior, and independently authored mappings. Do not copy proprietary bundle source into BirdCoder."
+  },
+  "terminology": {
+    "canonicalContinuationResource": "Session",
+    "canonicalProviderIdentityField": "providerSessionId",
+    "providerProtocolResource": "thread",
+    "providerBoundary": "Codex thread fields are accepted only by the Codex provider adapter or exact raw protocol fixtures and are converted to Session before entering BirdCoder.",
+    "forbiddenBirdCoderDomainResource": "Thread"
+  },
+  "presentationEvidence": {
+    "rawProviderUnion": {
+      "name": "ThreadItem",
+      "sourcePath": "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts",
+      "expectedVariantCount": 18,
+      "boundary": "The raw Codex type name is evidence at the provider boundary only; every fixture must assert canonical Session output."
+    },
+    "desktopRenderer": {
+      "referenceBuild": "26.721.11231.0",
+      "archiveEntry": "webview/assets/app-initial-CHAIly1j.js",
+      "archiveEntryRawLineCount": 9558,
+      "itemMappingLines": {
+        "start": 185739,
+        "end": 186174,
+        "coordinateSystem": "formatter-output"
+      },
+      "visibilityPredicate": {
+        "symbol": "Jqn",
+        "start": 186424,
+        "end": 186489,
+        "coordinateSystem": "formatter-output",
+        "rawLine": 772,
+        "entryByteOffset": 3348317,
+        "archiveByteOffset": 27457094
+      },
+      "rawArchiveEvidence": {
+        "composerStop": {
+          "rawLine": 8804,
+          "entryByteOffset": 9544717
+        },
+        "composerSend": {
+          "rawLine": 8804,
+          "entryByteOffset": 9544942
+        },
+        "approvalAllowOnce": {
+          "rawLine": 8817,
+          "entryByteOffset": 10126264
+        },
+        "approvalDeny": {
+          "rawLine": 8817,
+          "entryByteOffset": 10126520
+        },
+        "approvalAlwaysAllow": {
+          "rawLine": 8817,
+          "entryByteOffset": 10127683
+        },
+        "toggleSidebar": {
+          "rawLine": 920,
+          "entryByteOffset": 4044424
+        }
+      },
+      "responsiveStylesheet": {
+        "archiveEntry": "webview/assets/app-BSNLQ2Yt.css",
+        "observedMediaQueryWidths": [
+          1024,
+          720,
+          680,
+          640,
+          540,
+          440,
+          420,
+          400,
+          280,
+          260,
+          220
+        ]
+      }
+    },
+    "fixtureContract": {
+      "path": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderItemRouting.test.ts",
+      "syntheticPath": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts",
+      "syntheticCoverageStatus": "partial",
+      "requireIndependentlyAuthoredInput": true,
+      "requireRawProviderShape": true,
+      "requireCanonicalSessionOutput": true,
+      "requireDesktopVisibilityAssertion": true
+    },
+    "visibilityCatalog": [
+      "visible",
+      "conditional",
+      "hidden"
+    ],
+    "providerItems": [
+      {
+        "rawType": "userMessage",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when normalized text or attachments produce a visible user item.",
+        "canonicalPresentation": "user content and resources",
+        "fixtureKey": "codex-provider-item-user-message"
+      },
+      {
+        "rawType": "hookPrompt",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when at least one fragment contains non-empty trimmed text.",
+        "canonicalPresentation": "hook feedback user content",
+        "fixtureKey": "codex-provider-item-hook-prompt"
+      },
+      {
+        "rawType": "agentMessage",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render as assistant Markdown after message cleanup and streaming reconciliation.",
+        "canonicalPresentation": "assistant Markdown",
+        "fixtureKey": "codex-provider-item-agent-message"
+      },
+      {
+        "rawType": "plan",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render durable plan text separately from replaceable plan progress.",
+        "canonicalPresentation": "assistant plan",
+        "fixtureKey": "codex-provider-item-plan"
+      },
+      {
+        "rawType": "reasoning",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when the normalized reasoning summary is non-empty; raw content alone does not create a row.",
+        "canonicalPresentation": "collapsible reasoning summary",
+        "fixtureKey": "codex-provider-item-reasoning"
+      },
+      {
+        "rawType": "commandExecution",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render parsed command actions, status, bounded output, exit code, working directory, and duration.",
+        "canonicalPresentation": "command activity",
+        "fixtureKey": "codex-provider-item-command-execution"
+      },
+      {
+        "rawType": "fileChange",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when changes produce a patch or visualization activity after filtering.",
+        "canonicalPresentation": "file-change activity",
+        "fixtureKey": "codex-provider-item-file-change"
+      },
+      {
+        "rawType": "mcpToolCall",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the MCP invocation and settled success or error result with duration.",
+        "canonicalPresentation": "MCP tool activity",
+        "fixtureKey": "codex-provider-item-mcp-tool-call"
+      },
+      {
+        "rawType": "dynamicToolCall",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Hide classified internal tools; render supported automation updates or non-hidden dynamic tools.",
+        "canonicalPresentation": "dynamic tool activity",
+        "fixtureKey": "codex-provider-item-dynamic-tool-call"
+      },
+      {
+        "rawType": "collabAgentToolCall",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when background sub-agents are enabled and the raw collaboration action is not wait.",
+        "canonicalPresentation": "collaboration activity with Session-named identities",
+        "fixtureKey": "codex-provider-item-collaboration-tool-call"
+      },
+      {
+        "rawType": "subAgentActivity",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when background sub-agents are enabled.",
+        "canonicalPresentation": "sub-agent activity with Session-named identities",
+        "fixtureKey": "codex-provider-item-sub-agent-activity"
+      },
+      {
+        "rawType": "webSearch",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render query, action, and completion state as web-search activity.",
+        "canonicalPresentation": "web-search activity",
+        "fixtureKey": "codex-provider-item-web-search"
+      },
+      {
+        "rawType": "imageView",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render media paths and aggregate consecutive image views until a non-image item appears.",
+        "aggregation": "consecutive",
+        "canonicalPresentation": "grouped image-view media",
+        "fixtureKey": "codex-provider-item-image-view"
+      },
+      {
+        "rawType": "sleep",
+        "desktopVisibility": "hidden",
+        "visibilityRule": "Do not create a transcript row.",
+        "canonicalPresentation": null,
+        "fixtureKey": "codex-provider-item-sleep"
+      },
+      {
+        "rawType": "imageGeneration",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render generated media source and generation status.",
+        "canonicalPresentation": "generated image media",
+        "fixtureKey": "codex-provider-item-image-generation"
+      },
+      {
+        "rawType": "enteredReviewMode",
+        "desktopVisibility": "hidden",
+        "visibilityRule": "Do not create a transcript row.",
+        "canonicalPresentation": null,
+        "fixtureKey": "codex-provider-item-entered-review-mode"
+      },
+      {
+        "rawType": "exitedReviewMode",
+        "desktopVisibility": "hidden",
+        "visibilityRule": "Do not create a transcript row.",
+        "canonicalPresentation": null,
+        "fixtureKey": "codex-provider-item-exited-review-mode"
+      },
+      {
+        "rawType": "contextCompaction",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render a lifecycle marker without encrypted compaction content.",
+        "canonicalPresentation": "context-compaction lifecycle marker",
+        "fixtureKey": "codex-provider-item-context-compaction"
+      }
+    ],
+    "syntheticItems": [
+      {
+        "desktopType": "todo-list",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render the replaceable plan snapshot in the active presentation context.",
+        "canonicalPresentation": "task progress",
+        "fixtureKey": "codex-desktop-synthetic-task-progress",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "planImplementation",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the plan implementation request and completion state.",
+        "canonicalPresentation": "plan implementation interaction",
+        "fixtureKey": "codex-desktop-synthetic-plan-implementation",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "error",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only sanitized retry or user-facing system error evidence.",
+        "canonicalPresentation": "bounded runtime error",
+        "fixtureKey": "codex-desktop-synthetic-error",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "automaticApprovalReview",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render unless automatic approval review rows are explicitly suppressed by presentation options.",
+        "canonicalPresentation": "automatic approval review",
+        "fixtureKey": "codex-desktop-synthetic-automatic-approval-review",
+        "status": "blocked-contract",
+        "blockerId": "CDB-001"
+      },
+      {
+        "desktopType": "autoReviewInterruptionWarning",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the automatic review interruption warning.",
+        "canonicalPresentation": "automatic review interruption warning",
+        "fixtureKey": "codex-desktop-synthetic-auto-review-interruption-warning",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "remoteTaskCreated",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the remote task creation marker.",
+        "canonicalPresentation": "remote task lifecycle marker",
+        "fixtureKey": "codex-desktop-synthetic-remote-task-created",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "personalityChanged",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the personality change marker.",
+        "canonicalPresentation": "personality change marker",
+        "fixtureKey": "codex-desktop-synthetic-personality-changed",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "forkedFromConversation",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render provenance for a provider-side fork without creating a BirdCoder domain fork type.",
+        "canonicalPresentation": "provider continuation provenance",
+        "fixtureKey": "codex-desktop-synthetic-fork-provenance",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "modelChanged",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the selected model change marker.",
+        "canonicalPresentation": "model change marker",
+        "fixtureKey": "codex-desktop-synthetic-model-changed",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "modelRerouted",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render provider model rerouting and its user-facing reason.",
+        "canonicalPresentation": "model reroute marker",
+        "fixtureKey": "codex-desktop-synthetic-model-rerouted",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "userInputResponse",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render stable question IDs with the corresponding answer map and completion state.",
+        "canonicalPresentation": "user-input response",
+        "fixtureKey": "codex-desktop-synthetic-user-input-response",
+        "status": "blocked-contract",
+        "blockerId": "CDB-001"
+      },
+      {
+        "desktopType": "mcpServerElicitation",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render MCP elicitation request, action, and completion state.",
+        "canonicalPresentation": "MCP elicitation interaction",
+        "fixtureKey": "codex-desktop-synthetic-mcp-server-elicitation",
+        "status": "blocked-contract",
+        "blockerId": "CDB-001"
+      },
+      {
+        "desktopType": "permissionRequest",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render requested permissions, reason, response, and completion state without reducing the decision to a boolean.",
+        "canonicalPresentation": "permission interaction",
+        "fixtureKey": "codex-desktop-synthetic-permission-request",
+        "status": "blocked-contract",
+        "blockerId": "CDB-001"
+      },
+      {
+        "desktopType": "worktreeInit",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render worktree initialization progress and outcome.",
+        "canonicalPresentation": "worktree initialization lifecycle",
+        "fixtureKey": "codex-desktop-synthetic-worktree-init",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "steeringUserMessage",
+        "desktopVisibility": "conditional",
+        "visibilityRule": "Render only when the steering input is not hidden and normalizes to visible user content.",
+        "canonicalPresentation": "in-turn user steering content",
+        "fixtureKey": "codex-desktop-synthetic-steering-user-message",
+        "status": "fixture-covered"
+      },
+      {
+        "desktopType": "steered",
+        "desktopVisibility": "visible",
+        "visibilityRule": "Render the accepted steering lifecycle marker.",
+        "canonicalPresentation": "in-turn steering lifecycle marker",
+        "fixtureKey": "codex-desktop-synthetic-steered",
+        "status": "fixture-covered"
+      }
+    ]
+  },
+  "statusCatalog": [
+    "aligned-and-verified",
+    "implemented-needs-provider-e2e",
+    "partial",
+    "pending",
+    "blocked-contract"
+  ],
+  "capabilities": [
+    {
+      "id": "CDP-001",
+      "area": "domain-semantics",
+      "title": "Canonical Session naming and provider continuation mapping",
+      "status": "aligned-and-verified",
+      "evidence": {
+        "paths": [
+          "specs/agents-birdcoder-alignment.spec.json",
+          "scripts/agents-birdcoder-alignment-contract.test.mjs",
+          "docs/providers/codex/README.md",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs"
+        ],
+        "commands": [
+          "pnpm check:agents-birdcoder-alignment"
+        ]
+      }
+    },
+    {
+      "id": "CDP-002",
+      "area": "shell-interaction",
+      "title": "Command menu search, grouping, keyboard navigation, and focus restoration",
+      "status": "aligned-and-verified",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderCommandMenu.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderCommandMenu.test.tsx"
+        ],
+        "commands": [
+          "pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell test -- BirdcoderCommandMenu.test.tsx"
+        ]
+      }
+    },
+    {
+      "id": "CDP-003",
+      "area": "transcript-interaction",
+      "title": "Current Session transcript find with bounded matches and virtual-window navigation",
+      "status": "aligned-and-verified",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/SessionTranscriptFindBar.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/SessionTranscriptFindBar.test.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeTranscriptSessionScope.ts"
+        ],
+        "commands": [
+          "pnpm --dir apps/sdkwork-birdcoder-pc typecheck"
+        ]
+      }
+    },
+    {
+      "id": "CDP-004",
+      "area": "conversation",
+      "title": "Message send, stream delta presentation, authoritative completion reconciliation, and recovery",
+      "status": "blocked-contract",
+      "blockerId": "CDB-005",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentTurnCompletion.test.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentTurnStreamPresentation.test.ts",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-parity.spec.ts"
+        ],
+        "commands": [
+          "pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench test",
+          "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-parity.spec.ts --project=chromium"
+        ]
+      }
+    },
+    {
+      "id": "CDP-005",
+      "area": "conversation",
+      "title": "Stop the active Turn through the generated Agents App SDK",
+      "status": "blocked-contract",
+      "blockerId": "CDB-005",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAgentSessionService.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentTurnCancellation.test.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/SharedComposerFooter.test.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-cancel.spec.ts",
+          "scripts/pc-e2e-mock-api-server.mjs"
+        ],
+        "commands": [
+          "pnpm exec vitest run tests/agentTurnCancellation.test.ts",
+          "pnpm exec vitest run src/components/chat/composer/SharedComposerFooter.test.tsx",
+          "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-cancel.spec.ts --project=chromium"
+        ]
+      }
+    },
+    {
+      "id": "CDP-006",
+      "area": "interaction",
+      "title": "Claimed approval and user-question submission with fencing",
+      "status": "blocked-contract",
+      "blockerId": "CDB-005",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentSessionInteractions.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-interactions.spec.ts",
+          "scripts/pc-e2e-mock-api-server.mjs"
+        ],
+        "commands": [
+          "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
+          "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-interactions.spec.ts --project=chromium"
+        ]
+      }
+    },
+    {
+      "id": "CDP-007",
+      "area": "interaction",
+      "title": "Codex approval scope, policy amendment, permission profile, and strict auto-review decisions",
+      "status": "blocked-contract",
+      "blockerId": "CDB-001",
+      "evidence": {
+        "paths": [
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/CommandExecutionApprovalDecision.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/FileChangeApprovalDecision.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/PermissionsRequestApprovalResponse.ts"
+        ]
+      }
+    },
+    {
+      "id": "CDP-008",
+      "area": "interaction",
+      "title": "Multi-question user input, answer map, options, and automatic resolution",
+      "status": "blocked-contract",
+      "blockerId": "CDB-001",
+      "evidence": {
+        "paths": [
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputResponse.ts"
+        ]
+      }
+    },
+    {
+      "id": "CDP-009",
+      "area": "visual",
+      "title": "Desktop shell, Session sidebar, transcript, composer, tool rows, and interaction cards",
+      "status": "aligned-and-verified",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-desktop-1440x900-chromium-win32.png",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-narrow-900x800-chromium-win32.png",
+          "scripts/run-pc-playwright-e2e.mjs",
+          "scripts/run-pc-playwright-e2e.test.mjs",
+          "scripts/pc-e2e-standard-contract.test.mjs"
+        ],
+        "commands": [
+          "node scripts/run-pc-playwright-e2e.test.mjs",
+          "node scripts/pc-e2e-standard-contract.test.mjs",
+          "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-desktop-visual-parity.spec.ts --project=chromium"
+        ],
+        "browserFailurePolicy": {
+          "consoleErrors": "zero",
+          "failedRequests": "zero"
+        },
+        "comparisonMode": "Independently authored structural and visual review against the pinned Codex bundle; BirdCoder screenshots are regression baselines and do not copy Codex pixels.",
+        "cases": [
+          {
+            "id": "desktop-1440x900",
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "platform": "win32",
+            "browserProject": "chromium",
+            "referenceBuild": "26.721.11231.0",
+            "referenceArtifactSha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
+            "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-desktop-1440x900-chromium-win32.png",
+            "snapshotSha256": "b20a7f6213ebbae2582e57f3d197e50137dc7f4b14397c988e06b88e9a40d8c5",
+            "status": "passed"
+          },
+          {
+            "id": "narrow-900x800",
+            "viewport": {
+              "width": 900,
+              "height": 800
+            },
+            "platform": "win32",
+            "browserProject": "chromium",
+            "referenceBuild": "26.721.11231.0",
+            "referenceArtifactSha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
+            "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-narrow-900x800-chromium-win32.png",
+            "snapshotSha256": "6b651f0fe9d9db3cf6a539d17520ba2a6853e95243a1a4c643a03da74bb212b7",
+            "status": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CDP-010",
+      "area": "verification",
+      "title": "Real Codex provider send, delta, completion, stop, approval, question, and Session recovery E2E",
+      "status": "pending",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/playwright.codex-provider-live.config.ts",
+          "apps/sdkwork-birdcoder-pc/tests/e2e-live/codex-provider-live.spec.ts",
+          "apps/sdkwork-birdcoder-pc/tests/e2e-live/codexProviderLiveHarness.ts",
+          "scripts/run-codex-provider-live-e2e.mjs",
+          "scripts/codex-provider-live-e2e-contract.test.mjs"
+        ],
+        "commands": [
+          "node scripts/codex-provider-live-e2e-contract.test.mjs",
+          "node scripts/run-codex-provider-live-e2e.mjs --preflight-only",
+          "node scripts/run-codex-provider-live-e2e.mjs"
+        ],
+        "pendingReason": "Credentialed live provider E2E is pending because the local Codex provider host is not authenticated.",
+        "contractBlockerIds": [
+          "CDB-001",
+          "CDB-005",
+          "CDB-006"
+        ],
+        "runtimeBlockerReason": "Agents currently buffers provider output until Turn completion, cancellation does not route a canonical Turn to the provider request handle, and Interaction resolution does not continue the Codex app-server request.",
+        "preflight": {
+          "command": "node scripts/run-codex-provider-live-e2e.mjs --preflight-only",
+          "status": "failed-closed",
+          "providerHost": "local",
+          "reason": "The local Codex provider host is not authenticated.",
+          "credentialedCasesRun": 0,
+          "checkedAt": "2026-07-31"
+        }
+      }
+    },
+    {
+      "id": "CDP-011",
+      "area": "transcript-presentation",
+      "title": "Exact provider item visibility and synthetic Session presentation coverage",
+      "status": "partial",
+      "evidence": {
+        "paths": [
+          "specs/codex-desktop-parity.spec.json",
+          "docs/providers/codex/README.md",
+          "scripts/codex-desktop-parity-contract.test.mjs",
+          "scripts/agent-session-item-view-contract.test.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts"
+        ],
+        "commands": [
+          "node scripts/codex-desktop-parity-contract.test.mjs",
+          "node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CDP-012",
+      "area": "automation",
+      "title": "Session-bound Automations create, schedule, run-now, pause, resume, history, notification, cancellation, and recovery",
+      "status": "blocked-contract",
+      "blockerId": "CDB-002",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/WorkModeSidebar.tsx",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts"
+        ],
+        "referenceArtifacts": [
+          "app/resources/app.asar::webview/assets/automations-page-CNlcT7yo.js"
+        ]
+      }
+    },
+    {
+      "id": "CDP-013",
+      "area": "browser-session",
+      "title": "Session-scoped embedded Browser navigation, history, site approval, capture, stop, and isolation",
+      "status": "blocked-contract",
+      "blockerId": "CDB-003",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/BrowserPreviewSurface.tsx"
+        ],
+        "referenceArtifacts": [
+          "app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js",
+          "app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js",
+          "app/resources/cua_node/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "CDP-014",
+      "area": "remote-session",
+      "title": "Remote Connections, authorized devices, SSH hosts, and canonical Session continuation over remote execution",
+      "status": "blocked-contract",
+      "blockerId": "CDB-004",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/src/bootstrap/routes.ts"
+        ],
+        "referenceArtifacts": [
+          "app/resources/app.asar::webview/assets/remote-connections-settings-DwcGEEux.js",
+          "app/resources/app.asar::webview/assets/remote-conversation-page-DebkGSyJ.js"
+        ]
+      }
+    },
+    {
+      "id": "CDP-015",
+      "area": "provider-server-request",
+      "title": "Pinned Codex app-server v2 ServerRequest dispatch, response continuation, and host capability coverage",
+      "status": "blocked-contract",
+      "blockerId": "CDB-006",
+      "evidence": {
+        "paths": [
+          "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/domain.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs"
+        ],
+        "relatedBlockerIds": [
+          "CDB-001",
+          "CDB-005"
+        ]
+      }
+    }
+  ],
+  "blockers": [
+    {
+      "id": "CDB-001",
+      "kind": "public-contract-and-security-review",
+      "owner": "sdkwork-agents",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "The current Agents Interaction contract cannot losslessly represent Codex scoped approval decisions, permission amendments, multi-question answers, or autoResolutionMs.",
+      "evidence": {
+        "paths": [
+          "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/domain.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs"
+        ],
+        "observedProviderRequestMethods": [
+          "item/commandExecution/requestApproval",
+          "item/fileChange/requestApproval",
+          "item/tool/requestUserInput",
+          "mcpServer/elicitation/request",
+          "item/permissions/requestApproval"
+        ],
+        "observedAgentsInteractionKinds": [
+          "approval",
+          "user_question"
+        ]
+      },
+      "requiredContractExtensions": [
+        "typed provider request kind and opaque request correlation identity",
+        "typed approval decision and grant scope",
+        "command execution policy amendment",
+        "network policy amendment",
+        "permission profile and strictAutoReview",
+        "questions array with stable IDs, headers, other and secret flags, options, and multiple answers",
+        "question ID to answer mapping and autoResolutionMs",
+        "MCP elicitation form and URL modes, requested schema, action, structured content, and metadata"
+      ],
+      "prohibitedWorkarounds": [
+        "BirdCoder-local DTO fork",
+        "raw HTTP",
+        "manual generated SDK edit",
+        "mapping scoped approval choices to a boolean without preserving semantics"
+      ]
+    },
+    {
+      "id": "CDB-002",
+      "kind": "owner-openapi-and-generated-sdk-drift",
+      "owner": "sdkwork-agents",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "The generated Agents App SDK task request and operations cannot represent the server-owned canonical Session schedule, execution policy, pause/resume, run history, or notification semantics required by Codex Automations.",
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/specs/openapi/agents-app-api.openapi.yaml",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/openapi/sdkwork-agents-app-api.openapi.yaml",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts"
+        ]
+      },
+      "requiredContractExtensions": [
+        "align the App OpenAPI CreateAgentTaskRequest with the server-owned CreateTaskRequestDto",
+        "preserve canonical sessionId, scheduleKind, timezone, cron and one-time schedule fields",
+        "expose run-now, pause, resume, run-history list, notification policy, cancellation, and recovery operations",
+        "regenerate every affected Agents SDK family from the owner OpenAPI"
+      ],
+      "prohibitedWorkarounds": [
+        "BirdCoder-local task DTO fork",
+        "raw HTTP or manual authorization headers",
+        "manual generated SDK edit",
+        "enabling the Automation navigation item before owner SDK conformance tests pass"
+      ]
+    },
+    {
+      "id": "CDB-003",
+      "kind": "desktop-browser-host-and-security-contract",
+      "owner": "sdkwork-kernel and sdkwork-agents",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "BirdCoder has an iframe preview but no Kernel desktop Browser host, provider Browser Session lifecycle, canonical Session binding, or site-permission contract equivalent to the Codex in-app Browser.",
+      "requiredContractExtensions": [
+        "Kernel desktop Browser host and lifecycle SPI",
+        "Agents canonical Session to Browser Session binding",
+        "site permission and always-ask decisions",
+        "navigation history, capture, stop, recovery, and Session isolation events",
+        "generated SDK and real desktop E2E surfaces"
+      ],
+      "prohibitedWorkarounds": [
+        "treating a sandbox iframe as provider Browser parity",
+        "exposing browser profile or credential storage to BirdCoder UI",
+        "BirdCoder-local provider Browser DTO fork",
+        "claiming Browser parity from mock-only tests"
+      ]
+    },
+    {
+      "id": "CDB-004",
+      "kind": "remote-host-device-authorization-and-session-contract",
+      "owner": "sdkwork-kernel and sdkwork-agents",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "No governed remote-host SPI, authorized-device lifecycle, SSH discovery, or canonical Session continuation contract currently exists for BirdCoder.",
+      "requiredContractExtensions": [
+        "Kernel remote-host and SSH lifecycle SPI",
+        "Agents authorized-device and host contracts",
+        "canonical Session mapping for remote continuation and code changes",
+        "revoke-access, keep-awake, apply, revert, recovery, and audit semantics",
+        "generated SDK and real remote desktop E2E surfaces"
+      ],
+      "prohibitedWorkarounds": [
+        "storing SSH credentials or device secrets in BirdCoder UI state",
+        "exposing Codex thread identity outside the provider adapter",
+        "raw SSH or HTTP integration from React components",
+        "claiming remote Session continuation parity without authorization and recovery tests"
+      ]
+    },
+    {
+      "id": "CDB-005",
+      "kind": "real-time-provider-execution-control-contract",
+      "owner": "sdkwork-agents and sdkwork-kernel",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "The current Agents execution chain buffers Codex output until Turn completion, cannot route canonical Turn cancellation to a provider request handle, and persists Interaction resolution without continuing the provider request.",
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/agent_turn.rs",
+          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs",
+          "../sdkwork-kernel/sdkwork-agent-api-bridge/src/bridge.rs",
+          "../sdkwork-kernel/sdkwork-agent-provider-spi/src/runtime.rs",
+          "../sdkwork-kernel/sdkwork-agent-provider-transport-ipc/src/worker_pool.rs",
+          "../sdkwork-kernel/sdkwork-agent-provider-transport-node/src/worker_runtime.rs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-kernel/external/codex/sdk/typescript/src/exec.ts"
+        ],
+        "observedRuntimeFacts": [
+          "HTTP handlers await service.execute_turn before turn_execution_http_response serializes collected deltas and completion into one Body::from SSE body",
+          "RuntimeFacadeTurnExecutor calls execute_code_engine_turn_with_stream, whose default sink is DiscardingModelStreamSink",
+          "Each Turn bootstraps a local CodeEngineSlot and the active Codex TypeScript SDK path spawns codex exec --experimental-json rather than retaining an app-server connection",
+          "AgentTurnRecord persists no model request id or transport execution handle",
+          "cancel_turn marks the repository record cancelled and writes audit events without invoking Kernel cancellation",
+          "approve_interaction and answer_interaction persist resolution and audit without continuing a provider server request",
+          "Kernel exposes incremental streaming and request-scoped cancellation primitives that are not wired to a persistent Agents execution registry"
+        ]
+      },
+      "requiredContractExtensions": [
+        "Agents begin, stream, and finalize Turn phases backed by an incremental HTTP response body",
+        "server-owned long-lived runtime registry that survives HTTP request boundaries",
+        "persistent execution handle mapping canonical Session and Turn identities to modelRequestId, providerSessionId, providerTurnId, and transport lease",
+        "Kernel long-lived Codex app-server JSON-RPC transport with server-request continuation",
+        "provider cancellation and execution timeout routed from canonical Session and Turn identities before terminal persistence",
+        "provider-confirmed Interaction resolution before canonical terminal persistence",
+        "credentialed real-provider E2E for first delta, cancellation, approval, question, restart, and recovery"
+      ],
+      "prohibitedWorkarounds": [
+        "presenting completion-time SSE replay as live streaming",
+        "presenting database-only cancellation as provider interruption",
+        "persisting Interaction resolution without provider continuation",
+        "BirdCoder direct provider transport or raw HTTP workaround"
+      ]
+    },
+    {
+      "id": "CDB-006",
+      "kind": "kernel-codex-protocol-baseline-drift",
+      "owner": "sdkwork-kernel",
+      "status": "pending-human-review",
+      "humanReviewRequired": true,
+      "summary": "Kernel vendors an older Codex protocol baseline and currently uses an exec-only SDK transport, so it cannot prove complete typed dispatch and continuation for the pinned desktop app-server ServerRequest union.",
+      "evidence": {
+        "paths": [
+          "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-kernel/external/codex/sdk/typescript/src/exec.ts"
+        ],
+        "protocolBaseline": {
+          "referenceCommit": "a05bcda3dbd68729caa2f11027b7f43974fda298",
+          "kernelVendoredCommit": "ad2012d645b7146d31bb03f98e2bd9371635d11a",
+          "referenceCommonSha256": "aef036e55042ba2fa2e310e02595da2af4553d28653217bebda3abbf8ac0cf78",
+          "kernelCommonSha256": "96e3ecd3ee909b5c5b6bdd4c0609d5a20e980accb5820e3f1becfbb797a45a37",
+          "referenceToolRequestUserInputParamsSha256": "e3d55305c4fd4b40084335b8d0278ae910fa8d3f9be64de61d6171648957d41f",
+          "kernelToolRequestUserInputParamsSha256": "f650142eb1dba090483314853e9d4caea200e4fb71d6b2df947f6ec0e2adf657",
+          "confirmedSchemaDrift": "Kernel ToolRequestUserInputParams omits autoResolutionMs from the pinned reference schema."
+        },
+        "serverRequestMethods": [
+          "item/commandExecution/requestApproval",
+          "item/fileChange/requestApproval",
+          "item/tool/requestUserInput",
+          "mcpServer/elicitation/request",
+          "item/permissions/requestApproval",
+          "item/tool/call",
+          "account/chatgptAuthTokens/refresh",
+          "attestation/generate"
+        ]
+      },
+      "requiredContractExtensions": [
+        "align Kernel vendored Codex to the pinned desktop protocol baseline or provide a versioned compatibility adapter with equivalent schema tests",
+        "generate and lock the complete current v2 ServerRequest request and response union",
+        "typed dispatch and response continuation for all eight pinned ServerRequest methods",
+        "canonical Interaction routing for user-mediated requests and secure Kernel host ports for dynamic tools, token refresh, and attestation",
+        "provider thread and turn identities confined to the adapter and mapped to canonical Session execution handles",
+        "contract and credentialed real-provider E2E for every user-mediated and host-mediated request class"
+      ],
+      "prohibitedWorkarounds": [
+        "manual edits to generated Codex protocol schemas",
+        "dropping unknown server requests or fields while claiming compatibility",
+        "treating the exec-only SDK stream as app-server ServerRequest parity",
+        "passing auth tokens or attestation payloads through BirdCoder UI or Agents persistence",
+        "claiming protocol compatibility from version strings without schema and behavior evidence"
+      ]
+    }
+  ],
+  "verification": {
+    "realProviderE2E": "pending",
+    "desktopVisualRegression": "passed",
+    "narrowVisualRegression": "passed",
+    "commands": [
+      "pnpm check:agents-birdcoder-alignment",
+      "node scripts/codex-provider-live-e2e-contract.test.mjs",
+      "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
+      "pnpm lint",
+      "pnpm check:arch",
+      "git diff --check"
+    ]
+  }
+}

@@ -497,6 +497,16 @@ assert.equal(codexSubAgentActivity?.kind, 'agent');
 assert.equal(codexSubAgentActivity?.name, 'subagent_interrupted');
 assert.equal(codexSubAgentActivity?.target, '/root/worker');
 assert.equal(codexSubAgentActivity?.status, 'cancelled');
+assert.deepEqual(JSON.parse(codexSubAgentActivity?.arguments ?? '{}'), {
+  agentPath: '/root/worker',
+  agentSessionId: 'thread-child',
+  kind: 'interrupted',
+});
+assert.doesNotMatch(
+  codexSubAgentActivity?.arguments ?? '',
+  /"[^"]*thread[^"]*"\s*:/iu,
+  'Codex adapter output must use Session naming.',
+);
 
 const codexStartedSubAgentActivity = projectChatMessageToolCall({
   item: {
@@ -662,6 +672,18 @@ assert.equal(codexCollabAgentToolCall?.kind, 'agent');
 assert.equal(codexCollabAgentToolCall?.name, 'spawnAgent');
 assert.equal(codexCollabAgentToolCall?.status, 'running');
 assert.equal(codexCollabAgentToolCall?.title, '1 agent');
+assert.deepEqual(JSON.parse(codexCollabAgentToolCall?.arguments ?? '{}'), {
+  model: 'gpt-5',
+  prompt: 'Audit provider messages',
+  reasoningEffort: 'high',
+  receiverSessionIds: ['thread-child'],
+  senderSessionId: 'thread-root',
+});
+assert.doesNotMatch(
+  codexCollabAgentToolCall?.arguments ?? '',
+  /(?:sender|receiver)Thread/iu,
+  'Collaboration adapter output must use Session naming.',
+);
 
 for (const agentToolName of [
   'send_input',

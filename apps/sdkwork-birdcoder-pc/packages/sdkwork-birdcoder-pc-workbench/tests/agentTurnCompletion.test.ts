@@ -55,6 +55,50 @@ function completionEvent(completion = createTurnCompletion()) {
   };
 }
 
+function runtimeEvent(overrides: {
+  itemId?: string | null;
+  payload?: Record<string, unknown>;
+  providerSessionId?: string | null;
+  sequence?: number;
+  sessionId?: string;
+  turnId?: string;
+} = {}) {
+  const itemId = overrides.itemId === undefined ? 'provider-item.test' : overrides.itemId;
+  const providerSessionId = overrides.providerSessionId === undefined
+    ? 'provider-session.test'
+    : overrides.providerSessionId;
+  return {
+    eventType: 'event',
+    event: {
+      eventId: `event.test.${overrides.sequence ?? 0}`,
+      type: 'agent.message.updated',
+      version: '1.0.0',
+      sequence: overrides.sequence ?? 0,
+      occurredAt: completedAt,
+      source: 'model',
+      severity: 'info',
+      sessionId: overrides.sessionId ?? sessionId,
+      turnId: overrides.turnId ?? 'turn.test',
+      providerSessionId,
+      taskId: null,
+      runId: 'model-request.test',
+      itemId,
+      traceContext: null,
+      correlationId: 'model-request.test',
+      causationId: null,
+      redactionClassification: 'tenant_sensitive',
+      payloadSchema: 'sdkwork.agent.provider_stream_event.v1',
+      payload: overrides.payload ?? {
+        item: itemId ? { id: itemId, text: 'hello', type: 'agent_message' } : null,
+        providerEventType: 'item.updated',
+        providerId: 'codex',
+        sequence: overrides.sequence ?? 0,
+      },
+      replay: false,
+    },
+  };
+}
+
 async function* createEventStream(events: readonly unknown[]) {
   for (const event of events) {
     yield event;
@@ -218,7 +262,7 @@ describe('Agent turn streaming completion contract', () => {
         runtimeBindingId,
         turnMode: 'interactive',
       }),
-      { stream: true },
+      { eventProtocol: 'kernel-v1', stream: true },
       { signal: controller.signal, timeout: 45_000 },
     );
     expect(onDelta).toHaveBeenNthCalledWith(1, {
@@ -232,6 +276,114 @@ describe('Agent turn streaming completion contract', () => {
       index: 1,
     });
     expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts ordered runtime events after validating Session, Turn, and provider item identity', async () => {
+    const completion = createTurnCompletion();
+    const firstEvent = runtimeEvent();
+    const secondEvent = runtimeEvent({
+      itemId: 'provider-command.test',
+      payload: {
+        item: {
+          aggregated_output: 'passed',
+          command: 'pnpm test',
+          id: 'provider-command.test',
+          status: 'completed',
+          type: 'command_execution',
+        },
+        providerEventType: 'item.completed',
+        providerId: 'codex',
+        sequence: 1,
+      },
+      sequence: 1,
+    });
+    const { service } = createService([
+      firstEvent,
+      secondEvent,
+      completionEvent(completion),
+    ]);
+    const onRuntimeEvent = vi.fn();
+    await expect(service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.test',
+    }, { onRuntimeEvent })).resolves.toBe(completion);
+    expect(onRuntimeEvent).toHaveBeenNthCalledWith(1, firstEvent.event);
+    expect(onRuntimeEvent).toHaveBeenNthCalledWith(2, secondEvent.event);
+  });
+
+  it('rejects a runtime event whose provider item identity conflicts with its envelope', async () => {
+    const { service } = createService([
+      runtimeEvent({
+        payload: {
+          item: { id: 'provider-item.other', type: 'agent_message' },
+        },
+      }),
+    ]);
+
+    await expect(service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.test',
+    }, {})).rejects.toThrow(
+      'Agents turn runtime event item identity does not match its envelope.',
+    );
+  });
+
+  it('rejects non-JSON runtime payloads without recursively serializing them', async () => {
+    const payload: Record<string, unknown> = {};
+    payload.self = payload;
+    const { service } = createService([
+      runtimeEvent({ payload }),
+    ]);
+
+    await expect(service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.test',
+    }, {})).rejects.toThrow('Agents turn runtime event payload is malformed.');
+  });
+
+  it('rejects a runtime payload before retaining content beyond the per-event budget', async () => {
+    const { service } = createService([
+      runtimeEvent({
+        payload: {
+          text: 'x'.repeat(4 * 1_048_576),
+        },
+      }),
+    ]);
+
+    await expect(service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.test',
+    }, {})).rejects.toThrow(
+      'Agents turn runtime event payload exceeds the presentation limit.',
+    );
+  });
+
+  it.each([
+    ['source', 'future-source', 'Runtime event source is malformed.'],
+    ['severity', 'verbose', 'Runtime event severity is malformed.'],
+    [
+      'redactionClassification',
+      'unclassified',
+      'Runtime event redaction classification is malformed.',
+    ],
+    ['replay', 'false', 'Runtime event replay marker is malformed.'],
+    ['occurredAt', 'not-a-timestamp', 'Runtime event timestamp is malformed.'],
+    ['traceContext', {}, 'Runtime event trace context is malformed.'],
+    ['providerSessionId', undefined, 'Provider Session ID is malformed.'],
+  ])('rejects a malformed runtime event %s field', async (field, value, message) => {
+    const malformedEvent = runtimeEvent();
+    Object.assign(malformedEvent.event, { [field]: value });
+    const { service } = createService([malformedEvent]);
+
+    await expect(service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+      turnId: 'turn.test',
+    }, {})).rejects.toThrow(message);
   });
 
   it.each([
@@ -263,7 +415,7 @@ describe('Agent turn streaming completion contract', () => {
         requestedModelId: modelId,
         runtimeBindingId: providerRuntimeBindingId,
       }),
-      { stream: true },
+      { eventProtocol: 'kernel-v1', stream: true },
       { signal: undefined, timeout: undefined },
     );
   });
@@ -272,12 +424,14 @@ describe('Agent turn streaming completion contract', () => {
     const completion = createTurnCompletion();
     const { service } = createService([
       { eventType: 'delta', index: 0, delta: 'hello' },
+      runtimeEvent(),
       completionEvent(completion),
     ]);
 
     await expect(service.submitTurn(identity, {
       content: 'hello',
       runtimeBindingId,
+      turnId: 'turn.test',
     }, {
       onAccepted: () => {
         throw new Error('acceptance observer failed');
@@ -285,7 +439,52 @@ describe('Agent turn streaming completion contract', () => {
       onDelta: () => {
         throw new Error('presentation failed');
       },
+      onRuntimeEvent: () => {
+        throw new Error('runtime event presentation failed');
+      },
     })).resolves.toBe(completion);
+  });
+
+  it('retrieves and cancels the exact canonical Turn with optimistic fencing', async () => {
+    const activeTurn = {
+      ...createTurnCompletion().turn,
+      status: 'running',
+      version: '7',
+    } as const;
+    const cancelledTurn = {
+      ...activeTurn,
+      status: 'cancelled',
+      version: '8',
+    } as const;
+    const retrieve = vi.fn(async () => activeTurn);
+    const cancel = vi.fn(async () => cancelledTurn);
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { turns: { cancel, retrieve } } },
+      } as never,
+    });
+    const controller = new AbortController();
+
+    await expect(service.getTurn(identity, ' turn.test ', {
+      signal: controller.signal,
+      timeoutMs: 5_000,
+    })).resolves.toBe(activeTurn);
+    await expect(service.cancelTurn(identity, ' turn.test ', {
+      expectedVersion: '7',
+      requestedAt: completedAt,
+    })).resolves.toBe(cancelledTurn);
+    expect(retrieve).toHaveBeenCalledWith(
+      agentId,
+      sessionId,
+      'turn.test',
+      { signal: controller.signal, timeout: 5_000 },
+    );
+    expect(cancel).toHaveBeenCalledWith(
+      agentId,
+      sessionId,
+      'turn.test',
+      { expectedVersion: '7', requestedAt: completedAt },
+    );
   });
 
   it('does not report authority acceptance for malformed stream events', async () => {

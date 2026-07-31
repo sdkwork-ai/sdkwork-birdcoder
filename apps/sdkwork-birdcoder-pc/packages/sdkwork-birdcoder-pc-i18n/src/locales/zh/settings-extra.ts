@@ -157,6 +157,7 @@ export default defineLocaleModule('settings/extra', {
       commands: {
         newSession: { label: '\u65b0\u5efa\u4efb\u52a1', description: '\u5f00\u59cb\u65b0\u4efb\u52a1' },
         openFolder: { label: '\u6253\u5f00\u6587\u4ef6\u5939', description: 'Add a local project to BirdCoder' },
+        openCommandMenu: { label: '\u547d\u4ee4\u83dc\u5355', description: '\u641c\u7d22\u5e76\u6267\u884c BirdCoder \u547d\u4ee4' },
         openSettings: { label: '\u8bbe\u7f6e', description: 'Open BirdCoder settings' },
         showKeyboardShortcuts: { label: '\u663e\u793a\u952e\u76d8\u5feb\u6377\u952e', description: 'Show the shortcuts available right now' },
         saveActiveFile: { label: '\u4fdd\u5b58\u6587\u4ef6', description: 'Save the active file' },
@@ -164,7 +165,8 @@ export default defineLocaleModule('settings/extra', {
         toggleSidebar: { label: '\u5207\u6362\u8fb9\u680f', description: 'Show or hide the project sidebar' },
         toggleTerminal: { label: '\u5207\u6362\u5e95\u90e8\u9762\u677f', description: 'Show or hide the terminal panel' },
         toggleReview: { label: '\u5207\u6362\u5ba1\u9605\u9762\u677f', description: 'Show or hide Review for the current task' },
-        findInFiles: { label: '\u67e5\u627e', description: 'Search in the active project' },
+        findInSessionTranscript: { label: '\u5728 Session \u4e2d\u67e5\u627e', description: '\u641c\u7d22\u5f53\u524d Session \u7684\u8f6c\u5f55' },
+        findInFiles: { label: '\u5728\u6587\u4ef6\u4e2d\u67e5\u627e', description: '\u641c\u7d22\u5f53\u524d\u9879\u76ee\u4e2d\u7684\u6587\u4ef6' },
         openQuickOpen: { label: '\u641c\u7d22\u6587\u4ef6', description: 'Search and open a project file' },
         previousAgentSession: { label: '\u4e0a\u4e00\u4e2a\u4efb\u52a1', description: 'Switch to the previous task' },
         nextAgentSession: { label: '\u4e0b\u4e00\u4e2a\u4efb\u52a1', description: 'Switch to the next task' },

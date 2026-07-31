@@ -140,6 +140,7 @@
       "./appSessionTokenManager",
       "./sdk",
       "./sdk/agents-app",
+      "./sdk/iam-app",
       "./sdk/mcp-app",
       "./sdk/birdcoder-app",
       "./sdk/documents-app",

@@ -1,7 +1,7 @@
 import {
   resolveProjectMountRecoveryActions,
   type ProjectMountRecoveryState,
-} from '@sdkwork/birdcoder-pc-workbench';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui';
 import { AlertCircle, FileCode2, FolderOpen, RefreshCw, Search, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';

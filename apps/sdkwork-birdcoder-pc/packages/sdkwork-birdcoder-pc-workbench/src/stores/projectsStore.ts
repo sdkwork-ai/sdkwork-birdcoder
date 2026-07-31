@@ -81,6 +81,7 @@ export const PROJECT_STORE_MAX_CACHED_SESSIONS = 200;
 export const PROJECT_STORE_MAX_SESSION_ITEMS = 500;
 export const PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS = 4 * 1_048_576;
 export const PROJECT_STORE_MAX_SESSION_TOMBSTONES = 1_000;
+const PROJECT_STORE_MAX_SESSION_ITEM_ESTIMATE_NODES = 65_536;
 
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
 
@@ -608,6 +609,9 @@ function normalizeAgentSessionItemsForStore(
 
   const retainedIndexes = new Set<number>();
   let retainedCharacters = 0;
+  const estimateBudget: StructuredValueEstimateBudget = {
+    remainingNodes: PROJECT_STORE_MAX_SESSION_ITEM_ESTIMATE_NODES,
+  };
   const retainNewestMatching = (predicate: (item: AgentSessionItemView) => boolean) => {
     for (
       let index = normalizedItems.length - 1;
@@ -624,6 +628,7 @@ function normalizeAgentSessionItemsForStore(
       const itemCharacters = estimateStructuredValueCharacters(
         item,
         PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS - retainedCharacters,
+        estimateBudget,
       );
       if (retainedCharacters + itemCharacters > PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS) {
         continue;
@@ -642,48 +647,100 @@ function normalizeAgentSessionItemsForStore(
   return normalizedItems.filter((_item, index) => retainedIndexes.has(index));
 }
 
+interface StructuredValueEstimateBudget {
+  remainingNodes: number;
+}
+
+type StructuredValueEstimateFrame =
+  | {
+      index: number;
+      kind: 'array';
+      value: readonly unknown[];
+    }
+  | {
+      entries: Generator<readonly [string, unknown], void>;
+      kind: 'object';
+    }
+  | {
+      kind: 'value';
+      value: unknown;
+    };
+
+function* iterateOwnEnumerableEntries(
+  value: object,
+): Generator<readonly [string, unknown], void> {
+  const record = value as Record<string, unknown>;
+  for (const key in record) {
+    if (Object.prototype.hasOwnProperty.call(record, key)) {
+      yield [key, record[key]] as const;
+    }
+  }
+}
+
 function estimateStructuredValueCharacters(
   value: unknown,
   limit: number,
-  visited: WeakSet<object> = new WeakSet(),
-  depth = 0,
+  budget: StructuredValueEstimateBudget,
 ): number {
-  if (limit <= 0 || depth > 16) {
+  if (limit <= 0 || budget.remainingNodes <= 0) {
     return limit + 1;
   }
-  if (typeof value === 'string') {
-    return Math.min(value.length, limit + 1);
-  }
-  if (value === null || value === undefined) {
-    return 4;
-  }
-  if (typeof value !== 'object') {
-    return Math.min(String(value).length, limit + 1);
-  }
-  if (visited.has(value)) {
-    return 0;
-  }
-  visited.add(value);
+
+  const visited = new WeakSet<object>();
+  const frames: StructuredValueEstimateFrame[] = [{ kind: 'value', value }];
   let characters = 0;
-  const append = (candidate: unknown) => {
-    characters += estimateStructuredValueCharacters(
-      candidate,
-      limit - characters,
-      visited,
-      depth + 1,
-    );
-  };
-  if (Array.isArray(value)) {
-    for (const candidate of value) {
-      append(candidate);
-      if (characters > limit) break;
+
+  while (frames.length > 0 && characters <= limit) {
+    const frame = frames.pop()!;
+    if (frame.kind === 'array') {
+      if (frame.index < frame.value.length) {
+        frames.push({ ...frame, index: frame.index + 1 });
+        frames.push({ kind: 'value', value: frame.value[frame.index] });
+      }
+      continue;
     }
-  } else {
-    for (const [key, candidate] of Object.entries(value)) {
-      characters += Math.min(key.length, Math.max(0, limit - characters) + 1);
-      if (characters > limit) break;
-      append(candidate);
-      if (characters > limit) break;
+    if (frame.kind === 'object') {
+      const nextEntry = frame.entries.next();
+      if (!nextEntry.done) {
+        const [key, candidate] = nextEntry.value;
+        characters += Math.min(key.length, Math.max(0, limit - characters) + 1);
+        frames.push(frame);
+        frames.push({ kind: 'value', value: candidate });
+      }
+      continue;
+    }
+
+    if (budget.remainingNodes <= 0) {
+      return limit + 1;
+    }
+    budget.remainingNodes -= 1;
+    const candidate = frame.value;
+    if (typeof candidate === 'string') {
+      characters += Math.min(candidate.length, Math.max(0, limit - characters) + 1);
+      continue;
+    }
+    if (candidate === null || candidate === undefined) {
+      characters += 4;
+      continue;
+    }
+    if (typeof candidate !== 'object') {
+      characters += Math.min(
+        String(candidate).length,
+        Math.max(0, limit - characters) + 1,
+      );
+      continue;
+    }
+    if (visited.has(candidate)) {
+      continue;
+    }
+    visited.add(candidate);
+    if (Array.isArray(candidate)) {
+      frames.push({ index: 0, kind: 'array', value: candidate });
+    } else {
+      frames.push({
+        entries: iterateOwnEnumerableEntries(candidate),
+        kind: 'object',
+      });
     }
   }
   return characters;

@@ -59,6 +59,7 @@ export interface AgentSessionPendingInteractions {
 
 export interface AgentSessionPendingInteractionState
   extends AgentSessionPendingInteractions {
+  error: Error | null;
   isLoading: boolean;
 }
 
@@ -68,6 +69,7 @@ const EMPTY_PENDING_INTERACTIONS: AgentSessionPendingInteractions = {
 };
 const INITIAL_STATE: AgentSessionPendingInteractionState = {
   ...EMPTY_PENDING_INTERACTIONS,
+  error: null,
   isLoading: false,
 };
 const INTERACTION_CLAIM_LEASE_SECONDS = 60;
@@ -260,6 +262,7 @@ export function useAgentSessionPendingInteractions(
     latestScopeKeyRef.current = normalizedScopeKey;
     setState((current) => ({
       ...(didSwitchScope ? EMPTY_PENDING_INTERACTIONS : current),
+      error: didSwitchScope ? null : current.error,
       isLoading: true,
     }));
     const controller = new AbortController();
@@ -273,7 +276,7 @@ export function useAgentSessionPendingInteractions(
         controller.signal,
       );
       if (latestRequestIdRef.current === requestId) {
-        setState({ ...pending, isLoading: false });
+        setState({ ...pending, error: null, isLoading: false });
       }
       return pending;
     } catch (error) {
@@ -281,7 +284,13 @@ export function useAgentSessionPendingInteractions(
         return EMPTY_PENDING_INTERACTIONS;
       }
       if (latestRequestIdRef.current === requestId) {
-        setState((current) => ({ ...current, isLoading: false }));
+        setState((current) => ({
+          ...current,
+          error: error instanceof Error
+            ? error
+            : new Error('Failed to load agent session interactions.'),
+          isLoading: false,
+        }));
       }
       console.error('Failed to load agent session interactions', error);
       return EMPTY_PENDING_INTERACTIONS;

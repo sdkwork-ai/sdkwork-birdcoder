@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, CircleHelp, Loader2, ShieldAlert, X } from 'lucide-react';
+import { AlertTriangle, Check, CircleHelp, Loader2, RefreshCw, ShieldAlert, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
@@ -15,6 +15,8 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 
 export interface UniversalChatPendingInteractionsProps {
   disabled?: boolean;
+  hasLoadError?: boolean;
+  isLoading?: boolean;
   isSubmitting?: boolean;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
@@ -26,6 +28,7 @@ export interface UniversalChatPendingInteractionsProps {
     interactionId: string,
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
+  onRetryLoad?: () => void | Promise<void>;
 }
 
 function buildQuestionPromptKey(
@@ -54,11 +57,22 @@ function buildQuestionOptionPayload(
   };
 }
 
+function shouldRenderQuestionPrompt(
+  pendingQuestion: AgentSessionPendingQuestion,
+  prompt: AgentSessionPendingQuestionPrompt,
+): boolean {
+  return pendingQuestion.questions.length > 1
+    || prompt.question.trim() !== pendingQuestion.prompt.trim();
+}
+
 export function UniversalChatPendingInteractions({
   disabled = false,
+  hasLoadError = false,
+  isLoading = false,
   isSubmitting = false,
   pendingApprovals = [],
   pendingUserQuestions = [],
+  onRetryLoad,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
 }: UniversalChatPendingInteractionsProps) {
@@ -161,7 +175,7 @@ export function UniversalChatPendingInteractions({
     });
   }, [approvalReasons, disabled, isSubmitting, onSubmitApprovalDecision]);
 
-  if (!hasPendingInteractions) {
+  if (!hasPendingInteractions && !hasLoadError) {
     return null;
   }
 
@@ -178,8 +192,34 @@ export function UniversalChatPendingInteractions({
             {t('chat.pendingInteractionsDescription')}
           </div>
         </div>
-        {isSubmitting ? <Loader2 size={16} className="shrink-0 animate-spin text-blue-300" /> : null}
+        {isSubmitting || isLoading ? (
+          <Loader2 size={16} className="shrink-0 animate-spin text-blue-300" />
+        ) : null}
       </div>
+
+      {hasLoadError ? (
+        <div
+          className="flex flex-wrap items-center gap-2 border-t border-white/10 py-3 text-sm text-amber-100"
+          role="alert"
+        >
+          <AlertTriangle size={16} className="shrink-0 text-amber-300" />
+          <span className="min-w-0 flex-1 break-words">
+            {t('chat.pendingInteractionsLoadFailed')}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || isLoading || !onRetryLoad}
+            onClick={() => {
+              void onRetryLoad?.();
+            }}
+          >
+            <RefreshCw size={14} />
+            {t('chat.retryPendingInteractions')}
+          </Button>
+        </div>
+      ) : null}
 
       {pendingUserQuestions.map((pendingQuestion) => (
         <div
@@ -201,9 +241,11 @@ export function UniversalChatPendingInteractions({
           <div className="space-y-3 pl-6">
             {pendingQuestion.questions.map((prompt, promptIndex) => (
               <div key={buildQuestionPromptKey(pendingQuestion, prompt, promptIndex)}>
-                <div className="mb-2 whitespace-pre-wrap break-words text-sm text-gray-300">
-                  {prompt.question}
-                </div>
+                {shouldRenderQuestionPrompt(pendingQuestion, prompt) ? (
+                  <div className="mb-2 whitespace-pre-wrap break-words text-sm text-gray-300">
+                    {prompt.question}
+                  </div>
+                ) : null}
                 {prompt.options && prompt.options.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {prompt.options.map((option, optionIndex) => (
@@ -229,47 +271,49 @@ export function UniversalChatPendingInteractions({
               </div>
             ))}
 
-            <div className="flex min-w-0 items-end gap-2">
+            <div className="flex min-w-0 flex-wrap items-end gap-2">
               <textarea
                 value={answerDrafts[pendingQuestion.interactionId] ?? ''}
                 onChange={(event) => handleAnswerDraftChange(pendingQuestion.interactionId, event.target.value)}
                 maxLength={MAX_AGENT_INTERACTION_ANSWER_CHARACTERS}
                 placeholder={t('chat.pendingQuestionAnswerPlaceholder')}
-                className="min-h-[38px] flex-1 resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-amber-300/40"
+                className="min-h-[38px] min-w-[min(100%,16rem)] flex-[1_1_16rem] resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-amber-300/40"
                 rows={1}
                 disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
               />
-              <Button
-                type="button"
-                size="sm"
-                disabled={
-                  controlsDisabled ||
-                  !onSubmitUserQuestionAnswer ||
-                  !(answerDrafts[pendingQuestion.interactionId] ?? '').trim()
-                }
-                onClick={() => {
-                  const answer = (answerDrafts[pendingQuestion.interactionId] ?? '').trim();
-                  if (!answer) {
-                    return;
+              <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    controlsDisabled ||
+                    !onSubmitUserQuestionAnswer ||
+                    !(answerDrafts[pendingQuestion.interactionId] ?? '').trim()
                   }
+                  onClick={() => {
+                    const answer = (answerDrafts[pendingQuestion.interactionId] ?? '').trim();
+                    if (!answer) {
+                      return;
+                    }
 
-                  void submitQuestionAnswer(pendingQuestion.interactionId, { answer });
-                }}
-              >
-                {t('chat.submitAnswer')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
-                onClick={() => {
-                  void submitQuestionAnswer(pendingQuestion.interactionId, { rejected: true });
-                }}
-              >
-                <X size={14} />
-                {t('chat.rejectQuestion')}
-              </Button>
+                    void submitQuestionAnswer(pendingQuestion.interactionId, { answer });
+                  }}
+                >
+                  {t('chat.submitAnswer')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
+                  onClick={() => {
+                    void submitQuestionAnswer(pendingQuestion.interactionId, { rejected: true });
+                  }}
+                >
+                  <X size={14} />
+                  {t('chat.rejectQuestion')}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

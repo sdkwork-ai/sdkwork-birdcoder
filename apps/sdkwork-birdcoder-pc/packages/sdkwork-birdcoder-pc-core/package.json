@@ -57,6 +57,11 @@
       "import": "./src/sdk/agents-app-sdk.ts",
       "default": "./src/sdk/agents-app-sdk.ts"
     },
+    "./sdk/iam-app": {
+      "types": "./src/sdk/iam-app-sdk.ts",
+      "import": "./src/sdk/iam-app-sdk.ts",
+      "default": "./src/sdk/iam-app-sdk.ts"
+    },
     "./sdk/mcp-app": {
       "types": "./src/sdk/mcp-app-sdk.ts",
       "import": "./src/sdk/mcp-app-sdk.ts",

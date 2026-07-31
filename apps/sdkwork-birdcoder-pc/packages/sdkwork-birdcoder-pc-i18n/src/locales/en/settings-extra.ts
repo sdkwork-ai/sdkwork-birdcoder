@@ -157,6 +157,7 @@ export default defineLocaleModule('settings/extra', {
       commands: {
         newSession: { label: 'New task', description: 'Start a new task' },
         openFolder: { label: 'Open folder', description: 'Add a local project to BirdCoder' },
+        openCommandMenu: { label: 'Command menu', description: 'Search and run BirdCoder commands' },
         openSettings: { label: 'Settings', description: 'Open BirdCoder settings' },
         showKeyboardShortcuts: { label: 'Show keyboard shortcuts', description: 'Show the shortcuts available right now' },
         saveActiveFile: { label: 'Save file', description: 'Save the active file' },
@@ -164,7 +165,8 @@ export default defineLocaleModule('settings/extra', {
         toggleSidebar: { label: 'Toggle sidebar', description: 'Show or hide the project sidebar' },
         toggleTerminal: { label: 'Toggle bottom panel', description: 'Show or hide the terminal panel' },
         toggleReview: { label: 'Toggle review panel', description: 'Show or hide Review for the current task' },
-        findInFiles: { label: 'Find', description: 'Search in the active project' },
+        findInSessionTranscript: { label: 'Find in Session', description: 'Search the current Session transcript' },
+        findInFiles: { label: 'Find in Files', description: 'Search files in the active project' },
         openQuickOpen: { label: 'Search files', description: 'Search and open a project file' },
         previousAgentSession: { label: 'Previous task', description: 'Switch to the previous task' },
         nextAgentSession: { label: 'Next task', description: 'Switch to the next task' },

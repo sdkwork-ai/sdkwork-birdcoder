@@ -1,4 +1,5 @@
 import React, { memo, useMemo } from 'react';
+import { RotateCcw, TriangleAlert } from 'lucide-react';
 import {
   resolveAgentSessionItemPresentation,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -14,6 +15,7 @@ import type {
 import type { ChatMessageRendererRegistry } from './registry.ts';
 import { ChatTurnActiveTail } from './renderers/ChatTurnActiveTail.tsx';
 import { ChatTranscriptSurface } from './ChatTranscriptSurface.tsx';
+import { ChatTurnRenderBoundary } from './ChatTurnRenderBoundary.tsx';
 import { TurnFileChangesCard } from './activity/TurnFileChangesCard.tsx';
 import { TurnProcessDisclosure } from './presentation/TurnProcessDisclosure.tsx';
 
@@ -31,7 +33,7 @@ export interface ChatTranscriptMessageProps {
   registry?: ChatMessageRendererRegistry;
 }
 
-export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
+function ChatTranscriptMessageContent({
   activitySummary,
   message,
   index,
@@ -142,6 +144,94 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
         />
       ) : null}
     </ChatTranscriptSurface>
+  );
+}
+
+function resolveMessageRenderKey({
+  message,
+  messageRenderKey,
+  sessionId,
+}: ChatTranscriptMessageProps): string {
+  return messageRenderKey
+    ?? `${sessionId}\u0001${message.id || message.createdAt || 'message'}`;
+}
+
+function ChatTurnRenderFallback({
+  context,
+  index,
+  layout,
+  message,
+  messageRef,
+  messageRenderKey,
+  retry,
+  transcriptIndex,
+}: Omit<ChatTranscriptMessageProps, 'messageRenderKey'> & {
+  messageRenderKey: string;
+  retry: () => void;
+}) {
+  const retryLabel = context.environment?.t('chat.turnRenderRetry') ?? 'Try again';
+  const failureLabel = context.environment?.t('chat.turnRenderFailed')
+    ?? "This turn couldn't render";
+
+  return (
+    <ChatTranscriptSurface
+      index={transcriptIndex ?? index}
+      isUser={message.role === 'user'}
+      layout={layout}
+      messageKey={messageRenderKey}
+      messageRef={messageRef}
+      providerProfile={context.providerProfile}
+      turn={context.turn}
+    >
+      <div
+        className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-gray-300"
+        role="alert"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <TriangleAlert aria-hidden="true" className="shrink-0 text-amber-300" size={15} />
+          <span className="break-words">{failureLabel}</span>
+        </span>
+        <button
+          aria-label={retryLabel}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-gray-200 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          onClick={retry}
+          type="button"
+        >
+          <RotateCcw aria-hidden="true" size={13} />
+          <span>{retryLabel}</span>
+        </button>
+      </div>
+    </ChatTranscriptSurface>
+  );
+}
+
+export const ChatTranscriptMessage = memo(function ChatTranscriptMessage(
+  props: ChatTranscriptMessageProps,
+) {
+  const messageRenderKey = resolveMessageRenderKey(props);
+  return (
+    <ChatTurnRenderBoundary
+      fallback={(retry) => (
+        <ChatTurnRenderFallback
+          {...props}
+          messageRenderKey={messageRenderKey}
+          retry={retry}
+        />
+      )}
+      onError={(error, errorInfo) => {
+        console.error('[ChatTranscriptMessage] Session Turn render failed', {
+          messageId: props.message.id,
+          sessionId: props.sessionId,
+          turnKey: props.context.turn.key,
+        }, error, errorInfo.componentStack);
+      }}
+      resetKey={props.message}
+    >
+      <ChatTranscriptMessageContent
+        {...props}
+        messageRenderKey={messageRenderKey}
+      />
+    </ChatTurnRenderBoundary>
   );
 }, areChatTranscriptMessagePropsEqual);
 

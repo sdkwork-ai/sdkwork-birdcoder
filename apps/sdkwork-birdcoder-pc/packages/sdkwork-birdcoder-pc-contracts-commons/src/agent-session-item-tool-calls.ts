@@ -312,6 +312,8 @@ const TARGET_ARGUMENT_KEYS = [
   'notebook_path',
   'outputFile',
   'output_file',
+  'savedPath',
+  'saved_path',
   'query',
   'pattern',
   'description',
@@ -481,6 +483,8 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
   if (type === 'sub_agent_activity') {
     const activityKind = normalizeToolCallName(readNonEmptyString(source.kind));
     const sourceWithoutProtocolWrapper = { ...source };
+    const agentSessionId = source.agentSessionId ?? source.agentThreadId;
+    delete sourceWithoutProtocolWrapper.agentThreadId;
     delete sourceWithoutProtocolWrapper.item;
     delete sourceWithoutProtocolWrapper.kind;
     return {
@@ -489,10 +493,10 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
       type: 'agent',
       arguments: {
         kind: activityKind,
-        agentThreadId: source.agentThreadId,
+        agentSessionId,
         agentPath: source.agentPath,
       },
-      target: source.agentPath ?? source.agentThreadId,
+      target: source.agentPath ?? agentSessionId,
       status: activityKind === 'interrupted'
         ? 'cancelled'
         : activityKind === 'started'
@@ -598,21 +602,26 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
     };
   }
   if (type === 'collab_agent_tool_call') {
-    const receiverThreadIds = Array.isArray(source.receiverThreadIds)
-      ? source.receiverThreadIds.filter((value): value is string => typeof value === 'string')
+    const rawReceiverSessionIds = source.receiverSessionIds ?? source.receiverThreadIds;
+    const receiverSessionIds = Array.isArray(rawReceiverSessionIds)
+      ? rawReceiverSessionIds.filter((value): value is string => typeof value === 'string')
       : [];
+    const senderSessionId = source.senderSessionId ?? source.senderThreadId;
+    const sourceWithoutProviderSessionAliases = { ...source };
+    delete sourceWithoutProviderSessionAliases.receiverThreadIds;
+    delete sourceWithoutProviderSessionAliases.senderThreadId;
     return {
-      ...source,
+      ...sourceWithoutProviderSessionAliases,
       name: readNonEmptyString(source.tool) || 'agent',
       arguments: {
-        senderThreadId: source.senderThreadId,
-        receiverThreadIds,
+        senderSessionId,
+        receiverSessionIds,
         prompt: source.prompt,
         model: source.model,
         reasoningEffort: source.reasoningEffort,
       },
-      title: receiverThreadIds.length > 0
-        ? `${receiverThreadIds.length} agent${receiverThreadIds.length === 1 ? '' : 's'}`
+      title: receiverSessionIds.length > 0
+        ? `${receiverSessionIds.length} agent${receiverSessionIds.length === 1 ? '' : 's'}`
         : undefined,
     };
   }
@@ -1086,12 +1095,12 @@ function projectGeminiToolDisplayResult(
       { tailCharacters: 6_000 },
     );
   } else if (resultType === 'agent' && result) {
-    const threadId = boundGeminiToolDisplayText(
+    const providerSessionId = boundGeminiToolDisplayText(
       readFirstString(result, ['threadId', 'thread_id']),
       512,
       { oneLine: true },
     );
-    resultText = threadId ? `Subagent: ${threadId}` : '';
+    resultText = providerSessionId ? `Subagent: ${providerSessionId}` : '';
     semanticType = 'agent';
   }
 

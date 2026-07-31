@@ -89,17 +89,28 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       onContextMenu={(event) => onAgentSessionContextMenu(event, session.id, resolvedSessionProjectId)}
     >
       <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-        {!isPinnedVariant ? (
-          <>
-            <SessionProviderBadge
-              agentId={session.agentId}
-              engineId={session.engineId}
-              providerId={session.providerId}
-            />
-            {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
-            {session.unread && <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />}
-            {session.archived && <Archive size={12} className="shrink-0 text-gray-500" />}
-          </>
+        <SessionProviderBadge
+          agentId={session.agentId}
+          engineId={session.engineId}
+          providerId={session.providerId}
+        />
+        {!isPinnedVariant && session.pinned ? (
+          <Pin aria-hidden="true" size={12} className="shrink-0 text-blue-400" />
+        ) : null}
+        {session.unread ? (
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500"
+            data-session-unread="true"
+          />
+        ) : null}
+        {session.archived ? (
+          <Archive
+            aria-hidden="true"
+            className="shrink-0 text-gray-500"
+            data-session-archived="true"
+            size={12}
+          />
         ) : null}
         {isRenaming ? (
           <input
@@ -127,7 +138,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
           </span>
         )}
       </div>
-      {!isRenaming && !isPinnedVariant && (
+      {!isRenaming && (
         <span
           className="ml-auto inline-flex shrink-0 items-center justify-end gap-1 pl-2 text-right transition-opacity group-hover:opacity-0 group-focus-within:opacity-0"
           data-session-trailing-metadata="true"

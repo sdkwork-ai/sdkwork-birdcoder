@@ -97,17 +97,15 @@ assert.match(
   /interface QueuedTurnPresentationState \{[\s\S]*scopeKey: string;[\s\S]*\}/,
   'Queued turn presentation state must belong to a single Session scope.',
 );
-const queueScopeEffect = chatSource.match(
-  /useEffect\(\(\) => \{\s*clearQueuedTurnDispatchSettlementTimer\(\);\s*queuedTurnFlushGateRef\.current = createWorkbenchAgentTurnInputQueueFlushGateState\(\);([\s\S]*?)\}, \[clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey\]\);/,
-);
-assert.ok(
-  queueScopeEffect,
-  'UniversalChat must reset queue refs when the Session queue scope changes.',
+assert.match(
+  chatSource,
+  /const isCurrentQueuedTurnPresentation =\s*queuedTurnPresentationState\.scopeKey === normalizedQueueScopeKey;[\s\S]*const editingQueueEntryId = isCurrentQueuedTurnPresentation[\s\S]*const isQueueExpanded = isCurrentQueuedTurnPresentation/,
+  'Queue presentation state from another Session scope must not render in the selected Session.',
 );
 assert.doesNotMatch(
-  queueScopeEffect[1],
-  /set[A-Z][A-Za-z0-9]*\(/,
-  'Session queue scope changes must not force a render through an effect.',
+  chatSource,
+  /useEffect\(\(\) => \{[\s\S]*setQueuedTurnPresentationState\([\s\S]*\}, \[[^\]]*normalizedQueueScopeKey[^\]]*\]\);/,
+  'Session queue scope changes must not synchronize presentation state through an effect.',
 );
 assert.match(
   chatSource,

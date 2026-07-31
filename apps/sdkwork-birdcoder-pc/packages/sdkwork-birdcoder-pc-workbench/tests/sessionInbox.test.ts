@@ -44,6 +44,21 @@ const projectId = 'project-1';
 const createdAt = '2026-07-26T08:00:00.000Z';
 const activityAt = '2026-07-26T08:10:00.000Z';
 const freshUntil = '2099-07-26T08:15:00.000Z';
+const providerSessionIdsBySessionId = new Map<string, string>();
+let nextProviderSessionFixtureSequence = 1;
+
+function resolveProviderSessionFixtureId(sessionId: string): string {
+  const existing = providerSessionIdsBySessionId.get(sessionId);
+  if (existing) {
+    return existing;
+  }
+  const providerSessionId = `provider-continuation-fixture-${String(
+    nextProviderSessionFixtureSequence,
+  ).padStart(4, '0')}`;
+  nextProviderSessionFixtureSequence += 1;
+  providerSessionIdsBySessionId.set(sessionId, providerSessionId);
+  return providerSessionId;
+}
 
 type ActivitySummary = AgentSessionActivitySummaryRecord;
 type RuntimeBinding = NonNullable<ActivitySummary['currentRuntimeBinding']>;
@@ -126,10 +141,10 @@ function runtimeBinding(
     sessionId,
     hostMode: 'desktop',
     transportKind: 'sdk-stream',
-    providerBindingId: `provider-binding.${sessionId}`,
+    providerBindingId: 'provider-binding.openai.fixture',
     modelId: 'gpt-5',
     providerId: 'provider.openai',
-    providerSessionId: `provider.${sessionId}`,
+    providerSessionId: resolveProviderSessionFixtureId(sessionId),
     status: 'active',
     isCurrent: true,
     version: '1',
@@ -619,8 +634,8 @@ describe('Session Inbox', () => {
 
     expect(updated[0]?.agentSessions[0]).toMatchObject({
       hostMode: 'desktop',
-      providerSessionId: `provider.${sessionId}`,
-      providerBindingId: `provider-binding.${sessionId}`,
+      providerSessionId: persistedBinding.providerSessionId,
+      providerBindingId: persistedBinding.providerBindingId,
       providerId: 'provider.openai',
       runtimeBindingId: undefined,
       runtimeLocationId: 'runtime-location.persisted',
@@ -674,7 +689,7 @@ describe('Session Inbox', () => {
 
     expect(updated[0]?.agentSessions[0]).toMatchObject({
       hostMode: 'desktop',
-      providerSessionId: `provider.${sessionId}`,
+      providerSessionId: persistedBinding.providerSessionId,
       providerBindingId: persistedBinding.providerBindingId,
       providerId: persistedBinding.providerId,
       runtimeBindingId: undefined,

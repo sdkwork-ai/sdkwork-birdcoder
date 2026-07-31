@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+const workbenchPackageJson = JSON.parse(fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/package.json',
+    import.meta.url,
+  ),
+  'utf8',
+));
+
+assert.ok(
+  workbenchPackageJson.exports?.['./components/ErrorBoundary'],
+  'Workbench must publish the narrow startup error-boundary entrypoint.',
+);
+
 const entryPaths = [
   new URL('../apps/sdkwork-birdcoder-pc/src/main.tsx', import.meta.url),
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx', import.meta.url),
@@ -18,15 +31,23 @@ const retiredBootstrapRuntimeIdentityPath = new URL(
   import.meta.url,
 );
 
+const webEntrySource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const desktopEntrySource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const startupEntrySources = [
-  [
-    'web',
-    fs.readFileSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx', import.meta.url), 'utf8'),
-  ],
-  [
-    'desktop',
-    fs.readFileSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx', import.meta.url), 'utf8'),
-  ],
+  ['web', webEntrySource],
+  ['desktop', desktopEntrySource],
 ];
 
 for (const entryPath of entryPaths) {
@@ -57,11 +78,10 @@ for (const [label, source] of startupEntrySources) {
     /@sdkwork\/birdcoder-core/u,
     `${label} startup must not import @sdkwork/birdcoder-pc-core directly because delivery packages should keep the core barrel out of the pre-paint module graph.`,
   );
-
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /waitForBirdCoderApiReady\(\w+(?:,\s*\{[\s\S]*?runtimeTarget:\s*'desktop',[\s\S]*?\})?\)/u,
-    `${label} startup should wait for the SDKWork IAM-ready server facade after the bootstrap gate has yielded.`,
+    /from ['"]@sdkwork\/birdcoder-pc-workbench['"]/u,
+    `${label} startup must use narrow workbench entrypoints so the aggregate workbench barrel stays out of the pre-paint module graph.`,
   );
 
   assert.doesNotMatch(
@@ -70,6 +90,24 @@ for (const [label, source] of startupEntrySources) {
     `${label} startup must not keep retired identity bootstrap wiring.`,
   );
 }
+
+assert.match(
+  webEntrySource,
+  /waitForBirdCoderApiReady\(\w+\)/u,
+  'Web startup should wait for the SDKWork IAM-ready server facade after the bootstrap gate has yielded.',
+);
+
+assert.match(
+  desktopEntrySource,
+  /await readDesktopRuntimeConfig\(\)/u,
+  'Desktop startup must await the typed native or remote runtime boundary before binding API-backed services.',
+);
+
+assert.doesNotMatch(
+  desktopEntrySource,
+  /waitForBirdCoderApiReady/u,
+  'Desktop startup must trust desktop_runtime_config instead of duplicating readiness through a WebView fetch.',
+);
 
 assert.match(
   bootstrapGateSource,

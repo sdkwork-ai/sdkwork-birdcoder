@@ -3,7 +3,7 @@ import type {
   CodeEngineCatalogEngine,
   CodeEngineModelCatalogEntry,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
-import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import { getBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
 
 export interface BirdCoderCodeEngineCatalogModelEntry {

@@ -29,14 +29,8 @@ import {
   saveSessionPromptHistoryEntry,
 } from '@sdkwork/birdcoder-pc-workbench/chat/persistence';
 import {
-  canFlushWorkbenchQueuedAgentTurnInputs,
-  createWorkbenchAgentTurnInputQueueFlushGateState,
   MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE,
-  markWorkbenchQueuedAgentTurnDispatchStarted,
-  observeWorkbenchQueuedAgentTurnBusyState,
-  settleWorkbenchQueuedAgentTurnDispatch,
   type WorkbenchAgentTurnDriveRef,
-  useWorkbenchAgentTurnInputQueue,
 } from '@sdkwork/birdcoder-pc-workbench/chat/agentTurnInputQueueStore';
 import {
   MAX_AGENT_TURN_INPUT_CHARACTERS,
@@ -44,6 +38,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
+import { isAcceptedAgentTurnDeliveryError } from '@sdkwork/birdcoder-pc-workbench/workbench/agentTurnDeliveryOutcome';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
 import {
@@ -75,15 +70,21 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench';
 import {
   MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
+  useAgentTurnInputQueue,
+  type WorkbenchQueuedTurnDispatchOutcome,
 } from '@sdkwork/birdcoder-pc-workbench';
 import {
   resolveComposerInputAfterSendFailure,
-  restoreQueuedAgentTurnInputsAfterSendFailure,
 } from './agentTurnInputRecovery';
 import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import { ChatTranscriptJumpToLatestButton } from './ChatTranscriptJumpToLatestButton';
 import { RemoteTranscriptPaginationStatus } from './RemoteTranscriptPaginationStatus.tsx';
+import {
+  SessionTranscriptFindBar,
+  type SessionTranscriptFindBarLabels,
+  type SessionTranscriptFindMatch,
+} from './SessionTranscriptFindBar.tsx';
 import { reconcileTranscriptProjectionReferences } from './transcriptProjection';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
@@ -92,6 +93,7 @@ import {
   type UniversalChatNewSessionProviderOption,
 } from './UniversalChatNewSessionProviderSelector';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
+import { resolveSessionTurnEscapeAction } from './chat/composer/sessionTurnKeyboardCommands.ts';
 import {
   ComposerActionPanel,
   type ComposerCapabilityKind,
@@ -200,9 +202,21 @@ export interface UniversalChatComposerSelection {
 
 export interface UniversalChatComposerSubmission {
   driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
+  queueExecution?: {
+    accessModeId?: string;
+    agentId: string;
+    clientRequestId: string;
+    idempotencyKey: string;
+    payloadHash: string;
+    queueEntryId: string;
+    requestedModelId?: string;
+    runtimeBindingId?: string;
+    sessionId: string;
+  };
 }
 
 const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
+const STOP_TURN_CONFIRMATION_TIMEOUT_MS = 2_000;
 const RESIZABLE_COMPOSER_MIN_HEIGHT = 48;
 const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
 const MAX_SINGLE_FILE_UPLOAD_BYTES = 1048576;
@@ -211,9 +225,10 @@ const MAX_IMAGE_UPLOAD_BYTES = 1048576;
 const MAX_IMAGE_UPLOAD_FILES = 8;
 const MAX_COMPOSER_ATTACHMENTS = 24;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
-const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
 
 export interface UniversalChatProps {
+  agentId?: string;
+  runtimeBindingId?: string;
   sessionId?: string;
   sessionScopeKey?: string;
   isActive?: boolean;
@@ -225,6 +240,8 @@ export interface UniversalChatProps {
   onLoadMoreRemoteMessages?: () => void | Promise<void>;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
+  hasPendingInteractionsLoadError?: boolean;
+  isLoadingPendingInteractions?: boolean;
   inputValue?: string;
   setInputValue?: Dispatch<SetStateAction<string>>;
   onSendMessage: (
@@ -232,6 +249,7 @@ export interface UniversalChatProps {
     composerSelection?: UniversalChatComposerSelection,
     submission?: UniversalChatComposerSubmission,
   ) => void | Promise<void>;
+  onStopTurn?: () => void | Promise<void>;
   onSubmitApprovalDecision?: (
     interactionId: string,
     request: AgentApprovalDecisionInput,
@@ -240,6 +258,7 @@ export interface UniversalChatProps {
     interactionId: string,
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
+  onRetryPendingInteractions?: () => void | Promise<void>;
   isBusy?: boolean;
   isEngineBusy?: boolean;
   selectedEngineId?: string;
@@ -333,6 +352,39 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+function replaceQueuedTurnDisplayText(
+  entry: WorkbenchQueuedAgentTurnInput,
+  displayText: string,
+): string {
+  const previousDisplayText = entry.displayText.trim();
+  if (!previousDisplayText) {
+    return `${displayText}${displayText && entry.content ? '\n\n' : ''}${entry.content}`.trim();
+  }
+  if (!entry.content.startsWith(previousDisplayText)) {
+    throw new Error('Queued Turn content cannot be safely edited because its display projection is inconsistent.');
+  }
+  return `${displayText}${entry.content.slice(previousDisplayText.length)}`.trim();
+}
+
+function moveQueuedTurnInputUp(
+  entries: readonly WorkbenchQueuedAgentTurnInput[],
+  queueEntryId: string,
+): WorkbenchQueuedAgentTurnInput[] | null {
+  const mutableEntries = entries.filter((entry) => entry.status !== 'executing');
+  const mutableIndex = mutableEntries.findIndex(
+    (entry) => entry.queueEntryId === queueEntryId,
+  );
+  if (mutableIndex <= 0) {
+    return null;
+  }
+  const reorderedEntries = [...mutableEntries];
+  [reorderedEntries[mutableIndex - 1], reorderedEntries[mutableIndex]] = [
+    reorderedEntries[mutableIndex]!,
+    reorderedEntries[mutableIndex - 1]!,
+  ];
+  return reorderedEntries;
+}
+
 function resolveClipboardFiles(clipboardData: DataTransfer): File[] {
   const itemFiles = Array.from(clipboardData.items)
     .filter((item) => item.kind === 'file')
@@ -410,7 +462,7 @@ interface TranscriptDisclosureState {
 }
 
 interface QueuedTurnPresentationState {
-  editingIndex: number;
+  editingQueueEntryId: string;
   editingText: string;
   isExpanded: boolean;
   scopeKey: string;
@@ -1035,6 +1087,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 });
 
 export const UniversalChat = memo(function UniversalChat({
+  agentId,
+  runtimeBindingId,
   sessionId,
   sessionScopeKey,
   isActive = true,
@@ -1046,11 +1100,15 @@ export const UniversalChat = memo(function UniversalChat({
   onLoadMoreRemoteMessages,
   pendingApprovals = [],
   pendingUserQuestions = [],
+  hasPendingInteractionsLoadError = false,
+  isLoadingPendingInteractions = false,
   inputValue: controlledInputValue,
   setInputValue: controlledSetInputValue,
   onSendMessage,
+  onStopTurn,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
+  onRetryPendingInteractions,
   isBusy = false,
   isEngineBusy = isBusy,
   selectedEngineId,
@@ -1076,6 +1134,7 @@ export const UniversalChat = memo(function UniversalChat({
   disabled = false
 }: UniversalChatProps) {
   const { t, i18n } = useTranslation();
+  const { addToast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerCompositionRef = useRef(false);
@@ -1096,6 +1155,8 @@ export const UniversalChat = memo(function UniversalChat({
     useState<ComposerModelSelectionOverride | null>(null);
   const normalizedSessionId = sessionId?.trim() || '';
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
+  const [isSessionTranscriptFindOpen, setIsSessionTranscriptFindOpen] = useState(false);
+  const sessionTranscriptFindOriginRef = useRef<HTMLElement | null>(null);
   const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
   const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
   const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
@@ -1193,25 +1254,18 @@ export const UniversalChat = memo(function UniversalChat({
     scopeKey: string;
   } | null>(null);
   const [autoSendPrompt, setAutoSendPrompt] = useState(true);
-  const {
-    dequeueQueuedTurnInput,
-    enqueueQueuedTurnInput,
-    queuedTurnInputs: agentTurnInputQueue,
-    restoreQueuedTurnInputsToFront,
-    setQueuedTurnInputs: setAgentTurnInputQueue,
-  } = useWorkbenchAgentTurnInputQueue(normalizedQueueScopeKey);
   const [queuedTurnPresentationState, setQueuedTurnPresentationState] =
     useState<QueuedTurnPresentationState>(() => ({
-      editingIndex: -1,
+      editingQueueEntryId: '',
       editingText: '',
       isExpanded: false,
       scopeKey: normalizedQueueScopeKey,
     }));
   const isCurrentQueuedTurnPresentation =
     queuedTurnPresentationState.scopeKey === normalizedQueueScopeKey;
-  const editingQueueIndex = isCurrentQueuedTurnPresentation
-    ? queuedTurnPresentationState.editingIndex
-    : -1;
+  const editingQueueEntryId = isCurrentQueuedTurnPresentation
+    ? queuedTurnPresentationState.editingQueueEntryId
+    : '';
   const editingQueueText = isCurrentQueuedTurnPresentation
     ? queuedTurnPresentationState.editingText
     : '';
@@ -1219,10 +1273,10 @@ export const UniversalChat = memo(function UniversalChat({
     && queuedTurnPresentationState.isExpanded;
   const setIsQueueExpanded = useCallback((isExpanded: boolean) => {
     setQueuedTurnPresentationState((previousState) => ({
-      editingIndex:
+      editingQueueEntryId:
         previousState.scopeKey === normalizedQueueScopeKey
-          ? previousState.editingIndex
-          : -1,
+          ? previousState.editingQueueEntryId
+          : '',
       editingText:
         previousState.scopeKey === normalizedQueueScopeKey
           ? previousState.editingText
@@ -1231,9 +1285,9 @@ export const UniversalChat = memo(function UniversalChat({
       scopeKey: normalizedQueueScopeKey,
     }));
   }, [normalizedQueueScopeKey]);
-  const setEditingQueueIndex = useCallback((editingIndex: number) => {
+  const setEditingQueueEntryId = useCallback((editingQueueEntryId: string) => {
     setQueuedTurnPresentationState((previousState) => ({
-      editingIndex,
+      editingQueueEntryId,
       editingText:
         previousState.scopeKey === normalizedQueueScopeKey
           ? previousState.editingText
@@ -1246,10 +1300,10 @@ export const UniversalChat = memo(function UniversalChat({
   }, [normalizedQueueScopeKey]);
   const setEditingQueueText = useCallback((editingText: string) => {
     setQueuedTurnPresentationState((previousState) => ({
-      editingIndex:
+      editingQueueEntryId:
         previousState.scopeKey === normalizedQueueScopeKey
-          ? previousState.editingIndex
-          : -1,
+          ? previousState.editingQueueEntryId
+          : '',
       editingText,
       isExpanded:
         previousState.scopeKey === normalizedQueueScopeKey
@@ -1261,18 +1315,95 @@ export const UniversalChat = memo(function UniversalChat({
   const [manualComposerHeight, setManualComposerHeight] = useState<number | null>(null);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
   const isDispatchingMessageRef = useRef(false);
+  const [stoppingTurnScopeKey, setStoppingTurnScopeKey] = useState<string | null>(null);
+  const [stopTurnConfirmationScopeKey, setStopTurnConfirmationScopeKey] =
+    useState<string | null>(null);
+  const stopTurnConfirmationTimeoutRef = useRef<number | null>(null);
   const [pendingInteractionSubmissionId, setPendingInteractionSubmissionId] = useState<string | null>(null);
   const pendingInteractionSubmissionIdRef = useRef<string | null>(null);
-  const queuedTurnFlushGateRef = useRef(createWorkbenchAgentTurnInputQueueFlushGateState());
-  const queuedTurnDispatchSettlementTimerRef = useRef<number | null>(null);
-  const [queuedTurnFlushGateVersion, setQueuedTurnFlushGateVersion] = useState(0);
-  const { addToast } = useToast();
+  const clearStopTurnConfirmation = useCallback(() => {
+    if (stopTurnConfirmationTimeoutRef.current !== null) {
+      window.clearTimeout(stopTurnConfirmationTimeoutRef.current);
+      stopTurnConfirmationTimeoutRef.current = null;
+    }
+    setStopTurnConfirmationScopeKey(null);
+  }, []);
+  const confirmStopTurn = useCallback(() => {
+    clearStopTurnConfirmation();
+    if (!normalizedTranscriptScopeKey) {
+      return;
+    }
+    setStopTurnConfirmationScopeKey(normalizedTranscriptScopeKey);
+    stopTurnConfirmationTimeoutRef.current = window.setTimeout(
+      clearStopTurnConfirmation,
+      STOP_TURN_CONFIRMATION_TIMEOUT_MS,
+    );
+  }, [clearStopTurnConfirmation, normalizedTranscriptScopeKey]);
+  useEffect(() => () => {
+    if (stopTurnConfirmationTimeoutRef.current !== null) {
+      window.clearTimeout(stopTurnConfirmationTimeoutRef.current);
+    }
+  }, []);
+  useEffect(() => {
+    if (isEngineBusy) {
+      return;
+    }
+    clearStopTurnConfirmation();
+    setStoppingTurnScopeKey((currentScopeKey) =>
+      currentScopeKey === normalizedTranscriptScopeKey ? null : currentScopeKey,
+    );
+  }, [clearStopTurnConfirmation, isEngineBusy, normalizedTranscriptScopeKey]);
+  const handleStopTurn = useCallback(async () => {
+    if (
+      disabled
+      || !isEngineBusy
+      || !onStopTurn
+      || !normalizedTranscriptScopeKey
+      || stoppingTurnScopeKey === normalizedTranscriptScopeKey
+    ) {
+      return;
+    }
+    clearStopTurnConfirmation();
+    setStoppingTurnScopeKey(normalizedTranscriptScopeKey);
+    try {
+      await Promise.resolve(onStopTurn());
+    } catch (error) {
+      setStoppingTurnScopeKey((currentScopeKey) =>
+        currentScopeKey === normalizedTranscriptScopeKey ? null : currentScopeKey,
+      );
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('chat.stopResponseFailed'),
+        'error',
+      );
+    }
+  }, [
+    addToast,
+    clearStopTurnConfirmation,
+    disabled,
+    isEngineBusy,
+    normalizedTranscriptScopeKey,
+    onStopTurn,
+    stoppingTurnScopeKey,
+    t,
+  ]);
   const { settings: appSettings } = useBirdcoderAppSettings();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const composerActionRegionRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const isStoppingTurn = stoppingTurnScopeKey === normalizedTranscriptScopeKey;
+  const isStopTurnConfirmationVisible =
+    stopTurnConfirmationScopeKey === normalizedTranscriptScopeKey;
+  const canStopActiveTurn = Boolean(
+    !disabled
+    && onStopTurn
+    && normalizedTranscriptScopeKey
+    && isEngineBusy
+    && !isStoppingTurn,
+  );
   const activeComposerSelectionOverride =
     composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
       ? composerSelectionOverride
@@ -1483,7 +1614,8 @@ export const UniversalChat = memo(function UniversalChat({
   const hasPendingUserQuestionReplyTarget =
     Boolean(firstPendingUserQuestion && onSubmitUserQuestionAnswer);
   const isSubmittingPendingInteraction = pendingInteractionSubmissionId !== null;
-  const isComposerTurnBlocked = isBusy || isDispatchingMessage || isSubmittingPendingInteraction;
+  const isComposerTurnBlocked =
+    isBusy || isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
   const transcriptEngineId = useMemo(
@@ -1662,64 +1794,6 @@ export const UniversalChat = memo(function UniversalChat({
   };
   isComposerTurnBlockedRef.current = isComposerTurnBlocked;
 
-  const setQueuedTurnFlushGate = useCallback((
-    resolveNextState: (
-      previousState: ReturnType<typeof createWorkbenchAgentTurnInputQueueFlushGateState>,
-    ) => ReturnType<typeof createWorkbenchAgentTurnInputQueueFlushGateState>,
-  ) => {
-    const previousState = queuedTurnFlushGateRef.current;
-    const nextState = resolveNextState(previousState);
-    if (
-      nextState.awaitingTurnSettlement === previousState.awaitingTurnSettlement &&
-      nextState.observedBusySinceDispatch === previousState.observedBusySinceDispatch
-    ) {
-      return;
-    }
-
-    queuedTurnFlushGateRef.current = nextState;
-    setQueuedTurnFlushGateVersion((previousVersion) => previousVersion + 1);
-  }, []);
-
-  const clearQueuedTurnDispatchSettlementTimer = useCallback(() => {
-    if (queuedTurnDispatchSettlementTimerRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(queuedTurnDispatchSettlementTimerRef.current);
-    queuedTurnDispatchSettlementTimerRef.current = null;
-  }, []);
-
-  const settleQueuedTurnDispatchIfIdle = useCallback(() => {
-    const isTurnStillBusy =
-      isComposerTurnBlockedRef.current ||
-      isDispatchingMessageRef.current ||
-      pendingInteractionSubmissionIdRef.current !== null;
-
-    setQueuedTurnFlushGate((previousState) =>
-      isTurnStillBusy
-        ? observeWorkbenchQueuedAgentTurnBusyState(previousState, true)
-        : settleWorkbenchQueuedAgentTurnDispatch(previousState),
-    );
-  }, [setQueuedTurnFlushGate]);
-
-  const scheduleQueuedTurnDispatchSettlementCheck = useCallback(() => {
-    clearQueuedTurnDispatchSettlementTimer();
-    queuedTurnDispatchSettlementTimerRef.current = window.setTimeout(() => {
-      queuedTurnDispatchSettlementTimerRef.current = null;
-      settleQueuedTurnDispatchIfIdle();
-    }, QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS);
-  }, [clearQueuedTurnDispatchSettlementTimer, settleQueuedTurnDispatchIfIdle]);
-
-  const markQueuedTurnDispatchStarted = useCallback(() => {
-    const isTurnDispatchBusy =
-      isBusy ||
-      isDispatchingMessageRef.current ||
-      pendingInteractionSubmissionIdRef.current !== null;
-    setQueuedTurnFlushGate((previousState) =>
-      markWorkbenchQueuedAgentTurnDispatchStarted(previousState, isTurnDispatchBusy),
-    );
-  }, [isBusy, setQueuedTurnFlushGate]);
-
   const beginPendingInteractionSubmission = useCallback((interactionId: string): boolean => {
     if (pendingInteractionSubmissionIdRef.current) {
       return false;
@@ -1752,12 +1826,8 @@ export const UniversalChat = memo(function UniversalChat({
       return false;
     }
 
-    let didMarkQueuedTurnDispatch = false;
-
     try {
       await Promise.resolve(onSubmitUserQuestionAnswer(interactionId, request));
-      markQueuedTurnDispatchStarted();
-      didMarkQueuedTurnDispatch = true;
       return true;
     } catch (error) {
       addToast(
@@ -1769,18 +1839,13 @@ export const UniversalChat = memo(function UniversalChat({
       return false;
     } finally {
       finishPendingInteractionSubmission(pendingInteractionId);
-      if (didMarkQueuedTurnDispatch) {
-        scheduleQueuedTurnDispatchSettlementCheck();
-      }
     }
   }, [
     addToast,
     beginPendingInteractionSubmission,
     disabled,
     finishPendingInteractionSubmission,
-    markQueuedTurnDispatchStarted,
     onSubmitUserQuestionAnswer,
-    scheduleQueuedTurnDispatchSettlementCheck,
     t,
   ]);
 
@@ -1819,12 +1884,8 @@ export const UniversalChat = memo(function UniversalChat({
       return false;
     }
 
-    let didMarkQueuedTurnDispatch = false;
-
     try {
       await Promise.resolve(onSubmitApprovalDecision(interactionId, request));
-      markQueuedTurnDispatchStarted();
-      didMarkQueuedTurnDispatch = true;
       return true;
     } catch (error) {
       addToast(
@@ -1836,18 +1897,13 @@ export const UniversalChat = memo(function UniversalChat({
       return false;
     } finally {
       finishPendingInteractionSubmission(pendingInteractionId);
-      if (didMarkQueuedTurnDispatch) {
-        scheduleQueuedTurnDispatchSettlementCheck();
-      }
     }
   }, [
     addToast,
     beginPendingInteractionSubmission,
     disabled,
     finishPendingInteractionSubmission,
-    markQueuedTurnDispatchStarted,
     onSubmitApprovalDecision,
-    scheduleQueuedTurnDispatchSettlementCheck,
     t,
   ]);
 
@@ -1879,22 +1935,6 @@ export const UniversalChat = memo(function UniversalChat({
   useEffect(() => {
     inputValueRef.current = inputValue;
   }, [inputValue]);
-
-  useEffect(
-    () => clearQueuedTurnDispatchSettlementTimer,
-    [clearQueuedTurnDispatchSettlementTimer],
-  );
-
-  useEffect(() => {
-    setQueuedTurnFlushGate((previousState) =>
-      observeWorkbenchQueuedAgentTurnBusyState(previousState, isComposerTurnBlocked),
-    );
-  }, [isComposerTurnBlocked, setQueuedTurnFlushGate]);
-
-  useEffect(() => {
-    clearQueuedTurnDispatchSettlementTimer();
-    queuedTurnFlushGateRef.current = createWorkbenchAgentTurnInputQueueFlushGateState();
-  }, [clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey]);
 
   const handleJumpToLatestMessage = useCallback(() => {
     transcriptScrollCoordinator.jumpToLatest();
@@ -2579,7 +2619,6 @@ export const UniversalChat = memo(function UniversalChat({
 
   const dispatchDraftMessage = useCallback(async (
     submittedTextSnapshot: string,
-    queuedAgentTurnInputsSnapshot: readonly WorkbenchQueuedAgentTurnInput[] = [],
     submittedDisplayTextSnapshot: string = submittedTextSnapshot,
     submission?: UniversalChatComposerSubmission,
   ): Promise<boolean> => {
@@ -2600,17 +2639,26 @@ export const UniversalChat = memo(function UniversalChat({
     setTempInput('');
     isDispatchingMessageRef.current = true;
     setIsDispatchingMessage(true);
-    let didMarkQueuedTurnDispatch = false;
-
     try {
       try {
         await Promise.resolve(onSendMessage(fullText, currentComposerSelection, submission));
       } catch (error) {
+        if (isAcceptedAgentTurnDeliveryError(error)) {
+          if (submittedDisplayTextSnapshot.trim()) {
+            try {
+              await persistSubmittedPromptHistory(submittedDisplayTextSnapshot.trim());
+            } catch (historyError) {
+              console.error(
+                'Failed to persist prompt history after accepted Agent Turn delivery',
+                historyError,
+              );
+            }
+          }
+          addToast(error.message, 'info');
+          return true;
+        }
         setInputValue((previousInputValue) =>
           resolveComposerInputAfterSendFailure(submittedDisplayTextSnapshot, previousInputValue),
-        );
-        setAgentTurnInputQueue((previousQueue) =>
-          restoreQueuedAgentTurnInputsAfterSendFailure(queuedAgentTurnInputsSnapshot, previousQueue),
         );
         addToast(
           error instanceof Error && error.message.trim()
@@ -2620,9 +2668,6 @@ export const UniversalChat = memo(function UniversalChat({
         );
         return false;
       }
-
-      markQueuedTurnDispatchStarted();
-      didMarkQueuedTurnDispatch = true;
 
       if (submittedDisplayTextSnapshot.trim()) {
         try {
@@ -2635,97 +2680,121 @@ export const UniversalChat = memo(function UniversalChat({
     } finally {
       isDispatchingMessageRef.current = false;
       setIsDispatchingMessage(false);
-      if (didMarkQueuedTurnDispatch) {
-        scheduleQueuedTurnDispatchSettlementCheck();
-      }
     }
   }, [
     addToast,
     currentComposerSelection,
     disabled,
-    markQueuedTurnDispatchStarted,
     onSendMessage,
     persistSubmittedPromptHistory,
-    scheduleQueuedTurnDispatchSettlementCheck,
     setInputValue,
-    setAgentTurnInputQueue,
     t,
   ]);
 
   const dispatchQueuedAgentTurnInput = useCallback(async (
     submittedAgentTurnInput: WorkbenchQueuedAgentTurnInput,
-  ): Promise<boolean> => {
-    if (disabled) {
-      return false;
+  ): Promise<WorkbenchQueuedTurnDispatchOutcome> => {
+    if (disabled || isDispatchingMessageRef.current) {
+      return 'accepted_uncertain';
     }
 
-    if (isDispatchingMessageRef.current) {
-      return false;
-    }
-
-    const fullText = submittedAgentTurnInput.text.trim();
+    const fullText = submittedAgentTurnInput.content.trim();
     if (!fullText) {
-      return false;
+      return 'rejected';
     }
 
     setHistoryIndex(-1);
     setTempInput('');
     isDispatchingMessageRef.current = true;
     setIsDispatchingMessage(true);
-    let didMarkQueuedTurnDispatch = false;
-
     try {
       try {
         await Promise.resolve(
           onSendMessage(
             fullText,
-            submittedAgentTurnInput.composerSelection ?? currentComposerSelection,
-            submittedAgentTurnInput.driveRefs?.length
-              ? { driveRefs: submittedAgentTurnInput.driveRefs }
-              : undefined,
+            {
+              ...currentComposerSelection,
+              ...(submittedAgentTurnInput.accessModeId
+                ? { accessModeId: submittedAgentTurnInput.accessModeId }
+                : {}),
+              ...(submittedAgentTurnInput.requestedModelId
+                ? { modelId: submittedAgentTurnInput.requestedModelId }
+                : {}),
+            },
+            {
+              ...(submittedAgentTurnInput.driveRefs.length > 0
+                ? { driveRefs: submittedAgentTurnInput.driveRefs }
+                : {}),
+              queueExecution: {
+                ...(submittedAgentTurnInput.accessModeId
+                  ? { accessModeId: submittedAgentTurnInput.accessModeId }
+                  : {}),
+                agentId: submittedAgentTurnInput.agentId,
+                clientRequestId: submittedAgentTurnInput.clientRequestId,
+                idempotencyKey: submittedAgentTurnInput.idempotencyKey,
+                payloadHash: submittedAgentTurnInput.payloadHash,
+                queueEntryId: submittedAgentTurnInput.queueEntryId,
+                ...(submittedAgentTurnInput.requestedModelId
+                  ? { requestedModelId: submittedAgentTurnInput.requestedModelId }
+                  : {}),
+                ...(submittedAgentTurnInput.runtimeBindingId
+                  ? { runtimeBindingId: submittedAgentTurnInput.runtimeBindingId }
+                  : {}),
+                sessionId: submittedAgentTurnInput.sessionId,
+              },
+            },
           ),
         );
       } catch (error) {
-        restoreQueuedTurnInputsToFront([submittedAgentTurnInput]);
+        if (isAcceptedAgentTurnDeliveryError(error)) {
+          addToast(error.message, 'info');
+          return 'accepted_uncertain';
+        }
         addToast(
           error instanceof Error && error.message.trim()
             ? error.message
             : t('chat.sendMessageFailed'),
           'error',
         );
-        return false;
+        return 'rejected';
       }
-
-      markQueuedTurnDispatchStarted();
-      didMarkQueuedTurnDispatch = true;
-
-      const submittedDisplayText = submittedAgentTurnInput.displayText?.trim() || '';
-      if (submittedDisplayText) {
-        try {
-          await persistSubmittedPromptHistory(submittedDisplayText);
-        } catch (error) {
-          console.error('Failed to persist prompt history after successful queued send', error);
-        }
-      }
-      return true;
+      return 'completed';
     } finally {
       isDispatchingMessageRef.current = false;
       setIsDispatchingMessage(false);
-      if (didMarkQueuedTurnDispatch) {
-        scheduleQueuedTurnDispatchSettlementCheck();
-      }
     }
   }, [
     addToast,
     currentComposerSelection,
     disabled,
-    markQueuedTurnDispatchStarted,
     onSendMessage,
-    persistSubmittedPromptHistory,
-    restoreQueuedTurnInputsToFront,
-    scheduleQueuedTurnDispatchSettlementCheck,
     t,
   ]);
+
+  const {
+    clear: clearAgentTurnInputQueue,
+    enqueue: enqueueAgentTurnInput,
+    isMutating: isAgentTurnInputQueueMutating,
+    queuedTurnInputs: agentTurnInputQueue,
+    remove: removeAgentTurnInput,
+    reorder: reorderAgentTurnInputs,
+    retry: retryAgentTurnInput,
+    update: updateAgentTurnInput,
+  } = useAgentTurnInputQueue({
+    agentId,
+    disabled,
+    isActive,
+    isTurnBusy: isComposerTurnBlocked,
+    onDispatch: dispatchQueuedAgentTurnInput,
+    onError: ({ error, operation }) => {
+      console.error(`Agent Turn input queue ${operation} failed`, error);
+    },
+    pausedQueueEntryId: editingQueueEntryId,
+    scopeKey: normalizedQueueScopeKey,
+    sessionId,
+  });
+  const shouldQueueComposerSubmission =
+    isComposerTurnBlocked || agentTurnInputQueue.length > 0;
 
   const submitEditedMessage = useCallback(async (nextContent: string): Promise<boolean> => {
     if (disabled || !editingMessage || !onEditMessage) {
@@ -2778,19 +2847,13 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (isDispatchingMessageRef.current) {
-      return;
-    }
-
     const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
-    const isAwaitingQueuedTurnSettlement =
-      queuedTurnFlushGateRef.current.awaitingTurnSettlement;
     if (editingMessage) {
       if (!currentInput) {
         return;
       }
 
-      if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement || agentTurnInputQueue.length > 0) {
+      if (shouldQueueComposerSubmission) {
         addToast(t('chat.editMessageWaitForIdle'), 'error');
         return;
       }
@@ -2838,86 +2901,65 @@ export const UniversalChat = memo(function UniversalChat({
     const readyAttachments = composerAttachmentsRef.current.filter(
       (attachment) => attachment.status === 'ready' && attachment.contentBlock,
     );
-    const attachmentContent = readyAttachments
-      .map((attachment) => attachment.contentBlock)
-      .join('');
     const attachmentNames = readyAttachments.map((attachment) => attachment.displayName);
     const driveRefs = readyAttachments.flatMap((attachment) =>
       attachment.driveRef ? [attachment.driveRef] : [],
     );
     const currentSubmission = buildComposerSubmissionText(currentInput, readyAttachments);
-    const queuePresentation = {
-      attachmentContent,
-      attachmentNames,
-      driveRefs,
-      displayText: currentInput,
-    };
-
     if (currentSubmission.length > MAX_AGENT_TURN_INPUT_CHARACTERS) {
       addToast(t('chat.messageTooLong'), 'error');
       return;
     }
 
-    if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) {
+    if (shouldQueueComposerSubmission) {
       if (!currentSubmission) {
         return;
       }
-      if (agentTurnInputQueue.length >= MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
+      if (
+        !agentId?.trim()
+        || !normalizedSessionId
+        || agentTurnInputQueue.length >= MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE
+      ) {
         addToast(t('chat.messageQueueFull'), 'error');
         return;
       }
-
       try {
-        enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+        await enqueueAgentTurnInput({
+          ...(currentComposerSelection.accessModeId
+            ? { accessModeId: currentComposerSelection.accessModeId }
+            : {}),
+          attachmentNames,
+          content: currentSubmission,
+          displayText: currentInput,
+          driveRefs,
+          ...(currentComposerSelection.modelId !== 'auto'
+            ? { requestedModelId: currentComposerSelection.modelId }
+            : {}),
+          ...(runtimeBindingId?.trim()
+            ? { runtimeBindingId: runtimeBindingId.trim() }
+            : {}),
+          turnMode: 'interactive',
+        });
       } catch (error) {
-        console.error('Failed to retain queued Agent turn input', error);
-        addToast(t('chat.messageQueueFull'), 'error');
+        console.error('Failed to persist queued Agent Turn input', error);
+        addToast(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : t('chat.messageQueueFull'),
+          'error',
+        );
         return;
       }
       clearInputValue();
       clearComposerAttachments();
-      addToast(t('chat.messageQueued'), 'success');
-      return;
-    }
-
-    if (agentTurnInputQueue.length > 0) {
-      const canFlushQueuedAgentTurnInputFromUserAction = canFlushWorkbenchQueuedAgentTurnInputs(
-        queuedTurnFlushGateRef.current,
-        {
-          disabled,
-          editingQueueIndex,
-          isActive,
-          isComposerBusy: isComposerTurnBlocked,
-          isQueueExpanded,
-          queueLength: agentTurnInputQueue.length,
-        },
-      );
-
-      if (currentSubmission) {
-        if (agentTurnInputQueue.length >= MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
-          addToast(t('chat.messageQueueFull'), 'error');
-          return;
-        }
+      if (currentInput) {
         try {
-          enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
+          await persistSubmittedPromptHistory(currentInput);
         } catch (error) {
-          console.error('Failed to retain queued Agent turn input', error);
-          addToast(t('chat.messageQueueFull'), 'error');
-          return;
+          console.error('Failed to persist queued prompt history', error);
         }
-        clearInputValue();
-        clearComposerAttachments();
-        addToast(t('chat.messageQueued'), 'success');
       }
-
-      if (!canFlushQueuedAgentTurnInputFromUserAction) {
-        return;
-      }
-
-      const nextQueuedAgentTurnInput = dequeueQueuedTurnInput();
-      if (nextQueuedAgentTurnInput) {
-        void dispatchQueuedAgentTurnInput(nextQueuedAgentTurnInput);
-      }
+      addToast(t('chat.messageQueued'), 'success');
       return;
     }
 
@@ -2928,7 +2970,6 @@ export const UniversalChat = memo(function UniversalChat({
     clearInputValue();
     const didDispatchMessage = await dispatchDraftMessage(
       currentSubmission,
-      [],
       currentInput,
       driveRefs.length > 0 ? { driveRefs } : undefined,
     );
@@ -2936,39 +2977,6 @@ export const UniversalChat = memo(function UniversalChat({
       clearComposerAttachments();
     }
   };
-
-  useEffect(() => {
-    if (
-      isDispatchingMessageRef.current ||
-      !canFlushWorkbenchQueuedAgentTurnInputs(queuedTurnFlushGateRef.current, {
-        disabled,
-        editingQueueIndex,
-        isActive,
-        isComposerBusy: isComposerTurnBlocked,
-        isQueueExpanded,
-        queueLength: agentTurnInputQueue.length,
-      })
-    ) {
-      return;
-    }
-
-    const nextQueuedAgentTurnInput = dequeueQueuedTurnInput();
-    if (!nextQueuedAgentTurnInput) {
-      return;
-    }
-
-    void dispatchQueuedAgentTurnInput(nextQueuedAgentTurnInput);
-  }, [
-    dequeueQueuedTurnInput,
-    disabled,
-    dispatchQueuedAgentTurnInput,
-    editingQueueIndex,
-    isActive,
-    isComposerTurnBlocked,
-    isQueueExpanded,
-    agentTurnInputQueue.length,
-    queuedTurnFlushGateVersion,
-  ]);
 
   useEffect(() => {
     if (!isActive) {
@@ -2987,6 +2995,8 @@ export const UniversalChat = memo(function UniversalChat({
   }, [inputValue, isActive, manualComposerHeight]);
 
   const hasOpenFloatingMenu = showAttachmentMenu;
+  const hasOpenComposerMenu =
+    showAttachmentMenu || showAccessModeMenu || showModelMenu || showPromptModal;
 
   const handleFloatingMenuClickOutside = useCallback(
     (event: MouseEvent) => {
@@ -3057,6 +3067,33 @@ export const UniversalChat = memo(function UniversalChat({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const stopTurnEscapeAction = resolveSessionTurnEscapeAction({
+      altKey: e.altKey,
+      ctrlKey: e.ctrlKey,
+      isComposing: e.nativeEvent.isComposing || composerCompositionRef.current,
+      key: e.key,
+      metaKey: e.metaKey,
+      repeat: e.repeat,
+      shiftKey: e.shiftKey,
+    }, {
+      canStopTurn: canStopActiveTurn,
+      hasActiveInteractionSurface:
+        pendingApprovals.length > 0 || pendingUserQuestions.length > 0,
+      hasOpenComposerMenu,
+      isStopTurnConfirmationVisible,
+    });
+    if (stopTurnEscapeAction) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
+      if (stopTurnEscapeAction === 'confirm-stop-turn') {
+        confirmStopTurn();
+        return;
+      }
+      void handleStopTurn();
+      return;
+    }
+
     if (e.key === 'Tab') {
       // Keep the browser's normal focus navigation behavior for Tab.
       return;
@@ -3126,11 +3163,8 @@ export const UniversalChat = memo(function UniversalChat({
     hasUploadingComposerAttachments || hasFailedComposerAttachments;
   const attachmentsDisabled =
     disabled
-    || isDispatchingMessage
     || Boolean(editingMessage)
     || hasPendingUserQuestionReplyTarget;
-  const isAwaitingQueuedTurnSettlement =
-    queuedTurnFlushGateRef.current.awaitingTurnSettlement;
   const canSubmitEditedMessage =
     !disabled &&
     Boolean(editingMessage && onEditMessage) &&
@@ -3146,11 +3180,12 @@ export const UniversalChat = memo(function UniversalChat({
     hasTypedComposerInput;
   const canQueueTypedMessage =
     !disabled &&
-    (isBusy || isAwaitingQueuedTurnSettlement) &&
-    !isDispatchingMessage &&
     !isSubmittingPendingInteraction &&
+    !isAgentTurnInputQueueMutating &&
     !editingMessage &&
     !hasPendingUserQuestionReplyTarget &&
+    Boolean(agentId?.trim() && normalizedSessionId) &&
+    agentTurnInputQueue.length < MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE &&
     hasComposerSubmissionContent &&
     !isComposerAttachmentSubmissionBlocked;
   const canSendQueuedOrTypedMessage =
@@ -3165,7 +3200,9 @@ export const UniversalChat = memo(function UniversalChat({
   const canSubmitComposerMessage =
     canSubmitEditedMessage ||
     canSubmitPendingUserQuestionAnswer ||
-    ((isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) ? canQueueTypedMessage : canSendQueuedOrTypedMessage);
+    (shouldQueueComposerSubmission
+      ? canQueueTypedMessage
+      : canSendQueuedOrTypedMessage);
   const handleComposerResize = useCallback((delta: number) => {
     const textareaElement = textareaRef.current;
     const measuredHeight = textareaElement
@@ -3193,6 +3230,59 @@ export const UniversalChat = memo(function UniversalChat({
       scopeKey: normalizedTranscriptScopeKey,
     });
   }, [normalizedMessages, normalizedTranscriptScopeKey]);
+  const sessionTranscriptFindLabels = useMemo<SessionTranscriptFindBarLabels>(() => ({
+    close: t('chat.sessionTranscriptFindClose'),
+    find: t('chat.sessionTranscriptFindLabel'),
+    next: t('chat.sessionTranscriptFindNext'),
+    noResults: t('chat.sessionTranscriptFindNoResults'),
+    placeholder: t('chat.sessionTranscriptFindPlaceholder'),
+    previous: t('chat.sessionTranscriptFindPrevious'),
+    results: (active, matches, isCapped) => t(
+      isCapped
+        ? 'chat.sessionTranscriptFindResultsCapped'
+        : 'chat.sessionTranscriptFindResults',
+      { active, matches },
+    ),
+  }), [t]);
+  const closeSessionTranscriptFind = useCallback(() => {
+    setIsSessionTranscriptFindOpen(false);
+    const origin = sessionTranscriptFindOriginRef.current;
+    sessionTranscriptFindOriginRef.current = null;
+    window.requestAnimationFrame(() => {
+      if (origin?.isConnected) {
+        origin.focus();
+      } else {
+        transcriptScrollContainerRef.current?.focus();
+      }
+    });
+  }, []);
+  const handleSessionTranscriptFindMatch = useCallback((
+    match: SessionTranscriptFindMatch,
+  ) => {
+    scrollTranscriptToTurn(match.messageIndex);
+  }, [scrollTranscriptToTurn]);
+
+  useEffect(() => {
+    const handleFindInSessionTranscript = () => {
+      if (!isActive || !normalizedTranscriptScopeKey) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      sessionTranscriptFindOriginRef.current = activeElement instanceof HTMLElement
+        ? activeElement
+        : null;
+      setIsSessionTranscriptFindOpen(true);
+    };
+    return globalEventBus.on(
+      'findInSessionTranscript',
+      handleFindInSessionTranscript,
+    );
+  }, [isActive, normalizedTranscriptScopeKey]);
+
+  useEffect(() => {
+    setIsSessionTranscriptFindOpen(false);
+    sessionTranscriptFindOriginRef.current = null;
+  }, [normalizedTranscriptScopeKey]);
 
   return (
     <div
@@ -3258,6 +3348,14 @@ export const UniversalChat = memo(function UniversalChat({
             : 'relative flex-1 min-h-0 min-w-0'
         }
       >
+        <SessionTranscriptFindBar
+          isOpen={isSessionTranscriptFindOpen}
+          labels={sessionTranscriptFindLabels}
+          messages={normalizedMessages}
+          onClose={closeSessionTranscriptFind}
+          onSelectMatch={handleSessionTranscriptFindMatch}
+          transcriptRootRef={transcriptScrollContainerRef}
+        />
         <div
           ref={transcriptScrollContainerRef}
           aria-label={t('chat.transcriptRegion')}
@@ -3358,11 +3456,14 @@ export const UniversalChat = memo(function UniversalChat({
           ) : null}
           <UniversalChatPendingInteractions
             disabled={disabled}
+            hasLoadError={hasPendingInteractionsLoadError}
+            isLoading={isLoadingPendingInteractions}
             isSubmitting={isSubmittingPendingInteraction}
             pendingUserQuestions={pendingUserQuestions}
             pendingApprovals={pendingApprovals}
             onSubmitUserQuestionAnswer={handleSubmitPendingUserQuestionAnswer}
             onSubmitApprovalDecision={handleSubmitPendingApprovalDecision}
+            onRetryLoad={onRetryPendingInteractions}
           />
           <div ref={composerActionRegionRef} className="relative w-full">
             {showAttachmentMenu ? (
@@ -3401,8 +3502,11 @@ export const UniversalChat = memo(function UniversalChat({
               {agentTurnInputQueue.length > 0 && (
                 <div className="relative mb-2">
                   {!isQueueExpanded ? (
-                    <div 
-                      className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-blue-500/20 transition-colors"
+                    <button
+                      type="button"
+                      aria-expanded="false"
+                      aria-label={t('chat.queuedMessages', { count: agentTurnInputQueue.length })}
+                      className="flex w-full items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-left transition-colors hover:bg-blue-500/20"
                       onClick={() => setIsQueueExpanded(true)}
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -3410,7 +3514,7 @@ export const UniversalChat = memo(function UniversalChat({
                         <span className="text-xs text-blue-300 truncate font-medium">
                           {agentTurnInputQueue[0]?.displayText
                             || agentTurnInputQueue[0]?.attachmentNames?.join(', ')
-                            || agentTurnInputQueue[0]?.text}
+                            || agentTurnInputQueue[0]?.content}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -3421,7 +3525,7 @@ export const UniversalChat = memo(function UniversalChat({
                         )}
                         <ChevronUp size={14} className="text-blue-400" />
                       </div>
-                    </div>
+                    </button>
                   ) : (
                     <div className="absolute bottom-0 left-0 right-0 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-white/5">
@@ -3431,21 +3535,38 @@ export const UniversalChat = memo(function UniversalChat({
                             {t('chat.queuedMessages', { count: agentTurnInputQueue.length })}
                           </span>
                         </div>
-                        <button 
-                          className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
-                          onClick={() => setIsQueueExpanded(false)}
-                        >
-                          <ChevronDown size={14} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            className="p-1 text-gray-400 transition-colors hover:bg-red-400/10 hover:text-red-400 disabled:opacity-40"
+                            disabled={isAgentTurnInputQueueMutating}
+                            onClick={() => {
+                              void clearAgentTurnInputQueue().catch(() => {
+                                addToast(t('chat.queueMutationFailed'), 'error');
+                              });
+                            }}
+                            title={t('chat.clearQueuedMessages')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+                            onClick={() => setIsQueueExpanded(false)}
+                            title={t('common.close')}
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                        </div>
                       </div>
                       <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                        {agentTurnInputQueue.map((queuedAgentTurnInput, idx) => (
-                          <div key={queuedAgentTurnInput.id} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
+                        {agentTurnInputQueue.map((queuedAgentTurnInput) => (
+                          <div key={queuedAgentTurnInput.queueEntryId} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
                             <div className="mt-1 text-gray-600">
                               <GripVertical size={14} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              {editingQueueIndex === idx ? (
+                              {editingQueueEntryId === queuedAgentTurnInput.queueEntryId ? (
                                 <div className="flex flex-col gap-2">
                                   <textarea
                                     value={editingQueueText}
@@ -3456,58 +3577,47 @@ export const UniversalChat = memo(function UniversalChat({
                                     autoFocus
                                   />
                                   <div className="flex items-center justify-end gap-2">
-                                    <button 
+                                    <button
+                                      type="button"
                                       className="text-[10px] px-2 py-1 text-gray-400 hover:text-white transition-colors"
-                                      onClick={() => setEditingQueueIndex(-1)}
+                                      disabled={isAgentTurnInputQueueMutating}
+                                      onClick={() => setEditingQueueEntryId('')}
                                     >
                                       {t('chat.cancelQueueEdit')}
                                     </button>
-                                    <button 
+                                    <button
+                                      type="button"
                                       className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+                                      disabled={isAgentTurnInputQueueMutating}
                                       onClick={() => {
-                                        const nextDisplayText = editingQueueText.trim();
-                                        const attachmentContent =
-                                          agentTurnInputQueue[idx]?.attachmentContent ?? '';
-                                        const nextQueuedText = `${nextDisplayText}${
-                                          attachmentContent ? `\n\n${attachmentContent}` : ''
-                                        }`.trim();
-                                        if (nextQueuedText.length > MAX_AGENT_TURN_INPUT_CHARACTERS) {
-                                          addToast(t('chat.messageTooLong'), 'error');
-                                          return;
-                                        }
-                                        try {
-                                          setAgentTurnInputQueue((previousQueue) => {
-                                            const currentIndex = previousQueue.findIndex(
-                                              (input) => input.id === queuedAgentTurnInput.id,
-                                            );
-                                            const currentQueuedAgentTurnInput =
-                                              previousQueue[currentIndex];
-                                            if (
-                                              currentIndex < 0
-                                              || !currentQueuedAgentTurnInput
-                                              || currentQueuedAgentTurnInput.displayText
-                                                === nextDisplayText
-                                            ) {
-                                              return previousQueue;
+                                        void (async () => {
+                                          try {
+                                            const nextDisplayText = editingQueueText.trim();
+                                            if (queuedAgentTurnInput.displayText === nextDisplayText) {
+                                              setEditingQueueEntryId('');
+                                              return;
                                             }
-                                            const nextQueue = [...previousQueue];
-                                            nextQueue[currentIndex] = {
-                                              ...currentQueuedAgentTurnInput,
-                                              displayText: nextDisplayText || undefined,
-                                              text: `${nextDisplayText}${
-                                                currentQueuedAgentTurnInput.attachmentContent
-                                                  ? `\n\n${currentQueuedAgentTurnInput.attachmentContent}`
-                                                  : ''
-                                              }`.trim(),
-                                            };
-                                            return nextQueue;
-                                          });
-                                        } catch (error) {
-                                          console.error('Failed to update queued Agent turn input', error);
-                                          addToast(t('chat.messageQueueFull'), 'error');
-                                          return;
-                                        }
-                                        setEditingQueueIndex(-1);
+                                            const nextContent = replaceQueuedTurnDisplayText(
+                                              queuedAgentTurnInput,
+                                              nextDisplayText,
+                                            );
+                                            if (
+                                              !nextContent
+                                              || nextContent.length > MAX_AGENT_TURN_INPUT_CHARACTERS
+                                            ) {
+                                              addToast(t('chat.messageTooLong'), 'error');
+                                              return;
+                                            }
+                                            await updateAgentTurnInput(
+                                              queuedAgentTurnInput,
+                                              nextContent,
+                                              nextDisplayText,
+                                            );
+                                            setEditingQueueEntryId('');
+                                          } catch {
+                                            addToast(t('chat.queueMutationFailed'), 'error');
+                                          }
+                                        })();
                                       }}
                                     >
                                       {t('chat.saveQueueEdit')}
@@ -3530,60 +3640,89 @@ export const UniversalChat = memo(function UniversalChat({
                                     </p>
                                   ) : !queuedAgentTurnInput.displayText ? (
                                     <p className="whitespace-pre-wrap break-words text-xs text-gray-300">
-                                      {queuedAgentTurnInput.text}
+                                      {queuedAgentTurnInput.content}
+                                    </p>
+                                  ) : null}
+                                  {queuedAgentTurnInput.status === 'executing' ? (
+                                    <p className="text-[10px] text-blue-400">
+                                      {t('chat.queueStatusExecuting')}
+                                    </p>
+                                  ) : queuedAgentTurnInput.status === 'failed' ? (
+                                    <p className="text-[10px] text-red-400" title={queuedAgentTurnInput.errorDetail ?? undefined}>
+                                      {t('chat.queueStatusFailed')}
                                     </p>
                                   ) : null}
                                 </div>
                               )}
                             </div>
-                            {editingQueueIndex !== idx && (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <button 
+                            {editingQueueEntryId !== queuedAgentTurnInput.queueEntryId && (
+                              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                <button
+                                  type="button"
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                                   onClick={() => {
-                                    if (idx > 0) {
-                                      setAgentTurnInputQueue((previousQueue) => {
-                                        if (idx >= previousQueue.length) {
-                                          return previousQueue;
-                                        }
-                                        const nextQueue = [...previousQueue];
-                                        [nextQueue[idx - 1], nextQueue[idx]] = [
-                                          nextQueue[idx],
-                                          nextQueue[idx - 1],
-                                        ];
-                                        return nextQueue;
-                                      });
+                                    const reorderedEntries = moveQueuedTurnInputUp(
+                                      agentTurnInputQueue,
+                                      queuedAgentTurnInput.queueEntryId,
+                                    );
+                                    if (!reorderedEntries) {
+                                      return;
                                     }
+                                    void reorderAgentTurnInputs(reorderedEntries).catch(() => {
+                                      addToast(t('chat.queueMutationFailed'), 'error');
+                                    });
                                   }}
-                                  disabled={idx === 0}
+                                  disabled={
+                                    isAgentTurnInputQueueMutating
+                                    || !moveQueuedTurnInputUp(
+                                      agentTurnInputQueue,
+                                      queuedAgentTurnInput.queueEntryId,
+                                    )
+                                  }
                                   title={t('chat.moveQueuedMessageUp')}
                                 >
-                                  <ArrowUp size={12} className={idx === 0 ? 'opacity-30' : ''} />
+                                  <ArrowUp size={12} />
                                 </button>
-                                <button 
+                                {queuedAgentTurnInput.status === 'failed' ? (
+                                  <button
+                                    type="button"
+                                    className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
+                                    disabled={isAgentTurnInputQueueMutating}
+                                    onClick={() => {
+                                      void retryAgentTurnInput(queuedAgentTurnInput).catch(() => {
+                                        addToast(t('chat.queueMutationFailed'), 'error');
+                                      });
+                                    }}
+                                    title={t('chat.retryQueuedMessage')}
+                                  >
+                                    <RotateCcw size={12} />
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
+                                  disabled={
+                                    isAgentTurnInputQueueMutating
+                                    || queuedAgentTurnInput.status === 'executing'
+                                  }
                                   onClick={() => {
-                                    setEditingQueueText(
-                                      queuedAgentTurnInput.displayText ?? queuedAgentTurnInput.text,
-                                    );
-                                    setEditingQueueIndex(idx);
+                                    setEditingQueueText(queuedAgentTurnInput.displayText);
+                                    setEditingQueueEntryId(queuedAgentTurnInput.queueEntryId);
                                   }}
                                   title={t('chat.editQueuedMessage')}
                                 >
                                   <Edit2 size={12} />
                                 </button>
-                                <button 
+                                <button
+                                  type="button"
                                   className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
+                                  disabled={
+                                    isAgentTurnInputQueueMutating
+                                    || queuedAgentTurnInput.status === 'executing'
+                                  }
                                   onClick={() => {
-                                    setAgentTurnInputQueue((previousQueue) => {
-                                      if (idx < 0 || idx >= previousQueue.length) {
-                                        return previousQueue;
-                                      }
-                                      const nextQueue = previousQueue.filter((_, queueIndex) => queueIndex !== idx);
-                                      if (nextQueue.length === 0) {
-                                        setIsQueueExpanded(false);
-                                      }
-                                      return nextQueue;
+                                    void removeAgentTurnInput(queuedAgentTurnInput).catch(() => {
+                                      addToast(t('chat.queueMutationFailed'), 'error');
                                     });
                                   }}
                                   title={t('chat.removeQueuedMessage')}
@@ -3602,7 +3741,7 @@ export const UniversalChat = memo(function UniversalChat({
               {!editingMessage ? (
                 <ComposerAttachmentTray
                   attachments={composerAttachments}
-                  disabled={disabled || isDispatchingMessage}
+                  disabled={disabled}
                   onRemove={removeComposerAttachment}
                   onRetry={retryComposerAttachment}
                 />
@@ -3649,6 +3788,9 @@ export const UniversalChat = memo(function UniversalChat({
               accessModes={currentEngine.accessModes}
               attachmentsDisabled={attachmentsDisabled}
               canQueueTypedMessage={canQueueTypedMessage}
+              canStopTurn={
+                canStopActiveTurn
+              }
               canSubmitComposerMessage={canSubmitComposerMessage}
               canSubmitPendingUserQuestionAnswer={canSubmitPendingUserQuestionAnswer}
               disabled={disabled}
@@ -3659,10 +3801,11 @@ export const UniversalChat = memo(function UniversalChat({
               imageInputRef={imageInputRef}
               isAttachmentMenuOpen={showAttachmentMenu}
               isAccessModeMenuOpen={showAccessModeMenu}
-              isAwaitingQueuedTurnSettlement={isAwaitingQueuedTurnSettlement}
               isComposerProcessing={isComposerProcessing}
-              isComposerTurnBlocked={isComposerTurnBlocked}
+              isComposerTurnBlocked={shouldQueueComposerSubmission}
               isListening={isListening}
+              isStoppingTurn={isStoppingTurn}
+              isStopTurnConfirmationVisible={isStopTurnConfirmationVisible}
               isUploadingAttachments={hasUploadingComposerAttachments}
               modelGroups={modelPickerCatalog.groups}
               onAccessModeMenuOpenChange={handleAccessModeMenuOpenChange}
@@ -3673,6 +3816,7 @@ export const UniversalChat = memo(function UniversalChat({
               onSelectModel={handleComposerModelSelect}
               onSelectAccessMode={handleAccessModeSelect}
               onSend={handleSend}
+              onStopTurn={handleStopTurn}
               onToggleVoiceInput={toggleVoiceInput}
               selectedAccessModeId={currentAccessModeId}
               selectedModelLabel={currentComposerModelLabel}

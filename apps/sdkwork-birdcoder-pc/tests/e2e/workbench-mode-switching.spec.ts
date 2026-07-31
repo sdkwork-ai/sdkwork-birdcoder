@@ -21,6 +21,10 @@ const secondaryWorkProject = {
   createdAt: '2025-12-31T00:00:00.000Z',
   updatedAt: '2025-12-31T00:00:00.000Z',
 };
+const secondaryProviderSessionIdsBySessionId = new Map([
+  ['e2e-secondary-openclaw-session', 'openclaw-continuation-67a1e8c3'],
+  ['e2e-secondary-codex-session', 'codex-continuation-20f945bd'],
+]);
 
 function createSecondaryProjectSession({
   agentId,
@@ -61,6 +65,10 @@ function createSecondarySessionRuntimeBinding(
   session: ReturnType<typeof createSecondaryProjectSession>,
 ) {
   const isOpenClaw = session.agentId === 'agent.intelligence.openclaw';
+  const providerSessionId = secondaryProviderSessionIdsBySessionId.get(session.sessionId);
+  if (!providerSessionId) {
+    throw new Error(`Missing provider Session fixture for ${session.sessionId}.`);
+  }
   return {
     runtimeBindingId: `runtime-binding.${session.sessionId}`,
     tenantId: session.tenantId,
@@ -74,7 +82,7 @@ function createSecondarySessionRuntimeBinding(
       : 'codex',
     modelId: isOpenClaw ? 'openclaw-default' : 'gpt-5-codex',
     providerId: isOpenClaw ? 'provider.model.openclaw' : 'openai',
-    providerSessionId: `provider.${session.sessionId}`,
+    providerSessionId,
     status: 'active',
     isCurrent: true,
     version: session.version,

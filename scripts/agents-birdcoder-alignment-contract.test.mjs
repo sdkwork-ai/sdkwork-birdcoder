@@ -19,7 +19,118 @@ function readSource(relativePath) {
   return fs.readFileSync(resolvePath(relativePath), 'utf8');
 }
 
+const AUTHORED_SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
+const FORBIDDEN_THREAD_IDENTIFIER = /\b(?:[A-Za-z_$][A-Za-z0-9_$]*Thread[A-Za-z0-9_$]*|thread[A-Z_][A-Za-z0-9_$]*|Thread[A-Za-z0-9_$]*)\b/gu;
+const FORBIDDEN_PROVIDER_SESSION_ID_SYNTHESIS = [
+  /providerSessionId\s*[:=]\s*`[^`]*\$\{[^}]*(?:session\.sessionId|sessionId)[^}]*\}[^`]*`/gu,
+  /providerSessionId\s*[:=]\s*(?:session\.sessionId|sessionId)\b/gu,
+  /providerSessionId\s*[:=][^\r\n,;]*(?:(?:session\.sessionId|sessionId)\s*\+|\+\s*(?:session\.sessionId|sessionId))/gu,
+];
+
+function collectAuthoredSourceFiles(directoryPath, includeTests = false) {
+  const files = [];
+  for (const entry of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+    const entryPath = path.join(directoryPath, entry.name);
+    if (entry.isDirectory()) {
+      if (
+        ['dist', 'node_modules'].includes(entry.name)
+        || (!includeTests && ['__tests__', 'tests'].includes(entry.name))
+        || /^test-results/u.test(entry.name)
+      ) {
+        continue;
+      }
+      files.push(...collectAuthoredSourceFiles(entryPath, includeTests));
+      continue;
+    }
+    if (
+      entry.isFile()
+      && AUTHORED_SOURCE_EXTENSIONS.has(path.extname(entry.name))
+      && (includeTests || !/\.(?:spec|test)\.[cm]?[jt]sx?$/u.test(entry.name))
+    ) {
+      files.push(entryPath);
+    }
+  }
+  return files;
+}
+
+function collectSessionNamingViolations(boundary) {
+  assert.deepEqual(
+    {
+      canonicalDomainName: boundary.canonicalDomainName,
+      canonicalProviderIdentityField: boundary.canonicalProviderIdentityField,
+      forbiddenBirdCoderDomainName: boundary.forbiddenBirdCoderDomainName,
+    },
+    {
+      canonicalDomainName: 'Session',
+      canonicalProviderIdentityField: 'providerSessionId',
+      forbiddenBirdCoderDomainName: 'Thread',
+    },
+    'BirdCoder must map provider continuation protocols to the canonical Agents Session vocabulary.',
+  );
+  assert.deepEqual(boundary.continuationIdentityLifecycle, {
+    firstTurn:
+      'Persist the provider-returned providerSessionId on the current Session runtime binding.',
+    followUpTurn:
+      'Resume through the runtime binding providerSessionId without changing the canonical sessionId.',
+    forbiddenMapping: 'Never synthesize providerSessionId from sessionId.',
+  });
+
+  const allowedIdentifiersByFile = new Map(
+    boundary.rawProviderAliasAllowlist.map((entry) => [
+      entry.file,
+      new Set(entry.identifiers),
+    ]),
+  );
+  const violations = [];
+  for (const sourceRoot of boundary.authoredSourceRoots) {
+    for (const filePath of collectAuthoredSourceFiles(resolvePath(sourceRoot))) {
+      const relativePath = path.relative(root, filePath).replaceAll('\\', '/');
+      const allowedIdentifiers = allowedIdentifiersByFile.get(relativePath) ?? new Set();
+      const source = fs.readFileSync(filePath, 'utf8');
+      for (const match of source.matchAll(FORBIDDEN_THREAD_IDENTIFIER)) {
+        const identifier = match[0];
+        if (allowedIdentifiers.has(identifier)) {
+          continue;
+        }
+        const line = source.slice(0, match.index).split('\n').length;
+        violations.push(
+          `${relativePath}:${line}: provider-specific ${identifier} must be normalized to Session at the adapter boundary`,
+        );
+      }
+    }
+  }
+  return violations;
+}
+
+function collectProviderSessionIdentitySynthesisViolations(boundary) {
+  const violations = [];
+  for (const sourceRoot of boundary.providerIdentitySourceRoots) {
+    for (const filePath of collectAuthoredSourceFiles(resolvePath(sourceRoot), true)) {
+      const relativePath = path.relative(root, filePath).replaceAll('\\', '/');
+      if (relativePath === 'scripts/agents-birdcoder-alignment-contract.test.mjs') {
+        continue;
+      }
+      const source = fs.readFileSync(filePath, 'utf8');
+      for (const pattern of FORBIDDEN_PROVIDER_SESSION_ID_SYNTHESIS) {
+        pattern.lastIndex = 0;
+        for (const match of source.matchAll(pattern)) {
+          const line = source.slice(0, match.index).split('\n').length;
+          violations.push(
+            `${relativePath}:${line}: providerSessionId must be provider-returned or independently resolved, never synthesized from sessionId`,
+          );
+        }
+      }
+    }
+  }
+  return violations;
+}
+
 const errors = [];
+
+errors.push(...collectSessionNamingViolations(spec.sessionNamingBoundary));
+errors.push(
+  ...collectProviderSessionIdentitySynthesisViolations(spec.sessionNamingBoundary),
+);
 
 for (const violation of collectLegacyProviderSessionIdentity(root)) {
   const relativePath = path.relative(root, violation.filePath).replaceAll('\\', '/');
@@ -159,4 +270,5 @@ assert.deepEqual(
 console.log('agents-birdcoder alignment contract passed.');
 console.log(`tasks: ${spec.tasks.length}/${spec.tasks.length} done`);
 
+await import('./codex-desktop-parity-contract.test.mjs');
 await import('./hybrid-execution-commercial-readiness-contract.test.mjs');

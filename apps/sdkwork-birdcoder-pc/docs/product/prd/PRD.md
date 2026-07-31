@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-30
+Updated: 2026-07-31
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -29,6 +29,8 @@ their business semantics.
 - Render Codex, Claude Code, OpenCode, and Gemini Session Items through one
   provider-neutral turn hierarchy with semantic tools, reasoning, lifecycle,
   interactions, resources, and file-change presentation.
+- Queue later Turn inputs while a Session is busy, manage them by stable
+  identity, and resume FIFO execution after restart or reconnect.
 - Bind a Session to an opaque local runtime id through Agents.
 - Authorize a local directory on the current device and use it for filesystem,
   Git, worktree, and terminal actions.
@@ -52,6 +54,11 @@ their business semantics.
 - Cross-tab or cross-process Session coordination broadcasts scoped
   invalidation only. It does not broadcast or persist Session records,
   transcripts, tokens, or provider payloads.
+- Agents owns the owner-scoped durable Turn input queue. PC persists every busy
+  submission through the generated Agents App SDK before clearing the composer
+  and keeps only a bounded in-memory projection. Atomic claim, fencing token,
+  queue-owned idempotency key, and payload hash prevent duplicate execution
+  across browser windows and delivery retries.
 - Background synchronization preserves explicit Session selection. A
   synchronized newest Session is only a default when the target Project has no
   current or explicit selection.
@@ -66,9 +73,22 @@ their business semantics.
 ## Acceptance
 
 - PC-scoped lint, tests, production build, and architecture gates pass without
-  compatibility fields or delegation to a repository-wide mobile gate.
+  compatibility fields or delegation to a repository-wide mobile gate. The
+  production browser artifact is previewed on isolated ports and must complete
+  IAM sign-in plus Markdown, TypeScript highlighting, and Mermaid rendering
+  without page, console, or script-load errors.
 - Owner SDK calls use the shared TokenManager and correct connectivity plane.
 - Project and Session views preserve canonical identifiers.
+- Session is the only agent-continuation name in PC application code and UI.
+  Codex Thread terminology is accepted only as raw adapter input and is
+  converted to Session identity and `providerSessionId` before it reaches
+  shell, UI, stores, services, events, or authored contracts.
+- `Ctrl/Cmd+F` searches only the current Session transcript, resets when the
+  selected Session changes, highlights visible matches with a distinct active
+  result, caps retained matches at 150, and uses Session-named commands and
+  state. Enter/Shift+Enter and next/previous controls wrap through results;
+  Escape closes the bar and restores focus. Project-wide file search remains a
+  separate `Ctrl/Cmd+Shift+F` command.
 - Codex, Claude Code, and other provider Sessions share one activity contract;
   stale, unsupported, unavailable, or expired provider evidence is neutral and
   never leaves a permanent running animation.
@@ -95,6 +115,21 @@ their business semantics.
   windows. Earlier-message failure remains visible with an in-context retry;
   unknown future content remains visible as unsupported rather than being
   mislabeled as assistant output.
+- The transcript keeps at most 500 items and 4 MiB of estimated structured
+  content per Session. Deep provider payloads are measured iteratively under a
+  node budget, and the progressive latest-48 window is keyed only by stable
+  Project and Session identity so metadata enrichment cannot collapse history.
+- Turn streaming uses the generated Agents SDK `kernel-v1` protocol. Runtime
+  events are validated for order, identity, JSON shape, and aggregate budgets
+  inside the service boundary; React receives provider-neutral Session Items,
+  never raw Kernel events. The durable completion remains authoritative.
+- Queue hydration runs at startup and after focus, visibility, connectivity,
+  or cross-window invalidation. A completed Turn advances FIFO; uncertain
+  delivery remains executing for owner reconciliation; a rejected dispatch is
+  marked failed once and pauses the head until retry, edit, or removal.
+  Executing entries cannot be edited, reordered, or removed. Clear preserves
+  the executing entry, Session deletion purges its queue, and logout clears
+  only the disposable PC projection.
 - Local storage contains no Project, Session, Conversation, Message, or Skill
   business record.
 - Filesystem and execution actions never use process-CWD or unrelated-mount
@@ -108,4 +143,5 @@ their business semantics.
 - [Cross-application Session Activity ADR](../../../../../docs/architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
 - [Provider-neutral transcript requirement](../../../../../docs/product/requirements/REQ-2026-0004-provider-neutral-session-transcript.md)
 - [Provider-neutral transcript ADR](../../../../../docs/architecture/decisions/ADR-20260728-provider-neutral-session-transcript.md)
+- [Durable Turn input queue ADR](../../../../../docs/architecture/decisions/ADR-20260731-durable-turn-input-queue.md)
 - [Runtime bindings and device mounts](../../../../../docs/guides/operator/runtime-bindings-and-device-mounts.md)

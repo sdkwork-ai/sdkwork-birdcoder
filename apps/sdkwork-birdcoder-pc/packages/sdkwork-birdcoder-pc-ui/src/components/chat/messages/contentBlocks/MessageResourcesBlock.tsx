@@ -136,9 +136,9 @@ function buildResourceMetadata(resource: AgentSessionItemResourceView): string[]
   ) {
     metadata.push(resource.origin.uri);
   }
-  const threadCount = resource.citation?.threadIds?.length ?? 0;
-  if (threadCount > 0) {
-    metadata.push(`${threadCount} thread${threadCount === 1 ? '' : 's'}`);
+  const sessionCount = resource.citation?.sessionIds?.length ?? 0;
+  if (sessionCount > 0) {
+    metadata.push(`${sessionCount} session${sessionCount === 1 ? '' : 's'}`);
   }
   return metadata.flatMap((value) => value ? [value] : []);
 }

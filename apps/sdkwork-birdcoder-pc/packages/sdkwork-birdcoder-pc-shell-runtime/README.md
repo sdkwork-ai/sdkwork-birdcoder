@@ -1,11 +1,11 @@
-# @sdkwork/birdcoder-shell-runtime
+# @sdkwork/birdcoder-pc-shell-runtime
 
 Domain: platform
-Capability: im
+Capability: pc-shell-runtime
 Package type: react-package
-Status: standardizing
+Status: active
 
-This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-shell-runtime`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-pc-shell-runtime`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../../../sdkwork-specs/`.
 
 ## Public API
 
@@ -17,11 +17,11 @@ This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-shell-runti
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
+This package owns browser and desktop bootstrap ordering. It resolves the application ingress and platform gateway through typed runtime configuration, then injects those values through the shell bootstrap boundary. It owns no API, SDK generation, database, or credential authority.
 
 ## SaaS/Private/Local Behavior
 
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
+Standalone browser and desktop runtimes use the application public ingress. Cloud runtimes keep application and platform connectivity planes distinct and fail closed when a required topology value is absent.
 
 ## Security
 

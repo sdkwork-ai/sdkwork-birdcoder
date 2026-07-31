@@ -34,6 +34,7 @@ const infrastructureIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/s
 const birdCoderSdkClientSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts');
 const sdkSessionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkSession.ts');
 const iamRuntimeSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts');
+const appSessionRefreshSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts');
 const sdkBaseUrlsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkBaseUrls.ts');
 
 assert.match(
@@ -255,10 +256,24 @@ assertNoMatch(
 );
 assertMatch(
   iamRuntimeSource,
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk\/iam-app['"]/u,
+  'BirdCoder IAM runtime must construct the appbase app SDK client through the narrow pc-core IAM composition entry.',
+);
+assertMatch(
+  appSessionRefreshSource,
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk\/iam-app['"]/u,
+  'BirdCoder session refresh must construct the appbase app SDK client through the narrow pc-core IAM composition entry.',
+);
+assertNoMatch(
+  `${iamRuntimeSource}\n${appSessionRefreshSource}`,
   /from ['"]@sdkwork\/birdcoder-pc-core\/sdk['"]/u,
-  'BirdCoder IAM runtime must construct the appbase app SDK client through pc-core sdk composition, not the product app SDK as the login authority.',
+  'IAM bootstrap and refresh must not import the aggregate pc-core SDK barrel because it pulls unrelated dependency transports into the startup graph.',
 );
 const pcCoreIamSdk = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/sdk/iam-app-sdk.ts');
+assert.ok(
+  corePackageJson.exports?.['./sdk/iam-app'],
+  'pc-core must publish the narrow IAM App SDK composition entry.',
+);
 assertMatch(
   pcCoreIamSdk,
   /from ['"]@sdkwork\/iam-app-sdk['"]/u,

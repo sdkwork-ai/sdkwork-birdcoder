@@ -604,4 +604,46 @@ describe('Workspace-scoped project inventory', () => {
       deleteProjectsStore(scopeKey);
     }
   });
+
+  it('does not treat bounded deeply nested provider metadata as an exhausted transcript window', () => {
+    const userScope = '42::bounded-provider-metadata';
+    const project = createProject('workspace-bounded', 'project-provider-metadata');
+    const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+    let providerPayload: Record<string, unknown> = { value: 'completed' };
+    for (let depth = 0; depth < 32; depth += 1) {
+      providerPayload = { child: providerPayload };
+    }
+    const item = createSessionItem(1);
+
+    try {
+      upsertProjectIntoProjectsStore(project, userScope);
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        {
+          ...createSession(project.projectId),
+          itemPageInfo: { hasMore: true, nextCursor: 'cursor.older', pageSize: 50 },
+          items: [{
+            ...item,
+            metadata: {
+              ...item.metadata,
+              providerPayload,
+            },
+          }],
+        },
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'authority-window-reset' },
+      );
+
+      const retained = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0];
+      expect(retained?.items).toHaveLength(1);
+      expect(retained?.itemPageInfo).toEqual({
+        hasMore: true,
+        nextCursor: 'cursor.older',
+        pageSize: 50,
+      });
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
+  });
 });

@@ -504,14 +504,15 @@
   "integration": {
     "authority": "This PC composition root owns presentation and local host capability only; it owns no business database, dependency API, or generated transport.",
     "dependencyPolicy": "Remote capabilities use their generated owner App SDK with one global TokenManager. Standalone-capable dependencies resolve through application.public-ingress only when the standalone gateway mounts the owner api-assembly contribution; cloud dependencies resolve through platform.api-gateway or an explicit owner override. Raw HTTP and copied SDK authority are forbidden.",
-    "projectPolicy": "Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, and Runtime Binding facts are canonical sdkwork-agents resources identified by one projectId.",
-    "persistencePolicy": "Only allowlisted device state may persist locally. Agents, Skills, MCP, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority.",
+    "projectPolicy": "Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, and Runtime Binding facts are canonical sdkwork-agents resources identified by one projectId. Session is the only BirdCoder agent-continuation name. Provider-native Codex thread fields may be read only by the provider adapter or exact raw protocol fixtures and must be converted at that boundary to the canonical Session identity and providerSessionId; BirdCoder shell, UI, stores, services, events, view models, and authored contracts must not define a Thread domain concept.",
+    "persistencePolicy": "Only allowlisted device state may persist locally. Agents, including durable Turn input queue records, Skills, MCP, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority. The queue UI uses a bounded disposable process-memory projection that clears on logout and rehydrates from Agents.",
     "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts and must remain semantically distinct."
   },
   "verification": {
     "commands": [
       "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
       "pnpm --dir apps/sdkwork-birdcoder-pc check:component-spec-paths",
+      "pnpm test:browser:smoke",
       "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
       "node scripts/app-sdk-surface-boundary-contract.test.mjs",
       "node --experimental-strip-types scripts/app-sdk-composition-boundary-contract.test.ts"

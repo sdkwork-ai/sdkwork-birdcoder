@@ -53,6 +53,7 @@ test('password sign-in lands on the authenticated code workbench', async ({ page
   });
   await expect(page.getByRole('button', { name: 'New Project' })).toHaveCount(1);
   await expect(page.getByText('Projects', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-agent-session-id="e2e-codex-session"]')).toHaveCount(1);
   await expect(page.getByText('Project Templates')).toHaveCount(0);
 
   const codeNewProjectButton = page.getByRole('button', { name: 'New Project' });

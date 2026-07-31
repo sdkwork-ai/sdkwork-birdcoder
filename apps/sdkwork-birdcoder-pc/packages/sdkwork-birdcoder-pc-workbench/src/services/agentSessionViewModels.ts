@@ -286,18 +286,23 @@ const PROVIDER_NATIVE_TOOL_TYPES = new Set([
   'advisor_tool_result',
   'bash_code_execution_tool_result',
   'code_execution_tool_result',
+  'collab_agent_tool_call',
   'command_execution',
   'compaction',
+  'context_compaction',
   'context_window_will_overflow',
   'custom_tool_call',
   'custom_tool_call_output',
   'dynamic_tool_call',
+  'entered_review_mode',
+  'exited_review_mode',
   'file_change',
   'function_call',
   'function_call_output',
   'finished',
   'image_generation',
   'image_generation_call',
+  'image_view',
   'local_shell_call',
   'mcp_tool_call',
   'mcp_tool_result',
@@ -318,6 +323,7 @@ const PROVIDER_NATIVE_TOOL_TYPES = new Set([
   'retry',
   'result',
   'server_tool_use',
+  'sleep',
   'sub_agent_activity',
   'subtask',
   'system',
@@ -334,6 +340,7 @@ const PROVIDER_NATIVE_TOOL_TYPES = new Set([
   'tool_use',
   'tool_use_summary',
   'web_fetch_tool_result',
+  'web_search',
   'web_search_call',
   'web_search_tool_result',
   'turn_completed',
@@ -345,6 +352,21 @@ const PROVIDER_NATIVE_TOOL_TYPES = new Set([
   'chat_compressed',
 ]);
 
+const PROVIDER_TRANSCRIPT_HIDDEN_ITEM_TYPES = new Set([
+  'entered_review_mode',
+  'exited_review_mode',
+  'sleep',
+]);
+
+const PROVIDER_TRANSCRIPT_HIDDEN_DYNAMIC_TOOL_NAMES = new Set([
+  'load_workspace_dependencies',
+]);
+
+interface AgentSessionItemTranscriptMetadata {
+  transcriptGrouping?: 'consecutive-images';
+  transcriptVisibility?: 'hidden';
+}
+
 function readRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return null;
@@ -354,6 +376,29 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readNonEmptyString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeProviderNativeItemType(value: unknown): string {
+  return readNonEmptyString(value)
+    .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+    .toLowerCase()
+    .replace(/[./\-\s]+/gu, '_');
+}
+
+function resolveProviderNativeItemRecord(value: unknown): Record<string, unknown> | null {
+  const record = readRecord(value);
+  if (!record) {
+    return null;
+  }
+  const envelope = readRecord(record.params)
+    ?? readRecord(record.properties)
+    ?? readRecord(record.payload)
+    ?? record;
+  return readRecord(envelope.item)
+    ?? readRecord(envelope.part)
+    ?? readRecord(envelope.contentBlock)
+    ?? readRecord(envelope.content_block)
+    ?? envelope;
 }
 
 function readProviderNativeToolPayload(value: unknown): Record<string, unknown> | null {
@@ -375,17 +420,114 @@ function readProviderNativeToolPayload(value: unknown): Record<string, unknown> 
       || readRecord(envelope.contentBlock) || readRecord(envelope.content_block)) {
       return record;
     }
-    const envelopeType = readNonEmptyString(envelope.type)
-      .toLowerCase()
-      .replace(/[./\-\s]+/gu, '_');
+    const envelopeType = normalizeProviderNativeItemType(
+      envelope.type ?? envelope.method ?? envelope.sessionUpdate,
+    );
     if (PROVIDER_NATIVE_TOOL_TYPES.has(envelopeType)) {
       return record;
     }
   }
-  const type = readNonEmptyString(record.type ?? record.method)
-    .toLowerCase()
-    .replace(/[./\-\s]+/gu, '_');
+  const type = normalizeProviderNativeItemType(
+    record.type ?? record.method ?? record.sessionUpdate,
+  );
   return PROVIDER_NATIVE_TOOL_TYPES.has(type) ? record : null;
+}
+
+function hasVisibleProviderTextFragments(value: unknown): boolean {
+  return Array.isArray(value) && value.some((fragment) => (
+    Boolean(readNonEmptyString(readRecord(fragment)?.text))
+  ));
+}
+
+function hasVisibleProviderReasoningSummary(value: unknown): boolean {
+  return Array.isArray(value) && value.some((summary) => Boolean(readNonEmptyString(summary)));
+}
+
+function readProviderDynamicToolArguments(value: unknown): Record<string, unknown> | null {
+  const record = readRecord(value);
+  if (record) {
+    return record;
+  }
+  if (typeof value !== 'string' || value.length > 64_000) {
+    return null;
+  }
+  try {
+    return readRecord(JSON.parse(value));
+  } catch {
+    return null;
+  }
+}
+
+function resolveItemTranscriptMetadata(
+  item: AgentSessionItemRecord,
+  userContent: AgentSessionUserContentProjection | null,
+): AgentSessionItemTranscriptMetadata {
+  if (
+    userContent
+    && !userContent.content.trim()
+    && userContent.resources.length === 0
+  ) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (item.kind !== 'tool_call' && item.kind !== 'tool_result') {
+    return {};
+  }
+  const providerItem = resolveProviderNativeItemRecord(item.toolResult)
+    ?? resolveProviderNativeItemRecord(item.toolArguments);
+  const providerItemType = normalizeProviderNativeItemType(
+    providerItem?.type ?? providerItem?.method ?? providerItem?.sessionUpdate,
+  );
+  if (!providerItem || !providerItemType) {
+    return {};
+  }
+  if (providerItemType === 'image_view') {
+    return { transcriptGrouping: 'consecutive-images' };
+  }
+  if (PROVIDER_TRANSCRIPT_HIDDEN_ITEM_TYPES.has(providerItemType)) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (
+    providerItemType === 'hook_prompt'
+    && !hasVisibleProviderTextFragments(providerItem.fragments)
+  ) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (
+    providerItemType === 'reasoning'
+    && !hasVisibleProviderReasoningSummary(providerItem.summary)
+  ) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (
+    providerItemType === 'file_change'
+    && Array.isArray(providerItem.changes)
+    && providerItem.changes.length === 0
+  ) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (
+    providerItemType === 'collab_agent_tool_call'
+    && normalizeProviderNativeItemType(providerItem.tool) === 'wait'
+  ) {
+    return { transcriptVisibility: 'hidden' };
+  }
+  if (providerItemType === 'dynamic_tool_call') {
+    const tool = normalizeProviderNativeItemType(providerItem.tool);
+    if (PROVIDER_TRANSCRIPT_HIDDEN_DYNAMIC_TOOL_NAMES.has(tool)) {
+      return { transcriptVisibility: 'hidden' };
+    }
+    if (
+      tool === 'automation_update'
+      && (
+        normalizeProviderNativeItemType(providerItem.status) !== 'completed'
+        || providerItem.success !== true
+        || !readProviderDynamicToolArguments(providerItem.arguments)
+      )
+    ) {
+      return { transcriptVisibility: 'hidden' };
+    }
+  }
+  return {};
 }
 
 function resolveItemLifecycleEvents(
@@ -456,6 +598,7 @@ export function toAgentSessionItemView(
 ): AgentSessionItemView {
   const noticeKind = resolveItemNoticeKind(item);
   const userContent = resolveAgentSessionUserContent(item, providerIdentity);
+  const transcriptMetadata = resolveItemTranscriptMetadata(item, userContent);
   const completedAt = item.completedAt
     ?? (['completed', 'failed', 'cancelled'].includes(item.status) ? item.updatedAt : undefined);
   const providerPayload = item.kind === 'tool_call' || item.kind === 'tool_result'
@@ -492,6 +635,7 @@ export function toAgentSessionItemView(
       providerId: item.providerId ?? undefined,
       modelId: item.modelId ?? undefined,
       ...(noticeKind ? { noticeKind } : {}),
+      ...transcriptMetadata,
     },
     createdAt: item.createdAt,
     completedAt,
@@ -553,14 +697,18 @@ function mergeCodexUserContentGroup(
       views.flatMap((view) => view.resources ?? []),
     ),
   );
+  const metadata: Record<string, unknown> = {
+    ...target.metadata,
+    agentItemKind: 'user_input',
+  };
+  if (content || resources.length > 0) {
+    delete metadata.transcriptVisibility;
+  }
   return {
     ...target,
     role: 'user',
     content,
-    metadata: {
-      ...target.metadata,
-      agentItemKind: 'user_input',
-    },
+    metadata,
     resources: resources.length > 0 ? resources : undefined,
   };
 }
@@ -570,13 +718,47 @@ export function toAgentSessionTranscriptItemViews(
   providerIdentity?: AgentSessionUserContentProviderIdentity,
 ): AgentSessionItemView[] {
   const transcriptItems: AgentSessionItemView[] = [];
+  let consecutiveImageGroupIndex: number | null = null;
+  const appendTranscriptView = (view: AgentSessionItemView): void => {
+    const grouping = readNonEmptyString(view.metadata?.transcriptGrouping);
+    const visible = isAgentSessionItemVisibleInTranscript(view);
+    if (grouping !== 'consecutive-images') {
+      consecutiveImageGroupIndex = null;
+      if (visible) {
+        transcriptItems.push(view);
+      }
+      return;
+    }
+    if (!visible) {
+      consecutiveImageGroupIndex = null;
+      return;
+    }
+    if (consecutiveImageGroupIndex === null) {
+      transcriptItems.push(view);
+      consecutiveImageGroupIndex = transcriptItems.length - 1;
+      return;
+    }
+    const previous = transcriptItems[consecutiveImageGroupIndex];
+    if (!previous) {
+      transcriptItems.push(view);
+      consecutiveImageGroupIndex = transcriptItems.length - 1;
+      return;
+    }
+    const resources = normalizeAgentSessionItemResources([
+      ...(previous.resources ?? []),
+      ...(view.resources ?? []),
+    ]);
+    transcriptItems[consecutiveImageGroupIndex] = {
+      ...previous,
+      completedAt: view.completedAt ?? previous.completedAt,
+      resources: resources.length > 0 ? resources : undefined,
+    };
+  };
   for (let index = 0; index < items.length;) {
     const item = items[index]!;
     if (!isCodexUserContentCarrier(item, providerIdentity)) {
       const view = toAgentSessionItemView(item, providerIdentity);
-      if (isAgentSessionItemVisibleInTranscript(view)) {
-        transcriptItems.push(view);
-      }
+      appendTranscriptView(view);
       index += 1;
       continue;
     }
@@ -593,9 +775,7 @@ export function toAgentSessionTranscriptItemViews(
       items.slice(index, groupEnd),
       providerIdentity,
     );
-    if (isAgentSessionItemVisibleInTranscript(view)) {
-      transcriptItems.push(view);
-    }
+    appendTranscriptView(view);
     index = groupEnd;
   }
   return transcriptItems;

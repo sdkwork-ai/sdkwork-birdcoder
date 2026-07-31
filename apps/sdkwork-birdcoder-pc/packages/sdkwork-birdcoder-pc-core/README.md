@@ -16,8 +16,9 @@ standards remain under [sdkwork-specs](../../../../../sdkwork-specs/README.md).
 - `./sdk` exposes named application SDK factories.
 - `./sdk/birdcoder-app` exposes the BirdCoder-owned App SDK.
 - `./sdk/agents-app`, `./sdk/documents-app`, `./sdk/drive-app`,
-  `./sdk/messaging-app`, `./sdk/prompts-app`, and `./sdk/skills-app` expose
-  dependency SDK composition entrypoints.
+  `./sdk/iam-app`, `./sdk/mcp-app`, `./sdk/messaging-app`,
+  `./sdk/prompts-app`, and `./sdk/skills-app` expose dependency SDK
+  composition entrypoints.
 - `./appSessionTokenManager` exposes the single authenticated-session
   TokenManager boundary.
 - `./modules`, `./host`, `./session`, and `./composition` expose registries for

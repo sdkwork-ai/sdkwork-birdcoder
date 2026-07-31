@@ -18,6 +18,7 @@ const FOCUSABLE_ELEMENT_SELECTOR = [
 function listFocusableElements(root: HTMLElement | null): HTMLElement[] {
   return Array.from(root?.querySelectorAll<HTMLElement>('*') ?? []).filter((element) => (
     element.matches(FOCUSABLE_ELEMENT_SELECTOR)
+    && element.tabIndex >= 0
     && element.getAttribute('aria-hidden') !== 'true'
   ));
 }

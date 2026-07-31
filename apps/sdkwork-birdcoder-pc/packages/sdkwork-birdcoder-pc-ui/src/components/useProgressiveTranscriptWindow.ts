@@ -124,6 +124,14 @@ export function useProgressiveTranscriptWindow(
   } = currentTranscriptWindowState;
 
   useLayoutEffect(() => {
+    setTranscriptWindowState((previousState) => (
+      previousState.transcriptIdentity === transcriptIdentity
+        ? previousState
+        : createProgressiveTranscriptWindowState(transcriptIdentity, messages.length)
+    ));
+  }, [messages.length, transcriptIdentity]);
+
+  useLayoutEffect(() => {
     if (
       !isActive
       || requestedMessageIndex === null

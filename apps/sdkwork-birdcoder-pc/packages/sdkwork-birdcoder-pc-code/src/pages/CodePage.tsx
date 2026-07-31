@@ -131,6 +131,7 @@ function CodePageComponent({
     deleteAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
+    cancelAgentTurn,
     submitAgentTurnInput,
     forkAgentSession,
     loadMoreProjects,
@@ -1003,7 +1004,8 @@ function CodePageComponent({
     if (!trimmedContent) {
       return;
     }
-    if (isChatBusy) {
+    const queueExecution = submission?.queueExecution;
+    if (isChatBusy && !queueExecution) {
       throw new Error(t('chat.sendMessageBusy'));
     }
     const requestedEngineId = composerSelection?.engineId?.trim() ?? '';
@@ -1017,22 +1019,37 @@ function CodePageComponent({
         requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
-    const bootstrappedSession = await ensureWorkbenchAgentSessionForTurnInput({
-      createAgentSessionFromRequest: createAgentSessionWithTranscriptReset,
-      currentAgentSessionId,
-      currentProjectId,
-      turnInputContent: trimmedContent,
-      requestedEngineId: composerSelection?.engineId,
-      requestedExecutionTarget:
-        currentAgentSessionId ? undefined : newTaskExecutionTarget,
-      requestedModelId: composerSelection?.modelId,
-      resolveProjectId: async () => {
-        if (!projects.length) {
-          return handleNewProject();
-        }
-        return projects[0]?.projectId;
-      },
-    });
+    const bootstrappedSession = queueExecution
+      ? (() => {
+          if (
+            !session
+            || queueExecution.agentId !== session.agentId
+            || queueExecution.sessionId !== session.id
+            || queueExecution.sessionId !== sessionId
+          ) {
+            throw new Error(t('chat.sendMessageSessionUnavailable'));
+          }
+          return {
+            agentSessionId: session.id,
+            projectId: session.projectId,
+          };
+        })()
+      : await ensureWorkbenchAgentSessionForTurnInput({
+          createAgentSessionFromRequest: createAgentSessionWithTranscriptReset,
+          currentAgentSessionId,
+          currentProjectId,
+          turnInputContent: trimmedContent,
+          requestedEngineId: composerSelection?.engineId,
+          requestedExecutionTarget:
+            currentAgentSessionId ? undefined : newTaskExecutionTarget,
+          requestedModelId: composerSelection?.modelId,
+          resolveProjectId: async () => {
+            if (!projects.length) {
+              return handleNewProject();
+            }
+            return projects[0]?.projectId;
+          },
+        });
     if (!bootstrappedSession) {
       throw new Error(t('chat.sendMessageSessionUnavailable'));
     }
@@ -1051,7 +1068,12 @@ function CodePageComponent({
         bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
-        submission?.driveRefs?.length || composerSelection?.accessModeId?.trim()
+        queueExecution
+          ? {
+              ...(submission?.driveRefs?.length ? { driveRefs: submission.driveRefs } : {}),
+              queueExecution,
+            }
+          : submission?.driveRefs?.length || composerSelection?.accessModeId?.trim()
           ? {
               ...(composerSelection?.accessModeId?.trim()
                 ? { accessModeId: composerSelection.accessModeId.trim() }
@@ -1083,10 +1105,32 @@ function CodePageComponent({
     selectSession,
     projects,
     session?.engineId,
+    session?.agentId,
+    session?.id,
     session?.modelId,
+    session?.projectId,
     sessionId,
     selectedFile,
     submitAgentTurnInput,
+    setSelectionRefreshToken,
+    t,
+  ]);
+  const handleStopTurn = useCallback(async () => {
+    const targetAgentSessionId = sessionId?.trim() ?? '';
+    const targetProjectId = session?.projectId.trim() || currentProjectId.trim();
+    if (!targetAgentSessionId || !targetProjectId) {
+      throw new Error(t('chat.sendMessageSessionUnavailable'));
+    }
+    const cancelledTurn = await cancelAgentTurn(targetProjectId, targetAgentSessionId);
+    if (!cancelledTurn) {
+      throw new Error(t('chat.noActiveTurnToStop'));
+    }
+    setSelectionRefreshToken((previousState) => previousState + 1);
+  }, [
+    cancelAgentTurn,
+    currentProjectId,
+    session?.projectId,
+    sessionId,
     setSelectionRefreshToken,
     t,
   ]);
@@ -1405,6 +1449,7 @@ function CodePageComponent({
     newTaskExecutionTarget,
     selectedSessionLastTurnAt: selectedAgentSession?.lastTurnAt,
     selectedSessionAgentId: selectedAgentSession?.agentId ?? null,
+    selectedSessionRuntimeBindingId: selectedAgentSession?.runtimeBindingId,
     selectedSessionTitle: selectedAgentSession?.title,
     selectedSessionEngineId: selectedAgentSession?.engineId,
     selectedSessionModelId: selectedAgentSession?.modelId,
@@ -1496,6 +1541,7 @@ function CodePageComponent({
     onSelectedEngineIdChange: handleSelectedEngineChange,
     onSelectedModelIdChange: handleSelectedModelChange,
     onSendMessage: handleSendMessage,
+    onStopTurn: handleStopTurn,
     onSetActiveTab: handleActiveTabChange,
     onSetIsTerminalOpen: handleTopBarTerminalVisibilityChange,
     onToggleProjectGitOverviewDrawer: handleToggleProjectGitOverviewDrawer,

@@ -19,6 +19,10 @@
       "import": "./src/bootstrap/createBootstrapGateMessages.ts",
       "types": "./src/bootstrap/createBootstrapGateMessages.ts"
     },
+    "./components/ErrorBoundary": {
+      "import": "./src/components/ErrorBoundary.tsx",
+      "types": "./src/components/ErrorBoundary.tsx"
+    },
     "./hooks/*": {
       "import": "./src/hooks/*.ts",
       "types": "./src/hooks/*.ts"

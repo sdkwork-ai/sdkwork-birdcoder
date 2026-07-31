@@ -6,7 +6,10 @@ import {
   deduplicateAgentSessionItemViews,
   type AgentSessionItemView,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts';
-import { MAX_AGENT_SESSION_ITEM_RESOURCES } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-resources.ts';
+import {
+  MAX_AGENT_SESSION_ITEM_RESOURCES,
+  normalizeAgentSessionItemResources,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-resources.ts';
 import { isAgentSessionItemVisibleInTranscript } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-transcript.ts';
 import { resolveAgentSessionItemPresentation } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 import {
@@ -22,6 +25,20 @@ import {
   toAgentSessionItemView,
   toAgentSessionTranscriptItemViews,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts';
+
+assert.deepEqual(
+  normalizeAgentSessionItemResources([{
+    citation: { sessionIds: ['agent-session-related'] },
+    id: 'session-citation',
+    kind: 'citation',
+  }]),
+  [{
+    citation: { sessionIds: ['agent-session-related'] },
+    id: 'session-citation',
+    kind: 'citation',
+  }],
+  'Provider-neutral resource citations must expose canonical Session identifiers.',
+);
 
 const canonicalItem: AgentSessionItemRecord = {
   tenantId: '1001',

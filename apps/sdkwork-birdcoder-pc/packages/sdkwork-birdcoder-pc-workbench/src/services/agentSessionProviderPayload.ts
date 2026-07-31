@@ -24,6 +24,8 @@ const PROVIDER_TOOL_BLOCK_TYPES = new Set([
   'mcp_tool_call',
   'mcp_tool_use',
   'server_tool_use',
+  'sleep',
+  'sub_agent_activity',
   'tool',
   'tool_call_confirmation',
   'tool_call_request',
@@ -32,6 +34,16 @@ const PROVIDER_TOOL_BLOCK_TYPES = new Set([
   'tool_use',
   'web_search',
   'web_search_call',
+]);
+
+const PROVIDER_HIDDEN_TRANSCRIPT_TYPES = new Set([
+  'entered_review_mode',
+  'exited_review_mode',
+  'sleep',
+]);
+
+const PROVIDER_LIFECYCLE_ONLY_TYPES = new Set([
+  'context_compaction',
 ]);
 
 const PROVIDER_PAYLOAD_CHILD_KEYS = [
@@ -143,15 +155,35 @@ function readReasoningSummary(
       : null;
   }
 
-  const summaryParts = [
-    ...readStringArray(payload.summary),
-    ...readStringArray(payload.content),
-  ];
+  const summaryParts = readStringArray(payload.summary);
+  const contentParts = Array.isArray(payload.summary)
+    ? []
+    : readStringArray(payload.content);
   const summary = readBoundedString(
     payload.thinking ?? payload.text ?? payload.delta,
     MAX_PROVIDER_REASONING_CHARACTERS,
-  ) || summaryParts.join('\n').slice(0, MAX_PROVIDER_REASONING_CHARACTERS);
+  ) || [...summaryParts, ...contentParts]
+    .join('\n')
+    .slice(0, MAX_PROVIDER_REASONING_CHARACTERS);
   return summary ? { summary, title: '' } : null;
+}
+
+function readHookPromptText(record: Record<string, unknown>): string {
+  const payload = resolveProviderEnvelopePayload(record);
+  if (!Array.isArray(payload.fragments)) {
+    return '';
+  }
+  return payload.fragments
+    .slice(0, MAX_PROVIDER_TEXT_ITEMS)
+    .flatMap((fragment) => {
+      const text = readBoundedString(
+        readRecord(fragment)?.text,
+        MAX_PROVIDER_TEXT_CHARACTERS,
+      );
+      return text ? [text] : [];
+    })
+    .join('\n')
+    .slice(0, MAX_PROVIDER_TEXT_CHARACTERS);
 }
 
 function resolveProviderFileResource(
@@ -239,6 +271,7 @@ export function resolveAgentSessionProviderPayload(
   let retainedContentCharacters = 0;
   let pendingValueIndex = 0;
   let taskProgress: AgentSessionTaskProgressView | undefined;
+  let contentRole: AgentSessionItemView['role'] = 'assistant';
 
   const enqueueValue = (value: unknown): void => {
     if (pendingValues.length >= MAX_PROVIDER_PAYLOAD_NODES) {
@@ -288,6 +321,23 @@ export function resolveAgentSessionProviderPayload(
     visitedRecords.add(record);
 
     const type = resolveProviderPayloadType(record);
+    if (PROVIDER_HIDDEN_TRANSCRIPT_TYPES.has(type)) {
+      consumed = true;
+      continue;
+    }
+    if (PROVIDER_LIFECYCLE_ONLY_TYPES.has(type)) {
+      consumed = true;
+      continue;
+    }
+    if (type === 'hook_prompt') {
+      const prompt = readHookPromptText(record);
+      if (prompt) {
+        appendContent(prompt);
+        contentRole = 'user';
+      }
+      consumed = true;
+      continue;
+    }
     if (type === 'turn_plan_updated') {
       const payload = resolveProviderEnvelopePayload(record);
       const displayState = resolveTaskProgressDisplayState(
@@ -390,7 +440,7 @@ export function resolveAgentSessionProviderPayload(
     ...(contentItems.length > 0 ? { content: contentItems.join('\n\n') } : {}),
     ...(reasoningItems.length > 0 ? { reasoning: reasoningItems } : {}),
     ...(resources.length > 0 ? { resources } : {}),
-    ...(hasAssistantContent ? { role: 'assistant' } : {}),
+    ...(hasAssistantContent ? { role: contentRole } : {}),
     ...(taskProgress ? { taskProgress } : {}),
     ...(toolCalls.length > 0 ? { toolCalls } : {}),
   };

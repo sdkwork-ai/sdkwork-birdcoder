@@ -85,6 +85,7 @@
       ".",
       "./context/*",
       "./bootstrap/createBootstrapGateMessages",
+      "./components/ErrorBoundary",
       "./hooks/*",
       "./chat/*",
       "./i18n",
@@ -124,6 +125,10 @@
       {
         "name": "sessionActivityInboxProjection",
         "export": "./workbench/workspaceSessionInboxCoordinator"
+      },
+      {
+        "name": "agentTurnInputQueueController",
+        "export": "./hooks/useAgentTurnInputQueue"
       }
     ],
     "requiredPorts": [
@@ -146,14 +151,15 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "This package owns coding-workbench UI and bounded device-local presentation settings only.",
+    "authority": "This package owns coding-workbench UI, the bounded disposable Agent Turn input queue projection, and bounded device-local presentation settings only. Agents owns durable queue records and execution admission.",
     "dependencyPolicy": "Business facts are accessed through injected services backed by owner-generated SDKs.",
-    "persistencePolicy": "Local storage is limited to workbench preferences, run configurations, recovery UI state, and other bounded non-sensitive device settings. Terminal preflight diagnostics are limited to 100 process-memory records and are cleared on every application-session change; they are not an audit authority. Agent sessions, messages/items, prompts, skills, documents, projects, terminal governance records, and IAM credentials are forbidden from local persistence.",
+    "persistencePolicy": "Local storage is limited to workbench preferences, run configurations, recovery UI state, and other bounded non-sensitive device settings. Terminal preflight diagnostics are limited to 100 process-memory records and are cleared on every application-session change; they are not an audit authority. The Agent Turn input queue projection is bounded process memory, clears on logout, and always rehydrates from Agents. Agent sessions, queued Turn inputs, messages/items, prompts, skills, documents, projects, terminal governance records, and IAM credentials are forbidden from local persistence.",
     "hostPolicy": "Native filesystem and terminal capabilities are consumed through typed host adapters."
   },
   "verification": {
     "commands": [
       "pnpm --filter @sdkwork/birdcoder-pc-workbench typecheck",
+      "pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentTurnInputQueue.test.ts agentTurnInputQueueHook.test.tsx",
       "node scripts/local-store-contract.test.ts",
       "node scripts/run-config-contract.test.ts",
       "pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentSessionActivity.test.ts workspaceSessionInboxCoordinator.test.ts sessionInbox.test.ts",

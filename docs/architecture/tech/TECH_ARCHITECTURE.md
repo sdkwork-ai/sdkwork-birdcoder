@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-30
+Updated: 2026-07-31
 Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
@@ -324,6 +324,24 @@ then one shared Session Item presentation model. React renderers do not read
 provider transport DTOs. Turn grouping prefers the canonical `turnId`; fallback
 grouping is rendering-only and stays in memory.
 
+### Session Naming And Provider Protocol Normalization
+
+`Session` is the only BirdCoder and SDKWork domain name for an agent work
+continuation. BirdCoder source, commands, events, stores, services, view models,
+UI copy, and authored contracts must not introduce a parallel `Thread` concept.
+Codex protocol names such as `thread`, `threadId`, and `findInThread` are
+provider-native transport details. They may be read only inside the Codex
+provider adapter or its raw protocol fixtures and must be translated at that
+boundary to canonical Agents Session identity, `providerSessionId`, and
+Session-named application commands such as `findInSessionTranscript`.
+
+Archive, rename, pin, navigation, transcript lookup, and transcript search all
+operate on the existing Agents Session and Session user-state contracts. The
+adapter conversion must not create a Thread DTO, store, service, identifier,
+route, or persistence authority in BirdCoder. Provider-native field names may
+be retained only when exact raw payload fidelity is required and must not cross
+the adapter's provider-neutral output boundary.
+
 ```text
 File/Image/Audio
   -> Drive App SDK uploader
@@ -346,14 +364,70 @@ Oversized snapshots are omitted rather than truncated into restorable data.
 Transcript synchronization hashes message content into a fixed-size signature
 so streaming updates do not retain a second full message copy.
 
-Session Item reads use the owner-declared P1 keyset contract. The PC and H5
-consumers request newest-first pages with `sort=-sequence`, validate cursor
-mode, page size, continuation progress, and terminal `nextCursor: null`, then
-restore chronological display order. PC initial/latest refresh is bounded to
-eight 50-item pages and earlier-message loading advances through at most three
-duplicate-only pages per user action. H5 loads one latest page and follows the
-opaque cursor only when the user requests earlier messages. Invalid metadata is
-rejected before any partial transcript commit.
+Session Item reads use the owner-declared P1 keyset contract. The PC consumer
+requests newest-first pages with `sort=-sequence`, validates cursor mode, page
+size, continuation progress, and terminal `nextCursor: null`, then restores
+chronological display order. Initial/latest refresh is bounded to eight
+50-item pages and earlier-message loading advances through at most three
+duplicate-only pages per user action. Invalid metadata is rejected before any
+partial transcript commit.
+
+The PC Projects Store retains at most 500 items and 4 MiB of estimated
+structured content per Session. Estimation is iterative, cycle-aware, and
+bounded to 65,536 visited nodes, so deeply nested provider metadata neither
+recurses on the JavaScript stack nor requires a full JSON string allocation.
+The progressive renderer starts with the latest 48 messages. Its state commits
+the stable Project and Session identity before remote prepend; later Agent or
+Provider metadata enrichment cannot reset the expanded window or its scroll
+anchor.
+
+Turn submission uses the generated Agents App SDK stream with
+`event_protocol=kernel-v1`. The PC service validates monotonic runtime-event
+sequence, Session/Turn/provider identities, JSON shape, and per-event plus
+whole-Turn character/node budgets without exposing raw Kernel events to feature
+or React packages. Generated completion Session Items remain the transcript
+authority. Cumulative assistant text is paced on animation frames with a
+bounded timer fallback and drains within eight frames before durable completion
+reconciliation.
+
+### Durable Turn Input Queue
+
+The owner-scoped Agents Turn input queue is the only persistence and ordering
+authority for inputs submitted while a Session Turn is active. BirdCoder calls
+the generated `turnInputQueueEntries` SDK surface through its injected Session
+service; UI and Workbench packages do not construct transport clients or store
+queue records in browser or Tauri persistence.
+
+```text
+UnifiedChat busy submission
+  -> generated Agents App SDK create
+  -> durable owner-scoped FIFO entry
+  -> atomic claim with lease + fencing token
+  -> existing Turn stream with queue idempotencyKey + payloadHash
+  -> authoritative Turn reconciliation
+  -> next FIFO claim or failed-head pause
+```
+
+BirdCoder keeps at most 32 entries per Session projection, 32 Session scopes,
+4 MiB per scope, and 16 MiB total in process memory. Startup, focus,
+visibility, connectivity, and `BroadcastChannel` invalidation re-read Agents;
+cross-window messages contain only Agent/Session identity and source identity,
+never queue content. A generation fence discards responses from a previously
+selected Session.
+
+The server claim operation serializes windows and reconciles the prior claimed
+entry before advancing. Completed Turns delete the entry; failed or cancelled
+Turns create a failed head; a live Turn or unexpired lease reports busy. An
+expired lease without an accepted Turn returns the entry to queued state with
+an increased fencing token. Transport uncertainty remains executing for later
+reconciliation, while pre-acceptance rejection invokes the fenced fail command
+exactly once.
+
+Queued and failed entries support optimistic-version edit, reorder, removal,
+and retry. Executing entries reject those mutations. Clear removes only queued
+and failed entries and preserves an executing lease. Deleting the owning
+Session removes its queue. Logout erases only the disposable PC projection;
+the next authenticated hydration restores durable entries.
 
 Full Diff review uses a provider-neutral responsive layout resolver. The normal
 three-pane layout remains at readable widths; constrained layouts collapse the
@@ -447,6 +521,8 @@ setting.
 
 - [ADR-20260722 Owner-composed stateless workbench](../decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../decisions/ADR-20260727-cross-application-session-activity-inbox.md)
+- [ADR-20260728 Provider-neutral Session transcript](../decisions/ADR-20260728-provider-neutral-session-transcript.md)
+- [ADR-20260731 Durable Turn input queue](../decisions/ADR-20260731-durable-turn-input-queue.md)
 - [Runtime topology](../topology-standard.md)
 - [PC architecture supplement](../../../apps/sdkwork-birdcoder-pc/docs/architecture/tech/TECH_ARCHITECTURE.md)
 
@@ -463,6 +539,7 @@ pnpm check:local-business-storage-boundary
 pnpm check:desktop
 pnpm check:server
 pnpm typecheck
+pnpm test:browser:smoke
 node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
 pnpm docs:build
 ```

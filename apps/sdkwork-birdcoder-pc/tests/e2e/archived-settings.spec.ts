@@ -69,6 +69,12 @@ const archivedSessions: ArchivedSessionFixture[] = [
   },
 ];
 
+const archivedProviderSessionIdsBySessionId = new Map([
+  ['archived-session-review', 'codex-archived-continuation-4d126a90'],
+  ['archived-session-refactor', 'codex-archived-continuation-b0271e54'],
+  ['archived-session-secondary', 'codex-archived-continuation-8fe390ad'],
+]);
+
 const workspaceFixtures = [
   {
     id: '9001',
@@ -198,6 +204,10 @@ function createUserState(session: ArchivedSessionFixture, hidden: boolean) {
 }
 
 function createRuntimeBinding(session: ArchivedSessionFixture) {
+  const providerSessionId = archivedProviderSessionIdsBySessionId.get(session.sessionId);
+  if (!providerSessionId) {
+    throw new Error(`Missing provider Session fixture for ${session.sessionId}.`);
+  }
   return {
     runtimeBindingId: `runtime-binding.${session.sessionId}`,
     tenantId: session.tenantId,
@@ -209,7 +219,7 @@ function createRuntimeBinding(session: ArchivedSessionFixture) {
     providerBindingId: 'codex',
     modelId: 'gpt-5-codex',
     providerId: 'openai',
-    providerSessionId: `provider.${session.sessionId}`,
+    providerSessionId,
     status: 'active',
     isCurrent: true,
     version: session.version,

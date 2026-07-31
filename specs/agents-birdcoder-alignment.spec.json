@@ -1,20 +1,53 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "sdkwork.agents-birdcoder-alignment",
-  "updatedAt": "2026-07-29",
-  "summary": "BirdCoder consumes canonical Agents Workspace, Project, and Session systems through generated SDK clients and owns no parallel workspace, project, session, transcript, interaction, runtime, artifact, or checkpoint authority.",
+  "updatedAt": "2026-07-31",
+  "summary": "BirdCoder consumes canonical Agents Workspace, Project, Session, and durable Turn input queue systems through generated SDK clients and owns no parallel workspace, project, session, queue, transcript, interaction, runtime, artifact, or checkpoint authority.",
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
     "docs/product/prd/PRD.md",
     "docs/providers/README.md",
     "specs/domain-ownership.spec.json",
-    "specs/agent-session-item-view.spec.md"
+    "specs/agent-session-item-view.spec.md",
+    "specs/codex-desktop-parity.spec.json"
   ],
   "dependencyDirection": [
     "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-im -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-agents -/-> sdkwork-im"
   ],
+  "sessionNamingBoundary": {
+    "canonicalDomainName": "Session",
+    "canonicalProviderIdentityField": "providerSessionId",
+    "forbiddenBirdCoderDomainName": "Thread",
+    "continuationIdentityLifecycle": {
+      "firstTurn": "Persist the provider-returned providerSessionId on the current Session runtime binding.",
+      "followUpTurn": "Resume through the runtime binding providerSessionId without changing the canonical sessionId.",
+      "forbiddenMapping": "Never synthesize providerSessionId from sessionId."
+    },
+    "authoredSourceRoots": [
+      "apps/sdkwork-birdcoder-pc/src",
+      "apps/sdkwork-birdcoder-pc/packages"
+    ],
+    "providerIdentitySourceRoots": [
+      "apps/sdkwork-birdcoder-pc/src",
+      "apps/sdkwork-birdcoder-pc/packages",
+      "apps/sdkwork-birdcoder-pc/tests",
+      "scripts"
+    ],
+    "rawProviderAliasAllowlist": [
+      {
+        "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts",
+        "identifiers": [
+          "agentThreadId",
+          "receiverThreadIds",
+          "senderThreadId",
+          "threadId",
+          "thread_id"
+        ]
+      }
+    ]
+  },
   "workbenchModes": {
     "schemaVersion": 2,
     "catalogAuthority": "sdkwork-agents code-engine catalog",
@@ -196,6 +229,10 @@
           "specs/agent-session-item-view.spec.md",
           "docs/architecture/tech/TECH_ARCHITECTURE.md"
         ],
+        "siblingPaths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs"
+        ],
         "requiredPatterns": [
           {
             "file": "specs/agent-session-item-view.spec.md",
@@ -269,6 +306,105 @@
       "verification": {
         "commands": [
           "pnpm check:agents-birdcoder-alignment"
+        ]
+      }
+    },
+    {
+      "id": "ABA-006",
+      "owner": "birdcoder",
+      "title": "Normalize provider Thread protocols to the canonical Agents Session domain",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "apps/sdkwork-birdcoder-pc/specs/README.md",
+          "docs/providers/codex/README.md",
+          "docs/product/prd/PRD.md",
+          "docs/architecture/tech/TECH_ARCHITECTURE.md"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+            "pattern": "Session is the only BirdCoder agent-continuation name"
+          },
+          {
+            "file": "docs/providers/codex/README.md",
+            "pattern": "maps to one[\\s\\S]*canonical Agents Session"
+          },
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+            "pattern": "provider_session_id: session_runtime_binding\\.provider_session_id\\.clone\\(\\)[\\s\\S]*persist_turn_provider_session_identity"
+          },
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs",
+            "pattern": "provider_session_id: input\\.provider_session_id\\.clone\\(\\)"
+          }
+        ],
+        "forbiddenPatterns": [
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs",
+            "pattern": "provider_session_id:\\s*Some\\(input\\.session\\.session_id\\.clone\\(\\)\\)"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "pnpm check:agents-birdcoder-alignment"
+        ]
+      }
+    },
+    {
+      "id": "ABA-007",
+      "owner": "agents-and-birdcoder",
+      "title": "Use the Agents-owned durable Turn input queue with a disposable PC projection",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentTurnInputQueue.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentTurnInputQueue.test.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentTurnInputQueueHook.test.tsx",
+          "docs/architecture/decisions/ADR-20260731-durable-turn-input-queue.md"
+        ],
+        "siblingPaths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application/turn_input_queue.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/agent_turn_input_queue.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/tests/http_axum_contracts.rs",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/package.json"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts",
+            "pattern": "client\\.ai\\.agents\\.turnInputQueueEntries"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentTurnInputQueue.ts",
+            "pattern": "claimNextTurnInputQueueEntry[\\s\\S]*idempotencyKey|claimNextTurnInputQueueEntry[\\s\\S]*dispatchRef"
+          },
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts",
+            "pattern": "MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE[\\s\\S]*MAX_QUEUED_AGENT_TURN_INPUT_SCOPES"
+          },
+          {
+            "file": "docs/architecture/decisions/ADR-20260731-durable-turn-input-queue.md",
+            "pattern": "claim_next[\\s\\S]*fencing[\\s\\S]*idempotency"
+          }
+        ],
+        "forbiddenPatterns": [
+          {
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentTurnInputQueue.ts",
+            "pattern": "localStorage|sessionStorage|fetch\\("
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "pnpm check:agents-birdcoder-alignment",
+          "pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentTurnInputQueue.test.ts agentTurnInputQueueHook.test.tsx"
         ]
       }
     }

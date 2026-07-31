@@ -4,6 +4,10 @@ export default defineLocaleModule('app/menu', {
   app: {
     menu: {
       file: '\u6587\u4ef6',
+      commandMenu: '\u547d\u4ee4\u83dc\u5355',
+      commandMenuSearch: '\u641c\u7d22\u547d\u4ee4',
+      commandMenuNoResults: '\u6ca1\u6709\u5339\u914d\u7684\u547d\u4ee4',
+      closeCommandMenu: '\u5173\u95ed\u547d\u4ee4\u83dc\u5355',
       newSession: '\u65b0\u5efa\u4efb\u52a1',
       openFolder: '\u6253\u5f00\u670d\u52a1\u7aef\u6587\u4ef6\u5939...',
       save: '\u4fdd\u5b58',
@@ -25,6 +29,8 @@ export default defineLocaleModule('app/menu', {
       toggleTerminal: '\u5207\u6362\u7ec8\u7aef',
       toggleDiffPanel: '\u5207\u6362\u5dee\u5f02\u9762\u677f',
       find: '\u67e5\u627e',
+      findInSessionTranscript: '\u5728\u5f53\u524d Session \u4e2d\u67e5\u627e',
+      findInFiles: '\u5728\u6587\u4ef6\u4e2d\u67e5\u627e',
       zoomIn: '\u653e\u5927',
       zoomOut: '\u7f29\u5c0f',
       actualSize: '\u5b9e\u9645\u5927\u5c0f',

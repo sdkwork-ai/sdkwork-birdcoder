@@ -91,8 +91,9 @@ framework implementation.
    1440x900 and 900x800 and produces reviewable visual evidence.
 14. Focused transcript contracts, PC typecheck, lint, architecture checks, and
    production build pass.
-15. Immediate and busy-state queued Turns preserve the same ordered Drive
-    references, and image/audio resources obtain temporary playback or preview
+15. Immediate Turns and Agents-owned durable queued Turns preserve the same
+    ordered Drive references. BirdCoder retains only a disposable queue
+    projection, and image/audio resources obtain temporary playback or preview
     URLs only when rendered.
 16. Attachment uploads, provider resource arrays, file-change collections,
     before/after snapshots, unified-diff rows, and Restore inputs enforce tested
@@ -126,6 +127,7 @@ framework implementation.
 ## Traceability
 
 - [ADR-20260728](../../architecture/decisions/ADR-20260728-provider-neutral-session-transcript.md)
+- [Durable Turn input queue requirement](REQ-2026-0007-durable-turn-input-queue.md)
 - [Product requirements](../prd/PRD.md)
 - [Technical architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
 - [PC product supplement](../../../apps/sdkwork-birdcoder-pc/docs/product/prd/PRD.md)

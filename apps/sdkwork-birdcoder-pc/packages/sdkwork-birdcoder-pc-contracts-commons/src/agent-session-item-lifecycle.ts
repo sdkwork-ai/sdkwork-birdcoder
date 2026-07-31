@@ -57,6 +57,7 @@ function readBoundedString(value: unknown, maxCharacters: number): string {
 
 function normalizeProtocolType(value: unknown): string {
   return readBoundedString(value, 128)
+    .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
     .toLowerCase()
     .replace(/[.\-\s]+/gu, '_');
 }
@@ -230,6 +231,7 @@ function readLifecycleKind(
   if (
     type === 'compaction'
     || type === 'chat_compressed'
+    || type === 'context_compaction'
     || (type === 'system' && subtype === 'compact_boundary')
   ) return 'compacted';
   if (type === 'snapshot') return 'checkpoint';

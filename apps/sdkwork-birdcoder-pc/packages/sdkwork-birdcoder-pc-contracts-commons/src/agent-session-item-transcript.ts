@@ -76,6 +76,9 @@ export function resolveAgentSessionItemProtocolNoticeKind(
 export function isAgentSessionItemVisibleInTranscript(
   item: AgentSessionItemViewSource,
 ): boolean {
+  if (readMetadataString(item, 'transcriptVisibility') === 'hidden') {
+    return false;
+  }
   const sourceKind = resolveAgentSessionItemSourceKind(item);
   if (sourceKind && INTERNAL_AGENT_SESSION_ITEM_KINDS.has(sourceKind)) {
     return false;

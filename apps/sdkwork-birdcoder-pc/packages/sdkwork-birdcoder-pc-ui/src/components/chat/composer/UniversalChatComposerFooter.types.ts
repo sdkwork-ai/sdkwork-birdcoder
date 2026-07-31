@@ -6,6 +6,7 @@ export interface UniversalChatComposerFooterCommonProps {
   accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
   attachmentsDisabled: boolean;
   canQueueTypedMessage: boolean;
+  canStopTurn: boolean;
   canSubmitComposerMessage: boolean;
   canSubmitPendingUserQuestionAnswer: boolean;
   disabled: boolean;
@@ -15,10 +16,11 @@ export interface UniversalChatComposerFooterCommonProps {
   imageInputRef: RefObject<HTMLInputElement | null>;
   isAttachmentMenuOpen: boolean;
   isAccessModeMenuOpen: boolean;
-  isAwaitingQueuedTurnSettlement: boolean;
   isComposerProcessing: boolean;
   isComposerTurnBlocked: boolean;
   isListening: boolean;
+  isStopTurnConfirmationVisible: boolean;
+  isStoppingTurn: boolean;
   isUploadingAttachments: boolean;
   modelGroups: ModelsPickerGroup[];
   onAttachmentMenuOpenChange: (open: boolean) => void;
@@ -29,6 +31,7 @@ export interface UniversalChatComposerFooterCommonProps {
   onSelectModel: (pickerId: string) => void;
   onSelectAccessMode: (accessModeId: string) => void;
   onSend: () => void | Promise<void>;
+  onStopTurn: () => void | Promise<void>;
   onToggleVoiceInput: () => void;
   selectedModelLabel: string;
   selectedAccessModeId: string;

@@ -27,6 +27,8 @@ export interface CodeEditorWorkspacePanelProps {
   explorerWidth: number;
   chatWidth: number;
   selectedAgentSessionId?: string | null;
+  selectedAgentSessionAgentId?: string | null;
+  selectedAgentSessionRuntimeBindingId?: string | null;
   selectedAgentSessionScopeKey?: string | null;
   messages: AgentSessionItemView[];
   hasMoreRemoteMessages: boolean;
@@ -35,6 +37,8 @@ export interface CodeEditorWorkspacePanelProps {
   isNewSession: boolean;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
+  hasPendingInteractionsLoadError?: boolean;
+  isLoadingPendingInteractions?: boolean;
   chatEmptyState?: ReactNode;
   isBusy: boolean;
   isEngineBusy: boolean;
@@ -65,11 +69,13 @@ export interface CodeEditorWorkspacePanelProps {
     interactionId: string,
     request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
+  onStopTurn: () => void | Promise<void>;
   onLoadMoreRemoteMessages: () => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
     interactionId: string,
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
+  onRetryPendingInteractions: () => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
   onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
@@ -91,11 +97,15 @@ export interface EditorChatProps {
   isNewSession: boolean;
   showComposerEngineSelector: boolean;
   selectedAgentSessionId?: string | null;
+  selectedAgentSessionAgentId?: string | null;
+  selectedAgentSessionRuntimeBindingId?: string | null;
   selectedAgentSessionScopeKey?: string | null;
   selectedEngineId: string;
   selectedModelId: string;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
+  hasPendingInteractionsLoadError?: boolean;
+  isLoadingPendingInteractions?: boolean;
   onDeleteMessage: (messageIds: string[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
@@ -111,11 +121,13 @@ export interface EditorChatProps {
     interactionId: string,
     request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
+  onStopTurn: () => void | Promise<void>;
   onLoadMoreRemoteMessages: () => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
     interactionId: string,
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
+  onRetryPendingInteractions: () => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
   onOpenFile: (path: string) => void;
 }

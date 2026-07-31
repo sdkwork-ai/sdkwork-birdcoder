@@ -113,6 +113,10 @@ import {
 } from './nativeWindowControlsBridge.ts';
 import { useNativeTrayMenuBridge } from './nativeTrayMenuBridge.ts';
 import { BirdcoderAppHeader } from './BirdcoderAppHeader.tsx';
+import {
+  BirdcoderCommandMenu,
+  type BirdcoderCommandGroup,
+} from './BirdcoderCommandMenu.tsx';
 import { AppMainBody, isProjectTerminalRequest } from './birdcoderAppMainBody.tsx';
 import {
   DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS,
@@ -332,6 +336,7 @@ export function AppContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
+  const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [isDesktopWindowAvailable, setIsDesktopWindowAvailable] = useState(false);
   const [isDesktopWindowMaximized, setIsDesktopWindowMaximized] = useState(false);
   const [isDesktopWindowMinimized, setIsDesktopWindowMinimized] = useState(false);
@@ -396,6 +401,14 @@ export function AppContent() {
     setWorkspaceRenameValue('');
     setWorkspaceActionsMenuId(null);
   }, []);
+
+  const handleOpenCommandMenu = useCallback(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    closeWorkspaceProjectPopover();
+    setShowCommandMenu(true);
+  }, [closeWorkspaceProjectPopover, isAuthenticated]);
 
   const settleProjectCreationRequest = useCallback((projectId?: string) => {
     const pendingRequest = pendingProjectCreationRequestRef.current;
@@ -1061,6 +1074,9 @@ export function AppContent() {
         case 'openFolder':
           openFolderHandlerRef.current();
           break;
+        case 'openCommandMenu':
+          handleOpenCommandMenu();
+          break;
         case 'openSettings':
           setSettingsTab('general');
           setActiveTab('settings');
@@ -1083,6 +1099,9 @@ export function AppContent() {
           break;
         case 'toggleReview':
           emitCodeSurfaceEvent('toggleDiffPanel');
+          break;
+        case 'findInSessionTranscript':
+          globalEventBus.emit('findInSessionTranscript');
           break;
         case 'findInFiles':
           emitCodeSurfaceEvent('findInFiles');
@@ -1128,7 +1147,7 @@ export function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, handleCreateTerminal, isMacKeyboard, keyboardShortcutBindings]);
+  }, [activeTab, handleCreateTerminal, handleOpenCommandMenu, isMacKeyboard, keyboardShortcutBindings]);
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
     if (!selectedWorkspaceId) {
@@ -2142,7 +2161,12 @@ export function AppContent() {
         onClick: () => globalEventBus.emit('toggleDiffPanel'),
       },
       {
-        label: t('app.menu.find'),
+        label: t('app.menu.findInSessionTranscript'),
+        shortcut: shortcutFor('findInSessionTranscript'),
+        onClick: () => globalEventBus.emit('findInSessionTranscript'),
+      },
+      {
+        label: t('app.menu.findInFiles'),
         shortcut: shortcutFor('findInFiles'),
         onClick: () => globalEventBus.emit('findInFiles'),
       },
@@ -2264,6 +2288,23 @@ export function AppContent() {
     ],
     [handleToggleRecording, isRecording, shortcutFor, t],
   );
+
+  const commandMenuGroups = useMemo<readonly BirdcoderCommandGroup[]>(() => [
+    { id: 'file', label: t('app.menu.file'), items: fileMenuItems },
+    { id: 'view', label: t('app.menu.view'), items: viewMenuItems },
+    { id: 'go', label: t('app.menu.go'), items: goMenuItems },
+    { id: 'run', label: t('app.menu.run'), items: runMenuItems },
+    { id: 'terminal', label: t('app.menu.terminal'), items: terminalMenuItems },
+    { id: 'help', label: t('app.menu.help'), items: helpMenuItems },
+  ], [
+    fileMenuItems,
+    goMenuItems,
+    helpMenuItems,
+    runMenuItems,
+    t,
+    terminalMenuItems,
+    viewMenuItems,
+  ]);
 
   const handleWorkspaceProjectPopoverToggle = useCallback(() => {
     if (showWorkspaceProjectPopover) {
@@ -2535,6 +2576,8 @@ export function AppContent() {
           </div>
         ) : null}
         closeButtonRef={closeWindowControlButtonRef}
+        commandMenuLabel={t('app.menu.commandMenu')}
+        commandMenuShortcut={shortcutFor('openCommandMenu')}
         handleClose={handleClose}
         handleMaximize={handleMaximize}
         handleMinimize={handleMinimize}
@@ -2559,6 +2602,7 @@ export function AppContent() {
         onDoubleClick={handleTitleBarDoubleClick}
         onDragStart={handleTitleBarDragStart}
         onPointerDown={handleTitleBarPointerDown}
+        onOpenCommandMenu={shouldShowWorkbenchHeaderChrome ? handleOpenCommandMenu : undefined}
         t={t}
         titleBarDragSurfaceClass={titleBarDragSurfaceClass}
       />
@@ -2579,6 +2623,16 @@ export function AppContent() {
         onRequestProjectCreation={handleOpenCreateProjectDialog}
         onProjectChange={handleActiveProjectChange}
         onAgentSessionChange={handleActiveAgentSessionChange}
+      />
+
+      <BirdcoderCommandMenu
+        closeLabel={t('app.menu.closeCommandMenu')}
+        groups={commandMenuGroups}
+        isOpen={showCommandMenu}
+        noResultsLabel={t('app.menu.commandMenuNoResults')}
+        onClose={() => setShowCommandMenu(false)}
+        searchLabel={t('app.menu.commandMenuSearch')}
+        title={t('app.menu.commandMenu')}
       />
 
       <CreateProjectDialog

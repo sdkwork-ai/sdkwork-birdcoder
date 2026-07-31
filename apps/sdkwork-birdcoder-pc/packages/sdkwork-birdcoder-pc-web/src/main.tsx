@@ -11,7 +11,8 @@ import {
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
-import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
+import { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-workbench/bootstrap/createBootstrapGateMessages';
+import { ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench/components/ErrorBoundary';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import { resolveWebTestGitService } from './web/resolveWebTestGitService';
 import App from './App';

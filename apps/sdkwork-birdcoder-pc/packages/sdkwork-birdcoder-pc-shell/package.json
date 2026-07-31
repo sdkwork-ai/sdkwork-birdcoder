@@ -27,9 +27,12 @@
     "use-sync-external-store": "catalog:"
   },
   "devDependencies": {
+    "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "typescript": "catalog:"
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "exports": {
     ".": {
@@ -42,5 +45,7 @@
     },
     "./styles": "./src/styles/index.css"
   },
-  "scripts": {}
+  "scripts": {
+    "test": "vitest run"
+  }
 }

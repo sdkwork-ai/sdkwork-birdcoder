@@ -1,4 +1,4 @@
-import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/iam-app';
 import {
   getBirdCoderGlobalTokenManager,
   syncBirdCoderGlobalTokenManagerFromStorage,

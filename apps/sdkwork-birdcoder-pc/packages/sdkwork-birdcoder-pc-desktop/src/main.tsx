@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { AppRoot } from '@sdkwork/birdcoder-pc-shell';
-import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
+import { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-workbench/bootstrap/createBootstrapGateMessages';
+import { ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench/components/ErrorBoundary';
 import {
   BootstrapGate,
   bootstrapShellRuntime,

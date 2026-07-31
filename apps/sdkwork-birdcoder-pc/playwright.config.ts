@@ -3,11 +3,7 @@ import { mergeRepoBootstrapAccessTokenEnv } from '@sdkwork/iam-credential-entry/
 import { fileURLToPath } from 'node:url';
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4175);
-const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
-const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
-const reuse = !process.env.CI;
-const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1';
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const { SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken } = mergeRepoBootstrapAccessTokenEnv({
   allowTestTokenGeneration: true,
@@ -23,6 +19,12 @@ const { SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken } = mergeRepoBootstrapAcce
 if (!e2eBootstrapAccessToken) {
   throw new Error('PC Playwright requires an isolated IAM credential-entry bootstrap token.');
 }
+if (process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== '1') {
+  throw new Error(
+    'PC Playwright server lifecycle is owned by scripts/run-pc-playwright-e2e.mjs. '
+    + 'Use pnpm test:e2e, or set PLAYWRIGHT_SKIP_WEB_SERVER=1 for already-running services.',
+  );
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -36,29 +38,6 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: [['line']],
-  webServer: skipWebServer ? undefined : [
-    {
-      command: 'node ../../scripts/pc-e2e-mock-api-server.mjs',
-      url: `${mockApiBaseUrl}/readyz`,
-      reuseExistingServer: reuse,
-      timeout: 30_000,
-      env: {
-        PC_E2E_ALLOWED_ORIGINS: baseURL,
-        PC_E2E_MOCK_API_PORT: String(mockApiPort),
-      },
-    },
-    {
-      command: `node ../../scripts/prepare-shared-sdk-packages.mjs && node ../../scripts/run-vite-host.mjs serve --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web --host 127.0.0.1 --port ${port} --mode test`,
-      url: baseURL,
-      reuseExistingServer: reuse,
-      timeout: 120_000,
-      env: {
-        SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: mockApiBaseUrl,
-        SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
-        SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken,
-      },
-    },
-  ],
   use: {
     baseURL,
     trace: 'on-first-retry',

@@ -205,7 +205,7 @@ export default defineConfig(({ command, mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-file-explorer|ui-chat|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight|vendor-mermaid)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-app|birdcoder-shell-bootstrap|birdcoder-shell-runtime|birdcoder-code|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-file-explorer|ui-chat|ui-model-picker|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight|vendor-mermaid)(?:-|~)/u.test(
                 dependency,
               ),
           );
@@ -213,8 +213,23 @@ export default defineConfig(({ command, mode }) => {
       },
       rollupOptions: {
         onwarn: onBirdcoderRollupWarning,
+        preserveEntrySignatures: false,
         output: {
-          manualChunks(id) {
+          strictExecutionOrder: true,
+          codeSplitting: {
+            includeDependenciesRecursively: true,
+            groups: [{
+              name(id) {
+                if (id.includes('/node_modules/@mermaid-js/')) {
+                  return 'vendor-mermaid-parser';
+                }
+                return null;
+              },
+              priority: 100,
+            }, {
+              entriesAware: true,
+              entriesAwareMergeThreshold: 32 * 1024,
+              name(id) {
             const isSourcePath = (sourcePath: string) => id.includes(sourcePath);
             const isAnySourcePath = (sourcePaths: readonly string[]) =>
               sourcePaths.some((sourcePath) => isSourcePath(sourcePath));
@@ -233,7 +248,8 @@ export default defineConfig(({ command, mode }) => {
             };
             const appSdkSourceRoot = '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/';
             const appSdkApiSourceRoot = `${appSdkSourceRoot}api/`;
-            const sdkCommonSourceRoot = '/sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/';
+            const agentsAppSdkSourceRoot = '/sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/';
+            const sdkCommonSourceRoot = '/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/';
           if (
             id === '\0vite/preload-helper.js' ||
             id.includes('/node_modules/vite/modulepreload-polyfill')
@@ -246,7 +262,7 @@ export default defineConfig(({ command, mode }) => {
             id.includes('/node_modules/react-i18next/') ||
             id.includes('/node_modules/i18next/')
           ) {
-            return id.includes('/node_modules/') ? 'vendor-i18n' : 'birdcoder-code-workbench';
+            return id.includes('/node_modules/') ? 'vendor-i18n' : 'birdcoder-platform-i18n';
             }
 
           if (
@@ -303,6 +319,10 @@ export default defineConfig(({ command, mode }) => {
             return 'vendor-icons';
           }
 
+          if (id.includes('/node_modules/@babel/runtime/')) {
+            return 'vendor-babel-runtime';
+          }
+
           if (id.includes('/node_modules/qrcode/')) {
             return 'vendor-qrcode';
           }
@@ -319,6 +339,10 @@ export default defineConfig(({ command, mode }) => {
 
           if (isSourcePath(sdkCommonSourceRoot)) {
             return 'birdcoder-platform-sdk-common';
+          }
+
+          if (isSourcePath(agentsAppSdkSourceRoot)) {
+            return 'birdcoder-platform-api-client';
           }
 
           if (isSourcePath(appSdkApiSourceRoot)) {
@@ -420,6 +444,14 @@ export default defineConfig(({ command, mode }) => {
           }
 
           if (
+            isSourcePath(
+              '/sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker/src/',
+            )
+          ) {
+            return 'ui-model-picker';
+          }
+
+          if (
             id.includes('/packages/sdkwork-birdcoder-pc-ui-shell/src/') ||
             id.includes('/node_modules/@radix-ui/react-slot/') ||
             id.includes('/node_modules/class-variance-authority/') ||
@@ -440,12 +472,26 @@ export default defineConfig(({ command, mode }) => {
             id.includes('/node_modules/react-syntax-highlighter/') ||
             id.includes('/node_modules/prismjs/') ||
             id.includes('/node_modules/refractor/') ||
-            id.includes('/node_modules/lowlight/')
+            id.includes('/node_modules/lowlight/') ||
+            id.includes('/node_modules/hastscript/') ||
+            id.includes('/node_modules/parse-entities/') ||
+            id.includes('/node_modules/character-reference-invalid/') ||
+            id.includes('/node_modules/is-alphabetical/') ||
+            id.includes('/node_modules/is-alphanumerical/') ||
+            id.includes('/node_modules/is-decimal/') ||
+            id.includes('/node_modules/is-hexadecimal/') ||
+            id.includes('/node_modules/character-entities/') ||
+            id.includes('/node_modules/character-entities-html4/') ||
+            id.includes('/node_modules/character-entities-legacy/')
           ) {
             return 'vendor-code-highlight';
           }
 
           if (
+            id.includes('/node_modules/ccount/') ||
+            id.includes('/node_modules/escape-string-regexp/') ||
+            id.includes('/node_modules/longest-streak/') ||
+            id.includes('/node_modules/markdown-table/') ||
             id.includes('/node_modules/react-markdown/') ||
             id.includes('/node_modules/unified/') ||
             id.includes('/node_modules/remark-') ||
@@ -465,6 +511,7 @@ export default defineConfig(({ command, mode }) => {
           if (
             id.includes('/node_modules/mermaid/dist/mermaid.core.mjs')
             || /\/node_modules\/mermaid\/dist\/chunks\/mermaid\.core\/chunk-[^/]+\.mjs/u.test(id)
+            || id.includes('/node_modules/stylis/')
           ) {
             return 'vendor-mermaid';
           }
@@ -515,7 +562,7 @@ export default defineConfig(({ command, mode }) => {
           if (
             isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMermaid.tsx')
           ) {
-            return 'ui-chat-mermaid';
+            return null;
           }
 
           if (
@@ -995,7 +1042,9 @@ export default defineConfig(({ command, mode }) => {
             return 'ui-workbench';
           }
 
-            return undefined;
+                return undefined;
+              },
+            }],
           },
         },
       },

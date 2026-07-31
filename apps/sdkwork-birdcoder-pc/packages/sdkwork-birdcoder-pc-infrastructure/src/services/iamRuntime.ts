@@ -4,7 +4,7 @@ import {
   type SdkworkAppbasePcAuthRuntimeSdkClient,
 } from '@sdkwork/auth-runtime-pc-react/appbasePcAuthRuntime';
 import type { IamRuntime } from '@sdkwork/iam-runtime';
-import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/iam-app';
 import { hydrateAppSessionPersistence } from '@sdkwork/birdcoder-pc-core/appSessionPersistence';
 import {
   getBirdCoderGlobalTokenManager,

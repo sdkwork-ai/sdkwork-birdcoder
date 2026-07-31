@@ -18,6 +18,8 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.explorerWidth === right.explorerWidth &&
     left.chatWidth === right.chatWidth &&
     left.selectedAgentSessionId === right.selectedAgentSessionId &&
+    left.selectedAgentSessionAgentId === right.selectedAgentSessionAgentId &&
+    left.selectedAgentSessionRuntimeBindingId === right.selectedAgentSessionRuntimeBindingId &&
     left.selectedAgentSessionScopeKey === right.selectedAgentSessionScopeKey &&
     left.messages === right.messages &&
     left.hasMoreRemoteMessages === right.hasMoreRemoteMessages &&
@@ -26,6 +28,8 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.isNewSession === right.isNewSession &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&
+    left.hasPendingInteractionsLoadError === right.hasPendingInteractionsLoadError &&
+    left.isLoadingPendingInteractions === right.isLoadingPendingInteractions &&
     left.chatEmptyState === right.chatEmptyState &&
     left.isBusy === right.isBusy &&
     left.isEngineBusy === right.isEngineBusy &&
@@ -48,9 +52,11 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
     left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
     left.onSendMessage === right.onSendMessage &&
+    left.onStopTurn === right.onStopTurn &&
     left.onLoadMoreRemoteMessages === right.onLoadMoreRemoteMessages &&
     left.onSubmitApprovalDecision === right.onSubmitApprovalDecision &&
     left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
+    left.onRetryPendingInteractions === right.onRetryPendingInteractions &&
     left.onViewChanges === right.onViewChanges &&
     left.onRestoreMessage === right.onRestoreMessage &&
     left.onEditMessage === right.onEditMessage &&

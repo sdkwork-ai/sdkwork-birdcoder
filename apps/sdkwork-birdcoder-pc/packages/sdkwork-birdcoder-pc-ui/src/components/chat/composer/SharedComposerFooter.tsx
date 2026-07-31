@@ -6,6 +6,7 @@ import {
   Loader2,
   Mic,
   Plus,
+  Square,
 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
@@ -20,6 +21,7 @@ export function SharedComposerFooter({
   accessModes,
   attachmentsDisabled,
   canQueueTypedMessage,
+  canStopTurn,
   canSubmitComposerMessage,
   canSubmitPendingUserQuestionAnswer,
   disabled,
@@ -30,10 +32,11 @@ export function SharedComposerFooter({
   imageInputRef,
   isAttachmentMenuOpen,
   isAccessModeMenuOpen,
-  isAwaitingQueuedTurnSettlement,
   isComposerProcessing,
   isComposerTurnBlocked,
   isListening,
+  isStopTurnConfirmationVisible,
+  isStoppingTurn,
   isUploadingAttachments,
   modelGroups,
   onAttachmentMenuOpenChange,
@@ -44,6 +47,7 @@ export function SharedComposerFooter({
   onSelectModel,
   onSelectAccessMode,
   onSend,
+  onStopTurn,
   onToggleVoiceInput,
   selectedModelLabel,
   selectedAccessModeId,
@@ -181,7 +185,36 @@ export function SharedComposerFooter({
           <Mic size={16} className={isListening ? 'animate-pulse' : ''} />
         </Button>
 
-        {isUploadingAttachments ? (
+        {isStoppingTurn ? (
+          <Button
+            size="icon"
+            aria-label={t('chat.stoppingResponse')}
+            className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
+            disabled
+            title={t('chat.stoppingResponse')}
+          >
+            <Loader2 size={14} className="animate-spin" />
+          </Button>
+        ) : canStopTurn && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
+          <Button
+            size="icon"
+            aria-label={t('chat.stopResponse')}
+            className={`h-8 rounded-full bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] transition-all duration-200 hover:bg-white ${
+              isStopTurnConfirmationVisible ? 'w-[58px] gap-1.5 px-2' : 'w-8'
+            }`}
+            onClick={() => {
+              void onStopTurn();
+            }}
+            title={t('chat.stopResponse')}
+          >
+            <Square aria-hidden="true" fill="currentColor" size={11} />
+            {isStopTurnConfirmationVisible ? (
+              <span aria-hidden="true" className="text-[10px] font-medium leading-none">
+                Esc
+              </span>
+            ) : null}
+          </Button>
+        ) : isUploadingAttachments ? (
           <Button
             size="icon"
             aria-label={t('chat.attachmentUploading')}
@@ -209,7 +242,7 @@ export function SharedComposerFooter({
                 ? t('chat.saveEditedMessage')
                 : canSubmitPendingUserQuestionAnswer
                   ? t('chat.submitAnswer')
-                  : isComposerTurnBlocked || isAwaitingQueuedTurnSettlement
+                  : isComposerTurnBlocked
                     ? t('chat.queueMessage')
                     : t('chat.sendMessage')
             }
@@ -223,7 +256,7 @@ export function SharedComposerFooter({
                 ? t('chat.saveEditedMessage')
                 : canSubmitPendingUserQuestionAnswer
                   ? t('chat.submitAnswer')
-                  : isComposerTurnBlocked || isAwaitingQueuedTurnSettlement
+                  : isComposerTurnBlocked
                     ? t('chat.queueMessage')
                     : t('chat.sendMessage')
             }

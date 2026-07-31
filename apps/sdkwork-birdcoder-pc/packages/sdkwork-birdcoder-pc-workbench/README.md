@@ -6,14 +6,20 @@ integration contract is [specs/component.spec.json](./specs/component.spec.json)
 ## Public API
 
 The public `exports` map in [package.json](./package.json) exposes workbench UI,
-hooks, contexts, terminal surfaces, typed host adapters, and the bounded
-`./storage/localStore` settings port.
+hooks, contexts, terminal surfaces, typed host adapters, narrow bootstrap
+message and error-boundary entrypoints, and the bounded `./storage/localStore`
+settings port.
 
 ## Required SDK Surface
 
 This package does not construct SDK clients. Runtime-provided IDE services expose
 BirdCoder workbench, Agents session/item, Skills, Prompts, Documents, and Drive
 capabilities through typed ports.
+
+The Agent Turn input queue controller consumes the injected Agents Session
+service. Agents is the durable FIFO, claim, lease, fencing, idempotency, and
+failure authority; Workbench keeps only a bounded process-memory projection
+and scoped invalidation channel.
 
 ## Configuration
 
@@ -37,6 +43,9 @@ Local settings contain no token, credential, tenant-owned business record, agent
 transcript, prompt body, skill definition, or document content. IAM credentials
 are owned by the secure app-session host adapter. Terminal preflight diagnostics
 are not persisted and cannot cross application-session boundaries.
+Turn input queue content is never stored in local settings. Logout clears its
+disposable projection, while deleting durable entries requires an explicit
+generated Agents SDK command under the authenticated owner scope.
 
 ## Extension Points
 
@@ -47,6 +56,7 @@ not to local storage.
 ## Verification
 
 - `pnpm --filter @sdkwork/birdcoder-pc-workbench typecheck`
+- `pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentTurnInputQueue.test.ts agentTurnInputQueueHook.test.tsx`
 - `node scripts/local-store-contract.test.ts`
 - `node scripts/run-config-contract.test.ts`
 - `node scripts/terminal-governance-runtime-contract.test.ts`

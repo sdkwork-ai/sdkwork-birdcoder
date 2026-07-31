@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-30
+Updated: 2026-07-31
 Specs: DOCUMENTATION_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md
 
 This document narrows the
@@ -47,6 +47,15 @@ identifiers. The Header renders Workspace selection first and the selected
 Workspace's Project selector second. Workspace bootstrap is an Agents SDK
 operation; there is no BirdCoder Workspace authority, second Project id,
 parallel Session id, persistent transcript view, or mapping facade.
+
+Session is also the mandatory PC naming boundary. Codex `thread`, `threadId`,
+and `findInThread` are raw provider protocol names and may exist only in the
+Codex adapter or exact protocol fixtures. The adapter immediately converts
+them to the Agents Session identity, `providerSessionId`, and Session-named PC
+commands such as `findInSessionTranscript`. Shell, UI, stores, services, events,
+view models, and authored contracts must not define a Thread model or leak
+Codex protocol terminology. Archive, rename, pin, navigation, and transcript
+find reuse the canonical Session and Session user-state capabilities.
 
 Session creation and local execution context use:
 
@@ -164,11 +173,73 @@ bounded, deduplicated, and exposes a persistent inline retry state. Unknown
 future runtime roles or kinds use the unsupported-content renderer and are not
 coerced into Assistant presentation.
 
+The in-memory Projects Store retains no more than 500 items and 4 MiB of
+estimated structured content for one Session. The estimator uses an iterative,
+cycle-aware traversal capped at 65,536 nodes rather than recursive descent or
+full JSON serialization. The transcript initially renders the latest 48
+messages; its window state commits a stable `projectId + sessionId` scope before
+remote prepend, so late Agent or Provider metadata cannot reset expanded
+history. Session changes still initialize a new bounded latest window.
+
+Turn streaming stays behind the injected Agents Session service. The generated
+SDK requests `event_protocol=kernel-v1`; the adapter validates event sequence,
+Session/Turn/provider identity, JSON shape, a 4 MiB per-event payload ceiling,
+and 8 MiB/131,072-node whole-Turn budgets. Raw Kernel events do not cross the
+service port. React receives cumulative assistant text for transient pacing and
+reconciles only against authoritative completion Session Items. Animation-frame
+pacing has a timer fallback and completes its drain within eight frames.
+
+## Durable Turn Input Queue
+
+UnifiedChat persists each busy-state submission through the injected Agents
+Session service before clearing the composer. The service delegates to the
+generated Agents App SDK `turnInputQueueEntries` surface. Agents owns queue
+storage, owner authorization, FIFO position, mutation versions, leases,
+fencing tokens, idempotency keys, payload hashes, and Turn reconciliation; PC
+owns only interaction state and a bounded in-memory projection.
+
+The Workbench queue controller hydrates at mount and after online, focus,
+visibility, or validated `BroadcastChannel` invalidation. It limits the
+projection to 32 entries per Session, 32 Session scopes, 4 MiB per Session,
+and 16 MiB overall. Cross-window messages carry no content. A Session identity
+generation fence rejects late refresh, claim, dispatch, and error effects from
+the previously selected Session. Logout clears the projection but does not
+delete the durable queue.
+
+When no Turn is busy, the controller atomically claims the next entry with a
+30-second lease, then submits the original Agent, Session, runtime binding,
+model, access mode, client request identity, and the queue-owned
+`idempotencyKey + payloadHash` pair through the existing Turn stream. A
+completed dispatch immediately claims again so the owner can reconcile and
+advance. Uncertain acceptance pauses for bounded reconciliation; rejected
+pre-acceptance delivery is fenced into `failed` once. Owner outcomes `busy`,
+`active_turn`, and `blocked` never dispatch another input.
+
+Only queued or failed entries can be edited, reordered, removed, or retried,
+using their stable `queueEntryId` and expected version. An executing entry is
+immutable. A failed head pauses FIFO until an explicit retry, edit, or removal.
+Clear preserves executing work, while deleting the owning Session purges the
+queue. These semantics are defined in
+[ADR-20260731](../../../../../docs/architecture/decisions/ADR-20260731-durable-turn-input-queue.md).
+
 Canonical `turnId` groups transcript rows when available. A user-to-user
 boundary is the rendering-only fallback. Turn position, disclosure state, and
 active-tail state remain memory-only UI facts and are never persisted. The
 shared presentation follows the OpenCode App hierarchy without importing its
 SolidJS components, SDK types, session authority, or theme packages.
+
+The production Vite artifact is a separately verified runtime boundary. Its
+Rolldown chunk ownership uses entries-aware dependency merging for named
+product and vendor groups, with `@mermaid-js` parser modules isolated at a
+higher priority. The release gate parses every emitted JavaScript asset with
+the TypeScript Compiler API and rejects any strongly connected component in
+the complete static import/re-export graph, including self-imports. The entry
+asset remains independently budgeted and no JavaScript asset may exceed 700
+KiB. The production browser smoke builds the artifact with an isolated mock
+application ingress before previewing it on fresh ports. It signs in through
+IAM, opens the Claude Session, waits for Markdown, syntax-highlighting, and
+Mermaid lazy renderers, and fails on any page exception, console error, or
+failed script response.
 
 ## Verification
 
@@ -176,11 +247,13 @@ SolidJS components, SDK types, session authority, or theme packages.
 pnpm --dir apps/sdkwork-birdcoder-pc lint
 pnpm --dir apps/sdkwork-birdcoder-pc test
 pnpm --dir apps/sdkwork-birdcoder-pc check
+pnpm test:browser:smoke
 pnpm check:agents-birdcoder-alignment
 pnpm check:api-transport-standard
 pnpm check:local-business-storage-boundary
 pnpm check:desktop
 pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentSessionActivity.test.ts workspaceSessionInboxCoordinator.test.ts sessionInbox.test.ts
+pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentTurnInputQueue.test.ts agentTurnInputQueueHook.test.tsx
 node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx
 ```
 

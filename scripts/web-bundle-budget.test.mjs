@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { BIRDCODER_PERFORMANCE_BUDGETS } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/governance.ts';
+import {
+  findStaticImportCycles,
+  parseStaticChunkDependencies,
+} from './web-bundle-graph.mjs';
 
 const rootDir = process.cwd();
 const webDistDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'dist');
@@ -20,8 +24,19 @@ function listTopAssets(assets) {
     .join('\n');
 }
 
+function matchesChunkFamily(assetName, prefix) {
+  const family = prefix.endsWith('-') ? prefix.slice(0, -1) : prefix;
+  if (assetName.startsWith(`${family}~`)) {
+    return true;
+  }
+  if (!assetName.startsWith(`${family}-`)) {
+    return false;
+  }
+  return /^[A-Za-z0-9_-]{8,}\.js$/u.test(assetName.slice(family.length + 1));
+}
+
 function findAssetByPrefix(assets, prefix) {
-  return assets.find((asset) => asset.name.startsWith(prefix));
+  return assets.find((asset) => matchesChunkFamily(asset.name, prefix));
 }
 
 function assertChunkExists(assets, prefix) {
@@ -81,6 +96,40 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
+function createStaticImportGraph(assets) {
+  const assetNames = new Set(assets.map((asset) => asset.name));
+  return new Map(
+    assets.map((asset) => {
+      const source = fs.readFileSync(path.join(assetsDir, asset.name), 'utf8');
+      const dependencies = parseStaticChunkDependencies({
+        assetName: asset.name,
+        assetNames,
+        source,
+      });
+      return [asset.name, dependencies];
+    }),
+  );
+}
+
+function assertNoStaticChunkCycles(assets) {
+  const staticImportGraph = createStaticImportGraph(assets);
+  const cyclicComponents = findStaticImportCycles(staticImportGraph);
+  const cycleDetails = cyclicComponents.map((component) => {
+    const members = new Set(component);
+    const edges = component.flatMap((assetName) =>
+      (staticImportGraph.get(assetName) ?? [])
+        .filter((dependency) => members.has(dependency))
+        .map((dependency) => `${assetName} -> ${dependency}`));
+    return `- ${edges.join('; ')}`;
+  });
+
+  assert.equal(
+    cyclicComponents.length,
+    0,
+    ['web production chunks must have an acyclic static import graph.', ...cycleDetails].join('\n'),
+  );
+}
+
 assert.ok(
   fs.existsSync(indexHtmlPath) && fs.existsSync(assetsDir),
   'web bundle budget check requires a built web dist. Run `pnpm build` first.',
@@ -99,6 +148,7 @@ const jsAssets = fs
   .sort((left, right) => right.size - left.size);
 
 assert.ok(jsAssets.length > 0, 'web bundle budget check expected at least one built JS asset.');
+assertNoStaticChunkCycles(jsAssets);
 
 const largestAsset = jsAssets[0];
 assert.ok(
@@ -134,6 +184,7 @@ assert.ok(
 for (const forbiddenPreloadPrefix of [
   'birdcoder-shell-app-',
   'birdcoder-shell-bootstrap-',
+  'birdcoder-shell-runtime-',
   'birdcoder-code-surface-',
   'birdcoder-code-runtime-',
   'birdcoder-code-project-runtime-',
@@ -169,9 +220,12 @@ for (const forbiddenPreloadPrefix of [
   'vendor-code-highlight-',
   'vendor-monaco-',
 ]) {
+  const forbiddenPreloadFamily = forbiddenPreloadPrefix.endsWith('-')
+    ? forbiddenPreloadPrefix.slice(0, -1)
+    : forbiddenPreloadPrefix;
   assert.doesNotMatch(
     indexHtml,
-    new RegExp(`assets\\/${escapeRegex(forbiddenPreloadPrefix)}[^"]*\\.js`, 'u'),
+    new RegExp(`assets\\/${escapeRegex(forbiddenPreloadFamily)}(?:-|~)[^"]*\\.js`, 'u'),
     `web entry HTML must not modulepreload ${forbiddenPreloadPrefix} because it is a lazy or heavy feature chunk.`,
   );
 }

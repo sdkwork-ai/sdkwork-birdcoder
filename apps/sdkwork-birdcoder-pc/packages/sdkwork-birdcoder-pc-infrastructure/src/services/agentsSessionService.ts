@@ -3,7 +3,9 @@ import {
   type AgentResourceUserStateRecord,
   type AgentSessionRecord,
   type AgentSessionRuntimeBindingRecord,
+  type AgentTurnInputQueueEntry,
   type AgentTurnRecord,
+  type AgentTurnRuntimeEvent,
   type AgentTurnStreamEvent,
   completeAgentTurn,
   type CreateAgentSessionRuntimeBindingRequest,
@@ -51,6 +53,44 @@ const AGENT_TURN_MAX_CONTENT_CHARACTERS = 1_048_576;
 const AGENT_TURN_MAX_CONTENT_TYPE_CHARACTERS = 64;
 const AGENT_TURN_MAX_DRIVE_REFS = 64;
 const AGENT_TURN_MAX_IDENTITY_CHARACTERS = 128;
+const AGENT_TURN_INPUT_QUEUE_PAGE_SIZE = 32;
+const AGENT_TURN_MAX_RUNTIME_EVENTS = 10_000;
+const AGENT_TURN_MAX_RUNTIME_EVENT_PAYLOAD_CHARACTERS = 4 * 1_048_576;
+const AGENT_TURN_MAX_RUNTIME_EVENT_PAYLOAD_NODES = 65_536;
+const AGENT_TURN_MAX_RUNTIME_EVENT_TOTAL_PAYLOAD_CHARACTERS = 8 * 1_048_576;
+const AGENT_TURN_MAX_RUNTIME_EVENT_TOTAL_PAYLOAD_NODES = 131_072;
+const AGENT_TURN_MAX_PROVIDER_IDENTITY_CHARACTERS = 2_048;
+const AGENT_TURN_RUNTIME_EVENT_SOURCES = new Set([
+  'runtime',
+  'manifest',
+  'provider',
+  'model',
+  'tool',
+  'context',
+  'memory',
+  'policy',
+  'host',
+  'protocol_adapter',
+  'kernel_ui',
+  'code_kernel',
+  'telemetry',
+  'unknown',
+]);
+const AGENT_TURN_RUNTIME_EVENT_SEVERITIES = new Set([
+  'debug',
+  'info',
+  'warn',
+  'error',
+]);
+const AGENT_TURN_RUNTIME_EVENT_REDACTION_CLASSIFICATIONS = new Set([
+  'public',
+  'internal',
+  'tenant_sensitive',
+  'personal_data',
+  'secret',
+  'regulated',
+  'unknown',
+]);
 const AGENT_INTERACTION_MAX_REASON_CHARACTERS = 2_048;
 const AGENT_INTERACTION_MAX_ANSWER_CHARACTERS = 65_536;
 const AGENT_INTERACTION_MAX_OPTION_VALUE_CHARACTERS = 256;
@@ -61,6 +101,10 @@ export interface BirdCoderAgentSessionServiceOptions {
   turnRecoveryMaxAttempts?: number;
   turnRecoveryPollIntervalMs?: number;
 }
+
+type AgentTurnInputQueuePage = Awaited<ReturnType<
+  AgentsAppSdkClient['ai']['agents']['turnInputQueueEntries']['list']
+>>;
 
 function hashPayload(value: unknown): string {
   return `sha256:${sha256Hash(JSON.stringify(value))}`;
@@ -440,6 +484,363 @@ function readAgentTurnCompletionEvent(event: unknown): AgentTurnCompletion {
   const completion = response.data.item;
   assertAgentTurnCompletion(completion);
   return completion;
+}
+
+function assertTurnInputQueueEntryIdentity(
+  entry: Pick<AgentTurnInputQueueEntry, 'agentId' | 'queueEntryId' | 'sessionId'>,
+  expected: AgentSessionIdentity,
+  expectedQueueEntryId?: string,
+): void {
+  if (
+    entry.agentId.trim() !== expected.agentId
+    || entry.sessionId.trim() !== expected.sessionId
+    || !entry.queueEntryId.trim()
+    || (expectedQueueEntryId && entry.queueEntryId !== expectedQueueEntryId)
+  ) {
+    throw new Error(
+      'Agents Turn input queue response identity does not match the requested nested resource.',
+    );
+  }
+}
+
+function normalizeTurnInputQueueEntryId(queueEntryId: string): string {
+  const normalizedQueueEntryId = normalizeOptionalBoundedValue(
+    queueEntryId,
+    'Agent Turn input queue entry ID',
+    AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+  );
+  if (!normalizedQueueEntryId) {
+    throw new Error('Agent Turn input queue entry ID is required.');
+  }
+  return normalizedQueueEntryId;
+}
+
+function readTurnInputQueuePage(response: unknown): AgentTurnInputQueuePage {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
+    throw new Error('Agents Turn input queue returned an invalid page payload.');
+  }
+
+  const page = response as { items?: unknown; pageInfo?: unknown };
+  const pageInfo = page.pageInfo as {
+    hasMore?: unknown;
+    mode?: unknown;
+    page?: unknown;
+    pageSize?: unknown;
+  } | null;
+  if (
+    !Array.isArray(page.items)
+    || !pageInfo
+    || typeof pageInfo !== 'object'
+    || Array.isArray(pageInfo)
+    || typeof pageInfo.hasMore !== 'boolean'
+    || pageInfo.mode !== 'offset'
+    || pageInfo.page !== 1
+    || pageInfo.pageSize !== AGENT_TURN_INPUT_QUEUE_PAGE_SIZE
+  ) {
+    throw new Error('Agents Turn input queue returned an invalid page payload.');
+  }
+  return response as AgentTurnInputQueuePage;
+}
+
+function readOptionalBoundedRuntimeIdentity(
+  value: unknown,
+  label: string,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (
+    typeof value !== 'string'
+    || !value.trim()
+    || value.trim() !== value
+    || value.length > AGENT_TURN_MAX_PROVIDER_IDENTITY_CHARACTERS
+  ) {
+    throw new Error(`${label} is malformed.`);
+  }
+  return value;
+}
+
+function readNullableBoundedRuntimeIdentity(
+  value: unknown,
+  label: string,
+): string | null {
+  if (value === undefined) {
+    throw new Error(`${label} is malformed.`);
+  }
+  return readOptionalBoundedRuntimeIdentity(value, label);
+}
+
+function assertRuntimeEventEnum(
+  value: unknown,
+  allowedValues: ReadonlySet<string>,
+  label: string,
+): asserts value is string {
+  if (typeof value !== 'string' || !allowedValues.has(value)) {
+    throw new Error(`${label} is malformed.`);
+  }
+}
+
+function assertAgentTurnIdentity(
+  turn: Pick<AgentTurnRecord, 'agentId' | 'sessionId' | 'turnId'>,
+  expected: AgentSessionIdentity,
+  expectedTurnId: string,
+): void {
+  if (
+    turn.agentId.trim() !== expected.agentId
+    || turn.sessionId.trim() !== expected.sessionId
+    || turn.turnId.trim() !== expectedTurnId
+  ) {
+    throw new Error('Agents Turn response identity does not match the requested nested resource.');
+  }
+}
+
+function assertRuntimeEventTimestamp(value: unknown): void {
+  const timestamp = readNullableBoundedRuntimeIdentity(
+    value,
+    'Runtime event timestamp',
+  );
+  if (timestamp && Number.isNaN(Date.parse(timestamp))) {
+    throw new Error('Runtime event timestamp is malformed.');
+  }
+}
+
+function assertRuntimeEventTraceContext(value: unknown): void {
+  if (value === null) {
+    return;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Runtime event trace context is malformed.');
+  }
+  const traceContext = value as Record<string, unknown>;
+  if (
+    !readOptionalBoundedRuntimeIdentity(traceContext.traceId, 'Runtime trace ID')
+    || !readOptionalBoundedRuntimeIdentity(traceContext.spanId, 'Runtime span ID')
+  ) {
+    throw new Error('Runtime event trace context is malformed.');
+  }
+  readNullableBoundedRuntimeIdentity(traceContext.parentSpanId, 'Runtime parent span ID');
+}
+
+interface AgentTurnRuntimeEventBudget {
+  remainingEvents: number;
+  remainingPayloadCharacters: number;
+  remainingPayloadNodes: number;
+}
+
+interface BoundedJsonMeasurement {
+  characters: number;
+  exceeded: boolean;
+  isValid: boolean;
+  nodes: number;
+}
+
+type BoundedJsonMeasurementFrame =
+  | {
+      index: number;
+      kind: 'array';
+      value: readonly unknown[];
+    }
+  | {
+      entries: Generator<readonly [string, unknown], void>;
+      kind: 'object';
+    }
+  | {
+      kind: 'value';
+      value: unknown;
+    };
+
+function* iterateOwnEnumerableRuntimeEventEntries(
+  value: object,
+): Generator<readonly [string, unknown], void> {
+  const record = value as Record<string, unknown>;
+  for (const key in record) {
+    if (Object.prototype.hasOwnProperty.call(record, key)) {
+      yield [key, record[key]] as const;
+    }
+  }
+}
+
+function measureBoundedJsonValue(
+  value: unknown,
+  characterLimit: number,
+  nodeLimit: number,
+): BoundedJsonMeasurement {
+  const visited = new WeakSet<object>();
+  const frames: BoundedJsonMeasurementFrame[] = [{ kind: 'value', value }];
+  let characters = 0;
+  let nodes = 0;
+
+  while (frames.length > 0) {
+    const frame = frames.pop()!;
+    if (frame.kind === 'array') {
+      if (frame.index < frame.value.length) {
+        frames.push({ ...frame, index: frame.index + 1 });
+        frames.push({ kind: 'value', value: frame.value[frame.index] });
+      }
+      continue;
+    }
+    if (frame.kind === 'object') {
+      const entry = frame.entries.next();
+      if (!entry.done) {
+        const [key, candidate] = entry.value;
+        characters += key.length + 3;
+        frames.push(frame);
+        frames.push({ kind: 'value', value: candidate });
+      }
+      if (characters > characterLimit) {
+        return { characters, exceeded: true, isValid: true, nodes };
+      }
+      continue;
+    }
+
+    nodes += 1;
+    if (nodes > nodeLimit) {
+      return { characters, exceeded: true, isValid: true, nodes };
+    }
+    const candidate = frame.value;
+    if (typeof candidate === 'string') {
+      characters += candidate.length + 2;
+    } else if (candidate === null) {
+      characters += 4;
+    } else if (typeof candidate === 'boolean') {
+      characters += candidate ? 4 : 5;
+    } else if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      characters += String(candidate).length;
+    } else if (typeof candidate !== 'object') {
+      return { characters, exceeded: false, isValid: false, nodes };
+    } else {
+      if (visited.has(candidate)) {
+        return { characters, exceeded: false, isValid: false, nodes };
+      }
+      visited.add(candidate);
+      if (Array.isArray(candidate)) {
+        characters += 2;
+        frames.push({ index: 0, kind: 'array', value: candidate });
+      } else {
+        const prototype = Object.getPrototypeOf(candidate) as unknown;
+        if (prototype !== Object.prototype && prototype !== null) {
+          return { characters, exceeded: false, isValid: false, nodes };
+        }
+        characters += 2;
+        frames.push({
+          entries: iterateOwnEnumerableRuntimeEventEntries(candidate),
+          kind: 'object',
+        });
+      }
+    }
+    if (characters > characterLimit) {
+      return { characters, exceeded: true, isValid: true, nodes };
+    }
+  }
+
+  return { characters, exceeded: false, isValid: true, nodes };
+}
+
+function createAgentTurnRuntimeEventBudget(): AgentTurnRuntimeEventBudget {
+  return {
+    remainingEvents: AGENT_TURN_MAX_RUNTIME_EVENTS,
+    remainingPayloadCharacters: AGENT_TURN_MAX_RUNTIME_EVENT_TOTAL_PAYLOAD_CHARACTERS,
+    remainingPayloadNodes: AGENT_TURN_MAX_RUNTIME_EVENT_TOTAL_PAYLOAD_NODES,
+  };
+}
+
+function readAgentTurnRuntimeEvent(
+  streamEvent: AgentTurnStreamEvent,
+  expectedSessionId: string,
+  expectedTurnId: string,
+  expectedSequence: number,
+  budget: AgentTurnRuntimeEventBudget,
+): AgentTurnRuntimeEvent {
+  const event = streamEvent.event;
+  if (
+    budget.remainingEvents <= 0
+  ) {
+    throw new Error('Agents turn runtime event count exceeds the presentation limit.');
+  }
+  if (
+    streamEvent.eventType !== 'event'
+    || !event
+    || !Number.isSafeInteger(event.sequence)
+    || event.sequence !== expectedSequence
+    || event.sessionId !== expectedSessionId
+    || event.turnId !== expectedTurnId
+    || !event.payload
+    || typeof event.payload !== 'object'
+    || Array.isArray(event.payload)
+  ) {
+    throw new Error(
+      `Agents turn runtime event ${expectedSequence} is malformed or out of order.`,
+    );
+  }
+  if (
+    !readOptionalBoundedRuntimeIdentity(event.eventId, 'Runtime event ID')
+    || !readOptionalBoundedRuntimeIdentity(event.type, 'Runtime event type')
+    || !readOptionalBoundedRuntimeIdentity(event.version, 'Runtime event version')
+  ) {
+    throw new Error(`Agents turn runtime event ${expectedSequence} is malformed.`);
+  }
+  readNullableBoundedRuntimeIdentity(event.providerSessionId, 'Provider Session ID');
+  readNullableBoundedRuntimeIdentity(event.taskId, 'Provider task ID');
+  const itemId = readNullableBoundedRuntimeIdentity(event.itemId, 'Provider item ID');
+  readNullableBoundedRuntimeIdentity(event.runId, 'Provider run ID');
+  readNullableBoundedRuntimeIdentity(event.correlationId, 'Runtime correlation ID');
+  readNullableBoundedRuntimeIdentity(event.causationId, 'Runtime causation ID');
+  readNullableBoundedRuntimeIdentity(event.payloadSchema, 'Runtime payload schema');
+  assertRuntimeEventTimestamp(event.occurredAt);
+  assertRuntimeEventEnum(
+    event.source,
+    AGENT_TURN_RUNTIME_EVENT_SOURCES,
+    'Runtime event source',
+  );
+  assertRuntimeEventEnum(
+    event.severity,
+    AGENT_TURN_RUNTIME_EVENT_SEVERITIES,
+    'Runtime event severity',
+  );
+  assertRuntimeEventEnum(
+    event.redactionClassification,
+    AGENT_TURN_RUNTIME_EVENT_REDACTION_CLASSIFICATIONS,
+    'Runtime event redaction classification',
+  );
+  assertRuntimeEventTraceContext(event.traceContext);
+  if (typeof event.replay !== 'boolean') {
+    throw new Error('Runtime event replay marker is malformed.');
+  }
+
+  const payloadMeasurement = measureBoundedJsonValue(
+    event.payload,
+    Math.min(
+      AGENT_TURN_MAX_RUNTIME_EVENT_PAYLOAD_CHARACTERS,
+      budget.remainingPayloadCharacters,
+    ),
+    Math.min(
+      AGENT_TURN_MAX_RUNTIME_EVENT_PAYLOAD_NODES,
+      budget.remainingPayloadNodes,
+    ),
+  );
+  if (!payloadMeasurement.isValid) {
+    throw new Error('Agents turn runtime event payload is malformed.');
+  }
+  if (payloadMeasurement.exceeded) {
+    throw new Error('Agents turn runtime event payload exceeds the presentation limit.');
+  }
+  budget.remainingEvents -= 1;
+  budget.remainingPayloadCharacters -= payloadMeasurement.characters;
+  budget.remainingPayloadNodes -= payloadMeasurement.nodes;
+  const payloadItem = event.payload.item;
+  if (payloadItem !== null && payloadItem !== undefined) {
+    if (typeof payloadItem !== 'object' || Array.isArray(payloadItem)) {
+      throw new Error('Agents turn runtime event item snapshot is malformed.');
+    }
+    const payloadItemId = readOptionalBoundedRuntimeIdentity(
+      (payloadItem as Record<string, unknown>).id,
+      'Provider payload item ID',
+    );
+    if (itemId && payloadItemId !== itemId) {
+      throw new Error('Agents turn runtime event item identity does not match its envelope.');
+    }
+  }
+  return event;
 }
 
 function isAgentTurnNotFoundError(error: unknown): boolean {
@@ -926,6 +1327,244 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
+  async cancelTurn(
+    identity: AgentSessionIdentity,
+    turnId: string,
+    request: Parameters<IAgentSessionService['cancelTurn']>[2],
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedTurnId = normalizeOptionalBoundedValue(
+      turnId,
+      'Agent Turn ID',
+      AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+    );
+    if (!normalizedTurnId) {
+      throw new Error('Agent Turn ID is required for cancellation.');
+    }
+    const response = await this.client.ai.agents.turns.cancel(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedTurnId,
+      request,
+    );
+    assertAgentTurnIdentity(response, normalizedIdentity, normalizedTurnId);
+    return response;
+  }
+
+  async getTurn(
+    identity: AgentSessionIdentity,
+    turnId: string,
+    options?: Parameters<IAgentSessionService['getTurn']>[2],
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedTurnId = normalizeOptionalBoundedValue(
+      turnId,
+      'Agent Turn ID',
+      AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+    );
+    if (!normalizedTurnId) {
+      throw new Error('Agent Turn ID is required for retrieval.');
+    }
+    const response = await this.client.ai.agents.turns.retrieve(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedTurnId,
+      toApiRequestOptions(options),
+    );
+    assertAgentTurnIdentity(response, normalizedIdentity, normalizedTurnId);
+    return response;
+  }
+
+  async listTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = readTurnInputQueuePage(
+      await this.client.ai.agents.turnInputQueueEntries.list(
+        normalizedIdentity.agentId,
+        normalizedIdentity.sessionId,
+        { page: 1, pageSize: AGENT_TURN_INPUT_QUEUE_PAGE_SIZE },
+        toApiRequestOptions(options),
+      ),
+    );
+    if (response.pageInfo.hasMore || response.items.length > AGENT_TURN_INPUT_QUEUE_PAGE_SIZE) {
+      throw new Error('Agents Turn input queue exceeded its bounded Session capacity.');
+    }
+    const queueEntryIds = new Set<string>();
+    for (const entry of response.items) {
+      assertTurnInputQueueEntryIdentity(entry, normalizedIdentity);
+      if (queueEntryIds.has(entry.queueEntryId)) {
+        throw new Error(`Agents Turn input queue contains duplicate ${entry.queueEntryId}.`);
+      }
+      queueEntryIds.add(entry.queueEntryId);
+    }
+    return response;
+  }
+
+  async createTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    request: Parameters<IAgentSessionService['createTurnInputQueueEntry']>[1],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.turnInputQueueEntries.create(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      request,
+      toApiRequestOptions(options),
+    );
+    assertTurnInputQueueEntryIdentity(response, normalizedIdentity, request.queueEntryId);
+    return response;
+  }
+
+  async clearTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.turnInputQueueEntries.clear(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      toApiRequestOptions(options),
+    );
+    if (!/^\d+$/.test(response.clearedCount)) {
+      throw new Error('Agents Turn input queue clear response contains an invalid count.');
+    }
+    return response;
+  }
+
+  async reorderTurnInputQueueEntries(
+    identity: AgentSessionIdentity,
+    request: Parameters<IAgentSessionService['reorderTurnInputQueueEntries']>[1],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.turnInputQueueEntries.reorder(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      request,
+      toApiRequestOptions(options),
+    );
+    for (const entry of response.items) {
+      assertTurnInputQueueEntryIdentity(entry, normalizedIdentity);
+    }
+    return response.items;
+  }
+
+  async claimNextTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    request: Parameters<IAgentSessionService['claimNextTurnInputQueueEntry']>[1],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.turnInputQueueEntries.claimNext(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      request,
+      toApiRequestOptions(options),
+    );
+    if (response.entry) {
+      assertTurnInputQueueEntryIdentity(response.entry, normalizedIdentity);
+    }
+    if (
+      response.outcome === 'claimed'
+      && (!response.entry || !response.claimToken?.trim())
+    ) {
+      throw new Error('Agents Turn input queue claim response is missing its lease material.');
+    }
+    if (response.outcome !== 'claimed' && response.claimToken) {
+      throw new Error('Agents Turn input queue returned a claim token without a claim.');
+    }
+    return response;
+  }
+
+  async updateTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: Parameters<IAgentSessionService['updateTurnInputQueueEntry']>[2],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedQueueEntryId = normalizeTurnInputQueueEntryId(queueEntryId);
+    const response = await this.client.ai.agents.turnInputQueueEntries.update(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedQueueEntryId,
+      request,
+      toApiRequestOptions(options),
+    );
+    assertTurnInputQueueEntryIdentity(
+      response,
+      normalizedIdentity,
+      normalizedQueueEntryId,
+    );
+    return response;
+  }
+
+  async removeTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    expectedVersion: Parameters<IAgentSessionService['removeTurnInputQueueEntry']>[2],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedQueueEntryId = normalizeTurnInputQueueEntryId(queueEntryId);
+    await this.client.ai.agents.turnInputQueueEntries.delete(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedQueueEntryId,
+      { expectedVersion },
+      toApiRequestOptions(options),
+    );
+  }
+
+  async failTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: Parameters<IAgentSessionService['failTurnInputQueueEntry']>[2],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedQueueEntryId = normalizeTurnInputQueueEntryId(queueEntryId);
+    const response = await this.client.ai.agents.turnInputQueueEntries.fail(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedQueueEntryId,
+      request,
+      toApiRequestOptions(options),
+    );
+    assertTurnInputQueueEntryIdentity(
+      response,
+      normalizedIdentity,
+      normalizedQueueEntryId,
+    );
+    return response;
+  }
+
+  async retryTurnInputQueueEntry(
+    identity: AgentSessionIdentity,
+    queueEntryId: string,
+    request: Parameters<IAgentSessionService['retryTurnInputQueueEntry']>[2],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedQueueEntryId = normalizeTurnInputQueueEntryId(queueEntryId);
+    const response = await this.client.ai.agents.turnInputQueueEntries.retry(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedQueueEntryId,
+      request,
+      toApiRequestOptions(options),
+    );
+    assertTurnInputQueueEntryIdentity(
+      response,
+      normalizedIdentity,
+      normalizedQueueEntryId,
+    );
+    return response;
+  }
+
   async submitTurn(
     identity: AgentSessionIdentity,
     input: SubmitAgentTurnInput,
@@ -938,8 +1577,28 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         `Agent turn content must be ${AGENT_TURN_MAX_CONTENT_CHARACTERS} characters or fewer.`,
       );
     }
-    const driveRefs = normalizeAgentTurnDriveRefs(input.driveRefs);
-    const idempotencyKey = uuid();
+    const {
+      idempotencyKey: requestedIdempotencyKey,
+      payloadHash: requestedPayloadHash,
+      ...turnInput
+    } = input;
+    const normalizedRequestedIdempotencyKey = normalizeOptionalBoundedValue(
+      requestedIdempotencyKey,
+      'Agent turn idempotency key',
+      AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+    );
+    const normalizedRequestedPayloadHash = normalizeOptionalBoundedValue(
+      requestedPayloadHash,
+      'Agent turn payload hash',
+      AGENT_TURN_MAX_IDENTITY_CHARACTERS,
+    );
+    if (Boolean(normalizedRequestedIdempotencyKey) !== Boolean(normalizedRequestedPayloadHash)) {
+      throw new Error(
+        'Agent turn idempotency key and payload hash must be supplied together.',
+      );
+    }
+    const driveRefs = normalizeAgentTurnDriveRefs(turnInput.driveRefs);
+    const idempotencyKey = normalizedRequestedIdempotencyKey ?? uuid();
     const turnId = input.turnId?.trim() || `turn.${uuid()}`;
     const clientRequestId = normalizeOptionalBoundedValue(
       input.clientRequestId,
@@ -952,7 +1611,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       AGENT_TURN_MAX_CONTENT_TYPE_CHARACTERS,
     );
     const payload = {
-      ...input,
+      ...turnInput,
       accessModeId: normalizeOptionalBoundedValue(
         input.accessModeId,
         'Agent access mode ID',
@@ -984,7 +1643,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     const command = {
       ...payload,
       idempotencyKey,
-      payloadHash: hashPayload(payload),
+      payloadHash: normalizedRequestedPayloadHash ?? hashPayload(payload),
       requestedAt: new Date().toISOString(),
     };
 
@@ -993,6 +1652,8 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     let didNotifyAccepted = false;
     let didNotifyDeliveryUncertain = false;
     let expectedDeltaIndex = 0;
+    let expectedRuntimeEventSequence = 0;
+    const runtimeEventBudget = createAgentTurnRuntimeEventBudget();
     const notifyAccepted = () => {
       if (didNotifyAccepted) {
         return;
@@ -1021,7 +1682,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         agentId,
         normalizedSessionId,
         command,
-        { stream: true },
+        { eventProtocol: 'kernel-v1', stream: true },
         toApiRequestOptions(options),
       );
       for await (const event of events) {
@@ -1053,6 +1714,23 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
             // Presentation observers cannot change the outcome of an accepted backend command.
           }
           expectedDeltaIndex += 1;
+          continue;
+        }
+        if (event.eventType === 'event') {
+          const runtimeEvent = readAgentTurnRuntimeEvent(
+            event,
+            normalizedSessionId,
+            turnId,
+            expectedRuntimeEventSequence,
+            runtimeEventBudget,
+          );
+          notifyAccepted();
+          try {
+            options.onRuntimeEvent?.(runtimeEvent);
+          } catch {
+            // Presentation observers cannot change the outcome of an accepted backend command.
+          }
+          expectedRuntimeEventSequence += 1;
           continue;
         }
         if (event.eventType !== 'completion') {

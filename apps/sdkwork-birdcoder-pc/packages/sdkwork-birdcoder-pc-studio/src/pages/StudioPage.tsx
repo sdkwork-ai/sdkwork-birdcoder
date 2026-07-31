@@ -101,6 +101,7 @@ function StudioPageComponent({
     filteredProjects,
     searchQuery: projectSearchQuery,
     setSearchQuery: setProjectSearchQuery,
+    cancelAgentTurn,
     submitAgentTurnInput,
     createAgentSession,
     editAgentSessionItem,
@@ -761,7 +762,10 @@ function StudioPageComponent({
       : null;
   const {
     approvals: pendingApprovals,
+    error: pendingInteractionsError,
+    isLoading: arePendingInteractionsLoading,
     questions: pendingUserQuestions,
+    refreshPendingInteractions,
     submitApprovalDecision,
     submitQuestionAnswer,
   } = useAgentSessionPendingInteractions(
@@ -788,6 +792,9 @@ function StudioPageComponent({
       await handleRefreshAgentSessionItems(sessionId, currentProjectId);
     }
   }, [currentProjectId, handleRefreshAgentSessionItems, sessionId, submitQuestionAnswer]);
+  const handleRetryPendingInteractions = useCallback(async () => {
+    await refreshPendingInteractions();
+  }, [refreshPendingInteractions]);
 
   useEffect(() => {
     if (!isRunConfigVisible) {
@@ -953,7 +960,8 @@ function StudioPageComponent({
     if (!trimmedContent) {
       return;
     }
-    if (isChatBusy) {
+    const queueExecution = submission?.queueExecution;
+    if (isChatBusy && !queueExecution) {
       throw new Error(t('chat.sendMessageBusy'));
     }
     const requestedEngineId = composerSelection?.engineId?.trim() ?? '';
@@ -967,26 +975,41 @@ function StudioPageComponent({
         requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
-    const bootstrappedSession = await ensureWorkbenchAgentSessionForTurnInput({
-      createAgentSessionFromRequest,
-      currentAgentSessionId,
-      currentProjectId,
-      turnInputContent: trimmedContent,
-      requestedEngineId: composerSelection?.engineId,
-      requestedModelId: composerSelection?.modelId,
-      resolveProjectId: async () => {
-        if (projects.length === 0) {
-          const createdProjectId = await onRequestProjectCreation();
-          if (!createdProjectId) {
-            return null;
+    const bootstrappedSession = queueExecution
+      ? (() => {
+          if (
+            !selectedSession
+            || queueExecution.agentId !== selectedSession.agentId
+            || queueExecution.sessionId !== selectedSession.id
+            || queueExecution.sessionId !== sessionId
+          ) {
+            throw new Error(t('chat.sendMessageSessionUnavailable'));
           }
-          activateCreatedProjectSelection(createdProjectId);
-          return createdProjectId;
-        }
+          return {
+            agentSessionId: selectedSession.id,
+            projectId: selectedSession.projectId,
+          };
+        })()
+      : await ensureWorkbenchAgentSessionForTurnInput({
+          createAgentSessionFromRequest,
+          currentAgentSessionId,
+          currentProjectId,
+          turnInputContent: trimmedContent,
+          requestedEngineId: composerSelection?.engineId,
+          requestedModelId: composerSelection?.modelId,
+          resolveProjectId: async () => {
+            if (projects.length === 0) {
+              const createdProjectId = await onRequestProjectCreation();
+              if (!createdProjectId) {
+                return null;
+              }
+              activateCreatedProjectSelection(createdProjectId);
+              return createdProjectId;
+            }
 
-        return projects[0]?.projectId;
-      },
-    });
+            return projects[0]?.projectId;
+          },
+        });
     if (!bootstrappedSession) {
       throw new Error(t('chat.sendMessageSessionUnavailable'));
     }
@@ -1005,7 +1028,12 @@ function StudioPageComponent({
         bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
-        submission?.driveRefs?.length || composerSelection?.accessModeId?.trim()
+        queueExecution
+          ? {
+              ...(submission?.driveRefs?.length ? { driveRefs: submission.driveRefs } : {}),
+              queueExecution,
+            }
+          : submission?.driveRefs?.length || composerSelection?.accessModeId?.trim()
           ? {
               ...(composerSelection?.accessModeId?.trim()
                 ? { accessModeId: composerSelection.accessModeId.trim() }
@@ -1036,9 +1064,31 @@ function StudioPageComponent({
     projects,
     selectAgentSession,
     selectedSession?.engineId,
+    selectedSession?.agentId,
+    selectedSession?.id,
     selectedSession?.modelId,
+    selectedSession?.projectId,
     selectedFile,
     submitAgentTurnInput,
+    setSelectionRefreshToken,
+    t,
+  ]);
+  const handleStopTurn = useCallback(async () => {
+    const targetAgentSessionId = sessionId.trim();
+    const targetProjectId = selectedSession?.projectId.trim() || currentProjectId.trim();
+    if (!targetAgentSessionId || !targetProjectId) {
+      throw new Error(t('chat.sendMessageSessionUnavailable'));
+    }
+    const cancelledTurn = await cancelAgentTurn(targetProjectId, targetAgentSessionId);
+    if (!cancelledTurn) {
+      throw new Error(t('chat.noActiveTurnToStop'));
+    }
+    setSelectionRefreshToken((previousState) => previousState + 1);
+  }, [
+    cancelAgentTurn,
+    currentProjectId,
+    selectedSession?.projectId,
+    sessionId,
     setSelectionRefreshToken,
     t,
   ]);
@@ -1358,6 +1408,8 @@ function StudioPageComponent({
         remoteMessagesLoadError={earlierAgentSessionItemsError}
         pendingApprovals={pendingApprovals}
         pendingUserQuestions={pendingUserQuestions}
+        hasPendingInteractionsLoadError={Boolean(pendingInteractionsError)}
+        isLoadingPendingInteractions={arePendingInteractionsLoading}
         emptyState={studioChatEmptyState}
         isBusy={isChatBusy}
         isEngineBusy={isChatEngineBusy}
@@ -1370,8 +1422,10 @@ function StudioPageComponent({
         onSelectedEngineIdChange={handleSelectedEngineChange}
         onSelectedModelIdChange={handleSelectedModelChange}
         onSendMessage={handleSendMessage}
+        onStopTurn={handleStopTurn}
         onSubmitApprovalDecision={handleSubmitApprovalDecision}
         onSubmitUserQuestionAnswer={handleSubmitUserQuestionAnswer}
+        onRetryPendingInteractions={handleRetryPendingInteractions}
         onSelectAgentSession={handleSelectAgentSession}
         onCreateProject={handleCreateSidebarProject}
         onLoadMoreProjects={loadMoreProjects}

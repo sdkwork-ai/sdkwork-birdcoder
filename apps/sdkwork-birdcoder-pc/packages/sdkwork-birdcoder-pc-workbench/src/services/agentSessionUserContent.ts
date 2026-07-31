@@ -703,6 +703,11 @@ export function resolveAgentSessionUserContent(
   });
 
   if (textSegments.length === 0 && resources.length === 0) {
+    const parsedRecord = isRecord(parsedContent) ? parsedContent : null;
+    const parsedType = normalizeInputType(parsedRecord?.type);
+    if (parsedType === 'usermessage' && Array.isArray(parsedRecord?.content)) {
+      return { content: '', resources: [] };
+    }
     return item.kind === 'user_input'
       ? { content: rawContent, resources: [] }
       : null;

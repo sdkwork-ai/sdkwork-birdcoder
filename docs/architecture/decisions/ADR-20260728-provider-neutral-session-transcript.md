@@ -63,8 +63,10 @@ Agents Turn `driveRefs` field with the semantic `attachment`, `image`, or
 `drive://spaces/{spaceId}/nodes/{nodeId}`. Signed download URLs are requested
 only when a renderer needs an image or audio source; they remain transient UI
 state and never enter a Session Item, queued Turn input, draft, or device
-storage. The in-memory busy-state queue preserves `driveRefs` alongside the
-visible text so delayed dispatch is protocol-equivalent to immediate dispatch.
+storage. The Agents-owned durable Turn input queue preserves ordered `driveRefs`
+alongside visible text and immutable dispatch identity so delayed dispatch is
+protocol-equivalent to immediate dispatch. BirdCoder retains only a bounded,
+disposable in-memory projection of those owner records.
 
 Provider data is bounded before it reaches React. A Session Item retains at
 most 32 resources and 256 file-change rows. Each file-change path is limited to

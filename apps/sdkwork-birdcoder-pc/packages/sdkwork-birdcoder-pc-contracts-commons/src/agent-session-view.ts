@@ -235,7 +235,7 @@ export interface AgentSessionItemResourceCitationView {
   lineStart?: number;
   lineEnd?: number;
   note?: string;
-  threadIds?: readonly string[];
+  sessionIds?: readonly string[];
 }
 
 export interface AgentSessionItemResourceView {

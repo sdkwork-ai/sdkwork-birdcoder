@@ -31,6 +31,7 @@ import type { CodeWorkspaceOverlaysProps } from './CodeWorkspaceOverlays';
 import { CodeNewSessionContext } from './CodeNewSessionContext';
 import type { NewTaskExecutionTarget } from './NewTaskRunModeSelector';
 import { getLanguageFromPath } from './CodePageShared';
+import { resolveCodeTranscriptSessionScopeKey } from './codeTranscriptSessionScope';
 import type { CodeEditorWorkspacePanelProps } from './codeEditorWorkspacePanel.types';
 import { useCodePendingInteractions } from './useCodePendingInteractions';
 
@@ -115,6 +116,7 @@ interface UseCodePageSurfacePropsOptions {
   selectedModelId: string;
   selectedSessionLastTurnAt?: string | null;
   selectedSessionAgentId: string | null;
+  selectedSessionRuntimeBindingId?: string;
   selectedSessionTitle?: string;
   selectedSessionEngineId?: string;
   selectedSessionModelId?: string;
@@ -209,6 +211,7 @@ interface UseCodePageSurfacePropsOptions {
   onSelectedEngineIdChange: NonNullable<UniversalChatComponentProps['setSelectedEngineId']>;
   onSelectedModelIdChange: NonNullable<UniversalChatComponentProps['setSelectedModelId']>;
   onSendMessage: NonNullable<UniversalChatComponentProps['onSendMessage']>;
+  onStopTurn: NonNullable<UniversalChatComponentProps['onStopTurn']>;
   onSetActiveTab: TopBarComponentProps['setActiveTab'];
   onSetIsTerminalOpen: TopBarComponentProps['setIsTerminalOpen'];
   onToggleProjectGitOverviewDrawer: () => void;
@@ -278,6 +281,7 @@ export function useCodePageSurfaceProps({
   selectedSessionTitle,
   selectedSessionEngineId,
   selectedSessionAgentId,
+  selectedSessionRuntimeBindingId,
   selectedSessionModelId,
   selectedSessionRuntimeLocationId,
   selectedSessionRuntimeStatus,
@@ -359,6 +363,7 @@ export function useCodePageSurfaceProps({
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onStopTurn,
   onSetActiveTab,
   onSetIsTerminalOpen,
   onToggleProjectGitOverviewDrawer,
@@ -373,10 +378,10 @@ export function useCodePageSurfaceProps({
     activeTab === 'ai' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
   const editorChatMessages =
     activeTab === 'editor' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
-  const transcriptSessionScopeKey =
-    selectedSessionAgentId && sessionId
-      ? `${currentProjectId}\u0001${selectedSessionAgentId}\u0001${sessionId}`
-      : undefined;
+  const transcriptSessionScopeKey = resolveCodeTranscriptSessionScopeKey(
+    currentProjectId,
+    sessionId,
+  );
   const pendingInteractionRefreshToken = useMemo(() => {
     return [
       selectedSessionAgentId ?? '',
@@ -400,7 +405,9 @@ export function useCodePageSurfaceProps({
     arePendingInteractionsLoading,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
+    onRetryPendingInteractions,
     pendingApprovals,
+    pendingInteractionsError,
     pendingUserQuestions,
   } = useCodePendingInteractions({
     agentId: selectedSessionAgentId,
@@ -416,7 +423,7 @@ export function useCodePageSurfaceProps({
       lastInteractionRuntimeStatusRef.current = '';
       return;
     }
-    if (arePendingInteractionsLoading) {
+    if (arePendingInteractionsLoading || pendingInteractionsError) {
       return;
     }
     const nextRuntimeStatus: AgentSessionRuntimeDisplayStatus = pendingApprovals.length > 0
@@ -437,6 +444,7 @@ export function useCodePageSurfaceProps({
     onSelectedSessionRuntimeStatusChange,
     arePendingInteractionsLoading,
     pendingApprovals.length,
+    pendingInteractionsError,
     pendingUserQuestions.length,
     selectedSessionRuntimeStatus,
     sessionId,
@@ -624,6 +632,8 @@ export function useCodePageSurfaceProps({
   ]);
 
   const mainChatProps = useMemo<UniversalChatComponentProps>(() => ({
+    agentId: selectedSessionAgentId || undefined,
+    runtimeBindingId: selectedSessionRuntimeBindingId,
     sessionId: sessionId || undefined,
     sessionScopeKey: transcriptSessionScopeKey,
     messages: mainChatMessages,
@@ -633,9 +643,13 @@ export function useCodePageSurfaceProps({
     onLoadMoreRemoteMessages,
     pendingApprovals: activeTab === 'ai' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'ai' ? pendingUserQuestions : [],
+    hasPendingInteractionsLoadError: activeTab === 'ai' && Boolean(pendingInteractionsError),
+    isLoadingPendingInteractions: activeTab === 'ai' && arePendingInteractionsLoading,
     onSendMessage,
+    onStopTurn,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
+    onRetryPendingInteractions,
     isBusy: isChatBusy,
     isEngineBusy: isChatEngineBusy,
     isNewSession,
@@ -692,9 +706,12 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onStopTurn,
     onViewChangesAndOpenEditor,
     pendingApprovals,
+    pendingInteractionsError,
     pendingUserQuestions,
+    arePendingInteractionsLoading,
     projectGitOverviewState,
     projectId,
     projectName,
@@ -704,6 +721,8 @@ export function useCodePageSurfaceProps({
     selectedModelId,
     selectedSessionEngineId,
     selectedSessionModelId,
+    selectedSessionAgentId,
+    selectedSessionRuntimeBindingId,
     sessionId,
     shouldShowCodeComposerModelSelector,
     transcriptSessionScopeKey,
@@ -723,6 +742,8 @@ export function useCodePageSurfaceProps({
     explorerWidth: editorExplorerWidth,
     chatWidth,
     selectedAgentSessionId: sessionId,
+    selectedAgentSessionAgentId: selectedSessionAgentId,
+    selectedAgentSessionRuntimeBindingId: selectedSessionRuntimeBindingId,
     selectedAgentSessionScopeKey: transcriptSessionScopeKey,
     messages: editorChatMessages,
     hasMoreRemoteMessages,
@@ -731,6 +752,8 @@ export function useCodePageSurfaceProps({
     isNewSession,
     pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],
+    hasPendingInteractionsLoadError: activeTab === 'editor' && Boolean(pendingInteractionsError),
+    isLoadingPendingInteractions: activeTab === 'editor' && arePendingInteractionsLoading,
     chatEmptyState: editorChatEmptyState,
     isBusy: isChatBusy,
     isEngineBusy: isChatEngineBusy,
@@ -753,9 +776,11 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onStopTurn,
     onLoadMoreRemoteMessages,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
+    onRetryPendingInteractions,
     onViewChanges,
     onRestoreMessage,
     onEditMessage,
@@ -803,18 +828,23 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onStopTurn,
     onLoadMoreRemoteMessages,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
     onViewChanges,
     openFiles,
     pendingApprovals,
+    pendingInteractionsError,
     pendingUserQuestions,
+    arePendingInteractionsLoading,
     selectedEngineId,
     selectedFile,
     selectedModelId,
     selectedSessionEngineId,
     selectedSessionModelId,
+    selectedSessionAgentId,
+    selectedSessionRuntimeBindingId,
     sessionId,
     shouldShowCodeComposerModelSelector,
     transcriptSessionScopeKey,
