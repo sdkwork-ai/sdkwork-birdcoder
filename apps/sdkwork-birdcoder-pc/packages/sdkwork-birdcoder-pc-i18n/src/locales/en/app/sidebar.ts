@@ -8,6 +8,7 @@ export default defineLocaleModule('app/sidebar', {
     byProvider: 'By Provider',
     chronological: 'Chronological',
     sortBy: 'Sort By',
+    providerOrder: 'Provider Order',
     smart: 'Smart Priority',
     recent: 'Recent Activity',
     created: 'Created',

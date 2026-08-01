@@ -58,7 +58,7 @@ export interface AgentSessionLatestTurnActivityView {
 
 export interface AgentSessionPendingInteractionActivityView {
   id: string;
-  kind: 'approval' | 'user_question';
+  kind: 'approval' | 'user_question' | 'elicitation' | 'setup';
   status: string;
   updatedAt: string;
   version: string;
@@ -282,6 +282,8 @@ export interface AgentSessionItemToolCallView {
   command?: string;
   target?: string;
   serverName?: string;
+  mcpAppResourceUri?: string;
+  pluginId?: string;
   title?: string;
   durationMs?: number;
   exitCode?: number;
@@ -387,6 +389,18 @@ export interface AgentSessionView {
   providerBindingId?: string;
   transportKind?: string;
   providerSessionId?: string;
+  providerTitle?: string;
+  providerTitleSource?: string;
+  providerPreview?: string;
+  providerCreatedAt?: string;
+  providerUpdatedAt?: string;
+  providerRecencyAt?: string;
+  providerPinned?: boolean;
+  providerArchived?: boolean;
+  providerVisible?: boolean;
+  providerSortKey?: string;
+  providerSource?: string;
+  providerDirectoryVersion?: string;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   createdAt: string;
   updatedAt: string;

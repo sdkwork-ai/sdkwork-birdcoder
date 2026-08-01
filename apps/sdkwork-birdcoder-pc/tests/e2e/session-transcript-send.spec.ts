@@ -196,7 +196,7 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   expect(secondEarlierCursor).toEqual(expect.any(String));
   expect(secondEarlierCursor).not.toBe(firstEarlierCursor);
   await expect(page.getByRole('button', {
-    name: /Go to conversation turn .*Codex historical message 7$/u,
+    name: /Go to conversation turn .*Codex historical message 13$/u,
   })).toHaveCount(1);
   const pageThreeResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());

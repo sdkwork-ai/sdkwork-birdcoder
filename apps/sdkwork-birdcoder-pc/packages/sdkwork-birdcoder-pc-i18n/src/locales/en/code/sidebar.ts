@@ -8,6 +8,7 @@ export default defineLocaleModule('code/sidebar', {
     sortedByCreatedDate: 'Sorted by created date',
     sortedBySmartPriority: 'Sorted by smart priority',
     sortedByRecentActivity: 'Sorted by recent activity',
+    sortedByProviderDirectory: 'Sorted by provider order',
     sortedByUpdatedDate: 'Sorted by updated date',
     showingAllSessions: 'Showing all sessions',
     showingRelevantSessions: 'Showing relevant sessions',

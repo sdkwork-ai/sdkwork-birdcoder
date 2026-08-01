@@ -26,6 +26,7 @@ import type {
   PageInfo,
   ProjectSessionSynchronizationResult,
   ReorderAgentTurnInputQueueEntriesRequest,
+  ResolveAgentInteractionRequest,
   RetryAgentTurnInputQueueEntryRequest,
   SessionActivitySummary,
   UpdateAgentTurnInputQueueEntryRequest,
@@ -310,6 +311,11 @@ export interface IAgentSessionService {
     identity: AgentSessionIdentity,
     interactionId: string,
     request: AnswerAgentInteractionRequest,
+  ): Promise<AgentInteractionRecord>;
+  resolveInteraction(
+    identity: AgentSessionIdentity,
+    interactionId: string,
+    request: ResolveAgentInteractionRequest,
   ): Promise<AgentInteractionRecord>;
   listRuntimeBindings(
     identity: AgentSessionIdentity,

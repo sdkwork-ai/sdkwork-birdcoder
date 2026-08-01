@@ -65,6 +65,18 @@ export interface AgentSessionViewContext {
   hostMode?: AgentSessionView['hostMode'];
   transportKind?: string;
   providerSessionId?: string;
+  providerTitle?: string;
+  providerTitleSource?: string;
+  providerPreview?: string;
+  providerCreatedAt?: string;
+  providerUpdatedAt?: string;
+  providerRecencyAt?: string;
+  providerPinned?: boolean;
+  providerArchived?: boolean;
+  providerVisible?: boolean;
+  providerSortKey?: string;
+  providerSource?: string;
+  providerDirectoryVersion?: string;
   runtimeLocationId?: string;
   runtimeBindingStatus?: 'active' | 'deactivated' | 'failed' | 'deleted';
   runtimeBindingUpdatedAt?: string;
@@ -369,6 +381,9 @@ const PROVIDER_TRANSCRIPT_HIDDEN_DYNAMIC_TOOL_NAMES = new Set([
   'load_workspace_dependencies',
 ]);
 
+const CODEX_VISUALIZATION_FILE_PATH_PATTERN =
+  /(?:^|[\\/])\.codex[\\/]visualizations[\\/]\d{4}[\\/]\d{2}[\\/]\d{2}[\\/]([a-zA-Z0-9_-]+)[\\/][a-z0-9]+(?:-[a-z0-9]+)*\.html$/u;
+
 interface AgentSessionItemTranscriptMetadata {
   transcriptGrouping?: 'consecutive-images';
   transcriptVisibility?: 'hidden';
@@ -450,19 +465,101 @@ function hasVisibleProviderReasoningSummary(value: unknown): boolean {
   return Array.isArray(value) && value.some((summary) => Boolean(readNonEmptyString(summary)));
 }
 
-function readProviderDynamicToolArguments(value: unknown): Record<string, unknown> | null {
-  const record = readRecord(value);
-  if (record) {
-    return record;
+function isNonEmptyProviderString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidCodexAutomationUpdateArguments(value: unknown): boolean {
+  const argumentsRecord = readRecord(value);
+  if (!argumentsRecord) {
+    return false;
   }
-  if (typeof value !== 'string' || value.length > 64_000) {
-    return null;
+  const mode = argumentsRecord.mode;
+  if (mode === 'view' || mode === 'delete') {
+    return isNonEmptyProviderString(argumentsRecord.id);
   }
-  try {
-    return readRecord(JSON.parse(value));
-  } catch {
-    return null;
+  if (!['create', 'suggested_create', 'update', 'suggested_update'].includes(String(mode))) {
+    return false;
   }
+  if (
+    !isNonEmptyProviderString(argumentsRecord.name)
+    || !isNonEmptyProviderString(argumentsRecord.prompt)
+    || !isNonEmptyProviderString(argumentsRecord.rrule)
+    || !['ACTIVE', 'PAUSED'].includes(String(argumentsRecord.status))
+    || (
+      argumentsRecord.notificationPolicy !== undefined
+      && argumentsRecord.notificationPolicy !== null
+      && argumentsRecord.notificationPolicy !== 'failed_runs_only'
+    )
+    || (
+      (mode === 'update' || mode === 'suggested_update')
+      && !isNonEmptyProviderString(argumentsRecord.id)
+    )
+  ) {
+    return false;
+  }
+
+  if (argumentsRecord.kind === 'heartbeat') {
+    const destination = argumentsRecord.destination;
+    const hasValidDestination = destination === undefined
+      || destination === 'local'
+      || destination === 'thread';
+    return hasValidDestination
+      && (destination === 'thread' || isNonEmptyProviderString(argumentsRecord.targetThreadId));
+  }
+  if (argumentsRecord.kind !== 'cron') {
+    return false;
+  }
+
+  const projectId = argumentsRecord.projectId;
+  const localEnvironmentConfigPath = argumentsRecord.localEnvironmentConfigPath;
+  return (projectId === null || isNonEmptyProviderString(projectId))
+    && isNonEmptyProviderString(argumentsRecord.model)
+    && ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+      .includes(String(argumentsRecord.reasoningEffort))
+    && ['local', 'worktree'].includes(String(argumentsRecord.executionEnvironment))
+    && (
+      argumentsRecord.destination === undefined
+      || argumentsRecord.destination === 'local'
+      || argumentsRecord.destination === 'worktree'
+    )
+    && (
+      localEnvironmentConfigPath === undefined
+      || localEnvironmentConfigPath === null
+      || isNonEmptyProviderString(localEnvironmentConfigPath)
+    );
+}
+
+function resolveProviderFileChangePath(value: unknown): string {
+  const change = readRecord(value);
+  if (!change) {
+    return '';
+  }
+  const kind = readRecord(change.kind);
+  if (normalizeProviderNativeItemType(kind?.type) === 'update') {
+    return readNonEmptyString(kind?.move_path ?? kind?.movePath ?? change.path);
+  }
+  return readNonEmptyString(change.path);
+}
+
+function hasVisibleProviderFileChanges(providerItem: Record<string, unknown>): boolean {
+  if (!Array.isArray(providerItem.changes)) {
+    return true;
+  }
+  if (providerItem.changes.some((change) => (
+    !CODEX_VISUALIZATION_FILE_PATH_PATTERN.test(resolveProviderFileChangePath(change))
+  ))) {
+    return true;
+  }
+
+  const status = normalizeProviderNativeItemType(providerItem.status);
+  if (status !== 'in_progress' && status !== 'completed') {
+    return false;
+  }
+  return providerItem.changes.some((change) => {
+    const kind = normalizeProviderNativeItemType(readRecord(readRecord(change)?.kind)?.type);
+    return kind === 'add' || kind === 'update';
+  });
 }
 
 function resolveItemTranscriptMetadata(
@@ -507,8 +604,7 @@ function resolveItemTranscriptMetadata(
   }
   if (
     providerItemType === 'file_change'
-    && Array.isArray(providerItem.changes)
-    && providerItem.changes.length === 0
+    && !hasVisibleProviderFileChanges(providerItem)
   ) {
     return { transcriptVisibility: 'hidden' };
   }
@@ -528,7 +624,7 @@ function resolveItemTranscriptMetadata(
       && (
         normalizeProviderNativeItemType(providerItem.status) !== 'completed'
         || providerItem.success !== true
-        || !readProviderDynamicToolArguments(providerItem.arguments)
+        || !isValidCodexAutomationUpdateArguments(providerItem.arguments)
       )
     ) {
       return { transcriptVisibility: 'hidden' };
@@ -614,6 +710,7 @@ export function toAgentSessionItemView(
         {
           completedAt,
           createdAt: item.createdAt,
+          isStreaming: completedAt === undefined,
           itemId: item.itemId,
         },
       )
@@ -642,6 +739,12 @@ export function toAgentSessionItemView(
       providerId: item.providerId ?? undefined,
       modelId: item.modelId ?? undefined,
       ...(noticeKind ? { noticeKind } : {}),
+      ...(providerPayload?.messagePhase
+        ? { providerMessagePhase: providerPayload.messagePhase }
+        : {}),
+      ...(providerPayload?.messageCompleted !== undefined
+        ? { providerMessageCompleted: providerPayload.messageCompleted }
+        : {}),
       ...transcriptMetadata,
     },
     createdAt: item.createdAt,
@@ -814,13 +917,20 @@ export function toAgentSessionView(
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
     });
   const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems, context);
+  const canonicalTitle = session.title?.trim();
+  const providerTitle = context.providerTitle?.trim();
+  const title = context.userState?.customTitle?.trim()
+    || (session.titleSource === 'user' ? canonicalTitle : undefined)
+    || providerTitle
+    || canonicalTitle
+    || 'Untitled session';
   return attachAgentSessionItemSourceWindow({
     id: session.sessionId,
     agentId: session.agentId,
     projectId,
     runtimeBindingId: context.runtimeBindingId?.trim() || undefined,
     runtimeLocationId: context.runtimeLocationId,
-    title: context.userState?.customTitle?.trim() || session.title?.trim() || 'Untitled session',
+    title,
     status: resolveSessionStatus(session.status),
     hostMode: context.hostMode ?? 'web',
     engineId: context.engineId?.trim() || context.providerId?.trim() || 'unknown',
@@ -829,13 +939,27 @@ export function toAgentSessionView(
     providerBindingId: context.providerBindingId?.trim() || undefined,
     transportKind: context.transportKind?.trim() || undefined,
     providerSessionId: context.providerSessionId?.trim() || undefined,
+    providerTitle: providerTitle || undefined,
+    providerTitleSource: context.providerTitleSource?.trim() || undefined,
+    providerPreview: context.providerPreview?.trim() || undefined,
+    providerCreatedAt: context.providerCreatedAt,
+    providerUpdatedAt: context.providerUpdatedAt,
+    providerRecencyAt: context.providerRecencyAt,
+    providerPinned: context.providerPinned,
+    providerArchived: context.providerArchived,
+    providerVisible: context.providerVisible,
+    providerSortKey: context.providerSortKey?.trim() || undefined,
+    providerSource: context.providerSource?.trim() || undefined,
+    providerDirectoryVersion: context.providerDirectoryVersion,
     runtimeStatus: session.status === 'closed' || session.status === 'archived'
       ? 'completed'
       : context.runtimeBindingStatus === 'failed'
         ? 'failed'
-        : context.providerSessionId?.trim()
+        : !context.runtimeBindingId?.trim()
           ? 'unknown'
-          : 'ready',
+          : context.providerSessionId?.trim()
+            ? 'unknown'
+            : 'ready',
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     lastTurnAt: session.lastItemAt ?? undefined,
@@ -978,6 +1102,18 @@ export function toAgentSessionViewFromActivitySummary(
         : 'web',
     transportKind: identityBinding?.transportKind,
     providerSessionId: identity.providerSessionId ?? identityBinding?.providerSessionId ?? undefined,
+    providerTitle: identityBinding?.providerTitle ?? undefined,
+    providerTitleSource: identityBinding?.providerTitleSource ?? undefined,
+    providerPreview: identityBinding?.providerPreview ?? undefined,
+    providerCreatedAt: identityBinding?.providerCreatedAt ?? undefined,
+    providerUpdatedAt: identityBinding?.providerUpdatedAt ?? undefined,
+    providerRecencyAt: identityBinding?.providerRecencyAt ?? undefined,
+    providerPinned: identityBinding?.providerPinned,
+    providerArchived: identityBinding?.providerArchived,
+    providerVisible: identityBinding?.providerVisible,
+    providerSortKey: identityBinding?.providerSortKey ?? undefined,
+    providerSource: identityBinding?.providerSource ?? undefined,
+    providerDirectoryVersion: identityBinding?.version,
     runtimeLocationId: identityBinding?.runtimeLocationId ?? undefined,
     runtimeBindingStatus: identityBinding?.status,
     runtimeBindingUpdatedAt: identityBinding?.updatedAt,
@@ -1114,8 +1250,9 @@ export async function loadAgentSessionView(
       ?? (runtimeBindingResult.failed ? fallbackView?.providerId : undefined),
     providerBindingId: currentBinding?.providerBindingId
       ?? (runtimeBindingResult.failed ? fallbackView?.providerBindingId : undefined),
-    runtimeBindingId: currentBinding?.runtimeBindingId
-      ?? (runtimeBindingResult.failed ? fallbackView?.runtimeBindingId : undefined),
+    // A failed binding read is not proof that the previous binding is still
+    // active. Keep the transcript, but fail closed for Turn admission.
+    runtimeBindingId: currentBinding?.runtimeBindingId,
     hostMode:
       currentBinding?.hostMode === 'desktop' || currentBinding?.hostMode === 'server'
         ? currentBinding.hostMode
@@ -1126,6 +1263,30 @@ export async function loadAgentSessionView(
       ?? (runtimeBindingResult.failed ? fallbackView?.transportKind : undefined),
     providerSessionId: currentBinding?.providerSessionId
       ?? (runtimeBindingResult.failed ? fallbackView?.providerSessionId : undefined),
+    providerTitle: currentBinding?.providerTitle
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerTitle : undefined),
+    providerTitleSource: currentBinding?.providerTitleSource
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerTitleSource : undefined),
+    providerPreview: currentBinding?.providerPreview
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerPreview : undefined),
+    providerCreatedAt: currentBinding?.providerCreatedAt
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerCreatedAt : undefined),
+    providerUpdatedAt: currentBinding?.providerUpdatedAt
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerUpdatedAt : undefined),
+    providerRecencyAt: currentBinding?.providerRecencyAt
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerRecencyAt : undefined),
+    providerPinned: currentBinding?.providerPinned
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerPinned : undefined),
+    providerArchived: currentBinding?.providerArchived
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerArchived : undefined),
+    providerVisible: currentBinding?.providerVisible
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerVisible : undefined),
+    providerSortKey: currentBinding?.providerSortKey
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerSortKey : undefined),
+    providerSource: currentBinding?.providerSource
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerSource : undefined),
+    providerDirectoryVersion: currentBinding?.version
+      ?? (runtimeBindingResult.failed ? fallbackView?.providerDirectoryVersion : undefined),
     runtimeLocationId: currentBinding?.runtimeLocationId
       ?? (runtimeBindingResult.failed ? fallbackView?.runtimeLocationId : undefined),
     runtimeBindingStatus: currentBinding?.status,
@@ -1142,7 +1303,9 @@ export async function loadAgentSessionView(
         runtimeStatus:
           view.status === 'completed' || view.status === 'archived'
             ? view.runtimeStatus
-            : fallbackView.runtimeStatus,
+            : view.runtimeBindingId
+              ? fallbackView.runtimeStatus
+              : 'unknown',
       }
       : {}),
     ...(userStatesResult.failed && fallbackView

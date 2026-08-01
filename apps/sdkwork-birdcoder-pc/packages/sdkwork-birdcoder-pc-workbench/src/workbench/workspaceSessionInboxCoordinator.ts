@@ -12,6 +12,7 @@ import {
   loadWorkspaceSessionInboxUpdate,
   mergeWorkspaceSessionInboxUpdates,
   resolveWorkspaceSessionInboxRefreshDelay,
+  WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS,
 } from './workspaceSessionInboxSync.ts';
 import {
   expireAgentSessionRuntimeStatuses,
@@ -219,23 +220,35 @@ function synchronizeEntry(
   }, WORKSPACE_SESSION_INBOX_MAX_INFLIGHT_MS);
 
   const task = (async () => {
-    const head = await loadWorkspaceSessionInboxUpdate(
-      entry.service,
-      entry.scope.workspaceId,
-      getProjectsStore(entry.scopeKey).snapshot.projects,
-      undefined,
-      controller.signal,
-    );
-    const updates = [head];
-    if (head.hasMore) {
-      updates.push(await loadWorkspaceSessionInboxUpdate(
+    const updates = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      if (cursor && !seenCursors.add(cursor)) {
+        throw new Error('Agents Workspace Session activity snapshot repeated a cursor.');
+      }
+      const page = await loadWorkspaceSessionInboxUpdate(
         entry.service,
         entry.scope.workspaceId,
         getProjectsStore(entry.scopeKey).snapshot.projects,
-        head.nextCursor,
+        cursor,
         controller.signal,
-      ));
-    }
+      );
+      updates.push(page);
+      const loadedSessionCount = updates.reduce(
+        (count, update) => count + update.summaries.length,
+        0,
+      );
+      if (
+        loadedSessionCount > WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS
+        || (page.hasMore && loadedSessionCount >= WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS)
+      ) {
+        throw new Error(
+          `Agents Workspace Session activity snapshot exceeds ${WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS} Sessions.`,
+        );
+      }
+      cursor = page.nextCursor;
+    } while (updates.at(-1)?.hasMore);
     const update = mergeWorkspaceSessionInboxUpdates(updates);
     if (!commitWorkspaceSessionInboxPage(entry, generation, controller, update)) {
       return;

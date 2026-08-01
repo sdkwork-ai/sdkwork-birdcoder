@@ -13,40 +13,69 @@ type AgentInteractionRecord = Awaited<
   ReturnType<IAgentSessionService['listInteractions']>
 >['items'][number];
 
+export type AgentSessionPendingTypedRequest = NonNullable<AgentInteractionRecord['request']>;
+export type AgentInteractionAction = AgentSessionPendingTypedRequest['allowedActions'][number];
+export type AgentTypedInteractionResolution = Parameters<
+  IAgentSessionService['resolveInteraction']
+>[2]['resolution'];
+
 export interface AgentApprovalDecisionInput {
+  action?: AgentInteractionAction;
+  content?: unknown;
   decision: 'approved' | 'denied' | 'blocked';
+  execPolicyAmendment?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  networkPolicyAmendment?: Record<string, unknown>;
+  permissions?: Record<string, unknown>;
   reason?: string;
+  scope?: 'turn' | 'session';
+  strictAutoReview?: boolean;
 }
 
 export interface AgentQuestionAnswerInput {
+  action?: AgentInteractionAction;
   answer?: string;
+  answers?: Record<string, string[]>;
+  content?: unknown;
+  freeformAnswer?: string | null;
+  metadata?: Record<string, unknown>;
   optionLabel?: string;
   optionValue?: string;
   rejected?: boolean;
+  selectedOptions?: string[];
+  selectedRoles?: string[];
+  selectedSources?: string[];
 }
 
 export interface AgentSessionPendingApproval {
   interactionId: string;
   prompt: string;
+  request?: AgentSessionPendingTypedRequest;
   runtimeBindingId?: string;
   sessionId: string;
   turnId?: string;
 }
 
 export interface AgentSessionPendingQuestionOption {
+  description?: string;
   label: string;
   value: string;
 }
 
 export interface AgentSessionPendingQuestionPrompt {
+  allowOther?: boolean;
+  header?: string;
+  id?: string;
   options?: AgentSessionPendingQuestionOption[];
   question: string;
+  secret?: boolean;
 }
 
 export interface AgentSessionPendingQuestion {
   interactionId: string;
   prompt: string;
   questions: AgentSessionPendingQuestionPrompt[];
+  request?: AgentSessionPendingTypedRequest;
   runtimeBindingId?: string;
   sessionId: string;
   turnId?: string;
@@ -122,26 +151,60 @@ export function mapAgentSessionPendingInteractions(
     const common = {
       interactionId: interaction.interactionId,
       prompt: interaction.prompt,
+      request: interaction.request ?? undefined,
       runtimeBindingId: interaction.runtimeBindingId ?? undefined,
       sessionId: interaction.sessionId,
       turnId: interaction.turnId ?? undefined,
     };
-    if (interaction.kind === 'approval') {
+    if (
+      interaction.request?.category === 'approval'
+      || interaction.request?.category === 'elicitation'
+      || (!interaction.request && interaction.kind === 'approval')
+    ) {
       approvals.push(common);
       continue;
     }
-    if (interaction.kind === 'user_question') {
+    if (
+      interaction.request?.category === 'user_input'
+      || interaction.request?.category === 'setup'
+      || (!interaction.request && interaction.kind === 'user_question')
+    ) {
+      const typedQuestions = interaction.request?.data.questions?.map((question) => ({
+        allowOther: question.allowOther,
+        header: question.header,
+        id: question.id,
+        question: question.prompt,
+        secret: question.secret,
+        options: question.options?.map((option) => ({
+          description: option.description ?? undefined,
+          label: option.label,
+          value: option.label,
+        })) ?? undefined,
+      }));
+      const pickerQuestion = interaction.request?.data.question
+        ? [{
+            allowOther: true,
+            question: interaction.request.data.question,
+            options: interaction.request.data.options?.map((option) => ({
+              description: option.description ?? undefined,
+              label: option.label,
+              value: option.label,
+            })),
+          }]
+        : undefined;
       questions.push({
         ...common,
-        questions: [{
-          question: interaction.prompt,
-          options: interaction.options.length > 0
-            ? interaction.options.map((option) => ({
-                label: option.label,
-                value: option.value,
-              }))
-            : undefined,
-        }],
+        questions: typedQuestions?.length
+          ? typedQuestions
+          : pickerQuestion ?? [{
+              question: interaction.prompt,
+              options: interaction.options.length > 0
+                ? interaction.options.map((option) => ({
+                    label: option.label,
+                    value: option.value,
+                  }))
+                : undefined,
+            }],
       });
     }
   }
@@ -225,6 +288,125 @@ async function claimInteraction(
     leaseSeconds: INTERACTION_CLAIM_LEASE_SECONDS,
     requestedAt: new Date().toISOString(),
   });
+}
+
+function resolveAllowedAction(
+  request: AgentSessionPendingTypedRequest,
+  preferredAction: AgentInteractionAction | undefined,
+  fallbackActions: readonly AgentInteractionAction[],
+): AgentInteractionAction {
+  const action = preferredAction
+    ?? fallbackActions.find((candidate) => request.allowedActions.includes(candidate));
+  if (!action || !request.allowedActions.includes(action)) {
+    throw new Error(
+      `Agent interaction ${request.kind} does not allow the requested action.`,
+    );
+  }
+  return action;
+}
+
+function isApprovalInteraction(interaction: AgentInteractionRecord): boolean {
+  return interaction.request
+    ? interaction.request.category === 'approval'
+      || interaction.request.category === 'elicitation'
+    : interaction.kind === 'approval';
+}
+
+function isUserInputInteraction(interaction: AgentInteractionRecord): boolean {
+  return interaction.request
+    ? interaction.request.category === 'user_input'
+      || interaction.request.category === 'setup'
+    : interaction.kind === 'user_question';
+}
+
+function compactStringArray(values: readonly string[] | undefined): string[] | undefined {
+  if (!values) return undefined;
+  const normalized = values.map((value) => value.trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized : [];
+}
+
+function buildTypedApprovalResolution(
+  request: AgentSessionPendingTypedRequest,
+  input: AgentApprovalDecisionInput,
+): AgentTypedInteractionResolution {
+  const action = resolveAllowedAction(
+    request,
+    input.action,
+    input.decision === 'approved'
+      ? ['accept', 'grant']
+      : input.decision === 'blocked'
+        ? ['cancel', 'decline']
+        : ['decline', 'cancel'],
+  );
+  const resolution: AgentTypedInteractionResolution = { action };
+  if (input.content !== undefined) resolution.content = input.content;
+  if (input.execPolicyAmendment) {
+    resolution.execPolicyAmendment = input.execPolicyAmendment;
+  }
+  if (input.metadata) resolution.metadata = input.metadata;
+  if (input.networkPolicyAmendment) {
+    resolution.networkPolicyAmendment = input.networkPolicyAmendment;
+  }
+  if (input.permissions) resolution.permissions = input.permissions;
+  if (input.scope) resolution.scope = input.scope;
+  if (input.strictAutoReview !== undefined) {
+    resolution.strictAutoReview = input.strictAutoReview;
+  }
+  return resolution;
+}
+
+function buildTypedQuestionResolution(
+  request: AgentSessionPendingTypedRequest,
+  input: AgentQuestionAnswerInput,
+): AgentTypedInteractionResolution {
+  const action = resolveAllowedAction(
+    request,
+    input.action,
+    input.rejected
+      ? ['cancel', 'dismiss', 'skip']
+      : ['submit', 'continue'],
+  );
+  const answer = input.answer?.trim() || input.optionLabel?.trim() || '';
+  const resolution: AgentTypedInteractionResolution = { action };
+  const firstQuestionId = request.data.questions?.[0]?.id;
+  if (input.answers) {
+    resolution.answers = input.answers;
+  } else if (answer && firstQuestionId) {
+    resolution.answers = { [firstQuestionId]: [answer] };
+  }
+  if (input.content !== undefined) resolution.content = input.content;
+  if (input.freeformAnswer !== undefined) {
+    resolution.freeformAnswer = input.freeformAnswer?.trim() || null;
+  } else if (answer && request.kind === 'option_picker') {
+    resolution.freeformAnswer = answer;
+  }
+  if (input.metadata) resolution.metadata = input.metadata;
+  const selectedOptions = compactStringArray(input.selectedOptions);
+  if (selectedOptions) resolution.selectedOptions = selectedOptions;
+  const selectedRoles = compactStringArray(input.selectedRoles);
+  if (selectedRoles) resolution.selectedRoles = selectedRoles;
+  const selectedSources = compactStringArray(input.selectedSources);
+  if (selectedSources) resolution.selectedSources = selectedSources;
+  if (answer && request.kind === 'context_source_picker' && !selectedSources) {
+    resolution.selectedSources = [answer];
+  }
+  if (
+    answer
+    && request.kind === 'setup_step'
+    && request.data.step === 'role'
+    && !selectedRoles
+  ) {
+    resolution.selectedRoles = [answer];
+  }
+  if (
+    answer
+    && request.kind === 'setup_step'
+    && request.data.step === 'context'
+    && !selectedSources
+  ) {
+    resolution.selectedSources = [answer];
+  }
+  return resolution;
 }
 
 export function useAgentSessionPendingInteractions(
@@ -338,7 +520,7 @@ export function useAgentSessionPendingInteractions(
       MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS,
     );
     const { claimOwner, interaction } = await resolveInteractionAndClaimOwner(interactionId);
-    if (interaction.kind !== 'approval') {
+    if (!isApprovalInteraction(interaction)) {
       throw new Error(`Agent interaction ${interactionId} is not an approval.`);
     }
     const claim = await claimInteraction(
@@ -347,20 +529,33 @@ export function useAgentSessionPendingInteractions(
       interaction,
       claimOwner,
     );
-    const result = await agentSessionService.approveInteraction(
-      { agentId, sessionId },
-      interaction.interactionId,
-      {
-        approved: input.decision === 'approved',
-        claimToken: claim.claimToken,
-        expectedVersion: claim.interaction.version,
-        fencingToken: claim.fencingToken,
-        reason: reason || (
-          input.decision === 'blocked' ? 'Blocked by user' : undefined
-        ),
-        requestedAt: new Date().toISOString(),
-      },
-    );
+    const requestedAt = new Date().toISOString();
+    const result = interaction.request
+      ? await agentSessionService.resolveInteraction(
+          { agentId, sessionId },
+          interaction.interactionId,
+          {
+            resolution: buildTypedApprovalResolution(interaction.request, input),
+            claimToken: claim.claimToken,
+            expectedVersion: claim.interaction.version,
+            fencingToken: claim.fencingToken,
+            requestedAt,
+          },
+        )
+      : await agentSessionService.approveInteraction(
+          { agentId, sessionId },
+          interaction.interactionId,
+          {
+            approved: input.decision === 'approved',
+            claimToken: claim.claimToken,
+            expectedVersion: claim.interaction.version,
+            fencingToken: claim.fencingToken,
+            reason: reason || (
+              input.decision === 'blocked' ? 'Blocked by user' : undefined
+            ),
+            requestedAt,
+          },
+        );
     void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;
@@ -395,10 +590,12 @@ export function useAgentSessionPendingInteractions(
       MAX_AGENT_INTERACTION_OPTION_VALUE_CHARACTERS,
     );
     const { claimOwner, interaction } = await resolveInteractionAndClaimOwner(interactionId);
-    if (interaction.kind !== 'user_question') {
+    if (!isUserInputInteraction(interaction)) {
       throw new Error(`Agent interaction ${interactionId} is not a user question.`);
     }
     if (
+      !interaction.request
+      &&
       optionValue
       && !interaction.options.some((option) => option.value.trim() === optionValue)
     ) {
@@ -411,19 +608,37 @@ export function useAgentSessionPendingInteractions(
       claimOwner,
     );
     const answer = submittedAnswer || optionLabel || '';
-    const result = await agentSessionService.answerInteraction(
-      { agentId, sessionId },
-      interaction.interactionId,
-      {
-        answer,
-        claimToken: claim.claimToken,
-        expectedVersion: claim.interaction.version,
-        fencingToken: claim.fencingToken,
-        rejected: input.rejected === true,
-        requestedAt: new Date().toISOString(),
-        selectedOptionValue: optionValue,
-      },
-    );
+    const requestedAt = new Date().toISOString();
+    const result = interaction.request
+      ? await agentSessionService.resolveInteraction(
+          { agentId, sessionId },
+          interaction.interactionId,
+          {
+            resolution: buildTypedQuestionResolution(interaction.request, {
+              ...input,
+              answer,
+              optionLabel,
+              optionValue,
+            }),
+            claimToken: claim.claimToken,
+            expectedVersion: claim.interaction.version,
+            fencingToken: claim.fencingToken,
+            requestedAt,
+          },
+        )
+      : await agentSessionService.answerInteraction(
+          { agentId, sessionId },
+          interaction.interactionId,
+          {
+            answer,
+            claimToken: claim.claimToken,
+            expectedVersion: claim.interaction.version,
+            fencingToken: claim.fencingToken,
+            rejected: input.rejected === true,
+            requestedAt,
+            selectedOptionValue: optionValue,
+          },
+        );
     void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;

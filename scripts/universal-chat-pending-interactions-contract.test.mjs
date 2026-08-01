@@ -15,6 +15,9 @@ const pendingInteractionsSource = fs.existsSync(
 )
   ? readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx')
   : '';
+const typedInteractionsSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatTypedInteraction.tsx',
+);
 const codePageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const codePendingInteractionsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
@@ -51,7 +54,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /<UniversalChatPendingInteractions[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}[\s\S]*pendingApprovals=\{pendingApprovals\}[\s\S]*onSubmitUserQuestionAnswer=\{handleSubmitPendingUserQuestionAnswer\}[\s\S]*onSubmitApprovalDecision=\{handleSubmitPendingApprovalDecision\}/,
+  /<UniversalChatPendingInteractions[\s\S]*engineId=\{resolvedSelectedEngineId\}[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}[\s\S]*pendingApprovals=\{pendingApprovals\}[\s\S]*onSubmitUserQuestionAnswer=\{handleSubmitPendingUserQuestionAnswer\}[\s\S]*onSubmitApprovalDecision=\{handleSubmitPendingApprovalDecision\}/,
   'UniversalChat must render one standardized pending-interactions panel above the composer.',
 );
 
@@ -85,10 +88,54 @@ assert.match(
   'Pending question reject action must use the standard chat.rejectQuestion label.',
 );
 
+for (const decision of ['approved', 'denied', 'blocked']) {
+  assert.match(
+    pendingInteractionsSource,
+    new RegExp(`submitApprovalDecision\\([^)]*'${decision}'`, 'u'),
+    `Pending approval UI must expose the ${decision} decision from the SDK contract.`,
+  );
+}
+
 assert.match(
   pendingInteractionsSource,
-  /submitApprovalDecision\([^)]*'approved'[\s\S]*submitApprovalDecision\([^)]*'denied'[\s\S]*submitApprovalDecision\([^)]*'blocked'/,
-  'Pending approval UI must expose approve, deny, and block decisions from the SDK contract.',
+  /data-codex-approval-surface=\{isCodexInteractionSurface \? 'true' : undefined\}/u,
+  'Only Codex approvals may declare the installed renderer approval surface marker.',
+);
+
+assert.match(
+  pendingInteractionsSource,
+  /typedQuestions[\s\S]*<UniversalChatTypedInteraction[\s\S]*typedApprovals[\s\S]*<UniversalChatTypedInteraction/u,
+  'Typed Agents requests must route through the lossless Codex interaction renderer while legacy records retain compatibility rendering.',
+);
+
+assert.match(
+  typedInteractionsSource,
+  /data-user-input-auto-resolution=\{milliseconds\}/u,
+  'The typed interaction renderer must expose the owner-preserved automatic resolution duration.',
+);
+
+assert.match(
+  typedInteractionsSource,
+  /autoResolutionMs \? \([\s\S]*<AutoResolutionCountdown[\s\S]*milliseconds=\{autoResolutionMs\}/u,
+  'Typed user-input requests must render automatic resolution only when the owner request preserves autoResolutionMs.',
+);
+
+assert.doesNotMatch(
+  pendingInteractionsSource,
+  /data-user-input-auto-resolution/u,
+  'Legacy pending interactions must not claim automatic resolution semantics.',
+);
+
+assert.match(
+  pendingInteractionsSource,
+  /!isCodexInteractionSurface[\s\S]*pendingApprovalReasonPlaceholder[\s\S]*!isCodexInteractionSurface[\s\S]*blockInteraction/u,
+  'Codex approval cards must not expose the non-Codex reason editor or lossy blocked decision.',
+);
+
+assert.match(
+  pendingInteractionsSource,
+  /autoFocus=\{isCodexInteractionSurface && approvalIndex === 0\}[\s\S]*allowOnceInteraction/u,
+  'The first Codex approval must focus the installed renderer primary Allow once action.',
 );
 
 assert.match(

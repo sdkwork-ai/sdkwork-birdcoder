@@ -1,8 +1,8 @@
-import type {
-  AgentProjectView,
-  AgentSessionView,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
-import { sortAgentSessionInboxEntries } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
+import type { AgentProjectView, AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  isAgentSessionVisibleInInbox,
+  sortAgentSessionInboxEntries,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 import { deduplicateAgentSessionsForRender } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import type { ProjectExplorerSortBy } from './ProjectExplorer.shared';
 
@@ -35,7 +35,7 @@ export function buildSidebarGlobalSessions({
           `Agent session ${session.id} does not belong to BirdCoder project ${project.projectId}.`,
         );
       }
-      if (!showArchived && session.archived) {
+      if (!isAgentSessionVisibleInInbox(session, showArchived)) {
         continue;
       }
       if (matches(session, project)) {
@@ -43,10 +43,7 @@ export function buildSidebarGlobalSessions({
       }
     }
   }
-  return sortAgentSessionInboxEntries(
-    deduplicateAgentSessionsForRender(candidates),
-    sortBy,
-  );
+  return sortAgentSessionInboxEntries(deduplicateAgentSessionsForRender(candidates), sortBy);
 }
 
 export function groupSortedSidebarSessionsByProvider(

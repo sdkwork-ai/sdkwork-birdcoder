@@ -52,8 +52,14 @@ assert.doesNotMatch(
 
 assert.match(
   assistantReplyRendererSource,
-  /<ContentBlockList view=\{view\} context=\{context\} \/>[\s\S]*?\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
-  'UniversalChat assistant reply actions must render after structured Session Item blocks.',
+  /<ContentBlockList view=\{view\} context=\{context\} \/>[\s\S]*?\{context\.showMessageActions && messageCompleted && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
+  'UniversalChat assistant reply actions must render after structured Session Item blocks and only after the provider message completes.',
+);
+
+assert.match(
+  assistantReplyRendererSource,
+  /const providerMessageCompleted = message\.metadata\?\.providerMessageCompleted;[\s\S]*?typeof providerMessageCompleted === 'boolean'[\s\S]*?message\.metadata\?\.transient !== true/,
+  'UniversalChat must use the Codex provider completion projection and keep optimistic stream placeholders action-free.',
 );
 
 assert.doesNotMatch(

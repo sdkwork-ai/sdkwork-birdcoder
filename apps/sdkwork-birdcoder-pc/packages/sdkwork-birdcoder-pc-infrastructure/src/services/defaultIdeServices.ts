@@ -7,6 +7,7 @@ import {
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { AgentsSdkAutomationService } from './impl/AgentsSdkAutomationService.ts';
+import { AgentsSdkModelConfigurationService } from './agentsModelConfigurationService.ts';
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
 
 export {
@@ -21,6 +22,7 @@ export function createDefaultBirdCoderIdeServices(
 
   return {
     agentAutomationService: new AgentsSdkAutomationService(runtime.agentsClient),
+    agentModelConfigurationService: new AgentsSdkModelConfigurationService(runtime.agentsClient),
     agentSessionService: new BirdCoderAgentSessionService({
       client: runtime.agentsClient,
     }),

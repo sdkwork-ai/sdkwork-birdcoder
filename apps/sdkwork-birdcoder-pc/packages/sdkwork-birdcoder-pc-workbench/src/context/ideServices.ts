@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type {
   IAuthService,
   IAgentAutomationService,
+  IAgentModelConfigurationService,
   IAgentSessionService,
   IApplicationPublishService,
   ICatalogService,
@@ -18,6 +19,7 @@ import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefault
 
 export interface IIDEContext {
   agentAutomationService: IAgentAutomationService;
+  agentModelConfigurationService: IAgentModelConfigurationService;
   agentSessionService: IAgentSessionService;
   applicationPublishService: IApplicationPublishService;
   catalogService: ICatalogService;
@@ -36,6 +38,7 @@ export function createDefaultIdeContextValue(): IIDEContext {
   const defaultIdeServices: AppIdeServices = createLazyDefaultIdeServices();
   return {
     agentAutomationService: defaultIdeServices.agentAutomationService,
+    agentModelConfigurationService: defaultIdeServices.agentModelConfigurationService,
     agentSessionService: defaultIdeServices.agentSessionService,
     applicationPublishService: defaultIdeServices.applicationPublishService,
     catalogService: defaultIdeServices.catalogService,

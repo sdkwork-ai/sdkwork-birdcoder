@@ -68,8 +68,21 @@ function isProcessBlock(block: AgentSessionItemPresentationBlock): boolean {
     : PROCESS_BLOCK_TYPES.has(block.type);
 }
 
+function isProviderCommentaryView(view: AgentSessionItemPresentation): boolean {
+  return view.source.metadata?.providerMessagePhase === 'commentary';
+}
+
+function isProcessViewBlock(
+  view: AgentSessionItemPresentation,
+  block: AgentSessionItemPresentationBlock,
+): boolean {
+  return isProcessBlock(block)
+    || (isProviderCommentaryView(view) && block.type === 'markdown');
+}
+
 function isAuthoredMarkdownView(view: AgentSessionItemPresentation): boolean {
-  return ['assistant', 'planner', 'reviewer'].includes(view.source.role)
+  return !isProviderCommentaryView(view)
+    && ['assistant', 'planner', 'reviewer'].includes(view.source.role)
     && view.blocks.some(
       (block) => block.type === 'markdown'
         && !block.noticeKind
@@ -147,7 +160,7 @@ export function resolveChatTurnProcessPresentations(
         engineId: options.engineId,
         layout: 'main',
       });
-      const processBlocks = view.blocks.filter(isProcessBlock);
+      const processBlocks = view.blocks.filter((block) => isProcessViewBlock(view, block));
       if (processBlocks.length === 0) return [];
       return [{
         sourceIndex,

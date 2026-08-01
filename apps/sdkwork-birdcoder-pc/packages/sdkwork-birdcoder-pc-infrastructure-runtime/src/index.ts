@@ -116,6 +116,15 @@ export type {
   IAgentSessionService,
   SubmitAgentTurnInput,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentSessionService';
+export {
+  AGENT_MODEL_PROVIDER_IDS,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentModelConfigurationService';
+export type {
+  AgentModelProviderId,
+  AppliedAgentModelConfiguration,
+  ApplyAgentModelConfigurationInput,
+  IAgentModelConfigurationService,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentModelConfigurationService';
 export type {
   AgentCatalogListOptions,
   CatalogPage,

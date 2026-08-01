@@ -439,6 +439,10 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts'),
     },
     {
+      find: '@sdkwork/runtime-bootstrap',
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts'),
+    },
+    {
       find: /^@sdkwork\/auth-pc-react\/(.+)$/u,
       replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/$1'),
     },

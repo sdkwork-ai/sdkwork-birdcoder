@@ -7,6 +7,7 @@ import {
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { isAgentSessionVisibleInInbox } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 import {
   DeferredUniversalChat,
   ProjectInventoryStatus,
@@ -520,7 +521,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       return EMPTY_STUDIO_AGENT_SESSIONS;
     }
 
-    return menuProject.agentSessions;
+    return menuProject.agentSessions.filter((session) =>
+      isAgentSessionVisibleInInbox(session),
+    );
   }, [menuProject, showProjectMenu]);
   const visibleSessionCount =
     visibleSessionCountByProjectId[effectiveMenuProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
@@ -583,7 +586,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   const canShowMoreSessions = menuProject !== null && (
     menuProject.agentSessionPageInfo === undefined ||
     visibleSessionCount < menuProjectSessions.length ||
-    visibleSessionCount < menuProject.agentSessions.length ||
     menuProject.agentSessionPageInfo.hasMore === true
   );
   const canShowNewerSessions = menuProject?.agentSessionPageInfo?.hasNewer === true;

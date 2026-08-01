@@ -8,8 +8,11 @@ import {
   Plus,
   Square,
 } from 'lucide-react';
-import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
+import {
+  Button,
+  WorkbenchCodeEngineIcon,
+} from '@sdkwork/birdcoder-pc-ui-shell';
+import { UnifiedAgentModelSelector } from '@sdkwork/models-pc-picker';
 import { ComposerAccessModeControl } from './ComposerAccessModeControl';
 import type { EngineComposerFooterProps } from './UniversalChatComposerFooter.types';
 
@@ -38,36 +41,74 @@ export function SharedComposerFooter({
   isStopTurnConfirmationVisible,
   isStoppingTurn,
   isUploadingAttachments,
-  modelGroups,
+  unifiedAgentModelOptions,
+  unifiedAgentProviderOptions,
   onAttachmentMenuOpenChange,
   onAccessModeMenuOpenChange,
   onFileUpload,
   onFolderUpload,
   onImageUpload,
-  onSelectModel,
+  onCreateUnifiedAgentModelConfiguration,
+  onGetUnifiedAgentModelApiKey,
+  onSelectUnifiedAgentModel,
   onSelectAccessMode,
   onSend,
   onStopTurn,
   onToggleVoiceInput,
   selectedModelLabel,
   selectedAccessModeId,
-  selectedModelPickerId,
+  selectedUnifiedAgentModelOptionId,
   selectedModelSummary,
-  setShowModelMenu,
-  showModelMenu,
-  showModelPicker,
+  onUnifiedAgentModelSelectorOpenChange,
+  isUnifiedAgentModelSelectorOpen,
+  showUnifiedAgentModelSelector,
 }: SharedComposerFooterProps) {
   const { t } = useTranslation();
   const attachmentActionDisabled = disabled;
   const attachmentInputDisabled = disabled || attachmentsDisabled;
-  const fallbackWorkbenchModel = useMemo(
-    () => createFallbackModel(
-      t('chat.modelCatalogFallback'),
-      t('chat.modelCatalogLoading'),
-      'workspace',
-      'llms',
-      'BirdCoder',
-    ),
+  const modelSelectorMessages = useMemo(
+    () => ({
+      addModel: t('chat.unifiedAgentModelSelector.addModel'),
+      addModelTitle: t('chat.unifiedAgentModelSelector.addModelTitle'),
+      advancedSettings: t('chat.unifiedAgentModelSelector.advancedSettings'),
+      apiKeyLabel: t('chat.unifiedAgentModelSelector.apiKeyLabel'),
+      apiKeyPlaceholder: t('chat.unifiedAgentModelSelector.apiKeyPlaceholder'),
+      apiKeyRequired: t('chat.unifiedAgentModelSelector.apiKeyRequired'),
+      baseUrlInvalid: t('chat.unifiedAgentModelSelector.baseUrlInvalid'),
+      baseUrlLabel: t('chat.unifiedAgentModelSelector.baseUrlLabel'),
+      baseUrlPlaceholder: t('chat.unifiedAgentModelSelector.baseUrlPlaceholder'),
+      builtInModels: t('chat.unifiedAgentModelSelector.builtInModels'),
+      cancel: t('chat.unifiedAgentModelSelector.cancel'),
+      close: t('chat.unifiedAgentModelSelector.close'),
+      createFailed: t('chat.unifiedAgentModelSelector.createFailed'),
+      creating: t('chat.unifiedAgentModelSelector.creating'),
+      customModels: t('chat.unifiedAgentModelSelector.customModels'),
+      customTag: t('chat.unifiedAgentModelSelector.customTag'),
+      defaultModelLabel: t('chat.unifiedAgentModelSelector.defaultModelLabel'),
+      defaultModelPlaceholder: t('chat.unifiedAgentModelSelector.defaultModelPlaceholder'),
+      defaultModelRequired: t('chat.unifiedAgentModelSelector.defaultModelRequired'),
+      getApiKey: t('chat.unifiedAgentModelSelector.getApiKey'),
+      inputContextLabel: t('chat.unifiedAgentModelSelector.inputContextLabel'),
+      modelAlreadyExists: t('chat.unifiedAgentModelSelector.modelAlreadyExists'),
+      modelSelectorLabel: t('chat.unifiedAgentModelSelector.modelSelectorLabel'),
+      multimodalLabel: t('chat.unifiedAgentModelSelector.multimodalLabel'),
+      noModels: t('chat.unifiedAgentModelSelector.noModels'),
+      notSupported: t('chat.unifiedAgentModelSelector.notSupported'),
+      outputContextLabel: t('chat.unifiedAgentModelSelector.outputContextLabel'),
+      providerRequired: t('chat.unifiedAgentModelSelector.providerRequired'),
+      providerSection: t('chat.unifiedAgentModelSelector.providerSection'),
+      selectFailed: t('chat.unifiedAgentModelSelector.selectFailed'),
+      submit: t('chat.unifiedAgentModelSelector.submit'),
+      supported: t('chat.unifiedAgentModelSelector.supported'),
+      supportedModelsLabel: t('chat.unifiedAgentModelSelector.supportedModelsLabel'),
+      supportedModelsPlaceholder: t('chat.unifiedAgentModelSelector.supportedModelsPlaceholder'),
+      supportedProvidersHint: t('chat.unifiedAgentModelSelector.supportedProvidersHint'),
+      toolCallRoundsLabel: t('chat.unifiedAgentModelSelector.toolCallRoundsLabel'),
+      useSystemDefaultPlaceholder: t('chat.unifiedAgentModelSelector.useSystemDefaultPlaceholder'),
+      vendorLabel: t('chat.unifiedAgentModelSelector.vendorLabel'),
+      vendorPlaceholder: t('chat.unifiedAgentModelSelector.vendorPlaceholder'),
+      vendorRequired: t('chat.unifiedAgentModelSelector.vendorRequired'),
+    }),
     [t],
   );
 
@@ -141,24 +182,27 @@ export function SharedComposerFooter({
       </div>
 
       <div className="flex min-w-0 items-center gap-1.5">
-        {showModelPicker ? (
+        {showUnifiedAgentModelSelector ? (
           <div
-            className="birdcoder-composer-model-picker min-w-0 max-w-[min(46vw,240px)] shrink"
-            data-testid="universal-chat-model-picker"
+            className="birdcoder-composer-model-selector min-w-0 max-w-[min(46vw,240px)] shrink"
+            data-testid="universal-chat-unified-agent-model-selector"
           >
-            <ModelPicker
-              bucket="llms"
-              compact
+            <UnifiedAgentModelSelector
+              activeProviderId={engineId}
               disabled={disabled}
-              fallback={fallbackWorkbenchModel}
-              menuPlacement="auto"
-              modelGroups={modelGroups}
-              onSelectModel={onSelectModel}
-              selectedModelId={selectedModelPickerId}
-              setShowModelMenu={setShowModelMenu}
-              showModelDescription
-              showModelMenu={showModelMenu}
-              variant="flat"
+              fallbackLabel={selectedModelLabel}
+              messages={modelSelectorMessages}
+              onCreateModelConfiguration={onCreateUnifiedAgentModelConfiguration}
+              onGetApiKey={onGetUnifiedAgentModelApiKey}
+              onOpenChange={onUnifiedAgentModelSelectorOpenChange}
+              onSelectModelOption={onSelectUnifiedAgentModel}
+              open={isUnifiedAgentModelSelectorOpen}
+              options={unifiedAgentModelOptions}
+              providerOptions={unifiedAgentProviderOptions}
+              renderModelIcon={(option) => (
+                <WorkbenchCodeEngineIcon engineId={option.iconKey} size="sm" />
+              )}
+              selectedModelOptionId={selectedUnifiedAgentModelOptionId}
             />
           </div>
         ) : (

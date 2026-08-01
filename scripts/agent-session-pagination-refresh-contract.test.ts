@@ -360,11 +360,11 @@ const boundedWindowPageThree = await loadProjectAgentSessionPage(
   boundedWindowPageTwo.project,
   201,
 );
-assert.equal(boundedWindowPageThree.project.agentSessions.length, 200);
-assert.equal(boundedWindowPageThree.hasNewer, true);
-assert.equal(boundedWindowPageThree.windowShifted, true);
-assert.equal(boundedWindowPageThree.project.agentSessionPageInfo?.hasNewer, true);
-assert.equal(boundedWindowPageThree.project.agentSessions[0]?.id, 'session.pagination.101');
+assert.equal(boundedWindowPageThree.project.agentSessions.length, 300);
+assert.equal(boundedWindowPageThree.hasNewer, false);
+assert.equal(boundedWindowPageThree.windowShifted, false);
+assert.equal(boundedWindowPageThree.project.agentSessionPageInfo?.hasNewer, false);
+assert.equal(boundedWindowPageThree.project.agentSessions[0]?.id, 'session.pagination.1');
 assert.equal(boundedWindowPageThree.project.agentSessions.at(-1)?.id, 'session.pagination.300');
 const resetToLatestWindow = await loadProjectAgentSessionPage(
   boundedWindowService,
@@ -375,7 +375,7 @@ const resetToLatestWindow = await loadProjectAgentSessionPage(
 );
 assert.equal(resetToLatestWindow.project.agentSessions.length, 100);
 assert.equal(resetToLatestWindow.hasNewer, false);
-assert.equal(resetToLatestWindow.windowShifted, true);
+assert.equal(resetToLatestWindow.windowShifted, false);
 assert.equal(resetToLatestWindow.project.agentSessionPageInfo?.nextCursor, 'cursor.window.2');
 
 const shortPageProject = {

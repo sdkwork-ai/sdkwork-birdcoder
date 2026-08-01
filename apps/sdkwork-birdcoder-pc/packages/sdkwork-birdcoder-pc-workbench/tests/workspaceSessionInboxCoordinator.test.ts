@@ -199,29 +199,25 @@ describe('Workspace Session Inbox coordinator', () => {
     deleteProjectsStore(scopeKey);
   });
 
-  it('uses only the current round head cursor for one bounded continuation page', async () => {
-    vi.useFakeTimers();
+  it('loads every page from the current head cursor before committing the snapshot', async () => {
     const scopeKey = installProject();
     const calls: Array<string | undefined> = [];
-    let headRound = 0;
     const service = serviceWith(async (request) => {
       calls.push(request.cursor);
       if (request.cursor === undefined) {
-        headRound += 1;
         return page([
-          summary(`session.head-${headRound}`, String(headRound),
-            `2026-07-27T00:00:0${headRound}.000Z`),
-        ], { hasMore: true, nextCursor: `head-cursor-${headRound}` });
+          summary('session.head', '1', '2026-07-27T00:00:01.000Z'),
+        ], { hasMore: true, nextCursor: 'cursor.1' });
       }
-      if (request.cursor?.startsWith('head-cursor-')) {
-        const continuationRound = request.cursor.slice('head-cursor-'.length);
+      if (request.cursor === 'cursor.1') {
         return page([
-          summary(
-            `session.continuation-${continuationRound}`,
-            `10${continuationRound}`,
-            `2026-07-27T00:01:0${continuationRound}.000Z`,
-          ),
-        ], { hasMore: true, nextCursor: 'baseline-cursor-2' });
+          summary('session.middle', '2', '2026-07-27T00:00:02.000Z'),
+        ], { hasMore: true, nextCursor: 'cursor.2' });
+      }
+      if (request.cursor === 'cursor.2') {
+        return page([
+          summary('session.tail', '3', '2026-07-27T00:00:03.000Z'),
+        ]);
       }
       throw new Error(`Unexpected cursor ${request.cursor}.`);
     });
@@ -230,50 +226,16 @@ describe('Workspace Session Inbox coordinator', () => {
       { userScope, workspaceId },
     );
 
-    await vi.waitFor(() => expect(calls).toEqual([undefined, 'head-cursor-1']));
-    await vi.advanceTimersByTimeAsync(15_000);
-    expect(calls).toEqual([
-      undefined,
-      'head-cursor-1',
-      undefined,
-      'head-cursor-2',
-    ]);
-    await vi.advanceTimersByTimeAsync(15_000);
-    expect(calls).toEqual([
-      undefined,
-      'head-cursor-1',
-      undefined,
-      'head-cursor-2',
-      undefined,
-      'head-cursor-3',
-    ]);
-
-    await vi.advanceTimersByTimeAsync(15_000);
-    expect(calls).toEqual([
-      undefined,
-      'head-cursor-1',
-      undefined,
-      'head-cursor-2',
-      undefined,
-      'head-cursor-3',
-      undefined,
-      'head-cursor-4',
-    ]);
-    expect(calls).not.toContain('baseline-cursor-2');
+    await vi.waitFor(() => expect(calls).toEqual([undefined, 'cursor.1', 'cursor.2']));
     expect(
       getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions
         .map((item) => item.id)
         .sort(),
     ).toEqual([
-        'session.continuation-1',
-        'session.continuation-2',
-        'session.continuation-3',
-        'session.continuation-4',
-        'session.head-1',
-        'session.head-2',
-        'session.head-3',
-        'session.head-4',
-      ]);
+      'session.head',
+      'session.middle',
+      'session.tail',
+    ]);
 
     subscription.dispose();
     deleteProjectsStore(scopeKey);

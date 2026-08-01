@@ -38,7 +38,10 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
-import { isAcceptedAgentTurnDeliveryError } from '@sdkwork/birdcoder-pc-workbench/workbench/agentTurnDeliveryOutcome';
+import {
+  isAcceptedAgentTurnDeliveryError,
+  resolveAgentTurnUserFacingErrorMessage,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentTurnDeliveryOutcome';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
 import {
@@ -54,7 +57,16 @@ import {
   type ComposerProviderCapabilityItem,
 } from '@sdkwork/birdcoder-pc-workbench/hooks/useComposerProviderCapabilities';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
-import { setWorkbenchCodeEngineAccessMode } from '@sdkwork/birdcoder-pc-workbench/workbench/preferences';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
+import {
+  saveWorkbenchUnifiedCustomAgentModel,
+  setWorkbenchCodeEngineAccessMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/preferences';
+import type {
+  AgentModelConfigurationDraft,
+  UnifiedAgentModelOption,
+  UnifiedAgentProviderOption,
+} from '@sdkwork/models-pc-picker';
 import {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,
@@ -114,9 +126,9 @@ import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
 import { ChatActivityLiveAnnouncer } from './chat/messages/activity/ChatActivityLiveAnnouncer.tsx';
 import { resolveTurnFileChangesMessagePresentations } from './chat/messages/activity/turnFileChanges.ts';
 import {
-  buildWorkbenchModelPickerId,
-  createWorkbenchModelPickerCatalog,
-} from './workbenchModelPickerAdapter';
+  createWorkbenchUnifiedAgentModelSelectorCatalog,
+  resolveWorkbenchUnifiedAgentModelOptionId,
+} from './workbenchUnifiedAgentModelSelectorAdapter';
 import {
   buildVisibleMessageActionTargets,
   ChatTranscriptMessage,
@@ -958,8 +970,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       ) : null}
       {messages.length === 0 ? (
         layout === 'main' ? (
-          <div className="flex min-h-full w-full px-5">
-            <div className="mx-auto flex w-full max-w-[880px] flex-1 items-center justify-center">
+          <div className="flex min-h-full w-full px-6">
+            <div className="mx-auto flex w-full max-w-[40rem] flex-1 items-center justify-center">
               {emptyState ? (
                 <div className="w-full">{emptyState}</div>
               ) : (
@@ -1142,10 +1154,11 @@ export const UniversalChat = memo(function UniversalChat({
 }: UniversalChatProps) {
   const { t, i18n } = useTranslation();
   const { addToast } = useToast();
+  const { agentModelConfigurationService } = useIDEServices();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerCompositionRef = useRef(false);
-  const [showModelMenu, setShowModelMenu] = useState(false);
+  const [isUnifiedAgentModelSelectorOpen, setUnifiedAgentModelSelectorOpen] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showAccessModeMenu, setShowAccessModeMenu] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
@@ -1161,6 +1174,7 @@ export const UniversalChat = memo(function UniversalChat({
   const [composerSelectionOverride, setComposerSelectionOverride] =
     useState<ComposerModelSelectionOverride | null>(null);
   const normalizedSessionId = sessionId?.trim() || '';
+  const hasActiveRuntimeBindingProjection = Boolean(runtimeBindingId?.trim());
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
   const [isSessionTranscriptFindOpen, setIsSessionTranscriptFindOpen] = useState(false);
   const sessionTranscriptFindOriginRef = useRef<HTMLElement | null>(null);
@@ -1440,8 +1454,18 @@ export const UniversalChat = memo(function UniversalChat({
     () => listWorkbenchServerImplementedCodeEngines(preferences),
     [preferences, catalogLoaded],
   );
-  const modelPickerCatalog = useMemo(
-    () => createWorkbenchModelPickerCatalog(availableEngines),
+  const unifiedAgentModelSelectorCatalog = useMemo(
+    () => createWorkbenchUnifiedAgentModelSelectorCatalog(
+      availableEngines,
+      preferences.unifiedCustomAgentModels,
+    ),
+    [availableEngines, preferences.unifiedCustomAgentModels],
+  );
+  const unifiedAgentProviderOptions = useMemo<UnifiedAgentProviderOption[]>(
+    () => availableEngines.map((engine) => ({
+      id: engine.id,
+      label: engine.label,
+    })),
     [availableEngines],
   );
   const currentEngine =
@@ -1495,9 +1519,22 @@ export const UniversalChat = memo(function UniversalChat({
     engineId: resolvedSelectedEngineId,
     modelId: currentModelId,
   }), [currentAccessModeId, currentModelId, resolvedSelectedEngineId]);
-  const currentModelPickerId = buildWorkbenchModelPickerId(
+  const currentUnifiedAgentModelOptionId = resolveWorkbenchUnifiedAgentModelOptionId(
+    unifiedAgentModelSelectorCatalog,
     resolvedSelectedEngineId,
     currentModelId,
+  );
+  const unifiedAgentModelOptions = useMemo(
+    () => unifiedAgentModelSelectorCatalog.options.map((option) => ({
+      ...option,
+      disabled:
+        option.disabled
+        || Boolean(
+          option.supportedProviderIds?.length
+          && !option.supportedProviderIds.includes(resolvedSelectedEngineId),
+        ),
+    })),
+    [resolvedSelectedEngineId, unifiedAgentModelSelectorCatalog.options],
   );
   const handleCloseComposerActionPanel = useCallback(() => {
     setShowAttachmentMenu(false);
@@ -1506,18 +1543,18 @@ export const UniversalChat = memo(function UniversalChat({
     setShowAccessModeMenu(open);
     if (open) {
       setShowAttachmentMenu(false);
-      setShowModelMenu(false);
+      setUnifiedAgentModelSelectorOpen(false);
     }
   }, []);
   const handleAttachmentMenuOpenChange = useCallback((open: boolean) => {
     setShowAttachmentMenu(open);
     if (open) {
       setShowAccessModeMenu(false);
-      setShowModelMenu(false);
+      setUnifiedAgentModelSelectorOpen(false);
     }
   }, []);
-  const handleModelMenuOpenChange = useCallback((open: boolean) => {
-    setShowModelMenu(open);
+  const handleUnifiedAgentModelSelectorOpenChange = useCallback((open: boolean) => {
+    setUnifiedAgentModelSelectorOpen(open);
     if (open) {
       setShowAccessModeMenu(false);
       setShowAttachmentMenu(false);
@@ -1563,7 +1600,11 @@ export const UniversalChat = memo(function UniversalChat({
     }),
     [availableEngines, currentModelId, preferences, resolvedSelectedEngineId],
   );
-  const applyComposerSelection = useCallback((engineId: string, modelId: string) => {
+  const applyComposerSelection = useCallback((
+    engineId: string,
+    modelId: string,
+    allowUnknownModel = false,
+  ) => {
     const normalizedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
       engineId,
       preferences,
@@ -1572,6 +1613,7 @@ export const UniversalChat = memo(function UniversalChat({
       normalizedEngineId,
       modelId,
       preferences,
+      { allowUnknown: allowUnknownModel },
     );
     if (!normalizedEngineId || !normalizedModelId) {
       return;
@@ -1593,16 +1635,106 @@ export const UniversalChat = memo(function UniversalChat({
     setSelectedEngineId,
     setSelectedModelId,
   ]);
-  const handleComposerModelSelect = useCallback((pickerId: string) => {
-    const selection = modelPickerCatalog.selectionByPickerId.get(pickerId);
-    if (!selection) {
-      return;
+  const handleUnifiedAgentModelSelect = useCallback(async (
+    option: UnifiedAgentModelOption,
+  ) => {
+    if (
+      option.supportedProviderIds?.length
+      && !option.supportedProviderIds.includes(resolvedSelectedEngineId)
+    ) {
+      throw new Error('The selected model does not support the active Agent provider.');
     }
 
-    applyComposerSelection(selection.engineId, selection.modelId);
+    if (option.kind === 'custom' && !option.configurationId) {
+      throw new Error('The custom model configuration is incomplete.');
+    }
+
+    type SelectionInput = Parameters<
+      typeof agentModelConfigurationService.applySelection
+    >[0];
+    await agentModelConfigurationService.applySelection({
+      configurationId: option.configurationId,
+      engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
+      modelId: option.modelId,
+    });
+
+    applyComposerSelection(
+      resolvedSelectedEngineId,
+      option.modelId,
+      option.kind === 'custom',
+    );
   }, [
+    agentModelConfigurationService,
     applyComposerSelection,
-    modelPickerCatalog.selectionByPickerId,
+    resolvedSelectedEngineId,
+  ]);
+  const handleCreateUnifiedAgentModelConfiguration = useCallback(async (
+    draft: AgentModelConfigurationDraft,
+  ) => {
+    const availableProviderIds = new Set(unifiedAgentProviderOptions.map((provider) => provider.id));
+    const supportedProviderIds = draft.supportedProviderIds.filter(
+      (providerId) => availableProviderIds.has(providerId),
+    );
+    if (
+      supportedProviderIds.length !== draft.supportedProviderIds.length
+      || !supportedProviderIds.includes(resolvedSelectedEngineId)
+    ) {
+      throw new Error('The model configuration contains an unsupported Agent provider.');
+    }
+
+    type ApplyInput = Parameters<typeof agentModelConfigurationService.apply>[0];
+    const appliedConfigurations = await Promise.all(
+      supportedProviderIds.map((providerId) => agentModelConfigurationService.apply({
+        configurationId: draft.configurationId,
+        engineId: providerId as ApplyInput['engineId'],
+        vendorCode: draft.vendorCode,
+        baseUrl: draft.baseUrl,
+        apiKey: draft.apiKey,
+        defaultModelId: draft.defaultModelId,
+        supportedModelIds: draft.supportedModelIds,
+        supportedProviderIds: supportedProviderIds as ApplyInput['supportedProviderIds'],
+        inputContextTokens: draft.inputContextTokens,
+        outputContextTokens: draft.outputContextTokens,
+        toolCallRounds: draft.toolCallRounds,
+        supportsMultimodal: draft.supportsMultimodal,
+      })),
+    );
+
+    type SelectionInput = Parameters<
+      typeof agentModelConfigurationService.applySelection
+    >[0];
+    await agentModelConfigurationService.applySelection({
+      configurationId: draft.configurationId,
+      engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
+      modelId: draft.defaultModelId,
+    });
+
+    updatePreferences((previousPreferences) => saveWorkbenchUnifiedCustomAgentModel(
+      previousPreferences,
+      {
+        activeProviderId: resolvedSelectedEngineId,
+        configurationId: draft.configurationId,
+        modelId: draft.defaultModelId,
+        vendorCode: draft.vendorCode,
+        baseUrl: draft.baseUrl,
+        supportedModelIds: draft.supportedModelIds,
+        supportedProviderIds,
+        inputContextTokens: draft.inputContextTokens,
+        outputContextTokens: draft.outputContextTokens,
+        toolCallRounds: draft.toolCallRounds,
+        supportsMultimodal: draft.supportsMultimodal,
+        apiKeyConfigured: appliedConfigurations.every((configuration) => (
+          configuration.apiKeyConfigured
+        )),
+      },
+    ));
+    applyComposerSelection(resolvedSelectedEngineId, draft.defaultModelId, true);
+  }, [
+    agentModelConfigurationService,
+    applyComposerSelection,
+    resolvedSelectedEngineId,
+    unifiedAgentProviderOptions,
+    updatePreferences,
   ]);
   const handleNewSessionProviderSelect = useCallback((engineId: string) => {
     const modelId = resolveWorkbenchCodeEngineSelectedModelId(
@@ -2664,16 +2796,20 @@ export const UniversalChat = memo(function UniversalChat({
               );
             }
           }
-          addToast(error.message, 'info');
+          addToast(
+            resolveAgentTurnUserFacingErrorMessage(
+              error,
+              t('chat.sendMessageAcceptedUncertain'),
+            ),
+            'info',
+          );
           return true;
         }
         setInputValue((previousInputValue) =>
           resolveComposerInputAfterSendFailure(submittedDisplayTextSnapshot, previousInputValue),
         );
         addToast(
-          error instanceof Error && error.message.trim()
-            ? error.message
-            : t('chat.sendMessageFailed'),
+          resolveAgentTurnUserFacingErrorMessage(error, t('chat.sendMessageFailed')),
           'error',
         );
         return false;
@@ -2757,13 +2893,17 @@ export const UniversalChat = memo(function UniversalChat({
         );
       } catch (error) {
         if (isAcceptedAgentTurnDeliveryError(error)) {
-          addToast(error.message, 'info');
+          addToast(
+            resolveAgentTurnUserFacingErrorMessage(
+              error,
+              t('chat.sendMessageAcceptedUncertain'),
+            ),
+            'info',
+          );
           return 'accepted_uncertain';
         }
         addToast(
-          error instanceof Error && error.message.trim()
-            ? error.message
-            : t('chat.sendMessageFailed'),
+          resolveAgentTurnUserFacingErrorMessage(error, t('chat.sendMessageFailed')),
           'error',
         );
         return 'rejected';
@@ -2792,9 +2932,11 @@ export const UniversalChat = memo(function UniversalChat({
     update: updateAgentTurnInput,
   } = useAgentTurnInputQueue({
     agentId,
-    disabled,
+    disabled: disabled || (Boolean(normalizedSessionId) && !hasActiveRuntimeBindingProjection),
     isActive,
     isTurnBusy: isComposerTurnBlocked,
+    requireRuntimeBinding: true,
+    runtimeBindingId,
     onDispatch: dispatchQueuedAgentTurnInput,
     onError: ({ error, operation }) => {
       console.error(`Agent Turn input queue ${operation} failed`, error);
@@ -3006,7 +3148,10 @@ export const UniversalChat = memo(function UniversalChat({
 
   const hasOpenFloatingMenu = showAttachmentMenu;
   const hasOpenComposerMenu =
-    showAttachmentMenu || showAccessModeMenu || showModelMenu || showPromptModal;
+    showAttachmentMenu
+    || showAccessModeMenu
+    || isUnifiedAgentModelSelectorOpen
+    || showPromptModal;
 
   const handleFloatingMenuClickOutside = useCallback(
     (event: MouseEvent) => {
@@ -3051,8 +3196,8 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (showModelMenu) {
-      setShowModelMenu(false);
+    if (isUnifiedAgentModelSelectorOpen) {
+      setUnifiedAgentModelSelectorOpen(false);
     }
 
     if (showAttachmentMenu) {
@@ -3066,7 +3211,13 @@ export const UniversalChat = memo(function UniversalChat({
     if (showPromptModal) {
       setShowPromptModal(false);
     }
-  }, [isActive, showAccessModeMenu, showAttachmentMenu, showModelMenu, showPromptModal]);
+  }, [
+    isActive,
+    isUnifiedAgentModelSelectorOpen,
+    showAccessModeMenu,
+    showAttachmentMenu,
+    showPromptModal,
+  ]);
 
   const handleComposerCompositionStart = () => {
     composerCompositionRef.current = true;
@@ -3194,6 +3345,7 @@ export const UniversalChat = memo(function UniversalChat({
     !isAgentTurnInputQueueMutating &&
     !editingMessage &&
     !hasPendingUserQuestionReplyTarget &&
+    hasActiveRuntimeBindingProjection &&
     Boolean(agentId?.trim() && normalizedSessionId) &&
     agentTurnInputQueue.length < MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE &&
     hasComposerSubmissionContent &&
@@ -3203,6 +3355,7 @@ export const UniversalChat = memo(function UniversalChat({
     !isDispatchingMessage &&
     !isSubmittingPendingInteraction &&
     !editingMessage &&
+    hasActiveRuntimeBindingProjection &&
     (
       agentTurnInputQueue.length > 0
       || (hasComposerSubmissionContent && !isComposerAttachmentSubmissionBlocked)
@@ -3435,12 +3588,12 @@ export const UniversalChat = memo(function UniversalChat({
         className={
           shouldPresentNewSessionComposer
             ? 'flex min-h-0 flex-1 items-center bg-transparent px-5 py-8 sm:px-8'
-            : `shrink-0 ${layout === 'sidebar' ? 'px-4 pb-2 pt-3' : 'px-5 pb-2.5 pt-4'} bg-transparent`
+            : `shrink-0 ${layout === 'sidebar' ? 'px-4 pb-2 pt-3' : 'px-6 pb-2.5 pt-4'} bg-transparent`
         }
         data-new-session-composer={shouldPresentNewSessionComposer ? 'true' : undefined}
       >
         <div
-          className={`mx-auto w-full ${layout === 'main' ? 'max-w-[880px]' : ''} ${
+          className={`mx-auto w-full ${layout === 'main' ? 'max-w-[40rem]' : ''} ${
             shouldPresentNewSessionComposer
               ? '-translate-y-[clamp(0rem,4vh,2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300'
               : ''
@@ -3466,6 +3619,7 @@ export const UniversalChat = memo(function UniversalChat({
           ) : null}
           <UniversalChatPendingInteractions
             disabled={disabled}
+            engineId={resolvedSelectedEngineId}
             hasLoadError={hasPendingInteractionsLoadError}
             isLoading={isLoadingPendingInteractions}
             isSubmitting={isSubmittingPendingInteraction}
@@ -3786,8 +3940,8 @@ export const UniversalChat = memo(function UniversalChat({
               onKeyDown={handleKeyDown}
               onPaste={handleComposerPaste}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
-              className={`w-full resize-none overflow-y-auto bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] leading-5 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${shouldPresentNewSessionComposer ? 'min-h-[72px]' : 'min-h-12'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-              rows={shouldPresentNewSessionComposer ? 3 : 2}
+              className={`mb-1 w-full resize-none overflow-y-auto bg-transparent px-3 text-sm leading-5 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${shouldPresentNewSessionComposer ? 'min-h-[72px]' : 'min-h-[2.75rem]'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+              rows={shouldPresentNewSessionComposer ? 3 : 1}
               disabled={disabled}
               style={{
                 maxHeight: `${manualComposerHeight ?? AUTO_RESIZE_TEXTAREA_MAX_HEIGHT}px`,
@@ -3817,24 +3971,30 @@ export const UniversalChat = memo(function UniversalChat({
               isStoppingTurn={isStoppingTurn}
               isStopTurnConfirmationVisible={isStopTurnConfirmationVisible}
               isUploadingAttachments={hasUploadingComposerAttachments}
-              modelGroups={modelPickerCatalog.groups}
+              unifiedAgentModelOptions={unifiedAgentModelOptions}
+              unifiedAgentProviderOptions={unifiedAgentProviderOptions}
               onAccessModeMenuOpenChange={handleAccessModeMenuOpenChange}
               onAttachmentMenuOpenChange={handleAttachmentMenuOpenChange}
               onFileUpload={handleFileUpload}
               onFolderUpload={handleFolderUpload}
               onImageUpload={handleImageUpload}
-              onSelectModel={handleComposerModelSelect}
+              onCreateUnifiedAgentModelConfiguration={
+                handleCreateUnifiedAgentModelConfiguration
+              }
+              onSelectUnifiedAgentModel={handleUnifiedAgentModelSelect}
               onSelectAccessMode={handleAccessModeSelect}
               onSend={handleSend}
               onStopTurn={handleStopTurn}
               onToggleVoiceInput={toggleVoiceInput}
               selectedAccessModeId={currentAccessModeId}
               selectedModelLabel={currentComposerModelLabel}
-              selectedModelPickerId={currentModelPickerId}
+              selectedUnifiedAgentModelOptionId={currentUnifiedAgentModelOptionId}
               selectedModelSummary={currentEngineSummary}
-              setShowModelMenu={handleModelMenuOpenChange}
-              showModelMenu={showModelMenu}
-              showModelPicker={showComposerEngineSelector}
+              onUnifiedAgentModelSelectorOpenChange={
+                handleUnifiedAgentModelSelectorOpenChange
+              }
+              isUnifiedAgentModelSelectorOpen={isUnifiedAgentModelSelectorOpen}
+              showUnifiedAgentModelSelector={showComposerEngineSelector}
             />
             </UniversalChatComposerChrome>
           </div>

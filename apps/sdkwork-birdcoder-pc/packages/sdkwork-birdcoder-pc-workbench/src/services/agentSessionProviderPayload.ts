@@ -74,6 +74,8 @@ const PROVIDER_PAYLOAD_CHILD_KEYS = [
 export interface AgentSessionProviderPayloadViewFields {
   consumesToolPayload: true;
   content?: string;
+  messageCompleted?: boolean;
+  messagePhase?: 'commentary' | 'final_answer';
   reasoning?: AgentSessionItemReasoningView[];
   resources?: AgentSessionItemResourceView[];
   role?: AgentSessionItemView['role'];
@@ -84,6 +86,7 @@ export interface AgentSessionProviderPayloadViewFields {
 export interface ResolveAgentSessionProviderPayloadOptions {
   completedAt?: string | null;
   createdAt: string;
+  isStreaming?: boolean;
   itemId: string;
 }
 
@@ -732,6 +735,170 @@ function readHookPromptText(record: Record<string, unknown>): string {
     .slice(0, MAX_PROVIDER_TEXT_CHARACTERS);
 }
 
+function resolveCodexMessagePhase(value: unknown): 'commentary' | 'final_answer' | undefined {
+  return value === 'commentary' || value === 'final_answer' ? value : undefined;
+}
+
+const CODEX_MEMORY_CITATION_OPEN_TAG = '<oai-mem-citation>';
+
+function truncateCodexOpenMemoryCitation(value: string): string {
+  let citationIndex = value.indexOf(CODEX_MEMORY_CITATION_OPEN_TAG);
+  if (citationIndex < 0) {
+    return value;
+  }
+
+  let cursor = 0;
+  while (cursor < value.length) {
+    const delimiterStart = value.indexOf('`', cursor);
+    if (delimiterStart < 0) {
+      break;
+    }
+    let escapeCount = 0;
+    while (value[delimiterStart - escapeCount - 1] === '\\') {
+      escapeCount += 1;
+    }
+    if (escapeCount % 2 === 1) {
+      cursor = delimiterStart + 1;
+      continue;
+    }
+
+    let contentStart = delimiterStart + 1;
+    while (value[contentStart] === '`') {
+      contentStart += 1;
+    }
+    const delimiter = value.slice(delimiterStart, contentStart);
+    let delimiterEnd = value.indexOf(delimiter, contentStart);
+    while (
+      delimiterEnd >= 0
+      && (
+        value[delimiterEnd - 1] === '`'
+        || value[delimiterEnd + delimiter.length] === '`'
+      )
+    ) {
+      delimiterEnd = value.indexOf(delimiter, delimiterEnd + delimiter.length);
+    }
+    if (delimiterEnd < 0) {
+      cursor = contentStart;
+      continue;
+    }
+    if (
+      citationIndex >= contentStart
+      && citationIndex < delimiterEnd
+      && value.slice(contentStart, delimiterEnd).trim() === CODEX_MEMORY_CITATION_OPEN_TAG
+    ) {
+      citationIndex = value.indexOf(
+        CODEX_MEMORY_CITATION_OPEN_TAG,
+        citationIndex + CODEX_MEMORY_CITATION_OPEN_TAG.length,
+      );
+    }
+    cursor = delimiterEnd + delimiter.length;
+  }
+  return citationIndex < 0 ? value : value.slice(0, citationIndex);
+}
+
+function stripCodexExternalAgentToolBlocks(value: string): string {
+  const output: string[] = [];
+  let openBlockKind: 'call' | 'result' | null = null;
+  for (const line of value.split(/\r?\n/gu)) {
+    const trimmedLine = line.trim();
+    if (openBlockKind) {
+      const closingMatch = /^\[\/external_agent_tool_(call|result)\]$/u.exec(trimmedLine);
+      if (closingMatch?.[1] === openBlockKind) {
+        openBlockKind = null;
+      }
+      continue;
+    }
+    const openingMatch = /^\[external_agent_tool_(call|result)(?::[^\]]*)?\]$/u.exec(trimmedLine);
+    if (openingMatch) {
+      openBlockKind = openingMatch[1] as 'call' | 'result';
+      continue;
+    }
+    output.push(line);
+  }
+  return output.join('\n').replace(/\n{3,}/gu, '\n\n').trim();
+}
+
+function stripCodexAgentMessageMarkup(value: string, isStreaming: boolean): string {
+  const closedCitationPattern =
+    /<oai-mem-citation>(?:(?!<oai-mem-citation>).)*?<\/oai-mem-citation>/gsu;
+  let content = truncateCodexOpenMemoryCitation(value.replace(closedCitationPattern, ''));
+  const partialTagIndex = isStreaming ? content.lastIndexOf('<') : -1;
+  if (
+    partialTagIndex >= 0
+    && CODEX_MEMORY_CITATION_OPEN_TAG.startsWith(content.slice(partialTagIndex))
+  ) {
+    content = content.slice(0, partialTagIndex);
+  }
+  const trimmedStart = content.trimStart();
+  if (
+    content.trim() === '<EXTERNAL SESSION IMPORTED>'
+    || trimmedStart.startsWith('[external tool call:')
+    || trimmedStart.startsWith('[external tool result]')
+    || trimmedStart.startsWith('[external tool result:')
+  ) {
+    return '';
+  }
+  return stripCodexExternalAgentToolBlocks(content);
+}
+
+function normalizeCodexAgentMessageText(
+  value: string,
+  phase: 'commentary' | 'final_answer' | undefined,
+  isStreaming: boolean,
+): string {
+  let content = value;
+  if (phase === 'final_answer') {
+    const completeEnvelope = /^<!\[CDATA\[ ([\s\S]*) \]\]>$/u.exec(content);
+    if (completeEnvelope) {
+      content = completeEnvelope[1] ?? '';
+    } else if (isStreaming && content.startsWith('<![CDATA[ ')) {
+      content = content.slice('<![CDATA[ '.length);
+    }
+  }
+  return stripCodexAgentMessageMarkup(content, isStreaming);
+}
+
+function resolveCodexMemoryCitationResources(
+  record: Record<string, unknown>,
+  itemId: string,
+): unknown[] {
+  const citation = readRecord(record.memoryCitation ?? record.memory_citation);
+  if (!citation || !Array.isArray(citation.entries)) {
+    return [];
+  }
+  return citation.entries.slice(0, 32).flatMap((entry, index) => {
+    const citationEntry = readRecord(entry);
+    const path = readBoundedString(citationEntry?.path, 4_096);
+    if (!citationEntry || !path) {
+      return [];
+    }
+    const lineStart = typeof citationEntry.lineStart === 'number'
+      ? citationEntry.lineStart
+      : citationEntry.line_start;
+    const lineEnd = typeof citationEntry.lineEnd === 'number'
+      ? citationEntry.lineEnd
+      : citationEntry.line_end;
+    const note = readBoundedString(citationEntry.note, 4_000);
+    return [{
+      id: `${itemId}:memory-citation:${index + 1}`,
+      kind: 'citation',
+      path,
+      ...(note ? { description: note } : {}),
+      origin: {
+        kind: 'file',
+        path,
+        ...(typeof lineStart === 'number' ? { lineStart } : {}),
+        ...(typeof lineEnd === 'number' ? { lineEnd } : {}),
+      },
+      citation: {
+        ...(typeof lineStart === 'number' ? { lineStart } : {}),
+        ...(typeof lineEnd === 'number' ? { lineEnd } : {}),
+        ...(note ? { note } : {}),
+      },
+    }];
+  });
+}
+
 function resolveProviderFileResource(
   record: Record<string, unknown>,
   index: number,
@@ -822,6 +989,8 @@ export function resolveAgentSessionProviderPayload(
   let providerContentSnapshot: string | undefined;
   let providerReasoningDelta = '';
   let providerReasoningSnapshot = '';
+  let hasAgentMessage = false;
+  let messagePhase: AgentSessionProviderPayloadViewFields['messagePhase'];
   const openCodeReplayState: OpenCodePartReplayState = {
     partKeysByMessage: new Map(),
     parts: new Map(),
@@ -1043,7 +1212,25 @@ export function resolveAgentSessionProviderPayload(
       continue;
     }
 
-    const contentText = readProviderContentText(record, type);
+    const payload = resolveProviderEnvelopePayload(record);
+    const itemMessagePhase = type === 'agent_message'
+      ? resolveCodexMessagePhase(payload.phase)
+      : undefined;
+    if (itemMessagePhase) {
+      messagePhase = itemMessagePhase;
+    }
+    if (type === 'agent_message') {
+      hasAgentMessage = true;
+      resourceInputs.push(...resolveCodexMemoryCitationResources(payload, options.itemId));
+    }
+    const rawContentText = readProviderContentText(record, type);
+    const contentText = type === 'agent_message'
+      ? normalizeCodexAgentMessageText(
+          rawContentText,
+          itemMessagePhase,
+          options.isStreaming === true,
+        )
+      : rawContentText;
     if (contentText) {
       appendContent(contentText);
       consumed = true;
@@ -1140,6 +1327,8 @@ export function resolveAgentSessionProviderPayload(
   return {
     consumesToolPayload: true,
     ...(contentItems.length > 0 ? { content: contentItems.join('\n\n') } : {}),
+    ...(hasAgentMessage ? { messageCompleted: options.isStreaming !== true } : {}),
+    ...(messagePhase ? { messagePhase } : {}),
     ...(reasoningItems.length > 0 ? { reasoning: reasoningItems } : {}),
     ...(resources.length > 0 ? { resources } : {}),
     ...(hasAssistantContent ? { role: contentRole } : {}),

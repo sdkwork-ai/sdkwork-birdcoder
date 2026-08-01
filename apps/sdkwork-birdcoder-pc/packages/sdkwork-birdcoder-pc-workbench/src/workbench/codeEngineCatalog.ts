@@ -19,7 +19,23 @@ export interface WorkbenchCodeEngineModelDefinition {
   providerId: string;
   bindingId: string;
   defaultForEngine: boolean;
-  source: 'agents-catalog';
+  source: 'agents-catalog' | 'user-local';
+}
+
+export interface WorkbenchUnifiedCustomAgentModelDefinition {
+  configurationId: string;
+  modelId: string;
+  label: string;
+  description: string;
+  vendorCode: string;
+  baseUrl: string;
+  supportedModelIds: string[];
+  supportedProviderIds: string[];
+  inputContextTokens?: number;
+  outputContextTokens?: number;
+  toolCallRounds?: number;
+  supportsMultimodal: boolean;
+  apiKeyConfigured: boolean;
 }
 
 export interface WorkbenchCodeEngineAccessModeDefinition
@@ -53,6 +69,9 @@ export type WorkbenchCodeEngineSettingsMap = Partial<
 
 export interface WorkbenchCodeEngineSettingsCarrier {
   codeEngineSettings?: unknown;
+  unifiedCustomAgentModels?: unknown;
+  /** Legacy provider-partitioned preference key, read for migration only. */
+  customCodeModels?: unknown;
 }
 
 export interface WorkbenchChatSelection {
@@ -119,6 +138,15 @@ let catalogSnapshot = EMPTY_CATALOG_SNAPSHOT;
 let catalogLoad: Promise<readonly WorkbenchCodeEngineDefinition[]> | null = null;
 let catalogGeneration = 0;
 const catalogListeners = new Set<() => void>();
+const MAX_UNIFIED_CUSTOM_AGENT_MODELS = 64;
+const MAX_CUSTOM_MODEL_ID_LENGTH = 180;
+const MAX_CUSTOM_MODEL_LABEL_LENGTH = 120;
+const MAX_CUSTOM_MODEL_DESCRIPTION_LENGTH = 280;
+const MAX_CUSTOM_MODEL_CONFIGURATION_ID_LENGTH = 160;
+const MAX_CUSTOM_MODEL_VENDOR_LENGTH = 128;
+const MAX_CUSTOM_MODEL_BASE_URL_LENGTH = 2048;
+const MAX_CUSTOM_MODEL_PROVIDER_IDS = 16;
+const MAX_CUSTOM_MODEL_SUPPORTED_IDS = 256;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -130,6 +158,155 @@ function normalizeKey(value: unknown): string {
     .toLowerCase()
     .replace(/_/gu, '-')
     .replace(/\s+/gu, '-');
+}
+
+function normalizePositiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function normalizeStringList(
+  value: unknown,
+  maxItems: number,
+  maxLength: number,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const values: string[] = [];
+  const identities = new Set<string>();
+  for (const item of value) {
+    const normalized = String(item ?? '').trim().slice(0, maxLength);
+    const identity = normalized.toLowerCase();
+    if (!normalized || identities.has(identity)) {
+      continue;
+    }
+    identities.add(identity);
+    values.push(normalized);
+    if (values.length >= maxItems) {
+      break;
+    }
+  }
+  return values;
+}
+
+export function normalizeWorkbenchUnifiedCustomAgentModels(
+  value: unknown,
+): WorkbenchUnifiedCustomAgentModelDefinition[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const models: WorkbenchUnifiedCustomAgentModelDefinition[] = [];
+  const identities = new Set<string>();
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const modelId = String(entry.modelId ?? entry.id ?? '')
+      .trim()
+      .slice(0, MAX_CUSTOM_MODEL_ID_LENGTH);
+    const legacyEngineId = normalizeKey(entry.engineId);
+    const supportedProviderIds = normalizeStringList(
+      entry.supportedProviderIds ?? (legacyEngineId ? [legacyEngineId] : []),
+      MAX_CUSTOM_MODEL_PROVIDER_IDS,
+      64,
+    ).map(normalizeKey).filter(Boolean);
+    const vendorCode = String(entry.vendorCode ?? entry.vendor ?? '')
+      .trim()
+      .slice(0, MAX_CUSTOM_MODEL_VENDOR_LENGTH);
+    const baseUrl = String(entry.baseUrl ?? '')
+      .trim()
+      .replace(/\/+$/u, '')
+      .slice(0, MAX_CUSTOM_MODEL_BASE_URL_LENGTH);
+    if (!modelId || !vendorCode || !baseUrl || supportedProviderIds.length === 0) {
+      continue;
+    }
+    const configurationId = String(
+      entry.configurationId ?? `model.custom.${normalizeKey(vendorCode)}.${normalizeKey(modelId)}`,
+    ).trim().slice(0, MAX_CUSTOM_MODEL_CONFIGURATION_ID_LENGTH);
+    if (!configurationId) {
+      continue;
+    }
+    const identity = configurationId.toLowerCase();
+    if (identities.has(identity)) {
+      continue;
+    }
+    identities.add(identity);
+    const label = String(entry.label ?? entry.displayName ?? modelId)
+      .trim()
+      .slice(0, MAX_CUSTOM_MODEL_LABEL_LENGTH) || modelId;
+    models.push({
+      configurationId,
+      modelId,
+      label,
+      description: String(entry.description ?? '')
+        .trim()
+        .slice(0, MAX_CUSTOM_MODEL_DESCRIPTION_LENGTH),
+      vendorCode,
+      baseUrl,
+      supportedModelIds: normalizeStringList(
+        [modelId, ...normalizeStringList(
+          entry.supportedModelIds,
+          MAX_CUSTOM_MODEL_SUPPORTED_IDS,
+          256,
+        )],
+        MAX_CUSTOM_MODEL_SUPPORTED_IDS,
+        256,
+      ),
+      supportedProviderIds,
+      inputContextTokens: normalizePositiveInteger(entry.inputContextTokens),
+      outputContextTokens: normalizePositiveInteger(entry.outputContextTokens),
+      toolCallRounds: normalizePositiveInteger(entry.toolCallRounds),
+      supportsMultimodal: entry.supportsMultimodal === true,
+      apiKeyConfigured: entry.apiKeyConfigured === true,
+    });
+    if (models.length >= MAX_UNIFIED_CUSTOM_AGENT_MODELS) {
+      break;
+    }
+  }
+  return models;
+}
+
+function includeUnifiedCustomAgentModels(
+  engine: WorkbenchCodeEngineDefinition,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+): WorkbenchCodeEngineDefinition {
+  const customModels = normalizeWorkbenchUnifiedCustomAgentModels(
+    carrier?.unifiedCustomAgentModels ?? carrier?.customCodeModels,
+  ).filter((model) => model.supportedProviderIds.includes(engine.id));
+  if (customModels.length === 0) {
+    return engine;
+  }
+
+  const bindingModel = engine.models.find((model) => model.defaultForEngine) ?? engine.models[0];
+  if (!bindingModel) {
+    return engine;
+  }
+  const knownModelIds = new Set(engine.models.map((model) => model.id));
+  const localModels = customModels
+    .filter((model) => !knownModelIds.has(model.modelId))
+    .map((model): WorkbenchCodeEngineModelDefinition => ({
+      id: model.modelId,
+      label: model.label,
+      description: model.description,
+      vendor: vendorFromProvider(model.vendorCode),
+      modelVendor: vendorFromProvider(model.vendorCode),
+      providerId: bindingModel.providerId,
+      bindingId: bindingModel.bindingId || engine.bindingId,
+      defaultForEngine: false,
+      source: 'user-local',
+    }));
+  if (localModels.length === 0) {
+    return engine;
+  }
+  const models = [...engine.models, ...localModels];
+  return {
+    ...engine,
+    models,
+    modelCatalog: models,
+    modelIds: models.map((model) => model.id),
+  };
 }
 
 function titleCaseEngineId(engineId: string): string {
@@ -281,9 +458,9 @@ export function useModelCatalogLoaded(): boolean {
 }
 
 export function listWorkbenchCodeEngines(
-  _carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
 ): readonly WorkbenchCodeEngineDefinition[] {
-  return catalogSnapshot.engines;
+  return catalogSnapshot.engines.map((engine) => includeUnifiedCustomAgentModels(engine, carrier));
 }
 
 export function normalizeWorkbenchCodeEngineId(value: unknown): WorkbenchCodeEngineId | null {
@@ -302,15 +479,16 @@ export function normalizeWorkbenchCodeEngineId(value: unknown): WorkbenchCodeEng
 
 export function findWorkbenchCodeEngineDefinition(
   value: unknown,
-  _carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
 ): WorkbenchCodeEngineDefinition | null {
   const key = normalizeKey(value);
   if (!key) {
     return null;
   }
-  return catalogSnapshot.engines.find(
+  const engine = catalogSnapshot.engines.find(
     (engine) => engine.id === key || engine.aliases.some((alias) => normalizeKey(alias) === key),
-  ) ?? null;
+  );
+  return engine ? includeUnifiedCustomAgentModels(engine, carrier) : null;
 }
 
 export function findWorkbenchCodeEngineDefinitionForAgentId(
@@ -326,8 +504,9 @@ export function findWorkbenchCodeEngineDefinitionForAgentId(
 export function resolveWorkbenchRuntimeBindingIdentity(
   engineId: unknown,
   modelId: unknown,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
 ): WorkbenchRuntimeBindingIdentity {
-  const engine = findWorkbenchCodeEngineDefinition(engineId);
+  const engine = findWorkbenchCodeEngineDefinition(engineId, carrier);
   if (!engine) {
     throw new Error(`Agents did not publish code engine "${String(engineId)}".`);
   }
@@ -467,7 +646,10 @@ export function normalizeWorkbenchCodeEngineAccessModeId(
 
 export function normalizeWorkbenchCodeEngineSettingsMap(
   value: unknown,
-  options: { includeDefaults?: boolean } = {},
+  options: {
+    unifiedCustomAgentModels?: readonly WorkbenchUnifiedCustomAgentModelDefinition[];
+    includeDefaults?: boolean;
+  } = {},
 ): WorkbenchCodeEngineSettingsMap {
   const source = isRecord(value) ? value : {};
   const settings: WorkbenchCodeEngineSettingsMap = {};
@@ -477,11 +659,12 @@ export function normalizeWorkbenchCodeEngineSettingsMap(
   ]);
   for (const engineId of engineIds) {
     const entry = isRecord(source[engineId]) ? source[engineId] as Record<string, unknown> : {};
-    const definition = findWorkbenchCodeEngineDefinition(engineId);
+    const carrier = { unifiedCustomAgentModels: options.unifiedCustomAgentModels };
+    const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
     const candidate = String(
       entry.defaultModelId ?? entry.selectedModelId ?? entry.modelId ?? definition?.defaultModelId ?? '',
     ).trim();
-    const defaultModelId = normalizeWorkbenchCodeModelId(engineId, candidate);
+    const defaultModelId = normalizeWorkbenchCodeModelId(engineId, candidate, carrier);
     const accessModeId = normalizeWorkbenchCodeEngineAccessModeId(
       engineId,
       entry.accessModeId ?? definition?.defaultAccessModeId,

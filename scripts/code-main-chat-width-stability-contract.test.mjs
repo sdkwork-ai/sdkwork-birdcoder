@@ -9,8 +9,8 @@ const universalChatSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
-const transcriptMessageSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptMessage.tsx', import.meta.url),
+const transcriptSurfaceSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptSurface.tsx', import.meta.url),
   'utf8',
 );
 
@@ -28,24 +28,24 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /mx-auto w-full \$\{layout === 'main' \? 'max-w-\[880px\]' : ''\}/u,
-  'Main-layout composer must keep the canonical 880px centered content track.',
+  /mx-auto w-full \$\{layout === 'main' \? 'max-w-\[40rem\]' : ''\}/u,
+  'Main-layout composer must keep the Codex-aligned 40rem centered content track.',
 );
 
 assert.match(
-  transcriptMessageSource,
-  /className=\{`group flex w-full min-w-0 px-5 \$\{[\s\S]*?resolvedContext\.turn\.isStart \? 'pt-6' : 'pt-3'[\s\S]*?\}`\}/u,
-  'Main transcript rows must use the same 20px responsive horizontal inset as the composer.',
+  transcriptSurfaceSource,
+  /className=\{`group flex w-full min-w-0 px-6 \$\{[\s\S]*?turn\.isStart \? 'pt-6' : 'pt-3'[\s\S]*?\}`\}/u,
+  'Main transcript rows must use the same 24px responsive horizontal inset as the composer.',
 );
 
 assert.match(
-  transcriptMessageSource,
-  /className=\{`[^`]*mx-auto[^`]*max-w-\[880px\][^`]*`\}/u,
-  'Main transcript content must use the same 880px centered width as the composer.',
+  transcriptSurfaceSource,
+  /className=\{`[^`]*mx-auto[^`]*max-w-\[40rem\][^`]*`\}/u,
+  'Main transcript content must use the same 40rem centered width as the composer.',
 );
 
 assert.doesNotMatch(
-  transcriptMessageSource,
+  transcriptSurfaceSource,
   /max-w-3xl|md:px-8/u,
   'Main transcript must not retain the narrower legacy content track.',
 );

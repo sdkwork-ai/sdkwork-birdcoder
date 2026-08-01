@@ -11,6 +11,7 @@ import { Check, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { WorkbenchCodeEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { FullAccessConfirmationDialog } from './FullAccessConfirmationDialog';
 
 interface ComposerAccessModeControlProps {
   accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
@@ -55,6 +56,7 @@ export function ComposerAccessModeControl({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [menuOffsetLeft, setMenuOffsetLeft] = useState(0);
+  const [pendingAccessModeId, setPendingAccessModeId] = useState<string | null>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const enabledModeIndexes = useMemo(
     () => accessModes.flatMap((mode, index) => mode.enabled ? [index] : []),
@@ -108,6 +110,22 @@ export function ComposerAccessModeControl({
   const closeAndRestoreFocus = () => {
     onOpenChange(false);
     window.requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  const closeConfirmationAndRestoreFocus = () => {
+    setPendingAccessModeId(null);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  const handleModeSelect = (mode: WorkbenchCodeEngineAccessModeDefinition) => {
+    if (mode.riskLevel === 'unrestricted' && mode.id !== selectedMode?.id) {
+      onOpenChange(false);
+      setPendingAccessModeId(mode.id);
+      return;
+    }
+
+    onSelect(mode.id);
+    closeAndRestoreFocus();
   };
 
   const focusModeAt = (index: number) => {
@@ -265,8 +283,7 @@ export function ComposerAccessModeControl({
                   if (!mode.enabled) {
                     return;
                   }
-                  onSelect(mode.id);
-                  closeAndRestoreFocus();
+                  handleModeSelect(mode);
                 }}
                 onKeyDown={(event) => handleItemKeyDown(event, index)}
                 title={!mode.enabled ? description : undefined}
@@ -284,6 +301,17 @@ export function ComposerAccessModeControl({
           })}
         </div>
       ) : null}
+
+      <FullAccessConfirmationDialog
+        isOpen={pendingAccessModeId !== null}
+        onCancel={closeConfirmationAndRestoreFocus}
+        onConfirm={() => {
+          if (pendingAccessModeId) {
+            onSelect(pendingAccessModeId);
+          }
+          closeConfirmationAndRestoreFocus();
+        }}
+      />
     </div>
   );
 }

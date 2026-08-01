@@ -78,7 +78,12 @@ import {
   projectAgentTurnRuntimeEvent,
   projectAgentTurnRuntimeToolCall,
 } from '../workbench/agentTurnRuntimePresentation.ts';
-import { preserveAcceptedAgentTurnDeliveryError } from '../workbench/agentTurnDeliveryOutcome.ts';
+import {
+  isTerminalAgentTurnFailureError,
+  preserveAcceptedAgentTurnDeliveryError,
+  resolveAgentTurnUserFacingErrorMessage,
+  WorkbenchAgentTurnFailedError,
+} from '../workbench/agentTurnDeliveryOutcome.ts';
 import { useWorkspaceSessionInboxSynchronization } from './useWorkspaceSessionInboxSynchronization.ts';
 import {
   invalidateWorkspaceSessionInboxSynchronization,
@@ -164,6 +169,30 @@ interface WorkbenchAgentTurnSubmissionOptions {
 const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
 const MAX_TARGET_PROJECT_RESOLUTION_PAGES = 20;
+const RUNTIME_BINDING_PAGE_SIZE = 20;
+const MAX_RUNTIME_BINDING_PAGES = 20;
+
+async function loadActiveRuntimeBinding(
+  agentSessionService: ReturnType<typeof useIDEServices>['agentSessionService'],
+  identity: { agentId: string; sessionId: string },
+) {
+  for (let page = 1; page <= MAX_RUNTIME_BINDING_PAGES; page += 1) {
+    const response = await agentSessionService.listRuntimeBindings(identity, {
+      page,
+      pageSize: RUNTIME_BINDING_PAGE_SIZE,
+    });
+    const activeBinding = response.items.find((binding) =>
+      binding.isCurrent && binding.status === 'active',
+    );
+    if (activeBinding) {
+      return activeBinding;
+    }
+    if (!response.pageInfo.hasMore) {
+      return undefined;
+    }
+  }
+  throw new Error('Agents Runtime Binding list exceeded its bounded page scan.');
+}
 
 function sanitizeAgentSessionItemUpdates(
   updates: Partial<AgentSessionItemView>,
@@ -521,6 +550,36 @@ function readProjectInventoryPageWithTimeout(
   }).finally(() => {
     clearTimeout(timeoutHandle);
   });
+}
+
+function buildAgentTurnFailureNotice(
+  sessionId: string,
+  turnId: string,
+  failedAt: string,
+  errorCode?: string | null,
+  errorDetail?: string | null,
+): AgentSessionItemView {
+  const detail = errorDetail?.trim() || '';
+  const content = detail
+    ? `Provider request failed: ${detail}`
+    : 'Provider request failed';
+  return {
+    id: `${sessionId}:turn-failed:${turnId}`,
+    sessionId,
+    turnId,
+    role: 'system',
+    content,
+    metadata: {
+      agentItemKind: 'error_notice',
+      agentItemStatus: 'failed',
+      noticeKind: 'failed',
+      terminalFailure: true,
+      ...(errorCode?.trim() ? { errorCode: errorCode.trim() } : {}),
+    },
+    createdAt: failedAt,
+    completedAt: failedAt,
+    timestamp: Date.parse(failedAt),
+  };
 }
 
 async function fetchProjects(
@@ -1616,7 +1675,10 @@ export function useProjects(options?: UseProjectsOptions) {
           page: 1,
           pageSize: 1,
         }),
-        agentSessionService.listRuntimeBindings(parentIdentity, { page: 1, pageSize: 20 }),
+        agentSessionService.listRuntimeBindings(parentIdentity, {
+          page: 1,
+          pageSize: RUNTIME_BINDING_PAGE_SIZE,
+        }),
       ]);
       const lastTurn = parentTurnPage.items[0];
       if (parentSession.projectId?.trim() !== project.projectId) {
@@ -1624,7 +1686,14 @@ export function useProjects(options?: UseProjectsOptions) {
           `Agent session ${agentSessionId} does not belong to Agents project ${project.projectId}.`,
         );
       }
-      const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+      const currentBinding = runtimeBindingPage.items.find((binding) =>
+        binding.isCurrent && binding.status === 'active',
+      );
+      if (!currentBinding) {
+        throw new Error(
+          `Agent session ${agentSessionId} does not have an active runtime binding and cannot be forked.`,
+        );
+      }
       const createForkedSession = () => agentSessionService.createSession({
         agentId: parentSession.agentId,
         forkedFromTurnId: lastTurn?.turnId,
@@ -1634,36 +1703,31 @@ export function useProjects(options?: UseProjectsOptions) {
         sourceContextKind: 'agent-project',
         title: newTitle?.trim() || `${parentSession.title?.trim() || 'Session'} (fork)`,
       });
-      const provisionedFork = currentBinding
-        ? await createBoundAgentSession({
-            createSession: createForkedSession,
-            createRuntimeBinding: (createdSession) =>
-              agentSessionService.createRuntimeBinding({
-                agentId: createdSession.agentId,
-                sessionId: createdSession.sessionId,
-              }, {
-                runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
-                hostMode: currentBinding.hostMode,
-                transportKind: currentBinding.transportKind,
-                providerBindingId: currentBinding.providerBindingId,
-                modelId: currentBinding.modelId,
-                providerId: currentBinding.providerId,
-                providerParentSessionId: currentBinding.providerSessionId ?? undefined,
-                providerForkedFromSessionId: currentBinding.providerSessionId ?? undefined,
-                requestedAt: new Date().toISOString(),
-              }),
-            deleteCreatedSession: (createdSession) =>
-              agentSessionService.deleteSession({
-                agentId: createdSession.agentId,
-                sessionId: createdSession.sessionId,
-              }),
-          })
-        : {
-            runtimeBinding: null,
-            session: await createForkedSession(),
-          };
+      const provisionedFork = await createBoundAgentSession({
+        createSession: createForkedSession,
+        createRuntimeBinding: (createdSession) =>
+          agentSessionService.createRuntimeBinding({
+            agentId: createdSession.agentId,
+            sessionId: createdSession.sessionId,
+          }, {
+            runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
+            hostMode: currentBinding.hostMode,
+            transportKind: currentBinding.transportKind,
+            providerBindingId: currentBinding.providerBindingId,
+            modelId: currentBinding.modelId,
+            providerId: currentBinding.providerId,
+            providerParentSessionId: currentBinding.providerSessionId ?? undefined,
+            providerForkedFromSessionId: currentBinding.providerSessionId ?? undefined,
+            requestedAt: new Date().toISOString(),
+          }),
+        deleteCreatedSession: (createdSession) =>
+          agentSessionService.deleteSession({
+            agentId: createdSession.agentId,
+            sessionId: createdSession.sessionId,
+          }),
+      });
       const forkedSession = provisionedFork.session;
-      const forkedRuntimeBinding = provisionedFork.runtimeBinding ?? currentBinding;
+      const forkedRuntimeBinding = provisionedFork.runtimeBinding;
       const agentSession = toAgentSessionView(forkedSession, {
         projectId: project.projectId,
         engineId: project.agentSessions.find((candidate) => candidate.id === agentSessionId)?.engineId,
@@ -1895,8 +1959,62 @@ export function useProjects(options?: UseProjectsOptions) {
     ) {
       throw new Error('Queued Agent Turn execution identity does not match the selected Session.');
     }
-    const runtimeBindingId = queueExecution?.runtimeBindingId?.trim()
+    let runtimeBindingId = queueExecution?.runtimeBindingId?.trim()
       || selectedSession.runtimeBindingId?.trim();
+    if (
+      queueExecution?.runtimeBindingId?.trim()
+      && selectedSession.runtimeBindingId?.trim()
+      && queueExecution.runtimeBindingId.trim() !== selectedSession.runtimeBindingId.trim()
+    ) {
+      throw new Error('Queued Agent Turn runtime binding no longer matches the active Session binding.');
+    }
+    let activeBinding;
+    try {
+      activeBinding = await loadActiveRuntimeBinding(agentSessionService, {
+        agentId: selectedSession.agentId,
+        sessionId: selectedSession.id,
+      });
+    } catch (error) {
+      throw new Error(
+        `Agent session ${agentSessionId} does not have a verified active runtime binding.`,
+        { cause: error },
+      );
+    }
+    if (!activeBinding) {
+      throw new Error(
+        `Agent session ${agentSessionId} does not have an active runtime binding.`,
+      );
+    }
+    if (
+      queueExecution?.runtimeBindingId?.trim()
+      && queueExecution.runtimeBindingId.trim() !== activeBinding.runtimeBindingId
+    ) {
+      throw new Error('Queued Agent Turn runtime binding is no longer active for this Session.');
+    }
+    runtimeBindingId = activeBinding.runtimeBindingId;
+    if (
+      runtimeBindingId !== selectedSession.runtimeBindingId?.trim()
+      || selectedSession.runtimeStatus === 'unknown'
+      || selectedSession.runtimeStatus === 'stale'
+    ) {
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+          ...agentSession,
+          runtimeBindingId: activeBinding.runtimeBindingId,
+          runtimeLocationId: activeBinding.runtimeLocationId ?? undefined,
+          hostMode:
+            activeBinding.hostMode === 'desktop' || activeBinding.hostMode === 'server'
+              ? activeBinding.hostMode
+              : agentSession.hostMode,
+          transportKind: activeBinding.transportKind,
+          providerSessionId: activeBinding.providerSessionId ?? undefined,
+          providerBindingId: activeBinding.providerBindingId,
+          providerId: activeBinding.providerId,
+          modelId: activeBinding.modelId,
+          runtimeStatus: activeBinding.providerSessionId ? 'unknown' : 'ready',
+        })),
+      );
+    }
     if (!runtimeBindingId) {
       throw new Error(
         `Agent session ${agentSessionId} does not have an active runtime binding.`,
@@ -2045,6 +2163,22 @@ export function useProjects(options?: UseProjectsOptions) {
         selectedSession,
       );
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
+      const hasCanonicalFailureNotice = submittedItems.some((item) =>
+        item.turnId === completed.turn.turnId
+        && item.metadata?.noticeKind === 'failed',
+      );
+      const terminalItems = completed.turn.status === 'failed' && !hasCanonicalFailureNotice
+        ? [
+          ...submittedItems,
+          buildAgentTurnFailureNotice(
+            agentSessionId,
+            completed.turn.turnId,
+            activityAt,
+            completed.turn.errorCode,
+            completed.turn.errorDetail,
+          ),
+        ]
+        : submittedItems;
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
           const resolvedUserItem = submittedItems.find((item) => item.role === 'user');
@@ -2057,7 +2191,7 @@ export function useProjects(options?: UseProjectsOptions) {
             : removeAgentSessionItemById(itemsWithoutStream, optimisticItem.id);
           return {
             ...agentSession,
-            items: submittedItems.reduce(
+            items: terminalItems.reduce(
               (items, item) => appendAgentSessionItemIfMissing(items, item),
               reconciledItems,
             ),
@@ -2077,6 +2211,12 @@ export function useProjects(options?: UseProjectsOptions) {
       );
       if (didAuthorityAcceptTurn) {
         void invalidateWorkspaceSessionInbox();
+      }
+      if (completed.turn.status === 'failed') {
+        throw new WorkbenchAgentTurnFailedError(
+          completed.turn.errorCode,
+          completed.turn.errorDetail,
+        );
       }
       return submittedItems.find((item) => item.role === 'user') ?? submittedItems.at(-1);
     } catch (error: unknown) {
@@ -2107,15 +2247,15 @@ export function useProjects(options?: UseProjectsOptions) {
       if (shouldPreserveOptimisticTurn) {
         void invalidateWorkspaceSessionInbox();
       }
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to send message';
+      const message = resolveAgentTurnUserFacingErrorMessage(
+        error,
+        'Failed to send message.',
+      );
       setStoreSnapshot((previousSnapshot) => ({
         ...previousSnapshot,
         error: message,
       }));
-      throw shouldPreserveOptimisticTurn
+      throw shouldPreserveOptimisticTurn && !isTerminalAgentTurnFailureError(error)
         ? preserveAcceptedAgentTurnDeliveryError(error)
         : error;
     } finally {

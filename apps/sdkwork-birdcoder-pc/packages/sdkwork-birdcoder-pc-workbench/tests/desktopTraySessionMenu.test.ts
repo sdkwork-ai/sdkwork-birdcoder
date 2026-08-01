@@ -105,6 +105,16 @@ describe('desktop tray session menu', () => {
         id: 'archived',
         updatedAt: '2026-07-29T10:09:00.000Z',
       }),
+      session({
+        id: 'provider-archived',
+        providerArchived: true,
+        updatedAt: '2026-07-29T10:10:00.000Z',
+      }),
+      session({
+        id: 'provider-hidden',
+        providerVisible: false,
+        updatedAt: '2026-07-29T10:11:00.000Z',
+      }),
     ];
 
     const snapshot = buildDesktopTraySessionMenuSnapshot({
@@ -151,6 +161,45 @@ describe('desktop tray session menu', () => {
     expect(snapshot.recent).toEqual([
       expect.objectContaining({ projectId: 'project.one', sessionId: 'shared-id' }),
       expect.objectContaining({ projectId: 'project.two', sessionId: 'shared-id' }),
+    ]);
+  });
+
+  it('uses provider pin and recency ordering consistently with the Session inbox', () => {
+    const sessions = [
+      session({
+        id: 'provider-newest',
+        providerRecencyAt: '2026-07-29T12:00:00.000Z',
+        providerSessionId: 'provider-newest',
+        providerSortKey: '2',
+        updatedAt: '2026-07-29T09:00:00.000Z',
+      }),
+      session({
+        id: 'provider-pinned',
+        providerPinned: true,
+        providerRecencyAt: '2026-07-29T08:00:00.000Z',
+        providerSessionId: 'provider-pinned',
+        providerSortKey: '1',
+        updatedAt: '2026-07-29T08:00:00.000Z',
+      }),
+      session({
+        id: 'activity-newest',
+        providerRecencyAt: '2026-07-29T07:00:00.000Z',
+        providerSessionId: 'activity-newest',
+        providerSortKey: '3',
+        updatedAt: '2026-07-29T13:00:00.000Z',
+      }),
+    ];
+
+    const snapshot = buildDesktopTraySessionMenuSnapshot({
+      labels,
+      newChatEnabled: true,
+      projects: [project('project.one', 'BirdCoder', sessions)],
+    });
+
+    expect(snapshot.recent.map(({ sessionId }) => sessionId)).toEqual([
+      'provider-pinned',
+      'provider-newest',
+      'activity-newest',
     ]);
   });
 

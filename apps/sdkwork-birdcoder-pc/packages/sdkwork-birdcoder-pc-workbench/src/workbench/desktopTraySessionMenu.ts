@@ -1,9 +1,12 @@
 import {
-  compareAgentSessionViewSortTimestamps,
   isAgentSessionViewExecuting,
   type AgentProjectView,
   type AgentSessionView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  compareAgentSessionInboxEntries,
+  isAgentSessionVisibleInInbox,
+} from './sessionInbox.ts';
 
 const RUNNING_SESSION_LIMIT = 3;
 const PINNED_SESSION_LIMIT = 5;
@@ -55,7 +58,7 @@ function compareSessionLocationsByActivity(
   right: SessionLocation,
 ): number {
   return (
-    compareAgentSessionViewSortTimestamps(right.session, left.session)
+    compareAgentSessionInboxEntries(left.session, right.session, 'provider')
     || left.project.name.localeCompare(right.project.name)
     || left.session.title.localeCompare(right.session.title)
     || left.session.id.localeCompare(right.session.id)
@@ -89,8 +92,7 @@ export function buildDesktopTraySessionMenuSnapshot({
       project.status === 'active'
       && project.projectId.trim().length > 0
       && session.id.trim().length > 0
-      && session.status !== 'archived'
-      && session.archived !== true
+      && isAgentSessionVisibleInInbox(session)
     ))
     .sort(compareSessionLocationsByActivity);
 

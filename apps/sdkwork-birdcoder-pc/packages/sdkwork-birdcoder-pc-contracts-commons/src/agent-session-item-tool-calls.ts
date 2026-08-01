@@ -2081,6 +2081,23 @@ export function normalizeAgentSessionItemToolCall(
   const mcpIdentity = kind === 'mcp'
     ? resolveMcpIdentity(record, name ?? 'tool', options.engineId)
     : null;
+  const mcpAppContext = kind === 'mcp'
+    ? readToolCallRecord(record.appContext ?? record.app_context)
+    : null;
+  const mcpAppResourceUri = kind === 'mcp'
+    ? (
+        readFirstString(record, [
+          'mcpAppResourceUri',
+          'mcp_app_resource_uri',
+          'invocationResourceUri',
+          'invocation_resource_uri',
+        ])
+        || readFirstString(mcpAppContext, ['resourceUri', 'resource_uri'])
+      ).slice(0, 4_096)
+    : '';
+  const pluginId = kind === 'mcp'
+    ? readFirstString(record, ['pluginId', 'plugin_id']).slice(0, 256)
+    : '';
   const normalizedName = mcpIdentity?.toolName ?? name ?? 'tool';
   const argumentsRecord = parseArgumentsRecord(argumentsText);
   const command = kind === 'command'
@@ -2105,7 +2122,21 @@ export function normalizeAgentSessionItemToolCall(
   const presentation = readNonEmptyString(record.presentation) === 'notice'
     ? 'notice' as const
     : undefined;
-  const resultBlocks = resolveAgentSessionItemToolCallResultBlocks(record, protocolStatus);
+  const resultBlocks = [
+    ...resolveAgentSessionItemToolCallResultBlocks(record, protocolStatus),
+  ];
+  if (
+    mcpAppResourceUri
+    && !resultBlocks.some((block) => block.type === 'resource' && block.uri === mcpAppResourceUri)
+  ) {
+    resultBlocks.push({
+      type: 'resource',
+      uri: mcpAppResourceUri,
+      ...(pluginId || mcpIdentity?.serverName
+        ? { name: pluginId || mcpIdentity?.serverName }
+        : {}),
+    });
+  }
   const status = protocolStatus === 'cancelled'
     ? protocolStatus
     : resultBlocks.some((block) => block.type === 'error')
@@ -2134,6 +2165,8 @@ export function normalizeAgentSessionItemToolCall(
     ...(command ? { command } : {}),
     ...(target ? { target } : {}),
     ...(mcpIdentity?.serverName ? { serverName: mcpIdentity.serverName } : {}),
+    ...(mcpAppResourceUri ? { mcpAppResourceUri } : {}),
+    ...(pluginId ? { pluginId } : {}),
     ...(title ? { title } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(exitCode !== undefined ? { exitCode } : {}),

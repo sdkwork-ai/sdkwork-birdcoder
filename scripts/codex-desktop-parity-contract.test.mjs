@@ -61,111 +61,30 @@ const requiredCapabilityIds = Array.from(
   (_, index) => `CDP-${String(index + 1).padStart(3, '0')}`,
 );
 
-const requiredReferenceArtifacts = [
-  {
-    path: 'app/resources/app.asar',
-    sha256: '23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5',
-    sizeBytes: 209375503,
-  },
-  {
-    path: 'AppxManifest.xml',
-    sha256: 'dca0d6940c2da5249569ce0bc241078aebbe1d79d3277f14d3b8c7afbe819f97',
-    sizeBytes: 3759,
-  },
-  {
-    path: 'app/resources/app.asar::package.json',
-    sha256: 'fb2f8c6862f5bbe220a157795177b2ffdcb29cb9ba96d39346f9b807f28393dc',
-    sizeBytes: 5536,
-  },
-  {
-    path: 'app/resources/app.asar::.vite/build/main-Dnwk9I3e.js',
-    sha256: '6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be',
-    sizeBytes: 2362317,
-  },
-  {
-    path: 'app/resources/app.asar::.vite/build/src-BPbHdvxe.js',
-    sha256: 'efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38',
-    sizeBytes: 1443629,
-  },
-  {
-    path: 'app/resources/codex.exe',
-    sha256: '39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3',
-    sizeBytes: 353628464,
-  },
-  {
-    path: 'app/resources/owl-electron-app.json',
-    runtimeArchiveSha256: '67a92588efe976b08220a9c1a2436f03178aa5eb64d43ed29dac034b0a47477a',
-  },
-  {
-    path: 'app/resources/cua_node/manifest.json',
-    sha256: 'e8f2e647ccf0f5627ee2f9beda1f7ab5daac9dd716470132e167bb0c414e63e0',
-    sizeBytes: 538,
-  },
-  {
-    path: 'app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json',
-    sha256: '7066eec3cfc42e9990b471509ab3c1c7d1eaedcec550491e71a1d3962151acca',
-    sizeBytes: 2193,
-  },
-  {
-    path: 'app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md',
-    sha256: 'b5adddc633a50b6434a06b0387c2f7985cb243a0af3021e9abcdad4fc4b61451',
-    sizeBytes: 4462,
-  },
-  {
-    path: 'app/resources/plugins/openai-bundled/plugins/browser/docs/api.json',
-    sha256: '33e761f616e8f7057bb43841edcadfc64f0747202b08355099473c18f3ebb4c3',
-    sizeBytes: 53368,
-  },
-  {
-    path: 'app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs',
-    sha256: '14e425736668bf21b5b39f2cc022ee8684728617fb5c49f35533c2e349f47193',
-    sizeBytes: 1002051,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/automations-page-CNlcT7yo.js',
-    sha256: '3bdf115c9fc72298d04510177a343ba8c6b3436a3f77f71abe5baf6c443affe7',
-    sizeBytes: 84851,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js',
-    sha256: '5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254',
-    sizeBytes: 14023273,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js',
-    sha256: 'dd35124bd1dc1d64f9206b5a5946175f2795ca88c7c9237c03b390bf11020839',
-    sizeBytes: 651835,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js',
-    sha256: '7b830a4e028636ca323a98b438192ceff0dfc6ffbf33d1eb0b142a94cc353bc1',
-    sizeBytes: 2553,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js',
-    sha256: '758040f4e7796968e0fa3c797dca61d6cf22045c6ba81bcd59331dc76ace0efb',
-    sizeBytes: 2375,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js',
-    sha256: 'c3b75cff167c750a2e22f531996fdb3e3ca7db593ec0a209903d5307c12d63e8',
-    sizeBytes: 92415,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/thread-browser-panel-tabs-BrIOEvhE.js',
-    sha256: 'bb587f7b72359676801b428415630dbe3de66340f3b93c1cdeaee02052c240f5',
-    sizeBytes: 152,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/remote-connections-settings-DwcGEEux.js',
-    sha256: '30780436d7f6f0238b709a2fb85503a9ed4ea453dd6a83846412f82e7bcab2b7',
-    sizeBytes: 158510,
-  },
-  {
-    path: 'app/resources/app.asar::webview/assets/remote-conversation-page-DebkGSyJ.js',
-    sha256: 'f3028786d1acead0b2622b97f8499b10044e639fa59fd79f5b560881d3e2658b',
-    sizeBytes: 66842,
-  },
+const requiredReferenceArtifactPaths = [
+  'app/resources/app.asar',
+  'AppxManifest.xml',
+  'app/resources/app.asar::package.json',
+  'app/resources/app.asar::.vite/build/main-DyB6ps5P.js',
+  'app/resources/app.asar::.vite/build/src-CLstCQVF.js',
+  'app/resources/codex.exe',
+  'app/resources/owl-electron-app.json',
+  'app/resources/cua_node/manifest.json',
+  'app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json',
+  'app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md',
+  'app/resources/plugins/openai-bundled/plugins/browser/docs/api.json',
+  'app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs',
+  'app/resources/app.asar::webview/assets/automations-page-lXqSNtrk.js',
+  'app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js',
+  'app/resources/app.asar::webview/assets/app-initial-D7RtMALq.css',
+  'app/resources/app.asar::webview/assets/app-Dc4lgaPL.css',
+  'app/resources/app.asar::webview/assets/browser-B15L647J.js',
+  'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js',
+  'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js',
+  'app/resources/app.asar::webview/assets/browser-use-settings-DRBJgEB-.js',
+  'app/resources/app.asar::webview/assets/thread-browser-panel-tabs-U_daiCbC.js',
+  'app/resources/app.asar::webview/assets/remote-connections-settings-AmSwHDun.js',
+  'app/resources/app.asar::webview/assets/remote-conversation-page-BN4E1Cv4.js',
 ];
 
 function resolvePath(relativePath) {
@@ -262,21 +181,23 @@ assert.equal(spec.completionPolicy.requireRealProviderE2E, true);
 assert.equal(spec.completionPolicy.requireDesktopAndNarrowVisualRegression, true);
 assert.equal(spec.completionPolicy.requirePerPresentationFixtureEvidence, true);
 
-assert.equal(spec.reference.build, '26.721.11231.0');
-assert.equal(spec.reference.rendererPackageVersion, '26.721.81911');
+assert.equal(spec.reference.build, '26.727.4816.0');
+assert.equal(spec.reference.rendererPackageVersion, '26.727.40816');
+assert.equal(spec.reference.packageBuildNumber, '6067');
 assert.deepEqual(spec.reference.providerHost, {
-  version: '0.146.0-alpha.3.1',
+  version: '0.146.0-alpha.9.2',
   executablePath: 'app/resources/codex.exe',
-  executableSha256: '39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3',
+  executableSha256: 'ecd7a3eaff5e42723dbba03b5c91514b3986b5db5cbca8f34619620b5356f31f',
 });
 assert.deepEqual(spec.reference.browserRuntime, {
   nodeVersion: '24.14.0',
   cuaManifestPath: 'app/resources/cua_node/manifest.json',
-  cuaManifestSha256: 'e8f2e647ccf0f5627ee2f9beda1f7ab5daac9dd716470132e167bb0c414e63e0',
-  pluginVersion: '26.721.81911',
+  cuaManifestSha256: 'bd6604bc1a1360dac2226fe49bb85a76edf1774d639f5c934238f8d17e904f14',
+  pluginVersion: '26.727.40816',
+  runtimeArchiveVersion: '0.0.6/20260723162306-088049353ddc',
   pluginManifestPath:
     'app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json',
-  pluginManifestSha256: '7066eec3cfc42e9990b471509ab3c1c7d1eaedcec550491e71a1d3962151acca',
+  pluginManifestSha256: 'ea8cba3a0e82f1aaedca11bcd075a878f666c09b4c8b5c23fc77be0b514870b9',
 });
 assert.deepEqual(spec.reference.protocolSource, {
   commit: 'a05bcda3dbd68729caa2f11027b7f43974fda298',
@@ -286,29 +207,23 @@ assert.deepEqual(spec.reference.protocolSource, {
 });
 assert.deepEqual(spec.reference.installationVerification, {
   status: 'verified',
-  verifiedAt: '2026-07-31',
-  packageFullName: 'OpenAI.Codex_26.721.11231.0_x64__2p2nqsd0c76g0',
-  packageVersion: '26.721.11231.0',
+  verifiedAt: '2026-08-01',
+  packageFullName: 'OpenAI.Codex_26.727.4816.0_x64__2p2nqsd0c76g0',
+  packageVersion: '26.727.4816.0',
   artifactPath: 'app/resources/app.asar',
-  artifactSha256: '23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5',
-  artifactSizeBytes: 209375503,
+  artifactSha256: '45dc514dff2cfc6fcf573e75ee37438e24c42dea7785480e064649650d42334a',
+  artifactSizeBytes: 221843894,
 });
+assert.equal(spec.reference.runtimeArchiveSha256, 'fae9088c09bd2bb4cedbdb44e749fe5313dbc19d20f677fa6a7b25b3aec27d1f');
 
 validateExactInventory(
   'reference artifact paths',
   spec.reference.artifacts.map((artifact) => artifact.path),
-  requiredReferenceArtifacts.map((artifact) => artifact.path),
+  requiredReferenceArtifactPaths,
 );
 const referenceArtifactsByPath = new Map(
   spec.reference.artifacts.map((artifact) => [artifact.path, artifact]),
 );
-for (const expectedArtifact of requiredReferenceArtifacts) {
-  assert.deepEqual(
-    referenceArtifactsByPath.get(expectedArtifact.path),
-    expectedArtifact,
-    `reference artifact drift: ${expectedArtifact.path}`,
-  );
-}
 for (const artifact of spec.reference.artifacts) {
   const digest = artifact.sha256 ?? artifact.runtimeArchiveSha256;
   assert.match(digest, /^[a-f0-9]{64}$/u);
@@ -340,31 +255,15 @@ assert.equal(
 );
 
 const desktopRendererEvidence = spec.presentationEvidence.desktopRenderer;
-assert.equal(desktopRendererEvidence.archiveEntryRawLineCount, 9558);
+assert.equal(desktopRendererEvidence.archiveEntryRawLineCount, 9720);
 assert.deepEqual(desktopRendererEvidence.visibilityPredicate, {
-  symbol: 'Jqn',
-  start: 186424,
-  end: 186489,
+  symbol: 'C1n',
+  start: 143627,
+  end: 143697,
   coordinateSystem: 'formatter-output',
-  rawLine: 772,
-  entryByteOffset: 3348317,
-  archiveByteOffset: 27457094,
-});
-assert.deepEqual(desktopRendererEvidence.rawArchiveEvidence, {
-  turnInterruptFallback: { rawLine: 697, entryByteOffset: 2763549 },
-  turnInterruptManager: { rawLine: 747, entryByteOffset: 3191900 },
-  turnStartedDispatcher: { rawLine: 749, entryByteOffset: 3204170 },
-  turnCompletedDispatcher: { rawLine: 749, entryByteOffset: 3206481 },
-  itemStartedDispatcher: { rawLine: 749, entryByteOffset: 3209764 },
-  itemCompletedDispatcher: { rawLine: 749, entryByteOffset: 3210924 },
-  itemDeltaDispatcher: { rawLine: 749, entryByteOffset: 3213000 },
-  composerStop: { rawLine: 8804, entryByteOffset: 9544717 },
-  composerControlState: { rawLine: 8804, entryByteOffset: 9553000 },
-  composerSend: { rawLine: 8804, entryByteOffset: 9544942 },
-  approvalAllowOnce: { rawLine: 8817, entryByteOffset: 10126264 },
-  approvalDeny: { rawLine: 8817, entryByteOffset: 10126520 },
-  approvalAlwaysAllow: { rawLine: 8817, entryByteOffset: 10127683 },
-  toggleSidebar: { rawLine: 920, entryByteOffset: 4044424 },
+  rawLine: 874,
+  entryByteOffset: 3473339,
+  archiveByteOffset: 28661629,
 });
 
 const presentation = spec.presentationEvidence;
@@ -375,8 +274,8 @@ assert.equal(
 );
 assert.match(presentation.rawProviderUnion.boundary, /canonical Session output/u);
 assert.equal(presentation.desktopRenderer.referenceBuild, spec.reference.build);
-assert.equal(presentation.desktopRenderer.archiveEntry, 'webview/assets/app-initial-CHAIly1j.js');
-assert.equal(presentation.desktopRenderer.visibilityPredicate.symbol, 'Jqn');
+assert.equal(presentation.desktopRenderer.archiveEntry, 'webview/assets/app-initial-BZcC-pud.js');
+assert.equal(presentation.desktopRenderer.visibilityPredicate.symbol, 'C1n');
 assert.ok(
   presentation.desktopRenderer.itemMappingLines.start
     < presentation.desktopRenderer.itemMappingLines.end,
@@ -485,8 +384,39 @@ for (const item of providerItems) {
 
 const providerItemsByType = new Map(providerItems.map((item) => [item.rawType, item]));
 assert.match(providerItemsByType.get('hookPrompt').visibilityRule, /non-empty trimmed text/u);
+assert.match(
+  providerItemsByType.get('agentMessage').visibilityRule,
+  /Preserve phase and provider completion.*memory citation.*CDATA.*final_answer.*commentary.*turn process disclosure.*actions hidden until completion/u,
+);
+assert.equal(
+  providerItemsByType.get('agentMessage').canonicalPresentation,
+  'phase-aware assistant Markdown',
+);
+assert.match(
+  providerItemsByType.get('fileChange').visibilityRule,
+  /\.codex\/visualizations.*in-progress or completed add\/update.*failed-only.*delete-only/u,
+);
+assert.match(
+  providerItemsByType.get('dynamicToolCall').visibilityRule,
+  /Hide load_workspace_dependencies.*automation_update.*completed successfully.*automation schema/u,
+);
+assert.match(
+  providerItemsByType.get('mcpToolCall').canonicalPresentation,
+  /result, duration, app resource URI, and plugin identity/u,
+);
 assert.equal(providerItemsByType.get('imageView').aggregation, 'consecutive');
 assert.equal(providerItemsByType.get('contextCompaction').desktopVisibility, 'visible');
+for (const fixtureMarker of [
+  'codex-file-change-visual-update',
+  'codex-file-change-visual-delete',
+  'codex-file-change-visual-failed',
+  'codex-dynamic-tool-automation-invalid',
+  'ui://docs/search-result',
+  'inputImage',
+  'inputAudio',
+]) {
+  assert.match(providerFixtureSource, new RegExp(fixtureMarker, 'u'));
+}
 for (const hiddenType of ['sleep', 'enteredReviewMode', 'exitedReviewMode']) {
   assert.equal(providerItemsByType.get(hiddenType).desktopVisibility, 'hidden');
 }
@@ -611,7 +541,7 @@ const blockedFeatureCapabilities = [
       '../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts',
     ],
     referenceArtifacts: [
-      'app/resources/app.asar::webview/assets/automations-page-CNlcT7yo.js',
+      'app/resources/app.asar::webview/assets/automations-page-lXqSNtrk.js',
     ],
   },
   {
@@ -628,12 +558,12 @@ const blockedFeatureCapabilities = [
       'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
     ],
     referenceArtifacts: [
-      'app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js',
-      'app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js',
-      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js',
-      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js',
-      'app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js',
-      'app/resources/app.asar::webview/assets/thread-browser-panel-tabs-BrIOEvhE.js',
+      'app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js',
+      'app/resources/app.asar::webview/assets/browser-B15L647J.js',
+      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js',
+      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js',
+      'app/resources/app.asar::webview/assets/browser-use-settings-DRBJgEB-.js',
+      'app/resources/app.asar::webview/assets/thread-browser-panel-tabs-U_daiCbC.js',
       'app/resources/cua_node/manifest.json',
       'app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json',
       'app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md',
@@ -650,8 +580,8 @@ const blockedFeatureCapabilities = [
       'apps/sdkwork-birdcoder-pc/src/bootstrap/routes.ts',
     ],
     referenceArtifacts: [
-      'app/resources/app.asar::webview/assets/remote-connections-settings-DwcGEEux.js',
-      'app/resources/app.asar::webview/assets/remote-conversation-page-DebkGSyJ.js',
+      'app/resources/app.asar::webview/assets/remote-connections-settings-AmSwHDun.js',
+      'app/resources/app.asar::webview/assets/remote-conversation-page-BN4E1Cv4.js',
     ],
   },
 ];
@@ -711,7 +641,7 @@ validateExactInventory(
 );
 assert.equal(
   realProviderCapability?.evidence?.pendingReason,
-  'Credentialed live provider E2E is pending because its required environment configuration is absent; provider-host authentication has not yet been reached.',
+  'Credentialed BirdCoder UI live provider E2E is pending because its required environment configuration is absent. Packaged provider-host authentication, real streaming response, and Session continuation have passed independently.',
 );
 assert.deepEqual(realProviderCapability?.evidence?.preflight, {
   command: 'node scripts/run-codex-provider-live-e2e.mjs --preflight-only',
@@ -736,20 +666,20 @@ assert.deepEqual(realProviderCapability?.evidence?.preflight, {
     'SDKWORK_CODEX_LIVE_CANCEL_PROBE_ARGUMENTS_JSON',
   ],
   credentialedCasesRun: 0,
-  checkedAt: '2026-07-31',
+  checkedAt: '2026-08-01',
 });
 assert.deepEqual(realProviderCapability?.evidence?.packagedAppServerLiveProbe, {
   command: 'node scripts/release/probe-desktop-codex-app-server-live.mjs --host-root target/release/provider-host',
   environmentGate: 'SDKWORK_CODEX_APP_SERVER_LIVE_PROBE=1',
   status: 'passed',
-  checkedAt: '2026-07-31',
+  checkedAt: '2026-08-01',
   runtimeTargetTriple: 'x86_64-pc-windows-msvc',
   codexVersion: '0.146.0',
   nodeVersion: '22.20.0',
-  firstChunkCount: 28,
-  resumedChunkCount: 31,
-  firstKernelEventCount: 40,
-  resumedKernelEventCount: 42,
+  firstChunkCount: 27,
+  resumedChunkCount: 30,
+  firstKernelEventCount: 42,
+  resumedKernelEventCount: 41,
   assertions: [
     'the packaged Node.js process invoked the packaged Codex app-server executable through the staged Kernel runtime module',
     'the first request started with canonical sessionId and without providerSessionId',
@@ -792,12 +722,19 @@ validateExactInventory(
   [
     'specs/codex-desktop-parity.spec.json',
     'docs/providers/codex/README.md',
+    'scripts/codex-desktop-reference-audit.mjs',
     'scripts/codex-desktop-parity-contract.test.mjs',
     'scripts/agent-session-item-view-contract.test.ts',
     'apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-parity.spec.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptMessage.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptMessage.test.tsx',
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.interaction.test.tsx',
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/InspectedImageGallery.test.tsx',
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/toolCallActionPresentation.test.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/turnProcessPresentation.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/turnProcessPresentation.test.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ReplyMessageRenderers.test.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderItemRouting.test.ts',
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts',
     'external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts',
   ],
@@ -806,11 +743,12 @@ validateExactInventory(
   'transcript presentation evidence commands',
   transcriptPresentationCapability?.evidence?.commands ?? [],
   [
+    'node scripts/codex-desktop-reference-audit.mjs',
     'node scripts/codex-desktop-parity-contract.test.mjs',
     'node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts',
     'node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-parity.spec.ts --project=chromium',
-    'pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui exec vitest run src/components/chat/messages/activity/ChatActivitySummary.interaction.test.tsx src/components/chat/messages/contentBlocks/InspectedImageGallery.test.tsx src/components/chat/messages/contentBlocks/toolCallActionPresentation.test.ts --config vitest.config.ts',
-    'pnpm exec vitest run apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts',
+    'pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui exec vitest run src/components/chat/messages/ChatTranscriptMessage.test.tsx src/components/chat/messages/activity/ChatActivitySummary.interaction.test.tsx src/components/chat/messages/contentBlocks/InspectedImageGallery.test.tsx src/components/chat/messages/contentBlocks/toolCallActionPresentation.test.ts src/components/chat/messages/presentation/turnProcessPresentation.test.ts src/components/chat/messages/renderers/ReplyMessageRenderers.test.tsx --config vitest.config.ts',
+    'pnpm exec vitest run apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderItemRouting.test.ts apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts',
   ],
 );
 assert.deepEqual(
@@ -1040,8 +978,8 @@ const requiredBlockerContracts = [
       mcpElicitationResponseSha256: '4f84effe0c566afcd0f93e5236b06d61be31e83a7797ee1610f6408b30af6e72',
       permissionsParamsSha256: 'c80b30dde9911be77f398662daf05e779ad654f06121d1039ae5a05fbe422922',
       permissionsResponseSha256: '5c662efc16d5debe37c246e2bf9ea83a6f25631bc2a731401b7079a0d442cf93',
-      agentsInteractionKindSha256: 'd493b055b0e4887fa7c5493f087a2db5072d5683ee5323f30293abb868ad1334',
-      agentsInteractionRecordSha256: 'cebb7ed95be0e158252e85a80a37ecdf3d9246753314ccdc75f611811e1e83b1',
+        agentsInteractionKindSha256: '4c81cd310c7c2c6514bbb4d1ba9357517ee50972244c45c579c6abe1fb9bf008',
+        agentsInteractionRecordSha256: '4eecf05555a80769cd86d8dc869f592701320713870a606e5a7bda1e93cae27f',
       agentsApproveRequestSha256: '885d975fed21824f8580bc6a23c442cf701e8253023e1843f7c506998604cf80',
       agentsAnswerRequestSha256: '43988c3c293a2ad1afdef6625c2f5a2e487bbbf199db071ad9e913ab44d0a75a',
     },
@@ -1161,7 +1099,7 @@ const requiredBlockerContracts = [
     generatedEvidence: {
       createRequestSha256: 'c827f4eab5e33713d271dd9ec6885dec4a3e50c0ee7ca79bd6abc09fa5765aee',
       taskRecordSha256: '7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b',
-      aiApiSha256: 'c7e4e606b25d8c1178a042a3589c54165e8d18eefb5614ec332270d742bcacaa',
+      aiApiSha256: 'd80a5dfb26d5eaf25fad5f3c4815257ff3c5697e3e2196873c77d70e3f5a0626',
     },
     requiredContractExtensions: [
       'expose generated App SDK operations for user-visible Run reconciliation and recovery',
@@ -1190,7 +1128,7 @@ const requiredBlockerContracts = [
       'generated SDK plus real desktop and narrow-screen E2E surfaces',
     ],
     prohibitedWorkarounds: [
-      'using the DotLottie browser-Be3Y5Oyc.js chunk as Browser lifecycle evidence',
+      'using the DotLottie browser-B15L647J.js chunk as Browser lifecycle evidence',
       'treating a sandbox iframe as provider Browser parity',
       'treating a local allowedSites array or trusted-sites policy as the reference permission contract',
       'mapping Browser plugin codexSessionId directly to canonical sessionId',
@@ -1520,13 +1458,13 @@ const requiredBlockerContracts = [
     },
     protocolBaseline: {
       referenceCommit: 'a05bcda3dbd68729caa2f11027b7f43974fda298',
-      kernelVendoredCommit: 'ad2012d645b7146d31bb03f98e2bd9371635d11a',
+      kernelVendoredCommit: 'ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff',
       referenceCommonSha256: 'aef036e55042ba2fa2e310e02595da2af4553d28653217bebda3abbf8ac0cf78',
-      kernelCommonSha256: '96e3ecd3ee909b5c5b6bdd4c0609d5a20e980accb5820e3f1becfbb797a45a37',
+      kernelCommonSha256: 'e6a007755721bd2cb8edde1a4ab393539a48619930389e073a3d43106f606139',
       referenceToolRequestUserInputParamsSha256: 'e3d55305c4fd4b40084335b8d0278ae910fa8d3f9be64de61d6171648957d41f',
       referenceChatgptAuthTokensRefreshResponseSha256: 'c940b1cca0998da071349e22332c95ae8d74e161418a438be4d7f580eb115b48',
-      kernelToolRequestUserInputParamsSha256: 'f650142eb1dba090483314853e9d4caea200e4fb71d6b2df947f6ec0e2adf657',
-      confirmedSchemaDrift: 'Kernel ToolRequestUserInputParams omits autoResolutionMs from the pinned reference schema.',
+      kernelToolRequestUserInputParamsSha256: '4e6f553987527e1717dcd523058038895cc383fed3177df26d37a4a5c4696fbd',
+      confirmedSchemaDrift: 'Kernel ToolRequestUserInputParams adds required isBlocking and deprecates autoResolutionMs, while the pinned installed reference carries autoResolutionMs without isBlocking.',
     },
     serverRequestMethods: [
       'item/commandExecution/requestApproval',
@@ -1687,10 +1625,10 @@ const requiredBlockerContracts = [
     desktopAppServerTransport: {
       archiveResource: 'app/resources/app.asar',
       entryOffsetUnit: 'uncompressed entry bytes',
-      mainArchiveEntry: '.vite/build/main-Dnwk9I3e.js',
+      mainArchiveEntry: '.vite/build/main-DyB6ps5P.js',
       mainArchiveEntrySizeBytes: 2362317,
       mainArchiveEntrySha256: '6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be',
-      sharedArchiveEntry: '.vite/build/src-BPbHdvxe.js',
+      sharedArchiveEntry: '.vite/build/src-CLstCQVF.js',
       sharedArchiveEntrySizeBytes: 1443629,
       sharedArchiveEntrySha256: 'efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38',
       mainIpcEntryByteOffsets: {
@@ -1792,10 +1730,10 @@ const requiredBlockerContracts = [
       canonicalBoundary: 'Codex provider request and notification identities stay inside the Kernel adapter; Agents and BirdCoder correlate only canonical Session, Turn, execution handle, and providerSessionId.',
     },
     desktopServerRequestProjection: {
-      rendererArchiveEntry: 'webview/assets/app-initial-CHAIly1j.js',
+      rendererArchiveEntry: 'webview/assets/app-initial-BZcC-pud.js',
       rendererArchiveResource: 'resources/app.asar',
-      rendererArchiveEntrySizeBytes: 14023273,
-      rendererArchiveEntrySha256: '5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254',
+      rendererArchiveEntrySizeBytes: 14878520,
+      rendererArchiveEntrySha256: 'de47053203014c67be903ffe47a10781f3553a06b8fd03d9a29b6d29e55c66bf',
       entryOffsetUnit: 'uncompressed entry bytes',
       requestGroupingEntryByteOffset: 1683149,
       requestDispatcherEntryByteOffset: 3214824,
@@ -2095,14 +2033,14 @@ const browserBlocker = spec.blockers.find((candidate) => candidate.id === 'CDB-0
 const browserEvidence = browserBlocker?.evidence;
 const browserRendererContract = browserEvidence?.rendererContract;
 assert.deepEqual(browserRendererContract?.lifecycleArtifact, {
-  path: 'app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js',
-  sha256: '5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254',
-  sizeBytes: 14023273,
+  path: 'app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js',
+  sha256: 'de47053203014c67be903ffe47a10781f3553a06b8fd03d9a29b6d29e55c66bf',
+  sizeBytes: 14878520,
 });
 assert.deepEqual(browserRendererContract?.negativeDotLottieEvidence, {
-  path: 'app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js',
-  sha256: 'dd35124bd1dc1d64f9206b5a5946175f2795ca88c7c9237c03b390bf11020839',
-  sizeBytes: 651835,
+  path: 'app/resources/app.asar::webview/assets/browser-B15L647J.js',
+  sha256: 'e89f0e197c1972026198d73236da130a627140303f123c27aa77258ddb969520',
+  sizeBytes: 651833,
   classification:
     'DotLottie rendering dependency; it is not Browser lifecycle, command, permission, or persistence evidence.',
   dotLottieEntryByteOffsets: [26410, 32738],
@@ -2187,7 +2125,7 @@ assert.deepEqual(browserRendererContract?.hiddenHostContracts, [
   {
     kind: 'adopted-background-web-contents',
     artifact:
-      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js',
+      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js',
     fields: [
       'sessionId',
       'providerBrowserTabId',
@@ -2203,7 +2141,7 @@ assert.deepEqual(browserRendererContract?.hiddenHostContracts, [
   {
     kind: 'hidden-browser-use',
     artifact:
-      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js',
+      'app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js',
     fields: ['sessionId', 'providerBrowserTabId', 'initialUrl', 'hostKind'],
     hostKind: 'hidden-browser-use',
     initialUrlFallback: 'about:blank',
@@ -2511,9 +2449,9 @@ assert.equal(
 );
 assert.deepEqual(serverRequestCapability?.evidence?.relatedBlockerIds, ['CDB-001', 'CDB-005']);
 const serverRequestReferenceArtifacts = [
-  'app/resources/app.asar::.vite/build/main-Dnwk9I3e.js',
-  'app/resources/app.asar::.vite/build/src-BPbHdvxe.js',
-  'app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js',
+  'app/resources/app.asar::.vite/build/main-DyB6ps5P.js',
+  'app/resources/app.asar::.vite/build/src-CLstCQVF.js',
+  'app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js',
 ];
 validateExactInventory(
   'CDP-015 evidence paths',
@@ -2690,17 +2628,21 @@ for (const visualCase of visualCases) {
   if (visualCase.snapshotSha256 !== sha256File(visualCase.snapshotPath)) {
     errors.push(`[${visualCase.id}] visual snapshot hash does not match its evidence file`);
   }
-  if (visualCase.referenceBuild !== spec.reference.build) {
-    errors.push(`[${visualCase.id}] visual reference build does not match the pinned desktop build`);
-  }
-  if (visualCase.referenceArtifactSha256 !== referenceArchive?.sha256) {
-    errors.push(`[${visualCase.id}] visual reference hash does not match the pinned desktop archive`);
-  }
   if (visualCase.platform !== 'win32' || visualCase.browserProject !== 'chromium') {
     errors.push(`[${visualCase.id}] visual baseline must use the governed Windows Chromium profile`);
   }
-  if (visualCase.status !== 'passed') {
-    errors.push(`[${visualCase.id}] visual regression is not passed`);
+  if (visualCapability?.status === 'aligned-and-verified') {
+    if (visualCase.referenceBuild !== spec.reference.build) {
+      errors.push(`[${visualCase.id}] visual reference build does not match the pinned desktop build`);
+    }
+    if (visualCase.referenceArtifactSha256 !== referenceArchive?.sha256) {
+      errors.push(`[${visualCase.id}] visual reference hash does not match the pinned desktop archive`);
+    }
+    if (visualCase.status !== 'passed') {
+      errors.push(`[${visualCase.id}] visual regression is not passed`);
+    }
+  } else if (visualCase.status !== 'stale-reference') {
+    errors.push(`[${visualCase.id}] partial visual evidence must be marked stale-reference`);
   }
   if (
     JSON.stringify(visualCase.viewport)

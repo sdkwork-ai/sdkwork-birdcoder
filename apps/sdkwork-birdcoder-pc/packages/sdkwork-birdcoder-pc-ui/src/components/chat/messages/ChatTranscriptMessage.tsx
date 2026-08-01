@@ -54,8 +54,9 @@ function ChatTranscriptMessageContent({
   );
   const displayView = useMemo(() => {
     if (!context.suppressProcessBlocks) return view;
+    const isProviderCommentary = message.metadata?.providerMessagePhase === 'commentary';
     const blocks = view.blocks.filter((block) => (
-      (block.type === 'markdown' && !block.noticeKind)
+      (block.type === 'markdown' && !block.noticeKind && !isProviderCommentary)
       || (message.role === 'user' && block.type === 'resources')
     ));
     return blocks.length === view.blocks.length
@@ -68,7 +69,7 @@ function ChatTranscriptMessageContent({
             hasCollapsibleSections: false,
           },
         };
-  }, [context.suppressProcessBlocks, message.role, view]);
+  }, [context.suppressProcessBlocks, message.metadata?.providerMessagePhase, message.role, view]);
   const entry = useMemo(() => registry.resolve(displayView), [displayView, registry]);
   const Renderer = entry.Component;
   const isUser = displayView.kind === 'user.text';

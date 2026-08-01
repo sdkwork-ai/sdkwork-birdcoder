@@ -176,6 +176,7 @@ export function useWorkbenchChatSelection({
       const runtimeIdentity = resolveWorkbenchRuntimeBindingIdentity(
         resolvedEngineId,
         resolvedModelId,
+        preferences,
       );
 
       return createAgentSession(projectId, resolvedTitle, {

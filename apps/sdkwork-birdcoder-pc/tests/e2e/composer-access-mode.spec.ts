@@ -247,6 +247,15 @@ test('composer access mode selects full access and snapshots it into the turn', 
   await accessModeTrigger.click();
   await fullAccessMode.click();
   await expect(accessModeMenu).toHaveCount(0);
+  const fullAccessConfirmation = page.locator(
+    '[data-testid="full-access-confirmation-dialog"]:visible',
+  );
+  await expect(fullAccessConfirmation).toBeVisible();
+  await expect(fullAccessConfirmation).toContainText('Enable full access?');
+  await fullAccessConfirmation.locator(
+    '[data-testid="full-access-confirm-button"]',
+  ).click();
+  await expect(fullAccessConfirmation).toHaveCount(0);
   await expect(accessModeTrigger).toHaveAttribute('data-access-mode-id', 'full_access');
   await expect(accessModeTrigger).toHaveAccessibleName('Access mode: Full access');
 

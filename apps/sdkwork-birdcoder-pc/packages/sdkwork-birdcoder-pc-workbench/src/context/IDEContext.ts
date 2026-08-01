@@ -2,6 +2,7 @@ import React, { type ReactNode, useRef } from 'react';
 import type {
   IAuthService,
   IAgentAutomationService,
+  IAgentModelConfigurationService,
   IAgentSessionService,
   IApplicationPublishService,
   ICatalogService,
@@ -24,6 +25,7 @@ import {
 export interface IDEProviderProps {
   children: ReactNode;
   agentAutomationService?: IAgentAutomationService;
+  agentModelConfigurationService?: IAgentModelConfigurationService;
   agentSessionService?: IAgentSessionService;
   applicationPublishService?: IApplicationPublishService;
   catalogService?: ICatalogService;
@@ -41,6 +43,7 @@ export interface IDEProviderProps {
 export const IDEProvider = ({
   children,
   agentAutomationService,
+  agentModelConfigurationService,
   agentSessionService,
   applicationPublishService,
   catalogService,
@@ -64,6 +67,8 @@ export const IDEProvider = ({
       value: {
         agentAutomationService:
           agentAutomationService ?? defaultContext.agentAutomationService,
+        agentModelConfigurationService:
+          agentModelConfigurationService ?? defaultContext.agentModelConfigurationService,
         agentSessionService: agentSessionService ?? defaultContext.agentSessionService,
         applicationPublishService:
           applicationPublishService ?? defaultContext.applicationPublishService,

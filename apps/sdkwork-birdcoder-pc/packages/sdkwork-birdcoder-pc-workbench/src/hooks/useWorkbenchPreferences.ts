@@ -62,6 +62,26 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
     left.codeEngineId === right.codeEngineId &&
     left.codeModelId === right.codeModelId &&
     areWorkbenchCodeEngineSettingsEqual(left.codeEngineSettings, right.codeEngineSettings) &&
+    left.unifiedCustomAgentModels.length === right.unifiedCustomAgentModels.length &&
+    left.unifiedCustomAgentModels.every((model, index) => {
+      const other = right.unifiedCustomAgentModels[index];
+      return Boolean(
+        other
+        && model.configurationId === other.configurationId
+        && model.modelId === other.modelId
+        && model.label === other.label
+        && model.description === other.description
+        && model.vendorCode === other.vendorCode
+        && model.baseUrl === other.baseUrl
+        && model.supportedModelIds.join('\u0000') === other.supportedModelIds.join('\u0000')
+        && model.supportedProviderIds.join('\u0000') === other.supportedProviderIds.join('\u0000')
+        && model.inputContextTokens === other.inputContextTokens
+        && model.outputContextTokens === other.outputContextTokens
+        && model.toolCallRounds === other.toolCallRounds
+        && model.supportsMultimodal === other.supportsMultimodal
+        && model.apiKeyConfigured === other.apiKeyConfigured
+      );
+    }) &&
     left.disabledComposerCapabilityIds.length === right.disabledComposerCapabilityIds.length &&
     left.disabledComposerCapabilityIds.every(
       (capabilityId, index) => capabilityId === right.disabledComposerCapabilityIds[index],

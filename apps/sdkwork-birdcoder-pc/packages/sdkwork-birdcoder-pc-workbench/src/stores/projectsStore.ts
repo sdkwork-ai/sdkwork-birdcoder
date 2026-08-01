@@ -83,12 +83,13 @@ export type AgentSessionStoreRemovalResult =
  * 当缓存数量超过此上限时，会从最少访问的且无活跃监听器的 Scope Store 开始
  * 淘汰，确保长期运行的工作区切换不会导致内存无限增长。
  *
- * 默认值 5 个工作区 × 每工作区 ~200 agent sessions × 每 session ~10 transcript items
- * ≈ 10,000 个对象引用，在浏览器可承受范围内。
+ * The cache must cover the bounded cross-provider inventory so pagination does
+ * not silently hide valid Sessions. Transcript items retain their own tighter
+ * per-Session limits.
  */
 const PROJECT_STORE_MAX_CACHED_SCOPES = 5;
 const PROJECT_STORE_MAX_SCOPE_KEY_LENGTH = 384;
-export const PROJECT_STORE_MAX_CACHED_SESSIONS = 200;
+export const PROJECT_STORE_MAX_CACHED_SESSIONS = 10_000;
 export const PROJECT_STORE_MAX_SESSION_ITEMS = AGENT_SESSION_ITEM_RETENTION_MAX_ITEMS;
 export const PROJECT_STORE_MAX_SESSION_ITEM_CHARACTERS =
   AGENT_SESSION_ITEM_RETENTION_MAX_CHARACTERS;
@@ -398,6 +399,18 @@ function areAgentSessionScalarsEqual(
     left.providerBindingId === right.providerBindingId &&
     left.transportKind === right.transportKind &&
     left.providerSessionId === right.providerSessionId &&
+    left.providerTitle === right.providerTitle &&
+    left.providerTitleSource === right.providerTitleSource &&
+    left.providerPreview === right.providerPreview &&
+    left.providerCreatedAt === right.providerCreatedAt &&
+    left.providerUpdatedAt === right.providerUpdatedAt &&
+    left.providerRecencyAt === right.providerRecencyAt &&
+    left.providerPinned === right.providerPinned &&
+    left.providerArchived === right.providerArchived &&
+    left.providerVisible === right.providerVisible &&
+    left.providerSortKey === right.providerSortKey &&
+    left.providerSource === right.providerSource &&
+    left.providerDirectoryVersion === right.providerDirectoryVersion &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
     left.lastTurnAt === right.lastTurnAt &&
@@ -899,6 +912,10 @@ export function mergeAgentSessionProjectionForStore(
     incoming.status === 'completed' || incoming.status === 'archived'
   ) && sessionVersionComparison > 0;
   const retainExistingRuntime = retainExistingActivity && !hasAuthoritativeTerminalStatus;
+  const retainExistingProviderDirectory = compareOptionalStoreVersion(
+    incoming.providerDirectoryVersion,
+    existing.providerDirectoryVersion,
+  ) < 0;
   const lastItemSequence = resolveLaterLongInteger(
     existing.lastItemSequence,
     incoming.lastItemSequence,
@@ -937,6 +954,42 @@ export function mergeAgentSessionProjectionForStore(
     providerSessionId: retainExistingActivity
       ? existing.providerSessionId
       : incoming.providerSessionId,
+    providerTitle: retainExistingProviderDirectory
+      ? existing.providerTitle
+      : incoming.providerTitle,
+    providerTitleSource: retainExistingProviderDirectory
+      ? existing.providerTitleSource
+      : incoming.providerTitleSource,
+    providerPreview: retainExistingProviderDirectory
+      ? existing.providerPreview
+      : incoming.providerPreview,
+    providerCreatedAt: retainExistingProviderDirectory
+      ? existing.providerCreatedAt
+      : incoming.providerCreatedAt,
+    providerUpdatedAt: retainExistingProviderDirectory
+      ? existing.providerUpdatedAt
+      : incoming.providerUpdatedAt,
+    providerRecencyAt: retainExistingProviderDirectory
+      ? existing.providerRecencyAt
+      : incoming.providerRecencyAt,
+    providerPinned: retainExistingProviderDirectory
+      ? existing.providerPinned
+      : incoming.providerPinned,
+    providerArchived: retainExistingProviderDirectory
+      ? existing.providerArchived
+      : incoming.providerArchived,
+    providerVisible: retainExistingProviderDirectory
+      ? existing.providerVisible
+      : incoming.providerVisible,
+    providerSortKey: retainExistingProviderDirectory
+      ? existing.providerSortKey
+      : incoming.providerSortKey,
+    providerSource: retainExistingProviderDirectory
+      ? existing.providerSource
+      : incoming.providerSource,
+    providerDirectoryVersion: retainExistingProviderDirectory
+      ? existing.providerDirectoryVersion
+      : incoming.providerDirectoryVersion,
     runtimeStatus: retainExistingRuntime ? existing.runtimeStatus : incoming.runtimeStatus,
     createdAt: retainExistingSession ? existing.createdAt : incoming.createdAt,
     updatedAt: resolveLatestTimestamp(existing.updatedAt, incoming.updatedAt) ?? incoming.updatedAt,

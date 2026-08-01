@@ -100,7 +100,7 @@ evidence of product parity.
 11. Remote Connections support authorized-device lifecycle, SSH host discovery,
     remote execution selection, connection failure/retry, and canonical
     Session continuation without exposing credentials or replacing Session
-    identity with provider-native ids.
+    identity with provider Session IDs.
 12. Focused contract tests, protocol fixtures, provider-adapter tests, PC
     typecheck, lint, architecture checks, production build, desktop and narrow
     visual regression, and credentialed real-provider E2E all pass against the

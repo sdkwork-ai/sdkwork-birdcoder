@@ -234,8 +234,9 @@ async function waitForStableVisualState(page: Page): Promise<void> {
 async function assertVisualLayout(page: Page): Promise<void> {
   const geometry = await page.evaluate(() => {
     const composer = document.querySelector<HTMLElement>('[data-chat-composer-chrome="true"]');
-    const interaction = [...document.querySelectorAll<HTMLElement>('section')]
-      .find((element) => element.textContent?.includes('Waiting on you'));
+    const interaction = document.querySelector<HTMLElement>(
+      '[data-chat-pending-interactions="true"]',
+    );
     const sessionList = document.querySelector<HTMLElement>('.birdcoder-session-list');
     const transcript = document.querySelector<HTMLElement>(
       '[role="region"][aria-label="Conversation messages"]',
@@ -412,21 +413,36 @@ for (const visualCase of visualCases) {
     });
     expect(consoleErrors.filter((entry) => /interaction/iu.test(entry))).toEqual([]);
 
-    const pendingInteractions = page.locator('section').filter({
-      hasText: 'Waiting on you',
-    });
+    const pendingInteractions = page.locator('[data-chat-pending-interactions="true"]');
     await expect(pendingInteractions).toHaveCount(1);
     await expect(pendingInteractions).toContainText('How should the Codex Session continue?');
     if (visualCase.name === 'desktop') {
       await expect(pendingInteractions).toContainText(
         'Approve the Codex visual parity file change.',
       );
+      const approvalSurface = pendingInteractions.locator(
+        '[data-codex-approval-surface="true"]',
+      );
+      await expect(approvalSurface).toHaveCount(1);
+      const denyButton = approvalSurface.getByRole('button', { name: 'Deny', exact: true });
+      const allowOnceButton = approvalSurface.getByRole('button', {
+        name: 'Allow once',
+        exact: true,
+      });
+      await expect(denyButton.locator('svg')).toHaveCount(0);
+      await expect(allowOnceButton.locator('svg')).toHaveCount(0);
+      await expect(approvalSurface.getByPlaceholder('Optional reason...')).toHaveCount(0);
+      await expect(approvalSurface.getByRole('button', { name: 'Block' })).toHaveCount(0);
     }
+    await expect(pendingInteractions.locator('[data-user-input-auto-resolution]')).toHaveCount(0);
+    await expect(
+      pendingInteractions.locator('[data-codex-composer-request-navigation]'),
+    ).toHaveCount(0);
     const composer = page.locator(
       'textarea[placeholder="Ask anything or request changes..."]:visible',
     );
     await expect(composer).toBeEditable();
-    await expect(composer).toHaveAttribute('rows', '2');
+    await expect(composer).toHaveAttribute('rows', '1');
 
     await waitForStableVisualState(page);
     await assertVisualLayout(page);

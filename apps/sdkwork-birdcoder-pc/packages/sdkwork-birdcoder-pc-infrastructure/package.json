@@ -139,6 +139,10 @@
       "import": "./src/services/agentsSessionService.ts",
       "types": "./src/services/agentsSessionService.ts"
     },
+    "./services/agentsModelConfigurationService": {
+      "import": "./src/services/agentsModelConfigurationService.ts",
+      "types": "./src/services/agentsModelConfigurationService.ts"
+    },
     "./services/agentsCatalogService": {
       "import": "./src/services/agentsCatalogService.ts",
       "types": "./src/services/agentsCatalogService.ts"
@@ -150,6 +154,10 @@
     "./services/interfaces/IAgentSessionService": {
       "import": "./src/services/interfaces/IAgentSessionService.ts",
       "types": "./src/services/interfaces/IAgentSessionService.ts"
+    },
+    "./services/interfaces/IAgentModelConfigurationService": {
+      "import": "./src/services/interfaces/IAgentModelConfigurationService.ts",
+      "types": "./src/services/interfaces/IAgentModelConfigurationService.ts"
     },
     "./services/interfaces/IAgentAutomationService": {
       "import": "./src/services/interfaces/IAgentAutomationService.ts",

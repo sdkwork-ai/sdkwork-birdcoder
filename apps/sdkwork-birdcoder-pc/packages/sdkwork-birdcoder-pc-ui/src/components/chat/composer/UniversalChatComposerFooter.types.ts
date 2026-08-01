@@ -1,5 +1,9 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { ModelsPickerGroup } from '@sdkwork/models-pc-picker';
+import type {
+  AgentModelConfigurationDraft,
+  UnifiedAgentModelOption,
+  UnifiedAgentProviderOption,
+} from '@sdkwork/models-pc-picker';
 import type { WorkbenchCodeEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 
 export interface UniversalChatComposerFooterCommonProps {
@@ -22,24 +26,29 @@ export interface UniversalChatComposerFooterCommonProps {
   isStopTurnConfirmationVisible: boolean;
   isStoppingTurn: boolean;
   isUploadingAttachments: boolean;
-  modelGroups: ModelsPickerGroup[];
+  unifiedAgentModelOptions: UnifiedAgentModelOption[];
+  unifiedAgentProviderOptions: UnifiedAgentProviderOption[];
   onAttachmentMenuOpenChange: (open: boolean) => void;
   onAccessModeMenuOpenChange: (open: boolean) => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onFolderUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onImageUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
-  onSelectModel: (pickerId: string) => void;
+  onSelectUnifiedAgentModel: (option: UnifiedAgentModelOption) => void | Promise<void>;
+  onCreateUnifiedAgentModelConfiguration: (
+    draft: AgentModelConfigurationDraft,
+  ) => void | Promise<void>;
+  onGetUnifiedAgentModelApiKey?: (vendorCode: string) => void;
   onSelectAccessMode: (accessModeId: string) => void;
   onSend: () => void | Promise<void>;
   onStopTurn: () => void | Promise<void>;
   onToggleVoiceInput: () => void;
   selectedModelLabel: string;
   selectedAccessModeId: string;
-  selectedModelPickerId: string;
+  selectedUnifiedAgentModelOptionId: string;
   selectedModelSummary: string;
-  setShowModelMenu: (open: boolean) => void;
-  showModelMenu: boolean;
-  showModelPicker: boolean;
+  onUnifiedAgentModelSelectorOpenChange: (open: boolean) => void;
+  isUnifiedAgentModelSelectorOpen: boolean;
+  showUnifiedAgentModelSelector: boolean;
 }
 
 export interface UniversalChatComposerFooterProps

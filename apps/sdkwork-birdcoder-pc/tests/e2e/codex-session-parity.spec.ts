@@ -150,7 +150,13 @@ test('Codex canonical Session presents history and completes a streamed Turn', a
     name: /Processed.*Show execution process/u,
   });
   await expect(processDisclosure).toHaveCount(1);
+  await expect(transcript).not.toContainText(
+    'Codex commentary is visible only inside the execution process.',
+  );
   await processDisclosure.click();
+  await expect(transcript).toContainText(
+    'Codex commentary is visible only inside the execution process.',
+  );
   const completedLifecycle = transcript.locator('[data-chat-lifecycle-event="completed"]');
   await expect(completedLifecycle).toHaveCount(1);
   await expect(completedLifecycle).toContainText('Turn completed');

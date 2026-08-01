@@ -12,11 +12,13 @@ import {
   normalizeWorkbenchCodeEngineSettingsMap,
   normalizeWorkbenchCodeEngineAccessModeId,
   normalizeWorkbenchCodeModelId,
+  normalizeWorkbenchUnifiedCustomAgentModels,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchChatSelection,
   type WorkbenchChatSelection,
   type WorkbenchCodeEngineId,
   type WorkbenchCodeEngineSettingsMap,
+  type WorkbenchUnifiedCustomAgentModelDefinition,
 } from './codeEngineCatalog.ts';
 import {
   AGENT_SESSION_INBOX_FILTERS,
@@ -31,6 +33,7 @@ import { normalizeWorkbenchMode, type WorkbenchMode } from './workbenchMode.ts';
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
   workbenchMode: WorkbenchMode;
   codeEngineSettings: WorkbenchCodeEngineSettingsMap;
+  unifiedCustomAgentModels: WorkbenchUnifiedCustomAgentModelDefinition[];
   disabledComposerCapabilityIds: string[];
   terminalProfileId: TerminalProfileId;
   defaultWorkingDirectory: string;
@@ -62,6 +65,9 @@ interface WorkbenchPreferencesInput {
   codeEngineId?: string | null;
   codeModelId?: string | null;
   codeEngineSettings?: unknown;
+  unifiedCustomAgentModels?: unknown;
+  /** Legacy provider-partitioned preference key, read for migration only. */
+  customCodeModels?: unknown;
   disabledComposerCapabilityIds?: unknown;
   terminalProfileId?: string | null;
   defaultWorkingDirectory?: string | null;
@@ -122,6 +128,7 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   ...DEFAULT_WORKBENCH_CHAT_SELECTION,
   workbenchMode: 'coding',
   codeEngineSettings: {},
+  unifiedCustomAgentModels: [],
   disabledComposerCapabilityIds: [],
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
   defaultWorkingDirectory: DEFAULT_WORKING_DIRECTORY,
@@ -130,7 +137,7 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   sessionInboxGroupMode: 'project',
   sessionInboxProviderId: 'all',
   sessionInboxShowArchived: false,
-  sessionInboxSortMode: 'smart',
+  sessionInboxSortMode: 'provider',
   gitBranchPrefix: DEFAULT_GIT_BRANCH_PREFIX,
   gitCommitInstructions: '',
   gitCreateDraftPullRequest: true,
@@ -230,13 +237,22 @@ export function normalizeWorkbenchTerminalProfileId(
 export function normalizeWorkbenchPreferences(
   value: WorkbenchPreferencesInput | null | undefined,
 ): WorkbenchPreferences {
-  const codeEngineSettings = normalizeWorkbenchCodeEngineSettingsMap(value?.codeEngineSettings);
+  const unifiedCustomAgentModels = normalizeWorkbenchUnifiedCustomAgentModels(
+    value?.unifiedCustomAgentModels ?? value?.customCodeModels,
+  );
+  const codeEngineSettings = normalizeWorkbenchCodeEngineSettingsMap(value?.codeEngineSettings, {
+    unifiedCustomAgentModels,
+  });
   const terminalProfileId = normalizeWorkbenchTerminalProfileId(value?.terminalProfileId);
   const defaultWorkingDirectory = value?.defaultWorkingDirectory?.trim();
   return {
-    ...resolveWorkbenchChatSelection(value, { codeEngineSettings }),
+    ...resolveWorkbenchChatSelection(value, {
+      codeEngineSettings,
+      unifiedCustomAgentModels,
+    }),
     workbenchMode: normalizeWorkbenchMode(value?.workbenchMode),
     codeEngineSettings,
+    unifiedCustomAgentModels,
     disabledComposerCapabilityIds: normalizeWorkbenchDisabledComposerCapabilityIds(
       value?.disabledComposerCapabilityIds,
     ),
@@ -348,6 +364,72 @@ export function setWorkbenchCodeEngineDefaultModel(
       normalizedPreferences.codeEngineId === normalizedEngineId
         ? resolvedModelId
         : normalizedPreferences.codeModelId,
+  });
+}
+
+export interface SaveWorkbenchUnifiedCustomAgentModelInput {
+  activeProviderId: string;
+  configurationId: string;
+  modelId: string;
+  label?: string;
+  description?: string;
+  vendorCode: string;
+  baseUrl: string;
+  supportedModelIds: string[];
+  supportedProviderIds: string[];
+  inputContextTokens?: number;
+  outputContextTokens?: number;
+  toolCallRounds?: number;
+  supportsMultimodal: boolean;
+  apiKeyConfigured: boolean;
+}
+
+export function saveWorkbenchUnifiedCustomAgentModel(
+  preferences: WorkbenchPreferences,
+  input: SaveWorkbenchUnifiedCustomAgentModelInput,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const engine = findWorkbenchCodeEngineDefinition(
+    input.activeProviderId,
+    normalizedPreferences,
+  );
+  const modelId = input.modelId.trim();
+  if (!engine || !modelId) {
+    return normalizedPreferences;
+  }
+
+  const nextCustomModels = normalizeWorkbenchUnifiedCustomAgentModels([
+    ...normalizedPreferences.unifiedCustomAgentModels.filter((model) => (
+      model.configurationId !== input.configurationId
+    )),
+    {
+      configurationId: input.configurationId,
+      modelId,
+      label: input.label?.trim() || modelId,
+      description: input.description?.trim() || '',
+      vendorCode: input.vendorCode,
+      baseUrl: input.baseUrl,
+      supportedModelIds: input.supportedModelIds,
+      supportedProviderIds: input.supportedProviderIds,
+      inputContextTokens: input.inputContextTokens,
+      outputContextTokens: input.outputContextTokens,
+      toolCallRounds: input.toolCallRounds,
+      supportsMultimodal: input.supportsMultimodal,
+      apiKeyConfigured: input.apiKeyConfigured,
+    },
+  ]);
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineId: engine.id,
+    codeModelId: modelId,
+    unifiedCustomAgentModels: nextCustomModels,
+    codeEngineSettings: {
+      ...normalizedPreferences.codeEngineSettings,
+      [engine.id]: {
+        ...normalizedPreferences.codeEngineSettings[engine.id],
+        defaultModelId: modelId,
+      },
+    },
   });
 }
 

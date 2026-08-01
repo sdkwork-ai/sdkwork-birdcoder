@@ -8,6 +8,7 @@ export default defineLocaleModule('app/sidebar', {
     byProvider: '\u6309 Provider',
     chronological: '\u6309\u65f6\u95f4\u987a\u5e8f',
     sortBy: '\u6392\u5e8f\u65b9\u5f0f',
+    providerOrder: 'Provider \u539f\u751f\u987a\u5e8f',
     smart: '\u667a\u80fd\u4f18\u5148\u7ea7',
     recent: '\u6700\u8fd1\u6d3b\u52a8',
     created: '\u521b\u5efa\u65f6\u95f4',

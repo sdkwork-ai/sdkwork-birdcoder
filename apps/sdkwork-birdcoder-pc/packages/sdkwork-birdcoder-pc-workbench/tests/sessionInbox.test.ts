@@ -17,6 +17,7 @@ import {
   peekProjectsStore,
   PROJECT_STORE_MAX_SESSION_TOMBSTONES,
   recordAgentSessionTombstoneInProjectsStore,
+  mergeAgentSessionProjectionForStore,
   upsertAgentSessionIntoCollection,
   upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
@@ -25,6 +26,7 @@ import {
 import { normalizeWorkbenchPreferences } from '../src/workbench/preferences.ts';
 import {
   compareAgentSessionInboxEntries,
+  isAgentSessionVisibleInInbox,
   resolveAgentSessionAttentionLevel,
   sortAgentSessionInboxEntries,
 } from '../src/workbench/sessionInbox.ts';
@@ -82,10 +84,7 @@ interface SummaryOptions {
   version?: string;
 }
 
-function session(
-  id: string,
-  overrides: Partial<AgentSessionView> = {},
-): AgentSessionView {
+function session(id: string, overrides: Partial<AgentSessionView> = {}): AgentSessionView {
   return {
     id,
     agentId: `agent.${id}`,
@@ -154,10 +153,7 @@ function runtimeBinding(
   };
 }
 
-function pendingInteraction(
-  sessionId: string,
-  overrides: Partial<Interaction> = {},
-): Interaction {
+function pendingInteraction(sessionId: string, overrides: Partial<Interaction> = {}): Interaction {
   return {
     interactionId: `interaction.${sessionId}`,
     tenantId,
@@ -180,10 +176,10 @@ function summary(options: SummaryOptions = {}): ActivitySummary {
   const resolvedProjectId = options.projectId ?? projectId;
   const resolvedAgentId = options.agentId ?? `agent.${resolvedSessionId}`;
   const version = options.version ?? '1';
-  const currentRuntimeBinding = options.currentRuntimeBinding === undefined
-    ? null
-    : options.currentRuntimeBinding;
-  const latestRuntimeBinding = options.latestRuntimeBinding === undefined
+  const currentRuntimeBinding =
+    options.currentRuntimeBinding === undefined ? null : options.currentRuntimeBinding;
+  const latestRuntimeBinding =
+    options.latestRuntimeBinding === undefined
     ? currentRuntimeBinding
     : options.latestRuntimeBinding;
   const pending = options.pendingInteraction === undefined ? null : options.pendingInteraction;
@@ -270,7 +266,9 @@ function cursorPage(
 function activityService(
   implementation: IAgentSessionService['listSessionActivitySummaries'],
 ): IAgentSessionService {
-  return { listSessionActivitySummaries: implementation } as IAgentSessionService;
+  return {
+    listSessionActivitySummaries: implementation,
+  } as IAgentSessionService;
 }
 
 describe('Session Inbox', () => {
@@ -285,11 +283,13 @@ describe('Session Inbox', () => {
     ];
     const sessions = statuses.map(([id, overrides]) => session(id, overrides));
 
-    expect(sortAgentSessionInboxEntries([...sessions].reverse(), 'smart').map((item) => item.id))
-      .toEqual(statuses.map(([id]) => id));
+    expect(
+      sortAgentSessionInboxEntries([...sessions].reverse(), 'smart').map((item) => item.id),
+    ).toEqual(statuses.map(([id]) => id));
     for (const [id, , attentionLevel] of statuses) {
-      expect(resolveAgentSessionAttentionLevel(sessions.find((item) => item.id === id)!))
-        .toBe(attentionLevel);
+      expect(resolveAgentSessionAttentionLevel(sessions.find((item) => item.id === id)!)).toBe(
+        attentionLevel,
+      );
     }
   });
 
@@ -306,11 +306,19 @@ describe('Session Inbox', () => {
   });
 
   it('loads a bounded cursor page, trims scope input, and ignores unloaded Projects', async () => {
-    const list = vi.fn(async () => cursorPage([
+    const list = vi.fn(async () =>
+      cursorPage(
+        [
       summary({ sessionId: 'existing' }),
       summary({ sessionId: 'new-loaded' }),
-      summary({ sessionId: 'new-unloaded', projectId: 'project-not-loaded' }),
-    ], { hasMore: true, nextCursor: 'cursor.next' }));
+          summary({
+            sessionId: 'new-unloaded',
+            projectId: 'project-not-loaded',
+          }),
+        ],
+        { hasMore: true, nextCursor: 'cursor.next' },
+      ),
+    );
     const loadedProject = project([session('existing')]);
 
     const update = await loadWorkspaceSessionInboxUpdate(
@@ -321,47 +329,169 @@ describe('Session Inbox', () => {
     );
     const updatedProjects = applyWorkspaceSessionInboxUpdate([loadedProject], update);
 
-    expect(list).toHaveBeenCalledWith({
+    expect(list).toHaveBeenCalledWith(
+      {
       cursor: 'cursor.current',
       pageSize: 100,
       workspaceId,
-    }, { signal: undefined });
+      },
+      { signal: undefined },
+    );
     expect(update).toMatchObject({
       cursor: 'cursor.current',
       hasMore: true,
       nextCursor: 'cursor.next',
     });
-    expect(updatedProjects[0]?.agentSessions.map((item) => item.id))
-      .toEqual(['existing', 'new-loaded']);
+    expect(updatedProjects[0]?.agentSessions.map((item) => item.id)).toEqual([
+      'existing',
+      'new-loaded',
+    ]);
   });
 
   it.each([
     ['empty page with hasMore', cursorPage([], { hasMore: true, nextCursor: 'cursor.next' })],
-    ['repeated request cursor', cursorPage([summary()], {
+    [
+      'repeated request cursor',
+      cursorPage([summary()], {
       hasMore: true,
       nextCursor: 'cursor.current',
-    })],
+      }),
+    ],
   ])('rejects a non-progressing cursor: %s', async (_label, response) => {
     const service = activityService(async () => response);
 
-    await expect(loadWorkspaceSessionInboxUpdate(
-      service,
-      workspaceId,
-      [project()],
-      'cursor.current',
-    )).rejects.toThrow('non-progressing cursor page');
+    await expect(
+      loadWorkspaceSessionInboxUpdate(service, workspaceId, [project()], 'cursor.current'),
+    ).rejects.toThrow('non-progressing cursor page');
   });
 
   it('rejects an empty terminal continuation that echoes its opaque request cursor', async () => {
-    await expect(loadWorkspaceSessionInboxUpdate(
-      activityService(async () => cursorPage([], {
+    await expect(
+      loadWorkspaceSessionInboxUpdate(
+        activityService(async () =>
+          cursorPage([], {
         hasMore: false,
         nextCursor: 'cursor.terminal',
-      })),
+          }),
+        ),
       workspaceId,
       [project()],
       'cursor.terminal',
-    )).rejects.toThrow('unexpected terminal cursor');
+      ),
+    ).rejects.toThrow('unexpected terminal cursor');
+  });
+
+  it('preserves provider-native pin, recency, engine, and provider tie-break order', () => {
+    const sessions = [
+      session('codex-b', {
+        providerSessionId: 'thread-b',
+        providerDirectoryVersion: '1',
+        providerPinned: false,
+        providerRecencyAt: '2026-07-26T08:30:00.000Z',
+        providerSortKey: '01',
+      }),
+      session('codex-a', {
+        providerSessionId: 'thread-a',
+        providerDirectoryVersion: '1',
+        providerPinned: false,
+        providerRecencyAt: '2026-07-26T08:30:00.000Z',
+        providerSortKey: '02',
+      }),
+      session('opencode-newer', {
+        engineId: 'opencode',
+        providerSessionId: 'opencode-newer',
+        providerDirectoryVersion: '1',
+        providerPinned: false,
+        providerRecencyAt: '2026-07-26T08:31:00.000Z',
+        providerSortKey: '00',
+      }),
+      session('pinned-old', {
+        providerSessionId: 'thread-pinned',
+        providerDirectoryVersion: '1',
+        providerPinned: true,
+        providerRecencyAt: '2026-07-26T07:00:00.000Z',
+        providerSortKey: '99',
+      }),
+    ];
+
+    expect(sortAgentSessionInboxEntries(sessions, 'provider').map((item) => item.id)).toEqual([
+      'pinned-old',
+      'opencode-newer',
+      'codex-b',
+      'codex-a',
+    ]);
+  });
+
+  it('excludes rows missing from the current provider directory unless archived rows are shown', () => {
+    const missing = session('provider-missing', {
+      providerArchived: true,
+      providerVisible: false,
+    });
+    expect(isAgentSessionVisibleInInbox(missing)).toBe(false);
+    expect(isAgentSessionVisibleInInbox(missing, true)).toBe(true);
+    expect(isAgentSessionVisibleInInbox(session('legacy-archived', {
+      status: 'archived',
+    }))).toBe(false);
+    expect(isAgentSessionVisibleInInbox(session('canonical'))).toBe(true);
+  });
+
+  it('uses user titles before provider titles and provider titles before system fallbacks', () => {
+    const providerBinding = runtimeBinding('provider-title', {
+      providerTitle: 'Codex desktop title',
+      providerTitleSource: 'threads.title',
+    });
+    const providerProjection = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'provider-title',
+          currentRuntimeBinding: providerBinding,
+          session: { title: 'Canonical fallback', titleSource: 'provider' },
+        }),
+      ],
+    })[0]!.agentSessions[0]!;
+    expect(providerProjection.title).toBe('Codex desktop title');
+
+    const userProjection = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'user-title',
+          currentRuntimeBinding: runtimeBinding('user-title', {
+            providerTitle: 'Provider title',
+          }),
+          session: { title: 'Canonical user title', titleSource: 'user' },
+        }),
+      ],
+    })[0]!.agentSessions[0]!;
+    expect(userProjection.title).toBe('Canonical user title');
+  });
+
+  it('retains a newer provider directory when an older projection arrives', () => {
+    const existing = session('directory-version', {
+      providerSessionId: 'thread-1',
+      providerDirectoryVersion: '3',
+      providerTitle: 'Newest provider title',
+      providerPinned: true,
+      providerVisible: true,
+      providerSortKey: 'newest',
+    });
+    const incoming = session('directory-version', {
+      providerSessionId: 'thread-1',
+      providerDirectoryVersion: '2',
+      providerTitle: 'Stale provider title',
+      providerPinned: false,
+      providerVisible: false,
+      providerSortKey: 'stale',
+    });
+
+    expect(mergeAgentSessionProjectionForStore(existing, incoming)).toMatchObject({
+      providerDirectoryVersion: '3',
+      providerTitle: 'Newest provider title',
+      providerPinned: true,
+      providerVisible: true,
+      providerSortKey: 'newest',
+    });
   });
 
   it.each([
@@ -370,23 +500,29 @@ describe('Session Inbox', () => {
     ['organization', summary({ session: { organizationId: 'organization.other' } }), project()],
     ['owner', summary({ session: { ownerUserId: 'owner.other' } }), project()],
   ])('fails closed on %s scope mismatch', async (_label, item, loadedProject) => {
-    await expect(loadWorkspaceSessionInboxUpdate(
+    await expect(
+      loadWorkspaceSessionInboxUpdate(
       activityService(async () => cursorPage([item])),
       workspaceId,
       [loadedProject],
-    )).rejects.toThrow('escaped its requested Workspace scope');
+      ),
+    ).rejects.toThrow('escaped its requested Workspace scope');
   });
 
   it('rejects duplicate Session identities in one activity page', async () => {
-    await expect(loadWorkspaceSessionInboxUpdate(
+    await expect(
+      loadWorkspaceSessionInboxUpdate(
       activityService(async () => cursorPage([summary(), summary()])),
       workspaceId,
       [project()],
-    )).rejects.toThrow('duplicate Session identity');
+      ),
+    ).rejects.toThrow('duplicate Session identity');
   });
 
   it.each([
-    ['Turn identity', summary({
+    [
+      'Turn identity',
+      summary({
       latestTurn: {
         turnId: 'turn-1',
         tenantId,
@@ -410,14 +546,26 @@ describe('Session Inbox', () => {
         createdAt,
         updatedAt: activityAt,
       },
-    }), 'latest Turn identity'],
-    ['Interaction identity', summary({
+      }),
+      'latest Turn identity',
+    ],
+    [
+      'Interaction identity',
+      summary({
       pendingInteraction: pendingInteraction('session.other'),
-    }), 'pending Interaction identity'],
-    ['RuntimeBinding identity', summary({
+      }),
+      'pending Interaction identity',
+    ],
+    [
+      'RuntimeBinding identity',
+      summary({
       currentRuntimeBinding: runtimeBinding('session.other'),
-    }), 'current RuntimeBinding identity'],
-    ['user-state identity', summary({
+      }),
+      'current RuntimeBinding identity',
+    ],
+    [
+      'user-state identity',
+      summary({
       userState: {
         id: 'user-state-1',
         tenantId,
@@ -429,8 +577,12 @@ describe('Session Inbox', () => {
         createdAt,
         updatedAt: activityAt,
       },
-    }), 'user state escaped'],
-    ['component version', summary({
+      }),
+      'user state escaped',
+    ],
+    [
+      'component version',
+      summary({
       latestTurn: {
         turnId: 'turn-1',
         tenantId,
@@ -455,13 +607,17 @@ describe('Session Inbox', () => {
         updatedAt: activityAt,
       },
       freshness: { latestTurnVersion: '1' },
-    }), 'latest Turn revision'],
+      }),
+      'latest Turn revision',
+    ],
   ])('fails closed on invalid %s', async (_label, item, message) => {
-    await expect(loadWorkspaceSessionInboxUpdate(
+    await expect(
+      loadWorkspaceSessionInboxUpdate(
       activityService(async () => cursorPage([item])),
       workspaceId,
       [project()],
-    )).rejects.toThrow(message);
+      ),
+    ).rejects.toThrow(message);
   });
 
   it('applies Interaction and RuntimeBinding tombstones instead of retaining stale attention', () => {
@@ -510,7 +666,11 @@ describe('Session Inbox', () => {
     expect(resolved[0]?.agentSessions[0]).toMatchObject({
       runtimeStatus: 'failed',
       activity: {
-        runtimeBinding: { id: bindingV2.runtimeBindingId, status: 'failed', version: '2' },
+        runtimeBinding: {
+          id: bindingV2.runtimeBindingId,
+          status: 'failed',
+          version: '2',
+        },
         versions: {
           latestInteractionId: interactionV1.interactionId,
           latestInteraction: '2',
@@ -597,7 +757,8 @@ describe('Session Inbox', () => {
       ['opencode', 'provider.opencode'],
       ['gemini-cli', 'provider.google'],
     ] as const;
-    const summaries = providers.map(([id, providerId]) => summary({
+    const summaries = providers.map(([id, providerId]) =>
+      summary({
       sessionId: `session.${id}`,
       agentId: `agent.${id}`,
       currentRuntimeBinding: runtimeBinding(`session.${id}`, {
@@ -605,14 +766,16 @@ describe('Session Inbox', () => {
         providerId,
       }),
       presentationPhase: 'running',
-    }));
+      }),
+    );
     const updated = applyWorkspaceSessionInboxUpdate([project()], {
       hasMore: false,
       summaries,
     });
 
-    expect(updated[0]?.agentSessions.map((item) => `${item.id}:${item.providerId}`).sort())
-      .toEqual(providers.map(([id, providerId]) => `session.${id}:${providerId}`).sort());
+    expect(updated[0]?.agentSessions.map((item) => `${item.id}:${item.providerId}`).sort()).toEqual(
+      providers.map(([id, providerId]) => `session.${id}:${providerId}`).sort(),
+    );
   });
 
   it('reads persisted provider Session identity from the latest matching RuntimeBinding', () => {
@@ -624,12 +787,14 @@ describe('Session Inbox', () => {
     });
     const updated = applyWorkspaceSessionInboxUpdate([project()], {
       hasMore: false,
-      summaries: [summary({
+      summaries: [
+        summary({
         sessionId,
         currentRuntimeBinding: null,
         latestRuntimeBinding: persistedBinding,
         presentationPhase: 'completed',
-      })],
+        }),
+      ],
     });
 
     expect(updated[0]?.agentSessions[0]).toMatchObject({
@@ -652,7 +817,8 @@ describe('Session Inbox', () => {
     });
     const updated = applyWorkspaceSessionInboxUpdate([project()], {
       hasMore: false,
-      summaries: [summary({
+      summaries: [
+        summary({
         sessionId,
         currentRuntimeBinding: null,
         latestRuntimeBinding: persistedBinding,
@@ -684,7 +850,8 @@ describe('Session Inbox', () => {
           updatedAt: activityAt,
         },
         presentationPhase: 'completed',
-      })],
+        }),
+      ],
     });
 
     expect(updated[0]?.agentSessions[0]).toMatchObject({
@@ -736,14 +903,16 @@ describe('Session Inbox', () => {
     });
     const updated = applyWorkspaceSessionInboxUpdate([project()], {
       hasMore: false,
-      summaries: [summary({
+      summaries: [
+        summary({
         sessionId,
         agentId: 'agent.claude-code',
         currentRuntimeBinding: null,
         latestRuntimeBinding: oldBinding,
         latestTurn,
         presentationPhase: 'running',
-      })],
+        }),
+      ],
     });
     const switched = updated[0]?.agentSessions[0];
 
@@ -794,14 +963,16 @@ describe('Session Inbox', () => {
     });
     const updated = applyWorkspaceSessionInboxUpdate([project()], {
       hasMore: false,
-      summaries: [summary({
+      summaries: [
+        summary({
         sessionId,
         agentId: 'agent.claude-code',
         currentRuntimeBinding: null,
         latestRuntimeBinding: oldBinding,
         latestTurn,
         presentationPhase: 'running',
-      })],
+        }),
+      ],
     });
     const switched = updated[0]?.agentSessions[0];
 
@@ -834,18 +1005,21 @@ describe('Session Inbox', () => {
     });
     const updatedProjects = applyWorkspaceSessionInboxUpdate([project([selected, codex])], {
       hasMore: false,
-      summaries: [summary({
+      summaries: [
+        summary({
         sessionId: 'codex-session',
         activityAt: '2026-07-26T08:30:00.000Z',
         version: '2',
-      })],
+        }),
+      ],
     });
     const sorted = sortAgentSessionInboxEntries(updatedProjects[0]!.agentSessions, 'recent');
 
     expect(sorted.map((item) => item.id)).toEqual(['codex-session', selectedSessionId]);
     expect(selectedSessionId).toBe('claude-session');
-    expect(sorted.find((item) => item.id === selectedSessionId)?.providerId)
-      .toBe('provider.anthropic');
+    expect(sorted.find((item) => item.id === selectedSessionId)?.providerId).toBe(
+      'provider.anthropic',
+    );
   });
 
   it('does not reuse a stale Session view when its RuntimeBinding changes', () => {
@@ -853,11 +1027,7 @@ describe('Session Inbox', () => {
       runtimeBindingId: 'runtime-binding.old',
     });
     const updated = { ...existing, runtimeBindingId: 'runtime-binding.new' };
-    const projects = upsertAgentSessionIntoCollection(
-      [project([existing])],
-      projectId,
-      updated,
-    );
+    const projects = upsertAgentSessionIntoCollection([project([existing])], projectId, updated);
 
     expect(projects[0]?.agentSessions[0]).not.toBe(existing);
     expect(projects[0]?.agentSessions[0]?.runtimeBindingId).toBe('runtime-binding.new');
@@ -950,57 +1120,33 @@ describe('Session Inbox', () => {
     const userScope = 'session-tombstone-user';
     const scopeKey = buildProjectsStoreScopeKey(userScope, workspaceId);
     const deletedSession = session('deleted-session', { serverVersion: '5' });
-    const missingVersion = session('deleted-session', { serverVersion: undefined });
+    const missingVersion = session('deleted-session', {
+      serverVersion: undefined,
+    });
     upsertProjectIntoProjectsStore(project(), userScope);
-    recordAgentSessionTombstoneInProjectsStore(
-      scopeKey,
-      projectId,
-      deletedSession.id,
-      '5',
-    );
-    recordAgentSessionTombstoneInProjectsStore(
-      scopeKey,
-      projectId,
-      deletedSession.id,
-      '4',
-    );
+    recordAgentSessionTombstoneInProjectsStore(scopeKey, projectId, deletedSession.id, '5');
+    recordAgentSessionTombstoneInProjectsStore(scopeKey, projectId, deletedSession.id, '4');
 
-    expect(canCommitAgentSessionToProjectsStore(
-      scopeKey,
-      projectId,
-      missingVersion,
-    )).toBe(false);
-    expect(canCommitAgentSessionToProjectsStore(
-      scopeKey,
-      projectId,
-      deletedSession,
-    )).toBe(false);
-    upsertAgentSessionIntoProjectsStore(
-      projectId,
-      deletedSession,
-      workspaceId,
-      userScope,
-    );
-    upsertProjectIntoProjectsStore(project([{
+    expect(canCommitAgentSessionToProjectsStore(scopeKey, projectId, missingVersion)).toBe(false);
+    expect(canCommitAgentSessionToProjectsStore(scopeKey, projectId, deletedSession)).toBe(false);
+    upsertAgentSessionIntoProjectsStore(projectId, deletedSession, workspaceId, userScope);
+    upsertProjectIntoProjectsStore(
+      project([
+        {
       ...deletedSession,
       serverVersion: '4',
-    }]), userScope);
+        },
+      ]),
+      userScope,
+    );
     expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions).toEqual([]);
 
     const recreatedSession = { ...deletedSession, serverVersion: '6' };
-    expect(canCommitAgentSessionToProjectsStore(
-      scopeKey,
-      projectId,
-      recreatedSession,
-    )).toBe(true);
-    upsertAgentSessionIntoProjectsStore(
-      projectId,
-      recreatedSession,
-      workspaceId,
-      userScope,
+    expect(canCommitAgentSessionToProjectsStore(scopeKey, projectId, recreatedSession)).toBe(true);
+    upsertAgentSessionIntoProjectsStore(projectId, recreatedSession, workspaceId, userScope);
+    expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.serverVersion).toBe(
+      '6',
     );
-    expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.serverVersion)
-      .toBe('6');
 
     deleteProjectsStore(scopeKey);
     expect(peekProjectsStore(scopeKey)).toBeNull();
@@ -1009,25 +1155,23 @@ describe('Session Inbox', () => {
   it('filters stale inventory rows at an explicit Store scope after a Session tombstone', () => {
     const userScope = 'session-inventory-tombstone-user';
     const scopeKey = `${buildProjectsStoreScopeKey(userScope, workspaceId)}::page:10:2`;
-    const staleSession = session('inventory-deleted-session', { serverVersion: '5' });
+    const staleSession = session('inventory-deleted-session', {
+      serverVersion: '5',
+    });
     const recreatedSession = { ...staleSession, serverVersion: '6' };
-    recordAgentSessionTombstoneInProjectsStore(
-      scopeKey,
-      projectId,
-      staleSession.id,
-      '5',
-    );
+    recordAgentSessionTombstoneInProjectsStore(scopeKey, projectId, staleSession.id, '5');
 
-    expect(filterProjectsForInventoryStore(
-      getProjectsStore(scopeKey),
-      [project([staleSession])],
-    )[0]?.agentSessions).toEqual([]);
+    expect(
+      filterProjectsForInventoryStore(getProjectsStore(scopeKey), [project([staleSession])])[0]
+        ?.agentSessions,
+    ).toEqual([]);
     upsertProjectIntoProjectsStoreByScopeKey(scopeKey, project([staleSession]));
     expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions).toEqual([]);
 
     upsertProjectIntoProjectsStoreByScopeKey(scopeKey, project([recreatedSession]));
-    expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.serverVersion)
-      .toBe('6');
+    expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.serverVersion).toBe(
+      '6',
+    );
 
     deleteProjectsStore(scopeKey);
   });
@@ -1047,21 +1191,15 @@ describe('Session Inbox', () => {
       },
     });
 
-    mutateProjectsStoreByScopeKey(
-      scopeKey,
-      (projects) => applyWorkspaceSessionInboxUpdate(
+    mutateProjectsStoreByScopeKey(scopeKey, (projects) =>
+      applyWorkspaceSessionInboxUpdate(
         projects,
         { hasMore: false, summaries: [tombstone] },
         scopeKey,
       ),
     );
     expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions).toEqual([]);
-    upsertAgentSessionIntoProjectsStore(
-      projectId,
-      staleSession,
-      workspaceId,
-      userScope,
-    );
+    upsertAgentSessionIntoProjectsStore(projectId, staleSession, workspaceId, userScope);
     expect(getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions).toEqual([]);
     deleteProjectsStore(scopeKey);
   });
@@ -1090,11 +1228,7 @@ describe('Session Inbox', () => {
     );
 
     expect(committed[0]?.agentSessions).toEqual([recreatedSession]);
-    expect(canCommitAgentSessionToProjectsStore(
-      scopeKey,
-      projectId,
-      recreatedSession,
-    )).toBe(true);
+    expect(canCommitAgentSessionToProjectsStore(scopeKey, projectId, recreatedSession)).toBe(true);
     deleteProjectsStore(scopeKey);
   });
 
@@ -1117,36 +1251,47 @@ describe('Session Inbox', () => {
       },
     });
 
-    const committed = applyWorkspaceSessionInboxUpdate(
-      [project([recreatedSession])],
-      { hasMore: false, summaries: [staleTombstone] },
-    );
+    const committed = applyWorkspaceSessionInboxUpdate([project([recreatedSession])], {
+      hasMore: false,
+      summaries: [staleTombstone],
+    });
 
     expect(committed[0]?.agentSessions[0]).toBe(recreatedSession);
   });
 
   it('normalizes persisted Inbox preferences without accepting arbitrary enum values', () => {
-    expect(normalizeWorkbenchPreferences({
+    expect(
+      normalizeWorkbenchPreferences({
       sessionInboxFilter: 'attention',
       sessionInboxGroupMode: 'provider',
       sessionInboxProviderId: 'provider.anthropic',
       sessionInboxShowArchived: true,
       sessionInboxSortMode: 'recent',
-    })).toMatchObject({
+      }),
+    ).toMatchObject({
       sessionInboxFilter: 'attention',
       sessionInboxGroupMode: 'provider',
       sessionInboxProviderId: 'provider.anthropic',
       sessionInboxShowArchived: true,
       sessionInboxSortMode: 'recent',
     });
-    expect(normalizeWorkbenchPreferences({
+    expect(
+      normalizeWorkbenchPreferences({
+        sessionInboxSortMode: 'provider',
+      }),
+    ).toMatchObject({
+      sessionInboxSortMode: 'provider',
+    });
+    expect(
+      normalizeWorkbenchPreferences({
       sessionInboxFilter: 'invalid',
       sessionInboxGroupMode: 'invalid',
       sessionInboxSortMode: 'invalid',
-    })).toMatchObject({
+      }),
+    ).toMatchObject({
       sessionInboxFilter: 'all',
       sessionInboxGroupMode: 'project',
-      sessionInboxSortMode: 'smart',
+      sessionInboxSortMode: 'provider',
     });
   });
 
@@ -1165,13 +1310,15 @@ describe('Session Inbox', () => {
 
   it('keeps the Session cache at a hard bound even when every row is pinned', () => {
     const loadedTranscriptSession = session('selected-session', {
-      items: [{
+      items: [
+        {
         id: 'selected-item',
         sessionId: 'selected-session',
         role: 'assistant',
         content: 'Loaded transcript',
         createdAt,
-      }],
+        },
+      ],
     });
     const pinnedSessions = Array.from(
       { length: WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS + 49 },
@@ -1183,22 +1330,14 @@ describe('Session Inbox', () => {
       { hasMore: false, summaries: [] },
     );
 
-    expect(committed[0]?.agentSessions)
-      .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+    expect(committed[0]?.agentSessions).toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
     expect(committed[0]?.agentSessions).toContain(loadedTranscriptSession);
   });
 
   it('bounds Session tombstones and evicts the oldest recorded identities', () => {
-    const scopeKey = buildProjectsStoreScopeKey(
-      'session-tombstone-bound-user',
-      workspaceId,
-    );
+    const scopeKey = buildProjectsStoreScopeKey('session-tombstone-bound-user', workspaceId);
     try {
-      for (
-        let index = 0;
-        index < PROJECT_STORE_MAX_SESSION_TOMBSTONES + 5;
-        index += 1
-      ) {
+      for (let index = 0; index < PROJECT_STORE_MAX_SESSION_TOMBSTONES + 5; index += 1) {
         recordAgentSessionTombstoneInProjectsStore(
           scopeKey,
           projectId,
@@ -1211,9 +1350,7 @@ describe('Session Inbox', () => {
       expect(tombstones).toHaveLength(PROJECT_STORE_MAX_SESSION_TOMBSTONES);
       expect(tombstones.has(`${projectId}\u0001deleted-0`)).toBe(false);
       expect(
-        tombstones.get(
-          `${projectId}\u0001deleted-${PROJECT_STORE_MAX_SESSION_TOMBSTONES + 4}`,
-        ),
+        tombstones.get(`${projectId}\u0001deleted-${PROJECT_STORE_MAX_SESSION_TOMBSTONES + 4}`),
       ).toBe(String(PROJECT_STORE_MAX_SESSION_TOMBSTONES + 5));
     } finally {
       deleteProjectsStore(scopeKey);
@@ -1221,10 +1358,7 @@ describe('Session Inbox', () => {
   });
 
   it('prunes transcript revisions when the central Session cache evicts rows', () => {
-    const scopeKey = buildProjectsStoreScopeKey(
-      'session-revision-bound-user',
-      workspaceId,
-    );
+    const scopeKey = buildProjectsStoreScopeKey('session-revision-bound-user', workspaceId);
     const sessions = Array.from(
       { length: WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS + 25 },
       (_, index) => session(`revision-${String(index).padStart(3, '0')}`),
@@ -1232,25 +1366,19 @@ describe('Session Inbox', () => {
     try {
       const store = getProjectsStore(scopeKey);
       for (const agentSession of sessions) {
-        store.agentSessionTranscriptRevisions.set(
-          `${projectId}\u0001${agentSession.id}`,
-          1,
-        );
+        store.agentSessionTranscriptRevisions.set(`${projectId}\u0001${agentSession.id}`, 1);
       }
 
       upsertProjectIntoProjectsStoreByScopeKey(scopeKey, project(sessions));
 
-      const retainedSessions = getProjectsStore(scopeKey)
-        .snapshot.projects[0]?.agentSessions ?? [];
+      const retainedSessions = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions ?? [];
       const retainedRevisionKeys = new Set(
-        retainedSessions.map(
-          (agentSession) => `${projectId}\u0001${agentSession.id}`,
-        ),
+        retainedSessions.map((agentSession) => `${projectId}\u0001${agentSession.id}`),
       );
-      expect(retainedSessions)
-        .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
-      expect(store.agentSessionTranscriptRevisions)
-        .toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+      expect(retainedSessions).toHaveLength(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS);
+      expect(store.agentSessionTranscriptRevisions).toHaveLength(
+        WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS,
+      );
       expect(
         [...store.agentSessionTranscriptRevisions.keys()].every((key) =>
           retainedRevisionKeys.has(key),
@@ -1261,28 +1389,31 @@ describe('Session Inbox', () => {
     }
   });
 
-  it.each<AgentSessionRuntimeDisplayStatus>([
-    'initializing',
-    'streaming',
-  ])('classifies %s as executing', (runtimeStatus) => {
-    expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus })))
-      .toBe('executing');
-  });
+  it.each<AgentSessionRuntimeDisplayStatus>(['initializing', 'streaming'])(
+    'classifies %s as executing',
+    (runtimeStatus) => {
+      expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus }))).toBe(
+        'executing',
+      );
+    },
+  );
 
   it.each<AgentSessionRuntimeDisplayStatus>([
     'awaiting_approval',
     'awaiting_tool',
     'awaiting_user',
   ])('classifies %s as attention without implying active engine work', (runtimeStatus) => {
-    expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus })))
-      .toBe('attention');
+    expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus }))).toBe(
+      'attention',
+    );
   });
 
-  it.each<AgentSessionRuntimeDisplayStatus>([
-    'unknown',
-    'stale',
-  ])('classifies %s as neutral instead of executing or attention', (runtimeStatus) => {
-    expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus })))
-      .toBe('normal');
-  });
+  it.each<AgentSessionRuntimeDisplayStatus>(['unknown', 'stale'])(
+    'classifies %s as neutral instead of executing or attention',
+    (runtimeStatus) => {
+      expect(resolveAgentSessionAttentionLevel(session(runtimeStatus, { runtimeStatus }))).toBe(
+        'normal',
+      );
+    },
+  );
 });

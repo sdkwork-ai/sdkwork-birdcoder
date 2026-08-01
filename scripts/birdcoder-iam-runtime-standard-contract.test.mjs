@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { createBirdcoderWorkspaceAliasEntries } from './create-birdcoder-vite-plugins.mjs';
+
 const rootDir = process.cwd();
 
 function readText(relativePath) {
@@ -140,6 +142,34 @@ for (const [label, config] of [
     );
   }
 }
+
+const expectedRuntimeBootstrapEntry = path.resolve(
+  rootDir,
+  '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts',
+);
+for (const surfaceRoot of [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
+]) {
+  const runtimeBootstrapAlias = createBirdcoderWorkspaceAliasEntries(
+    path.resolve(rootDir, surfaceRoot),
+  ).find((entry) => entry.find === '@sdkwork/runtime-bootstrap');
+  assert.ok(
+    runtimeBootstrapAlias,
+    `${surfaceRoot} must define the runtime-bootstrap Vite alias for sibling IAM source imports.`,
+  );
+  assert.equal(
+    path.normalize(runtimeBootstrapAlias.replacement),
+    path.normalize(expectedRuntimeBootstrapEntry),
+    `${surfaceRoot} must resolve runtime-bootstrap from the sdkwork-appbase workspace package.`,
+  );
+  assert.equal(
+    fs.existsSync(runtimeBootstrapAlias.replacement),
+    true,
+    `${surfaceRoot} runtime-bootstrap Vite alias must resolve to an existing source entry.`,
+  );
+}
+
 for (const dependencyName of [
   '@sdkwork/iam-app-sdk',
   '@sdkwork/drive-app-sdk',

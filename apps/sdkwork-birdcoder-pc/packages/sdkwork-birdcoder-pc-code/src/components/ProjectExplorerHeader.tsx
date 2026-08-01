@@ -35,6 +35,7 @@ interface ProjectExplorerHeaderProps {
   byProviderLabel: string;
   chronologicalLabel: string;
   sortByLabel: string;
+  providerSortLabel: string;
   smartLabel: string;
   recentLabel: string;
   createdLabel: string;
@@ -57,6 +58,7 @@ interface ProjectExplorerHeaderProps {
   onOrganizeByProject: () => void;
   onOrganizeByProvider: () => void;
   onOrganizeChronologically: () => void;
+  onSortByProvider: () => void;
   onSortByCreated: () => void;
   onSortBySmart: () => void;
   onSortByRecent: () => void;
@@ -94,6 +96,7 @@ export function ProjectExplorerHeader({
   byProviderLabel,
   chronologicalLabel,
   sortByLabel,
+  providerSortLabel,
   smartLabel,
   recentLabel,
   createdLabel,
@@ -116,6 +119,7 @@ export function ProjectExplorerHeader({
   onOrganizeByProject,
   onOrganizeByProvider,
   onOrganizeChronologically,
+  onSortByProvider,
   onSortByCreated,
   onSortBySmart,
   onSortByRecent,
@@ -334,6 +338,14 @@ export function ProjectExplorerHeader({
 
               <div className="h-px bg-white/10 my-1.5"></div>
               <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{sortByLabel}</div>
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={onSortByProvider}
+              >
+                <span>{providerSortLabel}</span>
+                {sortBy === 'provider' && <Check size={14} className="text-gray-400" />}
+              </button>
               <button
                 type="button"
                 className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"

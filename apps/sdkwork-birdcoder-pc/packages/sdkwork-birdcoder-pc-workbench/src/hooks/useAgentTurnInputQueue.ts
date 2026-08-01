@@ -32,6 +32,8 @@ interface UseAgentTurnInputQueueOptions {
   disabled: boolean;
   isActive: boolean;
   isTurnBusy: boolean;
+  requireRuntimeBinding?: boolean;
+  runtimeBindingId?: string | null;
   onDispatch: (
     entry: AgentTurnInputQueueEntry,
   ) => Promise<WorkbenchQueuedTurnDispatchOutcome>;
@@ -95,6 +97,8 @@ export function useAgentTurnInputQueue({
   disabled,
   isActive,
   isTurnBusy,
+  requireRuntimeBinding = false,
+  runtimeBindingId,
   onDispatch,
   onError,
   pausedQueueEntryId,
@@ -331,6 +335,11 @@ export function useAgentTurnInputQueue({
     if (!identity) {
       throw new Error('An Agent and Session are required to queue a Turn input.');
     }
+    if (requireRuntimeBinding && !(runtimeBindingId?.trim())) {
+      throw new Error(
+        `Agent session ${normalizedSessionId} does not have an active runtime binding.`,
+      );
+    }
     const fingerprint = createQueueRequestFingerprint(identityKey, request);
     const explicitQueueEntryId = request.queueEntryId?.trim() ?? '';
     const pendingAttempt = pendingCreateAttemptRef.current;
@@ -367,6 +376,9 @@ export function useAgentTurnInputQueue({
     broadcastMutation,
     identity,
     requestProcessing,
+    normalizedSessionId,
+    requireRuntimeBinding,
+    runtimeBindingId,
     runMutation,
     upsertQueuedTurnInputProjection,
   ]);

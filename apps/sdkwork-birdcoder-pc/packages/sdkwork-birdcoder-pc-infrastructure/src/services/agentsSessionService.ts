@@ -1920,6 +1920,22 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
+  async resolveInteraction(
+    identity: AgentSessionIdentity,
+    interactionId: string,
+    request: Parameters<IAgentSessionService['resolveInteraction']>[2],
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.interactions.resolve(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      interactionId,
+      request,
+    );
+    assertInteractionIdentity(response, normalizedIdentity.sessionId, interactionId);
+    return response;
+  }
+
   async listRuntimeBindings(
     identity: AgentSessionIdentity,
     request: AgentSessionPageRequest = {},

@@ -31,6 +31,7 @@ import {
 import {
   canApplyAgentSessionTombstone,
   canCommitAgentSessionToProjectsStore,
+  PROJECT_STORE_MAX_CACHED_SESSIONS,
   recordAgentSessionTombstoneInProjectsStore,
   removeAgentSessionFromCollection,
   updateAgentSessionInCollection,
@@ -724,7 +725,7 @@ function normalizeProjectActivitySummaries(
   return { deletedSessionIds, deletedSessionTombstones, sessions };
 }
 
-async function loadProjectSessionActivityHead(
+async function loadProjectSessionActivitySnapshot(
   agentSessionService: IAgentSessionService,
   project: AgentProjectView,
   signal?: AbortSignal,
@@ -733,31 +734,56 @@ async function loadProjectSessionActivityHead(
   deletedSessionTombstones: AgentSessionView[];
   sessions: AgentSessionView[];
 }> {
-  const page = await agentSessionService.listSessionActivitySummaries({
-    pageSize: PROJECT_SESSION_ACTIVITY_PAGE_SIZE,
-    projectId: project.projectId,
-  }, { signal });
-  signal?.throwIfAborted();
+  const summaries: AgentSessionActivitySummaryRecord[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    if (cursor && !seenCursors.add(cursor)) {
+      throw new Error('Agents project Session activity snapshot repeated a cursor.');
+    }
+    const page = await agentSessionService.listSessionActivitySummaries({
+      ...(cursor ? { cursor } : {}),
+      pageSize: PROJECT_SESSION_ACTIVITY_PAGE_SIZE,
+      projectId: project.projectId,
+    }, { signal });
+    signal?.throwIfAborted();
 
-  const nextCursor = normalizeAgentSessionActivityCursor(
-    page.pageInfo.nextCursor,
-    'next cursor',
-  );
-  if (
-    page.pageInfo.mode !== 'cursor'
-    || page.pageInfo.pageSize !== PROJECT_SESSION_ACTIVITY_PAGE_SIZE
-    || typeof page.pageInfo.hasMore !== 'boolean'
-    || page.items.length > PROJECT_SESSION_ACTIVITY_PAGE_SIZE
-  ) {
-    throw new Error('Agents project Session activity snapshot returned invalid pagination metadata.');
-  }
-  if (page.pageInfo.hasMore && (page.items.length === 0 || !nextCursor)) {
-    throw new Error('Agents project Session activity snapshot returned a non-progressing cursor page.');
-  }
-  if (!page.pageInfo.hasMore && nextCursor) {
-    throw new Error('Agents project Session activity snapshot returned an unexpected terminal cursor.');
-  }
-  return normalizeProjectActivitySummaries(page.items, project);
+    const nextCursor = normalizeAgentSessionActivityCursor(
+      page.pageInfo.nextCursor,
+      'next cursor',
+    );
+    if (
+      page.pageInfo.mode !== 'cursor'
+      || page.pageInfo.pageSize !== PROJECT_SESSION_ACTIVITY_PAGE_SIZE
+      || typeof page.pageInfo.hasMore !== 'boolean'
+      || page.items.length > PROJECT_SESSION_ACTIVITY_PAGE_SIZE
+    ) {
+      throw new Error('Agents project Session activity snapshot returned invalid pagination metadata.');
+    }
+    if (
+      page.pageInfo.hasMore
+      && (page.items.length === 0 || !nextCursor || nextCursor === cursor)
+    ) {
+      throw new Error('Agents project Session activity snapshot returned a non-progressing cursor page.');
+    }
+    if (!page.pageInfo.hasMore && nextCursor) {
+      throw new Error('Agents project Session activity snapshot returned an unexpected terminal cursor.');
+    }
+    summaries.push(...page.items);
+    if (
+      summaries.length > PROJECT_STORE_MAX_CACHED_SESSIONS
+      || (page.pageInfo.hasMore && summaries.length >= PROJECT_STORE_MAX_CACHED_SESSIONS)
+    ) {
+      throw new Error(
+        `Agents project Session activity snapshot exceeds ${PROJECT_STORE_MAX_CACHED_SESSIONS} Sessions.`,
+      );
+    }
+    cursor = nextCursor;
+    if (!page.pageInfo.hasMore) {
+      break;
+    }
+  } while (true);
+  return normalizeProjectActivitySummaries(summaries, project);
 }
 
 async function refreshProjectSessionsWithoutTimeout({
@@ -794,7 +820,7 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  const snapshot = await loadProjectSessionActivityHead(
+  const snapshot = await loadProjectSessionActivitySnapshot(
     agentSessionService,
     project,
     signal,

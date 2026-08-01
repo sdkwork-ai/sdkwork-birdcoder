@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { createRef } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { createRef, useState } from 'react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SharedComposerFooter } from './SharedComposerFooter';
 import type { EngineComposerFooterProps } from './UniversalChatComposerFooter.types';
@@ -37,26 +37,48 @@ function createProps(
     isStopTurnConfirmationVisible: false,
     isStoppingTurn: false,
     isUploadingAttachments: false,
-    modelGroups: [],
+    unifiedAgentModelOptions: [],
+    unifiedAgentProviderOptions: [{ id: 'codex', label: 'Codex' }],
     onAccessModeMenuOpenChange: vi.fn(),
     onAttachmentMenuOpenChange: vi.fn(),
     onFileUpload: vi.fn(),
     onFolderUpload: vi.fn(),
     onImageUpload: vi.fn(),
+    onCreateUnifiedAgentModelConfiguration: vi.fn(),
     onSelectAccessMode: vi.fn(),
-    onSelectModel: vi.fn(),
+    onSelectUnifiedAgentModel: vi.fn(),
     onSend: vi.fn(),
     onStopTurn: vi.fn(),
     onToggleVoiceInput: vi.fn(),
     selectedAccessModeId: '',
     selectedModelLabel: 'GPT-5',
-    selectedModelPickerId: 'openai:gpt-5',
+    selectedUnifiedAgentModelOptionId: 'built-in:gpt-5',
     selectedModelSummary: 'GPT-5',
-    setShowModelMenu: vi.fn(),
-    showModelMenu: false,
-    showModelPicker: false,
+    onUnifiedAgentModelSelectorOpenChange: vi.fn(),
+    isUnifiedAgentModelSelectorOpen: false,
+    showUnifiedAgentModelSelector: false,
     ...overrides,
   };
+}
+
+function ControlledUnifiedAgentModelSelectorFooter({
+  props,
+}: {
+  props: EngineComposerFooterProps;
+}) {
+  const [isOpen, setIsOpen] = useState(props.isUnifiedAgentModelSelectorOpen);
+
+  return (
+    <SharedComposerFooter
+      {...props}
+      engineId="codex"
+      isUnifiedAgentModelSelectorOpen={isOpen}
+      onUnifiedAgentModelSelectorOpenChange={(nextOpen) => {
+        props.onUnifiedAgentModelSelectorOpenChange(nextOpen);
+        setIsOpen(nextOpen);
+      }}
+    />
+  );
 }
 
 describe('SharedComposerFooter turn cancellation', () => {
@@ -115,5 +137,135 @@ describe('SharedComposerFooter turn cancellation', () => {
     expect(onSend).toHaveBeenCalledOnce();
     expect(onStopTurn).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'chat.stopResponse' })).toBeNull();
+  });
+});
+
+describe('SharedComposerFooter unified Agent model selector', () => {
+  it('selects a built-in model from the independent unified selector', () => {
+    const onSelectUnifiedAgentModel = vi.fn();
+    render(
+      <ControlledUnifiedAgentModelSelectorFooter
+        props={createProps({
+          unifiedAgentModelOptions: [{
+            id: 'built-in:gpt-5',
+            modelId: 'gpt-5',
+            label: 'GPT-5',
+            iconKey: 'codex',
+            kind: 'built-in',
+          }],
+          onSelectUnifiedAgentModel,
+          selectedUnifiedAgentModelOptionId: 'built-in:gpt-5',
+          showUnifiedAgentModelSelector: true,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'GPT-5' }));
+    fireEvent.click(screen.getByRole('option', { name: 'GPT-5' }));
+
+    expect(onSelectUnifiedAgentModel).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'built-in:gpt-5',
+      modelId: 'gpt-5',
+    }));
+  });
+
+  it('submits a provider-independent custom model through the injected callback', async () => {
+    const onCreateUnifiedAgentModelConfiguration = vi.fn();
+    render(
+      <ControlledUnifiedAgentModelSelectorFooter
+        props={createProps({
+          unifiedAgentModelOptions: [{
+            id: 'built-in:gpt-5',
+            modelId: 'gpt-5',
+            label: 'GPT-5',
+            iconKey: 'codex',
+            kind: 'built-in',
+          }],
+          unifiedAgentProviderOptions: [
+            { id: 'codex', label: 'Codex' },
+            { id: 'claude-code', label: 'Claude Code' },
+            { id: 'gemini', label: 'Gemini' },
+          ],
+          onCreateUnifiedAgentModelConfiguration,
+          selectedUnifiedAgentModelOptionId: 'built-in:gpt-5',
+          showUnifiedAgentModelSelector: true,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'GPT-5' }));
+    fireEvent.click(screen.getByRole('button', {
+      name: 'chat.unifiedAgentModelSelector.addModel',
+    }));
+    fireEvent.change(screen.getByPlaceholderText(
+      'chat.unifiedAgentModelSelector.vendorPlaceholder',
+    ), {
+      target: { value: 'openai-compatible' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(
+      'chat.unifiedAgentModelSelector.baseUrlPlaceholder',
+    ), {
+      target: { value: 'https://models.example.test/v1' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(
+      'chat.unifiedAgentModelSelector.defaultModelPlaceholder',
+    ), {
+      target: { value: 'gpt-5-custom' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(
+      'chat.unifiedAgentModelSelector.apiKeyPlaceholder',
+    ), {
+      target: { value: 'test-secret' },
+    });
+    fireEvent.click(screen.getByRole('button', {
+      name: 'chat.unifiedAgentModelSelector.submit',
+    }));
+
+    await waitFor(() => expect(onCreateUnifiedAgentModelConfiguration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        configurationId: 'model.custom.openai-compatible.gpt-5-custom',
+        vendorCode: 'openai-compatible',
+        baseUrl: 'https://models.example.test/v1',
+        apiKey: 'test-secret',
+        defaultModelId: 'gpt-5-custom',
+        supportedModelIds: ['gpt-5-custom'],
+        supportedProviderIds: ['codex', 'claude-code', 'gemini'],
+      }),
+    ));
+  });
+
+  it('explains why an existing provider model cannot be added again', () => {
+    render(
+      <ControlledUnifiedAgentModelSelectorFooter
+        props={createProps({
+          unifiedAgentModelOptions: [{
+            id: 'built-in:gpt-5',
+            modelId: 'gpt-5',
+            label: 'GPT-5',
+            iconKey: 'codex',
+            kind: 'built-in',
+          }],
+          selectedUnifiedAgentModelOptionId: 'built-in:gpt-5',
+          showUnifiedAgentModelSelector: true,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'GPT-5' }));
+    fireEvent.click(screen.getByRole('button', {
+      name: 'chat.unifiedAgentModelSelector.addModel',
+    }));
+    fireEvent.change(screen.getByPlaceholderText(
+      'chat.unifiedAgentModelSelector.defaultModelPlaceholder',
+    ), {
+      target: { value: 'GPT-5' },
+    });
+
+    expect(screen.getByRole('alert').textContent)
+      .toBe('chat.unifiedAgentModelSelector.modelAlreadyExists');
+    expect(screen.getByRole('button', {
+      name: 'chat.unifiedAgentModelSelector.submit',
+    }).hasAttribute('disabled'))
+      .toBe(true);
   });
 });

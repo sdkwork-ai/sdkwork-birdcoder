@@ -38,8 +38,10 @@ export const UniversalChatComposerChrome = memo(function UniversalChatComposerCh
         </div>
       ) : null}
       <div
-        className={`flex flex-col gap-2 rounded-[24px] bg-[#29292c] px-4 pb-3 pt-4 shadow-[0_18px_54px_rgba(0,0,0,0.24)] transition-[background-color,box-shadow] duration-200 ${
-          isFocused ? 'bg-[#2c2c30] shadow-[0_20px_60px_rgba(0,0,0,0.3)]' : ''
+        className={`composer-surface-chrome flex flex-col gap-1.5 rounded-[20px] border border-white/[0.07] bg-[#242426]/90 px-3 pb-2 pt-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-200 ${
+          isFocused
+            ? 'border-white/[0.11] bg-[#27272a]/95 shadow-[0_10px_28px_rgba(0,0,0,0.22)]'
+            : ''
         } ${innerClassName}`}
         style={{ animationDelay: '150ms' }}
       >

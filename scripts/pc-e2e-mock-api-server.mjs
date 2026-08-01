@@ -768,6 +768,7 @@ const sessionItemsBySessionId = new Map([
                 id: 'e2e-codex-agent-message-1',
                 type: 'agentMessage',
                 text: 'Codex completed the provider-neutral file presentation.',
+                phase: 'final_answer',
               },
             },
           },
@@ -826,6 +827,35 @@ const sessionItemsBySessionId = new Map([
           contentType: 'application/json',
           providerId: null,
           createdAt: '2026-01-01T00:00:42.002Z',
+        };
+      }
+      if (sequence === 98) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-item-98',
+          turnId: 'e2e-codex-turn-1',
+          kind: 'tool_result',
+          status: 'completed',
+          sequence: '98',
+          content: null,
+          contentType: 'application/json',
+          toolName: 'provider_event',
+          toolCallId: 'e2e-codex-agent-commentary-1',
+          toolResult: {
+            method: 'item/completed',
+            params: {
+              threadId: codexProviderSessionId,
+              turnId: 'e2e-codex-turn-1',
+              completedAtMs: Date.parse(createdAt),
+              item: {
+                id: 'e2e-codex-agent-commentary-1',
+                type: 'agentMessage',
+                text: 'Codex commentary is visible only inside the execution process.',
+                phase: 'commentary',
+              },
+            },
+          },
+          createdAt,
         };
       }
       return {

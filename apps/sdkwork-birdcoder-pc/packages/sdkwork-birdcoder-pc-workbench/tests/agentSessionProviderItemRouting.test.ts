@@ -120,15 +120,91 @@ describe('Codex provider Session item routing', () => {
     const view = toAgentSessionItemView(createProviderSessionItem('codex-agent-message-1', {
       id: 'codex-agent-message-1',
       type: 'agentMessage',
-      text: 'The Session projection is ready.',
+      text: '<![CDATA[ The Session projection is ready.\n<oai-mem-citation>internal</oai-mem-citation> ]]>',
       phase: 'final_answer',
-      memoryCitation: null,
+      memoryCitation: {
+        entries: [{
+          path: 'memory/session-notes.md',
+          lineStart: 12,
+          lineEnd: 15,
+          note: 'Prior Session decision.',
+        }],
+        threadIds: ['provider-session-memory-1'],
+      },
     }));
 
     expect(view.role).toBe('assistant');
     expect(view.content).toBe('The Session projection is ready.');
+    expect(view.metadata?.providerMessagePhase).toBe('final_answer');
+    expect(view.metadata?.providerMessageCompleted).toBe(true);
+    expect(view.resources).toEqual([
+      expect.objectContaining({
+        kind: 'citation',
+        path: 'memory/session-notes.md',
+        citation: {
+          lineStart: 12,
+          lineEnd: 15,
+          note: 'Prior Session decision.',
+        },
+      }),
+    ]);
+    expect(JSON.stringify(view)).not.toMatch(/"[^"]*thread[^"]*"\s*:/iu);
     expect(resolveAgentSessionItemPresentation(view).blocks)
       .toEqual(expect.arrayContaining([expect.objectContaining({ type: 'markdown' })]));
+  });
+
+  it('codex-provider-item-agent-message: mirrors streaming cleanup and completion state', () => {
+    const streamingItem = {
+      ...createProviderSessionItem('codex-agent-message-streaming', {
+        id: 'codex-agent-message-streaming',
+        type: 'agentMessage',
+        text: '<![CDATA[ Streaming answer\n\n`<oai-mem-citation>`\n\nvisible<oai-mem-cit',
+        phase: 'final_answer',
+      }),
+      status: 'pending' as const,
+      completedAt: null,
+    };
+    const streamingView = toAgentSessionItemView(streamingItem);
+
+    expect(streamingView.content).toBe(
+      'Streaming answer\n\n`<oai-mem-citation>`\n\nvisible',
+    );
+    expect(streamingView.metadata?.providerMessageCompleted).toBe(false);
+
+    const hiddenView = toAgentSessionItemView(createProviderSessionItem(
+      'codex-agent-message-external-tool',
+      {
+        id: 'codex-agent-message-external-tool',
+        type: 'agentMessage',
+        text: [
+          'Before',
+          '[external_agent_tool_call:delegate]',
+          'private payload',
+          '[/external_agent_tool_call]',
+          'After',
+        ].join('\n'),
+        phase: 'commentary',
+      },
+    ));
+    expect(hiddenView.content).toBe('Before\nAfter');
+    expect(hiddenView.metadata?.providerMessagePhase).toBe('commentary');
+
+    const wrappedView = toAgentSessionItemView(createProviderSessionItem(
+      'codex-agent-message-wrapped',
+      {
+        method: 'item/completed',
+        params: {
+          item: {
+            id: 'codex-agent-message-wrapped',
+            type: 'agentMessage',
+            text: 'Wrapped commentary.',
+            phase: 'commentary',
+          },
+        },
+      },
+    ));
+    expect(wrappedView.content).toBe('Wrapped commentary.');
+    expect(wrappedView.metadata?.providerMessagePhase).toBe('commentary');
   });
 
   it('codex-provider-item-plan: keeps durable plan text separate from task progress', () => {
@@ -265,7 +341,7 @@ describe('Codex provider Session item routing', () => {
     }));
   });
 
-  it('codex-provider-item-file-change: routes non-empty changes and suppresses empty changes', () => {
+  it('codex-provider-item-file-change: matches patch and visualization visibility rules', () => {
     const changedItem = createProviderSessionItem('codex-file-change-1', {
       id: 'codex-file-change-1',
       type: 'fileChange',
@@ -286,6 +362,42 @@ describe('Codex provider Session item routing', () => {
       status: 'completed',
     });
     expect(toAgentSessionTranscriptItemViews([emptyItem])).toEqual([]);
+
+    const visualizationPath = [
+      'C:\\Users\\admin\\.codex\\visualizations',
+      '2026\\07\\31\\session-visual-1\\provider-routing.html',
+    ].join('\\');
+    const visualizationUpdate = createProviderSessionItem('codex-file-change-visual-update', {
+      id: 'codex-file-change-visual-update',
+      type: 'fileChange',
+      changes: [{ path: visualizationPath, kind: { type: 'update' } }],
+      status: 'inProgress',
+    });
+    expect(toAgentSessionTranscriptItemViews([visualizationUpdate])).toHaveLength(1);
+
+    const visualizationDelete = createProviderSessionItem('codex-file-change-visual-delete', {
+      id: 'codex-file-change-visual-delete',
+      type: 'fileChange',
+      changes: [{ path: visualizationPath, kind: { type: 'delete' } }],
+      status: 'completed',
+    });
+    expect(toAgentSessionTranscriptItemViews([visualizationDelete])).toEqual([]);
+
+    const failedVisualizationAdd = createProviderSessionItem('codex-file-change-visual-failed', {
+      id: 'codex-file-change-visual-failed',
+      type: 'fileChange',
+      changes: [{ path: visualizationPath, kind: { type: 'add' } }],
+      status: 'failed',
+    });
+    expect(toAgentSessionTranscriptItemViews([failedVisualizationAdd])).toEqual([]);
+
+    const failedSourceChange = createProviderSessionItem('codex-file-change-source-failed', {
+      id: 'codex-file-change-source-failed',
+      type: 'fileChange',
+      changes: [{ path: 'src/session.ts', kind: { type: 'update' } }],
+      status: 'failed',
+    });
+    expect(toAgentSessionTranscriptItemViews([failedSourceChange])).toHaveLength(1);
   });
 
   it('codex-provider-item-mcp-tool-call: preserves MCP identity, result, and duration', () => {
@@ -296,8 +408,8 @@ describe('Codex provider Session item routing', () => {
       tool: 'search',
       status: 'completed',
       arguments: { query: 'Session contract' },
-      appContext: null,
-      pluginId: null,
+      appContext: { resourceUri: 'ui://docs/search-result' },
+      pluginId: 'plugin.docs',
       result: { content: [{ type: 'text', text: 'Found.' }] },
       error: null,
       durationMs: 18,
@@ -308,12 +420,21 @@ describe('Codex provider Session item routing', () => {
       name: 'search',
       serverName: 'docs',
       durationMs: 18,
+      mcpAppResourceUri: 'ui://docs/search-result',
+      pluginId: 'plugin.docs',
       status: 'success',
     }));
     expect(call?.output).toContain('Found.');
+    expect(call?.resultBlocks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'resource',
+        uri: 'ui://docs/search-result',
+        name: 'plugin.docs',
+      }),
+    ]));
   });
 
-  it('codex-provider-item-dynamic-tool-call: shows public tools and hides internal tools', () => {
+  it('codex-provider-item-dynamic-tool-call: matches public and internal tool visibility', () => {
     const visibleItem = createProviderSessionItem('codex-dynamic-tool-1', {
       id: 'codex-dynamic-tool-1',
       type: 'dynamicToolCall',
@@ -321,13 +442,27 @@ describe('Codex provider Session item routing', () => {
       tool: 'inspect_symbols',
       arguments: { path: 'src/session.ts' },
       status: 'completed',
-      contentItems: [{ type: 'inputText', text: 'Symbol found.' }],
+      contentItems: [
+        { type: 'inputText', text: 'Symbol found.' },
+        { type: 'inputImage', imageUrl: 'https://example.test/symbol.png' },
+        { type: 'inputAudio', audioUrl: 'https://example.test/symbol.mp3' },
+      ],
       success: true,
       durationMs: 9,
     });
     expect(projectSingleToolCall(visibleItem)).toEqual(expect.objectContaining({
       name: 'inspect_symbols',
       status: 'success',
+      resultBlocks: expect.arrayContaining([
+        expect.objectContaining({
+          type: 'image',
+          source: 'https://example.test/symbol.png',
+        }),
+        expect.objectContaining({
+          type: 'audio',
+          source: 'https://example.test/symbol.mp3',
+        }),
+      ]),
     }));
     expect(toAgentSessionTranscriptItemViews([visibleItem])).toHaveLength(1);
 
@@ -343,6 +478,32 @@ describe('Codex provider Session item routing', () => {
       durationMs: 1,
     });
     expect(toAgentSessionTranscriptItemViews([internalItem])).toEqual([]);
+
+    const validAutomationItem = createProviderSessionItem('codex-dynamic-tool-automation', {
+      id: 'codex-dynamic-tool-automation',
+      type: 'dynamicToolCall',
+      namespace: null,
+      tool: 'automation_update',
+      arguments: { mode: 'view', id: 'automation-1' },
+      status: 'completed',
+      contentItems: [{ type: 'inputText', text: 'Rendered automation card in the app.' }],
+      success: true,
+      durationMs: 2,
+    });
+    expect(toAgentSessionTranscriptItemViews([validAutomationItem])).toHaveLength(1);
+
+    const invalidAutomationItem = createProviderSessionItem('codex-dynamic-tool-automation-invalid', {
+      id: 'codex-dynamic-tool-automation-invalid',
+      type: 'dynamicToolCall',
+      namespace: null,
+      tool: 'automation_update',
+      arguments: {},
+      status: 'completed',
+      contentItems: null,
+      success: true,
+      durationMs: 1,
+    });
+    expect(toAgentSessionTranscriptItemViews([invalidAutomationItem])).toEqual([]);
   });
 
   it('codex-provider-item-image-view: projects and groups consecutive typed image resources', () => {

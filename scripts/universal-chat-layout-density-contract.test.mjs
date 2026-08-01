@@ -18,7 +18,7 @@ const universalChatSource = fs.readFileSync(
   ),
   'utf8',
 );
-const transcriptMessageSource = fs.readFileSync(
+const transcriptSurfaceSource = fs.readFileSync(
   path.join(
     rootDir,
     'apps',
@@ -29,7 +29,7 @@ const transcriptMessageSource = fs.readFileSync(
     'components',
     'chat',
     'messages',
-    'ChatTranscriptMessage.tsx',
+    'ChatTranscriptSurface.tsx',
   ),
   'utf8',
 );
@@ -51,8 +51,8 @@ const replyMessageRenderersSource = fs.readFileSync(
 );
 
 assert.match(
-  transcriptMessageSource,
-  /className=\{`mx-auto flex w-full min-w-0 max-w-\[880px\] flex-col \$\{[\s\S]*?isUser \? 'items-end' : 'items-start'[\s\S]*?\}`\}/,
+  transcriptSurfaceSource,
+  /className=\{`mx-auto flex w-full min-w-0 max-w-\[40rem\] flex-col \$\{[\s\S]*?isUser \? 'items-end' : 'items-start'[\s\S]*?\}`\}/,
   'UniversalChat transcript rows must use one centered vertical reading lane and align user and assistant items within that lane.',
 );
 
@@ -70,7 +70,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /layout === 'sidebar' \? 'px-4 pb-2 pt-3' : 'px-5 pb-2\.5 pt-4'/,
+  /layout === 'sidebar' \? 'px-4 pb-2 pt-3' : 'px-6 pb-2\.5 pt-4'/,
   'UniversalChat composer must keep its bottom inset at half of the previous spacing so the input stays close to the workbench edge.',
 );
 

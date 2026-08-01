@@ -124,9 +124,12 @@ function cursorPage(
 
 function services(
   loadedProject: AgentProjectView | null,
-  page: ReturnType<typeof cursorPage>,
+  page: ReturnType<typeof cursorPage>
+    | ((request: { cursor?: string }) => ReturnType<typeof cursorPage>),
 ) {
-  const listSessionActivitySummaries = vi.fn().mockResolvedValue(page);
+  const listSessionActivitySummaries = vi.fn().mockImplementation(async (request) => (
+    typeof page === 'function' ? page(request) : page
+  ));
   const listSessionsByProject = vi.fn();
   const synchronizeProjectSessions = vi.fn().mockResolvedValue({
     projectId: PROJECT_ID,
@@ -150,15 +153,22 @@ function services(
 }
 
 describe('manual Project Session refresh', () => {
-  it('loads the canonical activity head without triggering Provider discovery', async () => {
-    const page = cursorPage([
-      summary('session.codex'),
-      summary('session.claude'),
-    ], {
-      hasMore: true,
-      nextCursor: 'next-page',
+  it('loads the complete canonical activity snapshot without triggering Provider discovery', async () => {
+    const dependencies = services(project(), (request) => {
+      if (request.cursor === undefined) {
+        return cursorPage([summary('session.codex')], {
+          hasMore: true,
+          nextCursor: 'cursor.1',
+        });
+      }
+      if (request.cursor === 'cursor.1') {
+        return cursorPage([summary('session.claude')], {
+          hasMore: true,
+          nextCursor: 'cursor.2',
+        });
+      }
+      return cursorPage([summary('session.gemini')]);
     });
-    const dependencies = services(project(), page);
 
     const result = await refreshProjectSessions({
       agentSessionService: dependencies.agentSessionService,
@@ -167,17 +177,20 @@ describe('manual Project Session refresh', () => {
     });
 
     expect(dependencies.synchronizeProjectSessions).not.toHaveBeenCalled();
-    expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
-    expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledWith({
-      pageSize: 200,
-      projectId: PROJECT_ID,
-    }, { signal: expect.any(AbortSignal) });
+    expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(3);
+    expect(dependencies.listSessionActivitySummaries.mock.calls.map(([request]) => request))
+      .toEqual([
+        { cursor: undefined, pageSize: 200, projectId: PROJECT_ID },
+        { cursor: 'cursor.1', pageSize: 200, projectId: PROJECT_ID },
+        { cursor: 'cursor.2', pageSize: 200, projectId: PROJECT_ID },
+      ]);
     expect(dependencies.listSessionsByProject).not.toHaveBeenCalled();
     expect(result.status).toBe('refreshed');
-    expect(result.sessionIds).toEqual(['session.codex', 'session.claude']);
+    expect(result.sessionIds).toEqual(['session.codex', 'session.claude', 'session.gemini']);
     expect(result.projects?.[0]?.agentSessions.map((candidate) => candidate.id)).toEqual([
       'session.codex',
       'session.claude',
+      'session.gemini',
     ]);
   });
 });
@@ -810,9 +823,19 @@ describe('Agent Session transcript refresh errors', () => {
   it('rethrows an SDK synchronizeSessionItems 404 after getSession succeeds', async () => {
     const harness = createRefreshHarness();
     const error = sdkNotFoundError();
+    const existingItems = [{
+      createdAt: '2026-07-27T09:00:00.000Z',
+      id: 'item.existing',
+      role: 'assistant',
+      sessionId: harness.sessionId,
+      content: 'Existing transcript remains visible',
+    }] as AgentSessionView['items'];
+    harness.agentSession.items = existingItems;
     harness.synchronizeSessionItems.mockRejectedValueOnce(error);
 
     await expect(refreshTranscript(harness)).rejects.toBe(error);
+
+    expect(harness.agentSession.items).toBe(existingItems);
 
     const identity = {
       agentId: harness.agentId,
@@ -851,7 +874,8 @@ describe('Agent Session transcript refresh errors', () => {
     expect(result.agentSession).toMatchObject({
       providerBindingId: 'provider-binding.codex',
       providerSessionId: 'provider-session.codex',
-      runtimeBindingId: 'runtime-binding.codex',
+      runtimeBindingId: undefined,
+      runtimeStatus: 'unknown',
     });
     expect(harness.listRuntimeBindings).toHaveBeenCalledWith(
       {

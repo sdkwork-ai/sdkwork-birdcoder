@@ -45,6 +45,12 @@
           "threadId",
           "thread_id"
         ]
+      },
+      {
+        "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts",
+        "identifiers": [
+          "targetThreadId"
+        ]
       }
     ]
   },

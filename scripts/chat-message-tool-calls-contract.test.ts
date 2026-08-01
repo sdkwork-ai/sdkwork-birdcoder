@@ -352,6 +352,8 @@ const codexRichMcpResult = projectChatMessageToolCall({
   server: 'assets',
   tool: 'inspect',
   status: 'completed',
+  appContext: { resourceUri: 'ui://assets/inspect' },
+  pluginId: 'plugin.assets',
   result: {
     content: [
       { type: 'text', text: 'Inspection complete' },
@@ -372,7 +374,15 @@ assert.deepEqual(codexRichMcpResult?.resultBlocks?.map((block) => block.type), [
   'text',
   'image',
   'resource',
+  'resource',
 ]);
+assert.equal(codexRichMcpResult?.mcpAppResourceUri, 'ui://assets/inspect');
+assert.equal(codexRichMcpResult?.pluginId, 'plugin.assets');
+assert.deepEqual(codexRichMcpResult?.resultBlocks?.at(-1), {
+  type: 'resource',
+  uri: 'ui://assets/inspect',
+  name: 'plugin.assets',
+});
 assert.equal(codexRichMcpResult?.resultBlocks?.[1]?.type, 'image');
 if (codexRichMcpResult?.resultBlocks?.[1]?.type === 'image') {
   assert.equal(codexRichMcpResult.resultBlocks[1].source, 'data:image/png;base64,aGVsbG8=');

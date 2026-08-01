@@ -10,6 +10,7 @@ import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
 import { AgentsSdkAutomationService } from './impl/AgentsSdkAutomationService.ts';
+import { AgentsSdkModelConfigurationService } from './agentsModelConfigurationService.ts';
 
 export type {
   BirdCoderDefaultIdeServiceKey,
@@ -51,6 +52,8 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
     switch (serviceKey) {
       case 'agentAutomationService':
         return new AgentsSdkAutomationService(runtime.agentsClient);
+      case 'agentModelConfigurationService':
+        return new AgentsSdkModelConfigurationService(runtime.agentsClient);
       case 'agentSessionService':
         return new BirdCoderAgentSessionService({
           client: runtime.agentsClient,

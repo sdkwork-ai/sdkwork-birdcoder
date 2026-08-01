@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, CircleHelp, Loader2, RefreshCw, ShieldAlert, X } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
+import { AlertTriangle, Check, Loader2, RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   MAX_AGENT_INTERACTION_ANSWER_CHARACTERS,
@@ -12,9 +18,12 @@ import {
   type AgentSessionPendingQuestionPrompt,
 } from '@sdkwork/birdcoder-pc-workbench';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { resolveChatProviderPresentationProfile } from './chat/messages/presentation/providerPresentationProfiles.ts';
+import { UniversalChatTypedInteraction } from './UniversalChatTypedInteraction.tsx';
 
 export interface UniversalChatPendingInteractionsProps {
   disabled?: boolean;
+  engineId?: string;
   hasLoadError?: boolean;
   isLoading?: boolean;
   isSubmitting?: boolean;
@@ -67,6 +76,7 @@ function shouldRenderQuestionPrompt(
 
 export function UniversalChatPendingInteractions({
   disabled = false,
+  engineId,
   hasLoadError = false,
   isLoading = false,
   isSubmitting = false,
@@ -80,6 +90,25 @@ export function UniversalChatPendingInteractions({
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
   const [approvalReasons, setApprovalReasons] = useState<Record<string, string>>({});
   const hasPendingInteractions = pendingUserQuestions.length > 0 || pendingApprovals.length > 0;
+  const controlsDisabled = disabled || isSubmitting;
+  const isCodexInteractionSurface =
+    resolveChatProviderPresentationProfile(engineId)?.engineId === 'codex';
+  const typedApprovals = useMemo(
+    () => pendingApprovals.filter((approval) => approval.request !== undefined),
+    [pendingApprovals],
+  );
+  const legacyApprovals = useMemo(
+    () => pendingApprovals.filter((approval) => approval.request === undefined),
+    [pendingApprovals],
+  );
+  const typedQuestions = useMemo(
+    () => pendingUserQuestions.filter((question) => question.request !== undefined),
+    [pendingUserQuestions],
+  );
+  const legacyQuestions = useMemo(
+    () => pendingUserQuestions.filter((question) => question.request === undefined),
+    [pendingUserQuestions],
+  );
   const activeQuestionIds = useMemo(
     () => new Set(pendingUserQuestions.map((question) => question.interactionId)),
     [pendingUserQuestions],
@@ -175,31 +204,54 @@ export function UniversalChatPendingInteractions({
     });
   }, [approvalReasons, disabled, isSubmitting, onSubmitApprovalDecision]);
 
+  const handleQuestionSurfaceKeyDown = useCallback((
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    interactionId: string,
+  ) => {
+    if (!isCodexInteractionSurface || event.key !== 'Escape' || controlsDisabled) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    void submitQuestionAnswer(interactionId, { rejected: true });
+  }, [controlsDisabled, isCodexInteractionSurface, submitQuestionAnswer]);
+
+  const handleApprovalSurfaceKeyDown = useCallback((
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    interactionId: string,
+  ) => {
+    if (!isCodexInteractionSurface || controlsDisabled) {
+      return;
+    }
+    if (event.target instanceof Element && event.target.closest('button,textarea,input,a')) {
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== 'Escape') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    void submitApprovalDecision(
+      interactionId,
+      event.key === 'Enter' ? 'approved' : 'denied',
+    );
+  }, [controlsDisabled, isCodexInteractionSurface, submitApprovalDecision]);
+
   if (!hasPendingInteractions && !hasLoadError) {
     return null;
   }
 
-  const controlsDisabled = disabled || isSubmitting;
-
   return (
-    <section className="mb-3 rounded-xl border border-white/10 bg-[#18181b]/90 p-3 shadow-lg shadow-black/20">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-            {t('chat.pendingInteractions')}
-          </div>
-          <div className="truncate text-sm font-medium text-white">
-            {t('chat.pendingInteractionsDescription')}
-          </div>
+    <section className="mb-3 space-y-2" data-chat-pending-interactions="true">
+      {isSubmitting || isLoading ? (
+        <div className="flex justify-end px-2" aria-live="polite">
+          <Loader2 size={16} className="animate-spin text-gray-400" />
         </div>
-        {isSubmitting || isLoading ? (
-          <Loader2 size={16} className="shrink-0 animate-spin text-blue-300" />
-        ) : null}
-      </div>
+      ) : null}
 
       {hasLoadError ? (
         <div
-          className="flex flex-wrap items-center gap-2 border-t border-white/10 py-3 text-sm text-amber-100"
+          className="flex flex-wrap items-center gap-2 rounded-3xl bg-[#242426] px-4 py-3 text-sm text-amber-100 shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
           role="alert"
         >
           <AlertTriangle size={16} className="shrink-0 text-amber-300" />
@@ -221,24 +273,48 @@ export function UniversalChatPendingInteractions({
         </div>
       ) : null}
 
-      {pendingUserQuestions.map((pendingQuestion) => (
+      {typedQuestions.map((pendingQuestion) => (
+        <UniversalChatTypedInteraction
+          key={pendingQuestion.interactionId}
+          disabled={disabled}
+          isCodex={isCodexInteractionSurface}
+          isSubmitting={isSubmitting}
+          question={pendingQuestion}
+          onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+        />
+      ))}
+
+      {typedApprovals.map((pendingApproval) => (
+        <UniversalChatTypedInteraction
+          key={pendingApproval.interactionId}
+          approval={pendingApproval}
+          disabled={disabled}
+          isCodex={isCodexInteractionSurface}
+          isSubmitting={isSubmitting}
+          onSubmitApprovalDecision={onSubmitApprovalDecision}
+        />
+      ))}
+
+      {legacyQuestions.map((pendingQuestion) => (
         <div
           key={pendingQuestion.interactionId}
-          className="border-t border-white/10 py-3 first:border-t-0 first:pt-1 last:pb-1"
+          className="overflow-hidden rounded-3xl bg-[#242426] shadow-[0_8px_24px_rgba(0,0,0,0.16)] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+          tabIndex={isCodexInteractionSurface ? 0 : undefined}
+          onKeyDown={(event) => handleQuestionSurfaceKeyDown(
+            event,
+            pendingQuestion.interactionId,
+          )}
         >
-          <div className="mb-2 flex items-start gap-2">
-            <CircleHelp size={16} className="mt-0.5 shrink-0 text-amber-300" />
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-amber-100">
-                {t('chat.pendingQuestion')}
-              </div>
-              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">
-                {pendingQuestion.prompt}
-              </p>
+          <div className="px-4 pb-3 pt-4">
+            <div className="text-xs font-semibold text-gray-100">
+              {t('chat.pendingQuestion')}
             </div>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">
+              {pendingQuestion.prompt}
+            </p>
           </div>
 
-          <div className="space-y-3 pl-6">
+          <div className="space-y-3 px-4 pb-3">
             {pendingQuestion.questions.map((prompt, promptIndex) => (
               <div key={buildQuestionPromptKey(pendingQuestion, prompt, promptIndex)}>
                 {shouldRenderQuestionPrompt(pendingQuestion, prompt) ? (
@@ -247,13 +323,14 @@ export function UniversalChatPendingInteractions({
                   </div>
                 ) : null}
                 {prompt.options && prompt.options.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-1">
                     {prompt.options.map((option, optionIndex) => (
                       <Button
                         key={buildQuestionOptionKey(prompt, option, optionIndex)}
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
+                        className="min-h-8 w-full justify-start rounded-xl px-2 py-1.5 text-left hover:bg-white/[0.05]"
                         disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
                         title={option.label}
                         onClick={() => {
@@ -270,106 +347,112 @@ export function UniversalChatPendingInteractions({
                 ) : null}
               </div>
             ))}
+          </div>
 
-            <div className="flex min-w-0 flex-wrap items-end gap-2">
-              <textarea
-                value={answerDrafts[pendingQuestion.interactionId] ?? ''}
-                onChange={(event) => handleAnswerDraftChange(pendingQuestion.interactionId, event.target.value)}
-                maxLength={MAX_AGENT_INTERACTION_ANSWER_CHARACTERS}
-                placeholder={t('chat.pendingQuestionAnswerPlaceholder')}
-                className="min-h-[38px] min-w-[min(100%,16rem)] flex-[1_1_16rem] resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-amber-300/40"
-                rows={1}
+          <div className="flex min-w-0 flex-wrap items-end gap-2 px-4 pb-4 pt-2">
+            <textarea
+              value={answerDrafts[pendingQuestion.interactionId] ?? ''}
+              onChange={(event) => handleAnswerDraftChange(pendingQuestion.interactionId, event.target.value)}
+              maxLength={MAX_AGENT_INTERACTION_ANSWER_CHARACTERS}
+              placeholder={t('chat.pendingQuestionAnswerPlaceholder')}
+              className="min-h-[38px] min-w-[min(100%,16rem)] flex-[1_1_16rem] resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-white/20"
+              rows={1}
+              disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
+            />
+            <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
                 disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
-              />
-              <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={
-                    controlsDisabled ||
-                    !onSubmitUserQuestionAnswer ||
-                    !(answerDrafts[pendingQuestion.interactionId] ?? '').trim()
-                  }
-                  onClick={() => {
-                    const answer = (answerDrafts[pendingQuestion.interactionId] ?? '').trim();
-                    if (!answer) {
-                      return;
-                    }
-
-                    void submitQuestionAnswer(pendingQuestion.interactionId, { answer });
-                  }}
-                >
-                  {t('chat.submitAnswer')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
-                  onClick={() => {
-                    void submitQuestionAnswer(pendingQuestion.interactionId, { rejected: true });
-                  }}
-                >
-                  <X size={14} />
-                  {t('chat.rejectQuestion')}
-                </Button>
-              </div>
+                onClick={() => {
+                  void submitQuestionAnswer(pendingQuestion.interactionId, { rejected: true });
+                }}
+              >
+                <X size={14} />
+                {t('chat.rejectQuestion')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={
+                  controlsDisabled
+                  || !onSubmitUserQuestionAnswer
+                  || !(answerDrafts[pendingQuestion.interactionId] ?? '').trim()
+                }
+                onClick={() => {
+                  const answer = (answerDrafts[pendingQuestion.interactionId] ?? '').trim();
+                  if (!answer) return;
+                  void submitQuestionAnswer(pendingQuestion.interactionId, { answer });
+                }}
+              >
+                {t('chat.submitAnswer')}
+              </Button>
             </div>
           </div>
         </div>
       ))}
 
-      {pendingApprovals.map((pendingApproval) => (
+      {legacyApprovals.map((pendingApproval, approvalIndex) => (
         <div
           key={pendingApproval.interactionId}
-          className="border-t border-white/10 py-3 first:border-t-0 first:pt-1 last:pb-1"
+          className="overflow-hidden rounded-3xl bg-[#242426] shadow-[0_8px_24px_rgba(0,0,0,0.16)] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+          data-codex-approval-surface={isCodexInteractionSurface ? 'true' : undefined}
+          tabIndex={isCodexInteractionSurface ? 0 : undefined}
+          onKeyDown={(event) => handleApprovalSurfaceKeyDown(
+            event,
+            pendingApproval.interactionId,
+          )}
         >
-          <div className="mb-2 flex items-start gap-2">
-            <ShieldAlert size={16} className="mt-0.5 shrink-0 text-sky-300" />
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-sky-100">
-                {t('chat.pendingApproval')}
-              </div>
-              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">
-                {pendingApproval.prompt || t('chat.pendingApprovalDescription')}
-              </p>
+          <div className="px-4 pb-3 pt-4">
+            <div className="text-xs font-semibold text-gray-100">
+              {t('chat.pendingApproval')}
             </div>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">
+              {pendingApproval.prompt || t('chat.pendingApprovalDescription')}
+            </p>
           </div>
-
-          <div className="space-y-2 pl-6">
-            <textarea
-              value={approvalReasons[pendingApproval.interactionId] ?? ''}
-              onChange={(event) => handleApprovalReasonChange(pendingApproval.interactionId, event.target.value)}
-              maxLength={MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS}
-              placeholder={t('chat.pendingApprovalReasonPlaceholder')}
-              className="min-h-[38px] w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-sky-300/40"
-              rows={1}
+          {!isCodexInteractionSurface ? (
+            <div className="px-4 pb-3">
+              <textarea
+                value={approvalReasons[pendingApproval.interactionId] ?? ''}
+                onChange={(event) => handleApprovalReasonChange(pendingApproval.interactionId, event.target.value)}
+                maxLength={MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS}
+                placeholder={t('chat.pendingApprovalReasonPlaceholder')}
+                className="min-h-[38px] w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-white/20"
+                rows={1}
+                disabled={controlsDisabled || !onSubmitApprovalDecision}
+              />
+            </div>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2 px-4 pb-4 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               disabled={controlsDisabled || !onSubmitApprovalDecision}
-            />
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={controlsDisabled || !onSubmitApprovalDecision}
-                onClick={() => {
-                  void submitApprovalDecision(pendingApproval.interactionId, 'approved');
-                }}
-              >
-                <Check size={14} />
-                {t('chat.approveInteraction')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={controlsDisabled || !onSubmitApprovalDecision}
-                onClick={() => {
-                  void submitApprovalDecision(pendingApproval.interactionId, 'denied');
-                }}
-              >
-                <X size={14} />
-                {t('chat.denyInteraction')}
-              </Button>
+              onClick={() => {
+                void submitApprovalDecision(pendingApproval.interactionId, 'denied');
+              }}
+            >
+              {!isCodexInteractionSurface ? <X size={14} /> : null}
+              {t('chat.denyInteraction')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              autoFocus={isCodexInteractionSurface && approvalIndex === 0}
+              disabled={controlsDisabled || !onSubmitApprovalDecision}
+              onClick={() => {
+                void submitApprovalDecision(pendingApproval.interactionId, 'approved');
+              }}
+            >
+              {!isCodexInteractionSurface ? <Check size={14} /> : null}
+              {isCodexInteractionSurface
+                ? t('chat.allowOnceInteraction')
+                : t('chat.approveInteraction')}
+            </Button>
+            {!isCodexInteractionSurface ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -381,7 +464,7 @@ export function UniversalChatPendingInteractions({
               >
                 {t('chat.blockInteraction')}
               </Button>
-            </div>
+            ) : null}
           </div>
         </div>
       ))}
