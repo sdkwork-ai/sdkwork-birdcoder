@@ -6,6 +6,7 @@ const codexAgentId = 'agent.intelligence.codex';
 const codexSessionId = 'e2e-codex-session';
 const approvalInteractionId = 'interaction.e2e-codex-approval';
 const typedApprovalInteractionId = 'interaction.e2e-codex-typed-approval';
+const typedQuestionInteractionId = 'interaction.e2e-codex-typed-question';
 const questionInteractionId = 'interaction.e2e-codex-question';
 
 interface SessionActivitySummaryFixture {
@@ -176,6 +177,34 @@ test('Codex canonical Session claims and resolves pending interactions', async (
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
       turnId: 'turn.e2e-codex-interactions',
     }),
+    createPendingInteraction(request, authenticatedSession.accessToken, {
+      interactionId: typedQuestionInteractionId,
+      kind: 'user_question',
+      prompt: 'Which typed verification strategy should Codex use?',
+      providerInteractionId: 'provider-interaction.codex-typed-question-e2e',
+      requestedAt: '2026-01-01T00:21:03.000Z',
+      request: {
+        schemaVersion: 1,
+        category: 'user_input',
+        kind: 'question_set',
+        allowedActions: ['submit', 'dismiss'],
+        data: {
+          questions: [{
+            id: 'verification_strategy',
+            header: 'Strategy',
+            prompt: 'Choose the typed verification strategy',
+            allowOther: true,
+            secret: false,
+            options: [
+              { label: 'Focused', description: 'Run only focused checks.' },
+              { label: 'Complete', description: 'Run all relevant checks.' },
+            ],
+          }],
+        },
+      },
+      runtimeBindingId: `runtime-binding.${codexSessionId}`,
+      turnId: 'turn.e2e-codex-interactions',
+    }),
   ]);
   await exposeCompletedCodexSessionActivity(page);
   await page.setViewportSize({ width: 1_440, height: 900 });
@@ -215,9 +244,13 @@ test('Codex canonical Session claims and resolves pending interactions', async (
   const questionPrompt = page.getByRole('paragraph').filter({
     hasText: 'Which verification mode should Codex use?',
   });
+  const typedQuestionPrompt = page.getByRole('paragraph').filter({
+    hasText: 'Which typed verification strategy should Codex use?',
+  });
   await expect(approvalPrompt).toBeVisible();
   await expect(typedApprovalPrompt).toBeVisible();
   await expect(questionPrompt).toBeVisible();
+  await expect(typedQuestionPrompt).toBeVisible();
 
   const typedApprovalClaimResponse = page.waitForResponse((response) => (
     response.request().method() === 'POST'
@@ -287,6 +320,34 @@ test('Codex canonical Session claims and resolves pending interactions', async (
     requestedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/u),
   });
   await expect(approvalPrompt).toHaveCount(0);
+  await expect(typedQuestionPrompt).toBeVisible();
+
+  const typedQuestionClaimResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && matchesInteractionPath(response.url(), typedQuestionInteractionId, 'claim')
+  ));
+  const typedQuestionResolveResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && matchesInteractionPath(response.url(), typedQuestionInteractionId, 'resolve')
+  ));
+  const typedQuestionSurface = typedQuestionPrompt.locator(
+    'xpath=ancestor::*[@data-codex-composer-request-navigation][1]',
+  );
+  await expect(typedQuestionSurface.getByRole('button', { name: 'Submit' })).toHaveCount(0);
+  await typedQuestionSurface.getByRole('radio', { name: /Complete/u }).click();
+
+  expect((await typedQuestionClaimResponse).ok()).toBe(true);
+  const resolvedTypedQuestion = await typedQuestionResolveResponse;
+  expect(resolvedTypedQuestion.ok()).toBe(true);
+  expect(resolvedTypedQuestion.request().postDataJSON()).toMatchObject({
+    resolution: {
+      action: 'submit',
+      answers: {
+        verification_strategy: ['Complete'],
+      },
+    },
+  });
+  await expect(typedQuestionPrompt).toHaveCount(0);
   await expect(questionPrompt).toBeVisible();
 
   const questionClaimResponse = page.waitForResponse((response) => (
