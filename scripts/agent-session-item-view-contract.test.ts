@@ -919,22 +919,29 @@ for (const fixture of providerContentFixtures) {
   );
 }
 
-const providerStreamingContentFixtures = [
-  {
-    engineId: 'opencode',
-    itemId: 'agent-item-opencode-text-delta',
-    payload: {
-      type: 'message.part.delta',
-      properties: {
-        sessionID: 'opencode-session-1',
-        messageID: 'opencode-message-1',
-        partID: 'opencode-text-part-1',
-        field: 'text',
-        delta: 'OPENCODE_DELTA_SENTINEL',
-      },
+const openCodeOrphanDeltaItem = {
+  ...canonicalToolItem,
+  itemId: 'agent-item-opencode-text-delta',
+  toolName: 'provider_event',
+  toolCallId: 'agent-item-opencode-text-delta-call',
+  toolResult: {
+    type: 'message.part.delta',
+    properties: {
+      sessionID: 'opencode-session-1',
+      messageID: 'opencode-message-1',
+      partID: 'opencode-text-part-1',
+      field: 'text',
+      delta: 'OPENCODE_DELTA_SENTINEL',
     },
-    visibleText: 'OPENCODE_DELTA_SENTINEL',
   },
+};
+assert.deepEqual(
+  toAgentSessionTranscriptItemViews([openCodeOrphanDeltaItem], { engineId: 'opencode' }),
+  [],
+  'An OpenCode part delta without a loaded snapshot must not create an independent transcript row.',
+);
+
+const providerStreamingContentFixtures = [
   {
     engineId: 'codex',
     itemId: 'agent-item-codex-agent-message-delta',
@@ -1299,6 +1306,57 @@ assert.deepEqual(commandResultView.fileChanges, [{
   originalContent: 'before',
   content: 'after',
 }]);
+
+const codexMultiCommandResult = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-codex-multi-command-result',
+  toolName: 'provider_event',
+  toolCallId: 'codex-command-execution-1',
+  toolResult: {
+    id: 'codex-command-execution-1',
+    type: 'commandExecution',
+    command: 'pnpm typecheck; pnpm test -- --runInBand',
+    commandActions: [
+      { type: 'unknown', command: 'pnpm typecheck' },
+      { type: 'unknown', command: 'pnpm test -- --runInBand' },
+    ],
+    cwd: 'E:/sdkwork-space/sdkwork-birdcoder',
+    processId: 'codex-command-process-1',
+    status: 'completed',
+    aggregatedOutput: 'TypeScript check passed.\nAll focused tests passed.',
+    exitCode: 0,
+    durationMs: 42,
+  },
+});
+const codexMultiCommandTranscript = composeAgentSessionTranscriptActivity(
+  [codexMultiCommandResult],
+  { engineId: 'codex' },
+);
+const codexMultiCommandActivity = resolveAgentTurnActivityPresentation(
+  codexMultiCommandTranscript,
+  codexMultiCommandTranscript[0]!,
+  { engineId: 'codex' },
+);
+assert.deepEqual(
+  codexMultiCommandActivity?.commands.map(({ command, output, parentExecutionId }) => ({
+    command,
+    output,
+    parentExecutionId,
+  })),
+  [
+    {
+      command: 'pnpm typecheck',
+      output: 'TypeScript check passed.',
+      parentExecutionId: 'codex-command-execution-1',
+    },
+    {
+      command: 'pnpm test -- --runInBand',
+      output: 'All focused tests passed.',
+      parentExecutionId: 'codex-command-execution-1',
+    },
+  ],
+  'A completed Codex commandExecution must preserve correlated output for every expanded command row.',
+);
 
 const openCodeSnapshotDiffView = toAgentSessionItemView({
   ...canonicalCommandResult,

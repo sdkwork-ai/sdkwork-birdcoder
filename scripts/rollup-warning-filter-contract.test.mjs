@@ -94,6 +94,16 @@ assert.equal(
 assert.equal(
   shouldIgnoreBirdcoderRollupWarning({
     code: 'PLUGIN_TIMINGS',
+    message:
+      'Your build spent significant time in plugin `vite:terser`. See https://rolldown.rs/options/checks#plugintimings for more details.',
+  }),
+  true,
+  'BirdCoder may govern the built-in Terser timing diagnostic emitted while bundling offline Monaco workers.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'PLUGIN_TIMINGS',
     message: 'Your build spent significant time in plugins: unknown-third-party-plugin',
   }),
   false,

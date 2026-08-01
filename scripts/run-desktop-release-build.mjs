@@ -243,13 +243,33 @@ export function createDesktopReleaseBuildPlan({
 
 export function buildDesktopReleaseBuildPreflightPlan({
   phase = 'all',
+  platform = process.platform,
+  hostArch = process.arch,
+  env = process.env,
+  targetTriple = '',
 } = {}) {
   const normalizedPhase = String(phase ?? 'all').trim().toLowerCase() || 'all';
   if (normalizedPhase !== 'bundle' && normalizedPhase !== 'all') {
     return null;
   }
 
-  return null;
+  const args = [
+    'scripts/stage-desktop-provider-host.mjs',
+    '--platform',
+    String(platform ?? process.platform).trim() || process.platform,
+    '--arch',
+    String(hostArch ?? process.arch).trim() || process.arch,
+  ];
+  if (String(targetTriple ?? '').trim()) {
+    args.push('--target', String(targetTriple).trim());
+  }
+  return {
+    command: process.execPath,
+    args,
+    cwd: rootDir,
+    env: { ...env },
+    shell: false,
+  };
 }
 
 function runPlan(plan) {

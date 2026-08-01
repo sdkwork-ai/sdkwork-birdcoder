@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -117,7 +118,42 @@ assert.equal(unixBundlePlan.shell, false);
 
 const preflightPlan = buildDesktopReleaseBuildPreflightPlan({
   phase: 'bundle',
+  platform: 'win32',
+  hostArch: 'x64',
+  targetTriple: 'x86_64-pc-windows-msvc',
 });
-assert.equal(preflightPlan, null);
+assert.equal(preflightPlan.command, process.execPath);
+assert.deepEqual(preflightPlan.args, [
+  'scripts/stage-desktop-provider-host.mjs',
+  '--platform',
+  'win32',
+  '--arch',
+  'x64',
+  '--target',
+  'x86_64-pc-windows-msvc',
+]);
+assert.equal(preflightPlan.cwd, path.resolve(import.meta.dirname, '..'));
+assert.equal(preflightPlan.shell, false);
+assert.equal(buildDesktopReleaseBuildPreflightPlan({ phase: 'sync' }), null);
+
+const workspaceRoot = path.resolve(import.meta.dirname, '..');
+const providerHostResourceSource =
+  '../../../../../artifacts/desktop-provider-host/provider-host/';
+for (const configName of ['tauri.conf.json', 'tauri.test.conf.json']) {
+  const config = JSON.parse(fs.readFileSync(path.join(
+    workspaceRoot,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-desktop',
+    'src-tauri',
+    configName,
+  ), 'utf8'));
+  assert.equal(
+    config.bundle?.resources?.[providerHostResourceSource],
+    'provider-host/',
+    `${configName} must install the staged runtime under the provider-host resource root discovered by Kernel.`,
+  );
+}
 
 console.log('desktop release build contract passed.');

@@ -35,6 +35,13 @@ export function runLocalTsxContract() {
         path.join(workspaceRootDir, 'tsconfig.runtime.json'),
         'run-local-tsx must point the default tsconfig override at the BirdCoder runtime tsconfig.',
       );
+      assert.equal(
+        typeof plan.env.ESBUILD_BINARY_PATH === 'string' &&
+          plan.env.ESBUILD_BINARY_PATH.length > 0 &&
+          path.isAbsolute(plan.env.ESBUILD_BINARY_PATH),
+        true,
+        'run-local-tsx must bind tsx to the matching physical esbuild binary when pnpm symlinks are preserved.',
+      );
     } else {
       assert.equal(
         plan.runner,

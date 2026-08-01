@@ -116,6 +116,38 @@ function observeQueuedTurnSubmissions(page: Page, contents: string[]): void {
   });
 }
 
+async function expectSingleQueuedMessage(page: Page, message: string): Promise<void> {
+  const queueSummary = page.getByRole('button', {
+    name: 'Queued messages (1)',
+    exact: true,
+  });
+  await expect(queueSummary).toBeVisible();
+  await expect(queueSummary).toContainText(message);
+}
+
+async function expectQueuedMessageOrCompletedClaim(page: Page, message: string): Promise<void> {
+  const queueSummary = page.getByRole('button', {
+    name: 'Queued messages (1)',
+    exact: true,
+  });
+  const completedResponse = page.getByText(
+    `Mock assistant response to: ${message}`,
+    { exact: true },
+  );
+
+  await expect.poll(async () => {
+    if (await queueSummary.count() > 0) {
+      return await queueSummary.getByText(message, { exact: true }).count() > 0
+        ? 'queued'
+        : 'queue-mismatch';
+    }
+    return await completedResponse.count() > 0 ? 'claimed' : 'pending';
+  }, {
+    message: 'The reloaded Session must preserve the queued input or its completed claim.',
+    timeout: 30_000,
+  }).toMatch(/^(?:claimed|queued)$/u);
+}
+
 test('durable queued input survives reload and is claimed once across windows', async ({
   context,
   page,
@@ -145,14 +177,14 @@ test('durable queued input survives reload and is claimed once across windows', 
   await composer.fill(queuedMessage);
   await page.getByRole('button', { name: 'Queue message', exact: true }).click();
   expect((await createQueueResponse).status()).toBe(201);
-  await expect(page.getByText(queuedMessage, { exact: true })).toBeVisible();
+  await expectSingleQueuedMessage(page, queuedMessage);
 
   const secondPage = await context.newPage();
   await exposeCompletedCodexSessionActivity(secondPage);
   await secondPage.setViewportSize({ width: 1_440, height: 900 });
   observeQueuedTurnSubmissions(secondPage, submittedTurnContents);
   await openCodexSession(secondPage);
-  await expect(secondPage.getByText(queuedMessage, { exact: true })).toBeVisible();
+  await expectSingleQueuedMessage(secondPage, queuedMessage);
 
   await page.reload();
   await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
@@ -160,7 +192,7 @@ test('durable queued input survives reload and is claimed once across windows', 
   });
   const reloadedSessionRow = page.locator(`[data-agent-session-id="${codexSessionId}"]`);
   await reloadedSessionRow.locator(':scope > button[aria-label]').click();
-  await expect(page.getByText(queuedMessage, { exact: true })).toBeVisible();
+  await expectQueuedMessageOrCompletedClaim(page, queuedMessage);
 
   await expect.poll(() => submittedTurnContents.filter(
     (content) => content === queuedMessage,

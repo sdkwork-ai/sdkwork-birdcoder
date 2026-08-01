@@ -723,6 +723,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     );
   }
 
+  resolveProjectImagePreviewUrl(
+    _projectId: string,
+    _path: string,
+  ): Promise<string | undefined> {
+    return Promise.resolve(undefined);
+  }
+
   async getFileRevision(projectId: string, path: string): Promise<string> {
     return this.requireRemote(
       projectId,

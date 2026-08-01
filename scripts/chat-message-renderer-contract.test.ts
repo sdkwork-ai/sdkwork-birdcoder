@@ -125,6 +125,13 @@ const toolCallCardSource = readFileSync(
   ),
   'utf8',
 );
+const toolCallActionPresentationSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/toolCallActionPresentation.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const toolResultBlocksSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolResultBlocks.tsx',
@@ -196,7 +203,7 @@ assert.match(boundedContentPreview.text, /:preview-tail$/u);
 
 assert.deepEqual(
   CHAT_PROVIDER_PRESENTATION_PROFILES.map((profile) => profile.engineId),
-  ['codex', 'claude-code', 'opencode', 'gemini'],
+  ['codex', 'claude-code', 'opencode', 'gemini', 'openclaw', 'hermes'],
   'Provider variability must be declared in explicit provider presentation profiles.',
 );
 for (const profile of CHAT_PROVIDER_PRESENTATION_PROFILES) {
@@ -489,14 +496,19 @@ assert.doesNotMatch(
   'Structured result lists must not replace native list semantics with an ARIA region role.',
 );
 assert.match(
-  toolCallCardSource,
-  /call\.serverName[\s\S]*call\.name/,
+  toolCallActionPresentationSource,
+  /case 'mcp':[\s\S]*call\.serverName\?\.trim\(\)[\s\S]*call\.serverName\.trim\(\)[\s\S]*toolName/,
   'MCP tool rows must render a compact server/tool identity.',
 );
 assert.match(
-  toolCallCardSource,
-  /call\.kind === 'task'[\s\S]*call\.title[\s\S]*primaryDisplayName = taskTitle \|\| displayName/,
+  toolCallActionPresentationSource,
+  /case 'task':[\s\S]*return title \|\| target \|\| toolName;/,
   'Task rows must keep their human-readable title in the primary narrow-screen slot.',
+);
+assert.match(
+  toolCallCardSource,
+  /resolveToolCallActionPresentation\(call, t\)[\s\S]*actionPresentation\.displayName/,
+  'Tool rows must consume the canonical action presentation instead of duplicating provider display logic.',
 );
 assert.match(
   toolCallCardSource,
@@ -564,9 +576,14 @@ assert.match(
   'Collapsed tool rows must cap argument summaries so provider payloads cannot create oversized hidden text nodes.',
 );
 assert.match(
-  toolCallCardSource,
-  /const argumentSummary = useMemo\([\s\S]*truncateToolCallArgumentSummary\([\s\S]*call\.title\?\.trim\(\)[\s\S]*summarizeToolCallArguments\(call\.arguments\)/,
+  toolCallActionPresentationSource,
+  /const title = call\.title\?\.trim\(\);[\s\S]*const target = call\.target\?\.trim\(\);[\s\S]*const command = call\.command\?\.trim\(\);/,
   'All collapsed tool metadata, including provider titles, targets, and commands, must share the bounded summary path.',
+);
+assert.match(
+  toolCallCardSource,
+  /const rowDisplayName = truncateToolCallArgumentSummary\([\s\S]*actionPresentation\.displayName/,
+  'Canonical tool display names must pass through the bounded collapsed-row presentation path.',
 );
 assert.match(
   toolCallCardSource,
@@ -670,6 +687,10 @@ assert.match(
 );
 for (const localeSource of [englishChatSource, chineseChatSource]) {
   for (const translationKey of [
+    'activityCombinedSummary',
+    'activityEditedFilesSummary',
+    'activityRanCommandsContinuation',
+    'activityRanCommandsSummary',
     'fileOperationCreated',
     'fileOperationDeleted',
     'fileOperationModified',
@@ -693,5 +714,20 @@ for (const localeSource of [englishChatSource, chineseChatSource]) {
     );
   }
 }
+assert.match(
+  englishChatSource,
+  /activityEditedFilesSummary_other: 'Edited files'/,
+  'English activity summaries must use the exact Codex plural file label.',
+);
+assert.match(
+  englishChatSource,
+  /activityRanCommandsSummary_other: 'Ran commands'/,
+  'English activity summaries must use the exact Codex plural command label.',
+);
+assert.match(
+  englishChatSource,
+  /activityRanCommandsContinuation_other: 'ran commands'/,
+  'Combined English activity summaries must lowercase the continuation segment.',
+);
 
 console.log('chat message renderer contract passed.');

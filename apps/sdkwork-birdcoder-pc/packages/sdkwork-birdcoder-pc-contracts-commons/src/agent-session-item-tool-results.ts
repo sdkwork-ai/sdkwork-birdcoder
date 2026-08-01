@@ -138,12 +138,38 @@ function formatCommandResultRecord(record: Record<string, unknown>): string {
   return exitCode === undefined ? '' : `Exit code: ${exitCode}`;
 }
 
+function formatProtocolTextParts(value: unknown): string | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  const parts: string[] = [];
+  for (const entry of value) {
+    const record = readRecord(entry);
+    const type = normalizeType(record?.type);
+    if (
+      !record
+      || !['input_text', 'output_text', 'text'].includes(type)
+      || typeof record.text !== 'string'
+    ) {
+      return null;
+    }
+    if (record.text.trim()) {
+      parts.push(record.text);
+    }
+  }
+  return parts.join('\n');
+}
+
 function formatToolResultValue(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   }
   if (value === undefined || value === null) {
     return '';
+  }
+  const protocolText = formatProtocolTextParts(value);
+  if (protocolText !== null) {
+    return protocolText;
   }
   const commandResult = formatCommandResultRecord(readRecord(value) ?? {});
   if (commandResult) {

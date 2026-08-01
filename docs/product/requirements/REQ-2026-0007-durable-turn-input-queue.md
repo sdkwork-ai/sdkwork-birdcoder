@@ -48,6 +48,8 @@ mutations without duplicate Turns or silent data loss.
 
 1. Creating an entry persists all bounded execution metadata and returns a
    stable `queueEntryId`, version, position, idempotency key, and payload hash.
+   BirdCoder supplies the ID and reuses it only while retrying the same
+   uncertain create action; a different or completed action uses a new ID.
 2. Owner, Agent, and Session identity is validated for every list and mutation;
    another owner cannot observe or mutate the queue.
 3. Concurrent `claim_next` calls across windows lease at most one head, return
@@ -66,15 +68,17 @@ mutations without duplicate Turns or silent data loss.
 8. Session deletion removes the nested queue. Logout clears only the local
    projection and does not delete durable entries.
 9. BirdCoder hydrates on startup and after online, focus, visibility, or
-   validated cross-window invalidation. A response from a previous Session
-   generation cannot overwrite the selected Session projection or processing
-   lock.
+   validated cross-window invalidation. Previous-Session and superseded
+   same-Session responses or errors cannot overwrite a newer hydration, local
+   mutation, claim result, selected Session projection, or processing lock.
 10. The PC projection retains at most 32 entries per Session, 32 Session
-    scopes, 4 MiB per Session, and 16 MiB total. Broadcast messages contain no
-    queue content.
+    scopes, 4 MiB of exact UTF-8 string data per Session, and 16 MiB total.
+    Budget changes use per-scope and global incremental counters. Broadcast
+    messages contain no queue content.
 11. The UnifiedChat queue surface exposes queued, executing, and failed states;
     failed entries can be retried and executing entries cannot be edited,
-    reordered, or removed.
+    reordered, or removed. Editing any entry pauses that window before another
+    claim and processing resumes after editing closes.
 12. Generated SDK regeneration is idempotent, focused Rust and TypeScript tests
     pass, architecture/security/storage validators pass, and restart plus
     multi-window E2E scenarios pass.
@@ -84,7 +88,7 @@ mutations without duplicate Turns or silent data loss.
 | Area | Requirement |
 | --- | --- |
 | Cohesion | Agents owns durable state and admission; infrastructure adapts the generated SDK; Workbench coordinates lifecycle; UnifiedChat renders and invokes typed commands. |
-| Performance | Indexed owner/Session access, atomic bounded claims, 32-entry API pages, bounded projections, and invalidation-only broadcasts avoid polling or unbounded client retention. |
+| Performance | Indexed owner/Session access, atomic bounded claims, 32-entry API pages, incrementally byte-accounted projections, complete-snapshot reference reuse, and invalidation-only broadcasts avoid polling, global rescans, or unbounded client retention. |
 | Reliability | FIFO progression is driven by authoritative Turn state, leases and fencing reject stale actors, and idempotency prevents duplicate accepted Turns. |
 | Security | Every operation is owner-scoped, nested identities are validated, content is not broadcast or locally persisted, and executing work cannot be mutated through stale UI state. |
 | Extensibility | Provider-neutral queue metadata and the existing Turn service allow future Agents without modifying the queue state machine or UnifiedChat transport. |

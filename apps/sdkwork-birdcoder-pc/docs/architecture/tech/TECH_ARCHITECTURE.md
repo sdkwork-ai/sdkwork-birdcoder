@@ -200,11 +200,19 @@ owns only interaction state and a bounded in-memory projection.
 
 The Workbench queue controller hydrates at mount and after online, focus,
 visibility, or validated `BroadcastChannel` invalidation. It limits the
-projection to 32 entries per Session, 32 Session scopes, 4 MiB per Session,
-and 16 MiB overall. Cross-window messages carry no content. A Session identity
-generation fence rejects late refresh, claim, dispatch, and error effects from
-the previously selected Session. Logout clears the projection but does not
-delete the durable queue.
+projection to 32 entries per Session, 32 Session scopes, 4 MiB of exact UTF-8
+string data per Session, and 16 MiB overall. Per-scope and global byte counters
+avoid rescanning unrelated projections. Cross-window messages carry no content.
+A Session identity generation fence rejects late refresh, claim, dispatch, and
+error effects from the previously selected Session. Same-Session hydration is
+latest-wins, and a mutation epoch rejects list responses made stale by a local
+mutation or claim. Logout clears the projection but does not delete the durable
+queue.
+
+The controller generates `queueEntryId` before create and reuses it only while
+retrying the same uncertain create action. Different and already successful
+actions receive new IDs. Editing any queue entry pauses this window before its
+next claim and resumes processing when editing closes.
 
 When no Turn is busy, the controller atomically claims the next entry with a
 30-second lease, then submits the original Agent, Session, runtime binding,

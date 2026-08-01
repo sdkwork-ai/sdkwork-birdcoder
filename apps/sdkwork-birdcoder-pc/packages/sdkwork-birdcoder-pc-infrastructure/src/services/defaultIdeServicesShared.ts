@@ -28,6 +28,7 @@ import type { IGitService } from './interfaces/IGitService.ts';
 import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntimeLocationService.ts';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IAgentWorkspaceService } from './interfaces/IAgentWorkspaceService.ts';
+import type { IAgentAutomationService } from './interfaces/IAgentAutomationService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
@@ -38,6 +39,7 @@ import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
 import { createBirdCoderMcpAppSdkClient } from './mcpSdkClient.ts';
 
 export interface BirdCoderDefaultIdeServices {
+  agentAutomationService: IAgentAutomationService;
   agentSessionService: IAgentSessionService;
   applicationPublishService: IApplicationPublishService;
   authService: IAuthService;

@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -720,6 +722,77 @@ fn build_directory_snapshot(
 }
 
 const DEFAULT_FS_READ_FILE_MAX_BYTES: usize = 8 * 1024 * 1024;
+const MAX_FS_IMAGE_PREVIEW_BYTES: usize = 8 * 1024 * 1024;
+
+fn resolve_supported_image_mime_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        return Some("image/png");
+    }
+    if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        return Some("image/jpeg");
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("image/gif");
+    }
+    if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+    None
+}
+
+fn read_mounted_image_preview_data_url(file_path: &Path) -> Result<String, String> {
+    use std::io::Read;
+
+    let file = fs::File::open(file_path).map_err(|error| {
+        format!(
+            "failed to open mounted image '{}': {error}",
+            file_path.display()
+        )
+    })?;
+    let metadata = file.metadata().map_err(|error| {
+        format!(
+            "failed to inspect mounted image '{}': {error}",
+            file_path.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(format!(
+            "mounted image path must be a file: {}",
+            file_path.display()
+        ));
+    }
+    if metadata.len() > MAX_FS_IMAGE_PREVIEW_BYTES as u64 {
+        return Err(format!(
+            "mounted image '{}' is {} bytes and exceeds the {} byte image preview limit",
+            file_path.display(),
+            metadata.len(),
+            MAX_FS_IMAGE_PREVIEW_BYTES
+        ));
+    }
+
+    let mut bytes = Vec::with_capacity((metadata.len() as usize).min(64 * 1024));
+    file.take((MAX_FS_IMAGE_PREVIEW_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            format!(
+                "failed to read mounted image '{}': {error}",
+                file_path.display()
+            )
+        })?;
+    if bytes.len() > MAX_FS_IMAGE_PREVIEW_BYTES {
+        return Err(format!(
+            "mounted image '{}' exceeds the {} byte image preview limit",
+            file_path.display(),
+            MAX_FS_IMAGE_PREVIEW_BYTES
+        ));
+    }
+    let mime_type = resolve_supported_image_mime_type(&bytes)
+        .ok_or_else(|| "mounted image must contain PNG, JPEG, GIF, or WebP data".to_string())?;
+    Ok(format!(
+        "data:{mime_type};base64,{}",
+        BASE64_STANDARD.encode(bytes)
+    ))
+}
 
 fn read_mounted_file_to_string(
     file_path: &Path,
@@ -874,6 +947,19 @@ pub async fn fs_read_file(
     })
     .await
     .map_err(|error| format!("failed to join mounted file read task: {error}"))?
+}
+
+#[tauri::command]
+pub async fn fs_read_image_preview(
+    root_path: String,
+    relative_path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        read_mounted_image_preview_data_url(&file_path)
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted image preview task: {error}"))?
 }
 
 #[tauri::command]
@@ -1522,6 +1608,83 @@ mod tests {
             (DEFAULT_FS_READ_FILE_MAX_BYTES + 1) as u64
         );
         fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn image_preview_returns_a_magic_byte_verified_data_url() {
+        let root = create_filesystem_command_test_root("image-preview-png");
+        let bytes = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
+        fs::write(root.join("preview.bin"), bytes).expect("image preview fixture must be written");
+
+        let preview = fs_read_image_preview(
+            root.to_string_lossy().into_owned(),
+            "preview.bin".to_string(),
+        )
+        .await
+        .expect("a supported image must produce a preview data URL");
+
+        assert_eq!(
+            preview,
+            format!("data:image/png;base64,{}", BASE64_STANDARD.encode(bytes))
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn image_preview_rejects_extension_disguised_text() {
+        let root = create_filesystem_command_test_root("image-preview-disguised-text");
+        fs::write(root.join("not-an-image.png"), b"plain text")
+            .expect("disguised image fixture must be written");
+
+        let error = fs_read_image_preview(
+            root.to_string_lossy().into_owned(),
+            "not-an-image.png".to_string(),
+        )
+        .await
+        .expect_err("an extension-only image must be rejected");
+
+        assert!(error.contains("must contain PNG, JPEG, GIF, or WebP data"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn image_preview_rejects_files_larger_than_the_preview_limit() {
+        let root = create_filesystem_command_test_root("image-preview-large");
+        let mut bytes = vec![0_u8; MAX_FS_IMAGE_PREVIEW_BYTES + 1];
+        bytes[..8].copy_from_slice(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+        fs::write(root.join("large.png"), bytes)
+            .expect("large image preview fixture must be written");
+
+        let error =
+            fs_read_image_preview(root.to_string_lossy().into_owned(), "large.png".to_string())
+                .await
+                .expect_err("an oversized image preview must be rejected");
+
+        assert!(error.contains("exceeds the"));
+        assert!(error.contains("image preview limit"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn image_preview_rejects_parent_path_escape() {
+        let root = create_filesystem_command_test_root("image-preview-scoped-root");
+        let outside = create_filesystem_command_test_root("image-preview-scoped-outside");
+        fs::write(
+            outside.join("outside.png"),
+            [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a],
+        )
+        .expect("outside image preview fixture must be written");
+
+        let error = fs_read_image_preview(
+            root.to_string_lossy().into_owned(),
+            "../outside.png".to_string(),
+        )
+        .await
+        .expect_err("an image preview path escape must be rejected");
+
+        assert!(error.contains("must not traverse outside"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+        fs::remove_dir_all(outside).expect("outside fixture root must be removed");
     }
 
     #[tokio::test]

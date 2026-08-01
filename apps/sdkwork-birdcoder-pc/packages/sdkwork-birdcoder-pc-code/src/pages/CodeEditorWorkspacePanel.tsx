@@ -32,6 +32,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   selectedEngineId,
   selectedModelId,
   onOpenFile,
+  resolveLocalImagePreviewUrl,
   onRestoreMessage,
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
@@ -77,6 +78,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       onViewChanges={onViewChanges}
       onRestore={onRestoreMessage}
       onOpenFile={onOpenFile}
+      resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
       emptyState={chatEmptyState}
     />
   );
@@ -156,6 +158,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onEditMessage,
   onDeleteMessage,
   onRegenerateMessage,
+  resolveLocalImagePreviewUrl,
   onCreateRootFile,
   getLanguageFromPath,
 }: CodeEditorWorkspacePanelProps) {
@@ -256,6 +259,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               onDeleteMessage={onDeleteMessage}
               onRegenerateMessage={onRegenerateMessage}
               onOpenFile={onSelectFile}
+              resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
             />
           </div>
         </div>

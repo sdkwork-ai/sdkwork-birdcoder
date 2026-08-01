@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -104,6 +104,71 @@ export function resolveTsxCliEntry({
   );
 }
 
+export function resolveTsxEsbuildBinaryPath({
+  tsxPackageRoot,
+  platform = process.platform,
+  arch = process.arch,
+} = {}) {
+  if (!tsxPackageRoot) {
+    return null;
+  }
+
+  const physicalTsxPackageRoot = realpathSync(tsxPackageRoot);
+  const linkedEsbuildPackageRoot = path.join(
+    path.dirname(physicalTsxPackageRoot),
+    'esbuild',
+  );
+  if (!existsSync(linkedEsbuildPackageRoot)) {
+    return null;
+  }
+  const esbuildPackageRoot = realpathSync(linkedEsbuildPackageRoot);
+  const esbuildPackageJsonPath = path.join(esbuildPackageRoot, 'package.json');
+  if (!existsSync(esbuildPackageJsonPath)) {
+    return null;
+  }
+
+  const esbuildPackageJson = JSON.parse(
+    readFileSync(esbuildPackageJsonPath, 'utf8'),
+  );
+  const platformPackagesDir = path.join(
+    path.dirname(esbuildPackageRoot),
+    '@esbuild',
+  );
+  if (!existsSync(platformPackagesDir)) {
+    return null;
+  }
+
+  const platformPackageNames = readdirSync(platformPackagesDir).sort();
+  for (const packageName of platformPackageNames) {
+    const platformPackageRoot = path.join(platformPackagesDir, packageName);
+    const packageJsonPath = path.join(platformPackageRoot, 'package.json');
+    if (!existsSync(packageJsonPath)) {
+      continue;
+    }
+
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+    const supportedPlatforms = Array.isArray(packageJson.os) ? packageJson.os : [];
+    const supportedArchitectures = Array.isArray(packageJson.cpu)
+      ? packageJson.cpu
+      : [];
+    if (
+      packageJson.version !== esbuildPackageJson.version ||
+      !supportedPlatforms.includes(platform) ||
+      !supportedArchitectures.includes(arch)
+    ) {
+      continue;
+    }
+
+    const binaryCandidates = [
+      path.join(platformPackageRoot, 'esbuild.exe'),
+      path.join(platformPackageRoot, 'bin', 'esbuild'),
+    ];
+    return binaryCandidates.find((candidate) => existsSync(candidate)) ?? null;
+  }
+
+  return null;
+}
+
 export function createLocalTsxPlan({
   argv = process.argv.slice(2),
   cwd = process.cwd(),
@@ -115,10 +180,12 @@ export function createLocalTsxPlan({
     'scripts',
     'register-test-asset-hooks.mjs',
   );
-  const env = createRunnerEnv(testAssetHooksPath);
   const tsxPackageRoot = resolveInstalledTsxPackageRoot({
     cwd,
     workspaceRootDir,
+  });
+  const env = createRunnerEnv(testAssetHooksPath, {
+    esbuildBinaryPath: resolveTsxEsbuildBinaryPath({ tsxPackageRoot }),
   });
   if (!tsxPackageRoot) {
     return {
@@ -151,16 +218,20 @@ export function createLocalTsxPlan({
   };
 }
 
-function createRunnerEnv(testAssetHooksPath) {
+function createRunnerEnv(testAssetHooksPath, { esbuildBinaryPath } = {}) {
   const importOption = `--import=${pathToFileURL(testAssetHooksPath).href}`;
   const existingNodeOptions = String(process.env.NODE_OPTIONS ?? '').trim();
   const nodeOptions = existingNodeOptions.includes(importOption)
     ? existingNodeOptions
     : [existingNodeOptions, importOption].filter(Boolean).join(' ');
-  return {
+  const env = {
     ...process.env,
     NODE_OPTIONS: nodeOptions,
   };
+  if (!env.ESBUILD_BINARY_PATH && esbuildBinaryPath) {
+    env.ESBUILD_BINARY_PATH = esbuildBinaryPath;
+  }
+  return env;
 }
 
 function stripTsxOnlyArgs(argv) {

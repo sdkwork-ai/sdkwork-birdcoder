@@ -899,11 +899,14 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
     && warningMessage.includes('src/terminal/sessions.ts');
   const isRolldownPluginTimingDiagnostic =
     warningCode === 'PLUGIN_TIMINGS'
-    && [
-      'sdkwork-birdcoder-h5-',
-      'sdkwork-birdcoder-pc-desktop-',
-      'sdkwork-birdcoder-pc-web-',
-    ].some((pluginPrefix) => warningMessage.includes(pluginPrefix));
+    && (
+      warningMessage.includes('plugin `vite:terser`')
+      || [
+        'sdkwork-birdcoder-h5-',
+        'sdkwork-birdcoder-pc-desktop-',
+        'sdkwork-birdcoder-pc-web-',
+      ].some((pluginPrefix) => warningMessage.includes(pluginPrefix))
+    );
   return isLucideUseClientNoise
     || isKnownSharedUiUseClientNoise
     || isSharedReactRouterUseClientNoise

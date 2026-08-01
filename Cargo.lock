@@ -6194,6 +6194,7 @@ name = "sdkwork-birdcoder-tauri-host"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "base64 0.22.1",
  "hex",
  "keyring",
  "notify",
@@ -6720,6 +6721,7 @@ dependencies = [
  "sha1 0.10.7",
  "sha2 0.10.9",
  "sqlx",
+ "tracing",
  "urlencoding",
  "uuid",
 ]
@@ -6754,6 +6756,7 @@ dependencies = [
  "sqlx",
  "time",
  "tokio",
+ "tokio-stream",
  "tower 0.5.3",
  "tracing",
 ]

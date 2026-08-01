@@ -32,6 +32,9 @@ import {
 } from './ToolResultBlocks.tsx';
 import { ToolInputDetails } from './ToolInputDetails.tsx';
 import type { ContextToolCallCategory } from './toolCallPresentation.ts';
+import {
+  resolveToolCallActionPresentation,
+} from './toolCallActionPresentation.ts';
 
 interface ToolCallCardProps {
   call: AgentSessionItemToolCallView;
@@ -93,25 +96,6 @@ function summarizeToolCallArguments(argumentsText: string): string {
   }
 
   return truncateToolCallArgumentSummary(normalized);
-}
-
-function resolveToolCallLabel(call: AgentSessionItemToolCallView, t?: ChatMessageTranslate): string {
-  const labels = {
-    agent: t?.('chat.toolAgent') ?? 'Subagent',
-    approval: t?.('chat.toolApproval') ?? 'Approval request',
-    command: t?.('chat.toolCommand') ?? 'Command',
-    file: t?.('chat.toolFile') ?? 'File operation',
-    mcp: t?.('chat.toolMcp') ?? 'MCP tool',
-    media: t?.('chat.toolMedia') ?? 'Media operation',
-    other: t?.('chat.toolOther') ?? 'Tool',
-    question: t?.('chat.toolQuestion') ?? 'Question',
-    search: t?.('chat.toolSearch') ?? 'Search',
-    skill: t?.('chat.toolSkill') ?? 'Skill',
-    task: t?.('chat.toolTask') ?? 'Task update',
-    web: t?.('chat.toolWeb') ?? 'Web access',
-  } as const;
-
-  return labels[call.kind ?? 'other'];
 }
 
 function resolveContextToolCallLabel(
@@ -247,17 +231,9 @@ export const ToolCallCard = memo(function ToolCallCard({
     ),
     [call.output, call.resultBlocks, isExpanded],
   );
-  const taskTitle = call.kind === 'task' ? call.title?.trim() ?? '' : '';
   const argumentSummary = useMemo(
-    () => truncateToolCallArgumentSummary(
-      taskTitle
-        ? call.target?.trim() || call.command?.trim() || ''
-        : call.title?.trim()
-          || call.target?.trim()
-          || call.command?.trim()
-          || summarizeToolCallArguments(call.arguments),
-    ),
-    [call.arguments, call.command, call.target, call.title, taskTitle],
+    () => summarizeToolCallArguments(call.arguments),
+    [call.arguments],
   );
   const hasOutputText = useMemo(() => /\S/u.test(call.output ?? ''), [call.output]);
   const hasResultBlocks = !!call.resultBlocks?.length;
@@ -265,17 +241,20 @@ export const ToolCallCard = memo(function ToolCallCard({
   const isOutputPending = call.status === 'pending'
     || call.status === 'running'
     || call.status === 'waiting';
+  const actionPresentation = resolveToolCallActionPresentation(call, t);
   const toolLabel = contextCategory
     ? resolveContextToolCallLabel(contextCategory, t)
-    : resolveToolCallLabel(call, t);
+    : actionPresentation.label;
   const statusLabel = resolveToolCallStatusLabel(call, t);
   const durationLabel = formatToolCallDuration(call.durationMs);
-  const displayName = call.serverName
-    ? `${call.serverName} / ${call.name}`
-    : call.name;
-  const primaryDisplayName = taskTitle || displayName;
-  const rowDisplayName = contextCategory ? argumentSummary : primaryDisplayName;
-  const rowArgumentSummary = contextCategory ? '' : argumentSummary;
+  const rowDisplayName = truncateToolCallArgumentSummary(
+    contextCategory ? argumentSummary : actionPresentation.displayName,
+  );
+  const rowArgumentSummary = contextCategory
+    || !argumentSummary
+    || argumentSummary === rowDisplayName
+    ? ''
+    : argumentSummary;
   const detailLabel = isExpanded
     ? t?.('chat.toolDetailsHide') ?? 'Hide tool details'
     : t?.('chat.toolDetailsShow') ?? 'Show tool details';

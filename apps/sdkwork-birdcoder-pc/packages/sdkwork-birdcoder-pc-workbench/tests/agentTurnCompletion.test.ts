@@ -278,6 +278,50 @@ describe('Agent turn streaming completion contract', () => {
     expect(onAccepted).toHaveBeenCalledTimes(1);
   });
 
+  it('delivers deltas before the completion gate releases and submit settles', async () => {
+    const completion = createTurnCompletion();
+    let releaseCompletion!: () => void;
+    const completionGate = new Promise<void>((resolve) => {
+      releaseCompletion = resolve;
+    });
+    const stream = vi.fn(async () => (async function* gatedStream() {
+      yield { eventType: 'delta', index: 0, delta: 'hello' };
+      await completionGate;
+      yield completionEvent(completion);
+    })());
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { turns: { stream } } },
+      } as never,
+    });
+    const onAccepted = vi.fn();
+    const onDelta = vi.fn();
+    let settled = false;
+
+    const submission = service.submitTurn(identity, {
+      content: 'hello',
+      runtimeBindingId,
+    }, { onAccepted, onDelta }).finally(() => {
+      settled = true;
+    });
+
+    await vi.waitFor(() => {
+      expect(onDelta).toHaveBeenCalledWith({
+        content: 'hello',
+        delta: 'hello',
+        index: 0,
+      });
+    });
+    expect(settled).toBe(false);
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+
+    releaseCompletion();
+
+    await expect(submission).resolves.toBe(completion);
+    expect(settled).toBe(true);
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
   it('accepts ordered runtime events after validating Session, Turn, and provider item identity', async () => {
     const completion = createTurnCompletion();
     const firstEvent = runtimeEvent();
@@ -396,24 +440,24 @@ describe('Agent turn streaming completion contract', () => {
     modelId,
   ) => {
     const providerAgentId = `agent.code-engine.${engineId}`;
-    const providerRuntimeBindingId = `runtime-binding.${engineId}`;
+    const providerHostBindingId = `runtime-binding.${engineId}`;
     const completion = createTurnCompletion({
       agentId: providerAgentId,
-      runtimeBindingId: providerRuntimeBindingId,
+      runtimeBindingId: providerHostBindingId,
     });
     const { service, stream } = createService([completionEvent(completion)]);
 
     await expect(service.submitTurn({ agentId: providerAgentId, sessionId }, {
       content: `use ${engineId}`,
       requestedModelId: modelId,
-      runtimeBindingId: providerRuntimeBindingId,
+      runtimeBindingId: providerHostBindingId,
     }, {})).resolves.toBe(completion);
     expect(stream).toHaveBeenCalledWith(
       providerAgentId,
       sessionId,
       expect.objectContaining({
         requestedModelId: modelId,
-        runtimeBindingId: providerRuntimeBindingId,
+        runtimeBindingId: providerHostBindingId,
       }),
       { eventProtocol: 'kernel-v1', stream: true },
       { signal: undefined, timeout: undefined },
@@ -669,14 +713,13 @@ describe('Agent turn streaming completion contract', () => {
     ) => {
       throw new Error('SSE transport is unavailable.');
     });
-    const post = vi.fn(async (
+    const request = vi.fn(async (
       _path: string,
-      _command: unknown,
-      _query: unknown,
+      _options: unknown,
     ) => completion);
     const service = new BirdCoderAgentSessionService({
       client: {
-        http: { post },
+        http: { request },
         ai: { agents: { turns: { stream } } },
       } as never,
     });
@@ -689,9 +732,22 @@ describe('Agent turn streaming completion contract', () => {
     }, { onAccepted })).resolves.toBe(completion);
 
     const streamedCommand = stream.mock.calls[0]?.[2];
-    const replayedCommand = post.mock.calls[0]?.[1];
+    const requestOptions = request.mock.calls[0]?.[1] as {
+      body?: unknown;
+      contentType?: string;
+      method?: string;
+      sdkworkUnwrapKind?: string;
+    } | undefined;
+    const replayedCommand = requestOptions?.body;
     expect(replayedCommand).toEqual(streamedCommand);
-    expect(post.mock.calls[0]?.[2]).toEqual({ stream: false });
+    expect(request.mock.calls[0]?.[0]).toBe(
+      `/app/v3/api/ai/agents/${encodeURIComponent(identity.agentId)}/sessions/${encodeURIComponent(identity.sessionId)}/turns?stream=false`,
+    );
+    expect(requestOptions).toMatchObject({
+      contentType: 'application/json',
+      method: 'POST',
+      sdkworkUnwrapKind: 'item',
+    });
     expect(onAccepted).toHaveBeenCalledTimes(1);
   });
 

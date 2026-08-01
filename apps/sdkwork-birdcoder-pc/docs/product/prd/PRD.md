@@ -58,7 +58,9 @@ their business semantics.
   submission through the generated Agents App SDK before clearing the composer
   and keeps only a bounded in-memory projection. Atomic claim, fencing token,
   queue-owned idempotency key, and payload hash prevent duplicate execution
-  across browser windows and delivery retries.
+  across browser windows and delivery retries. PC supplies a stable queue entry
+  ID for uncertain create retries, uses latest-wins hydration plus mutation
+  fencing, and pauses local claims while any queue entry is being edited.
 - Background synchronization preserves explicit Session selection. A
   synchronized newest Session is only a default when the target Project has no
   current or explicit selection.

@@ -173,6 +173,11 @@ async fn fs_read_file(
 }
 
 #[tauri::command]
+async fn fs_read_image_preview(root_path: String, relative_path: String) -> Result<String, String> {
+    host::fs_read_image_preview(root_path, relative_path).await
+}
+
+#[tauri::command]
 async fn fs_get_file_revision(root_path: String, relative_path: String) -> Result<String, String> {
     host::fs_get_file_revision(root_path, relative_path).await
 }
@@ -512,6 +517,7 @@ pub fn run() {
             fs_snapshot_folder,
             fs_list_directory,
             fs_read_file,
+            fs_read_image_preview,
             fs_get_file_revision,
             fs_get_file_revisions,
             fs_get_directory_revisions,

@@ -26,6 +26,9 @@ import {
   ownsEditorCommandTarget,
   releaseEditorCommandTarget,
 } from './editorCommandFocus';
+import { configureBirdCoderMonacoLoader } from './monacoLoader';
+
+configureBirdCoderMonacoLoader();
 
 export interface DiffEditorProps {
   language: string;

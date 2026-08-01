@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ButtonHTMLAttributes } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
+
+vi.mock('@sdkwork/birdcoder-pc-workbench', () => ({
+  MAX_AGENT_INTERACTION_ANSWER_CHARACTERS: 65_536,
+  MAX_AGENT_INTERACTION_APPROVAL_REASON_CHARACTERS: 2_048,
+}));
+
+vi.mock('@sdkwork/birdcoder-pc-ui-shell', () => ({
+  Button: ({ size: _size, variant: _variant, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+    size?: string;
+    variant?: string;
+  }) => <button {...props} />,
+}));
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();

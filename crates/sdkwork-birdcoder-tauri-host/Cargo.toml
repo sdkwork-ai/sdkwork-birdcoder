@@ -9,6 +9,7 @@ authors.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
+base64 = "0.22"
 hex = "0.4"
 sha2 = "0.10"
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }

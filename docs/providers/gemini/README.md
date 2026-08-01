@@ -31,7 +31,15 @@ The internal `GeminiEventType` union is richer: `content`, `thought`, tool reque
 
 ## Hierarchy And Identity
 
-Gemini CLI exposes a session/conversation context with ordered content and tool exchanges rather than Codex's explicit Thread/Turn/Item API. BirdCoder maps the provider session to a canonical Session, groups a user request and completion into a Turn when correlation exists, and uses provider call IDs for tool item identity.
+Gemini CLI exposes a provider session/conversation context with ordered content
+and tool exchanges. The SDKWork canonical Session is identified by
+`sessionId`; the provider-returned continuation identity, including the raw
+stream `init` session ID when it is the resume authority, is stored unchanged
+as `providerSessionId`. It never replaces `sessionId`, and it must never be
+synthesized from `sessionId`.
+
+BirdCoder groups a user request and completion into a canonical Turn when
+correlation exists and uses provider call IDs for tool Session Item identity.
 
 Text chunks for the same assistant response are accumulated in order. The terminal result settles status and usage; it does not become duplicate assistant text when the message content has already been emitted.
 
@@ -78,6 +86,12 @@ Unknown stream events are retained in bounded diagnostic/provider metadata. Unkn
 - Deduplicate final message content from the terminal result.
 - Normalize blocked/stopped/error states without treating them as success.
 - Keep media and file outputs structured.
+
+[`agentSessionProviderRealtimeEvents.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderRealtimeEvents.test.ts)
+independently verifies that public stream-json `tool_use` and `tool_result`
+records merge by `tool_id` while retaining request parameters and terminal
+output. It does not prove the complete internal event union, history, reconnect,
+or credentialed provider E2E.
 
 ## Terminal And Error Mapping
 

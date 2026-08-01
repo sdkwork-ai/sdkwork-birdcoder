@@ -85,7 +85,7 @@ export function SharedComposerFooter({
           aria-haspopup="menu"
           aria-controls={isAttachmentMenuOpen ? 'composer-action-panel' : undefined}
           aria-label={t('chat.addAttachment')}
-          className={`h-7 w-7 rounded-lg transition-colors ${attachmentActionDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
+          className={`h-7 w-7 shrink-0 rounded-lg transition-colors ${attachmentActionDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
           title={t('chat.addAttachment')}
           onClick={() => {
             if (!attachmentActionDisabled) {
@@ -143,7 +143,7 @@ export function SharedComposerFooter({
       <div className="flex min-w-0 items-center gap-1.5">
         {showModelPicker ? (
           <div
-            className="birdcoder-composer-model-picker min-w-20 max-w-[min(46vw,240px)]"
+            className="birdcoder-composer-model-picker min-w-0 max-w-[min(46vw,240px)] shrink"
             data-testid="universal-chat-model-picker"
           >
             <ModelPicker
@@ -163,7 +163,7 @@ export function SharedComposerFooter({
           </div>
         ) : (
           <div
-            className="flex min-w-12 max-w-[min(46vw,240px)] items-center rounded-lg px-2 py-1.5"
+            className="flex min-w-0 max-w-[min(46vw,240px)] shrink items-center rounded-lg px-2 py-1.5"
             data-testid="universal-chat-selected-model"
             title={selectedModelSummary}
           >
@@ -177,7 +177,7 @@ export function SharedComposerFooter({
           variant="ghost"
           size="icon"
           aria-label={isListening ? t('chat.stopListening') : t('chat.voiceInput')}
-          className={`h-8 w-8 rounded-full transition-colors ${disabled ? 'cursor-not-allowed text-gray-600 opacity-50' : isListening ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          className={`h-8 w-8 shrink-0 rounded-full transition-colors ${disabled ? 'cursor-not-allowed text-gray-600 opacity-50' : isListening ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
           title={isListening ? t('chat.stopListening') : t('chat.voiceInput')}
           disabled={disabled}
           onClick={onToggleVoiceInput}
@@ -189,7 +189,7 @@ export function SharedComposerFooter({
           <Button
             size="icon"
             aria-label={t('chat.stoppingResponse')}
-            className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
+            className="h-8 w-8 shrink-0 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
             disabled
             title={t('chat.stoppingResponse')}
           >
@@ -199,7 +199,7 @@ export function SharedComposerFooter({
           <Button
             size="icon"
             aria-label={t('chat.stopResponse')}
-            className={`h-8 rounded-full bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] transition-all duration-200 hover:bg-white ${
+            className={`h-8 shrink-0 rounded-full bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] transition-all duration-200 hover:bg-white ${
               isStopTurnConfirmationVisible ? 'w-[58px] gap-1.5 px-2' : 'w-8'
             }`}
             onClick={() => {
@@ -218,7 +218,7 @@ export function SharedComposerFooter({
           <Button
             size="icon"
             aria-label={t('chat.attachmentUploading')}
-            className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
+            className="h-8 w-8 shrink-0 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
             disabled
             title={t('chat.attachmentUploading')}
           >
@@ -228,7 +228,7 @@ export function SharedComposerFooter({
           <Button
             size="icon"
             aria-label={t('chat.generatingResponse')}
-            className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
+            className="h-8 w-8 shrink-0 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
             disabled
             title={t('chat.generatingResponse')}
           >
@@ -246,7 +246,7 @@ export function SharedComposerFooter({
                     ? t('chat.queueMessage')
                     : t('chat.sendMessage')
             }
-            className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] hover:bg-white' : 'bg-white/10 text-gray-500'}`}
+            className={`h-8 w-8 shrink-0 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] hover:bg-white' : 'bg-white/10 text-gray-500'}`}
             onClick={() => {
               void onSend();
             }}

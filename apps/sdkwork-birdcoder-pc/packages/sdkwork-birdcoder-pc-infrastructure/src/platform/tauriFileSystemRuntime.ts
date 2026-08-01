@@ -84,6 +84,11 @@ export interface BirdCoderTauriFileSystemRuntime {
     mountedPath: string,
     options?: { maxBytes?: number },
   ): Promise<string>;
+  readImagePreview(
+    rootSystemPath: string,
+    rootVirtualPath: string,
+    mountedPath: string,
+  ): Promise<string>;
   getFileRevision(
     rootSystemPath: string,
     rootVirtualPath: string,
@@ -410,6 +415,12 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
     async readFile(rootSystemPath, rootVirtualPath, mountedPath, options) {
       return invokeTauriFileSystemCommand<string>('fs_read_file', {
         maxBytes: normalizeTauriReadFileMaxBytes(options?.maxBytes),
+        rootPath: rootSystemPath,
+        relativePath: toMountedRelativePath(rootVirtualPath, mountedPath),
+      });
+    },
+    async readImagePreview(rootSystemPath, rootVirtualPath, mountedPath) {
+      return invokeTauriFileSystemCommand<string>('fs_read_image_preview', {
         rootPath: rootSystemPath,
         relativePath: toMountedRelativePath(rootVirtualPath, mountedPath),
       });

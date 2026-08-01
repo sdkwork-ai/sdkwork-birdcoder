@@ -14,6 +14,8 @@ export const CHAT_PROVIDER_ENGINE_IDS = [
   'claude-code',
   'opencode',
   'gemini',
+  'openclaw',
+  'hermes',
 ] as const;
 
 export type ChatProviderEngineId = (typeof CHAT_PROVIDER_ENGINE_IDS)[number];
@@ -76,6 +78,18 @@ export const CHAT_PROVIDER_PRESENTATION_PROFILES:
     presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.gemini,
     surfaceLabel: 'Gemini',
+  }),
+  Object.freeze({
+    engineId: 'openclaw',
+    presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+    protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.openclaw,
+    surfaceLabel: 'OpenClaw',
+  }),
+  Object.freeze({
+    engineId: 'hermes',
+    presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+    protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.hermes,
+    surfaceLabel: 'Hermes Agent',
   }),
 ]);
 

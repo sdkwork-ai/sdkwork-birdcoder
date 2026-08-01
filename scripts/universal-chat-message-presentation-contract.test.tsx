@@ -28,7 +28,7 @@ import {
 
 assert.deepEqual(
   CHAT_PROVIDER_PRESENTATION_PROFILES.map((profile) => profile.engineId),
-  ["codex", "claude-code", "opencode", "gemini"],
+  ["codex", "claude-code", "opencode", "gemini", "openclaw", "hermes"],
   "Every supported coding provider must participate in the shared transcript contract.",
 );
 for (const profile of CHAT_PROVIDER_PRESENTATION_PROFILES) {
@@ -63,6 +63,9 @@ assert.deepEqual(AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE, {
   "claude-code": "claude.content-block",
   codex: "codex.item",
   gemini: "gemini.event",
+  "hermes-agent": "openai.function",
+  hermes: "openai.function",
+  openclaw: "openai.function",
   opencode: "opencode.part",
 });
 assert.equal(resolveChatProviderPresentationProfile(" CODEX ")?.engineId, "codex");

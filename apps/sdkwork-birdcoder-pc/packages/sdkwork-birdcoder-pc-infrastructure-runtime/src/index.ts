@@ -83,6 +83,25 @@ export type {
   PublishableApplication,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IApplicationPublishService';
 export type {
+  AgentAutomationRun,
+  AgentAutomationRunAttempt,
+  AgentAutomationRunAttemptListOptions,
+  AgentAutomationRunAttemptPage,
+  AgentAutomationRunListOptions,
+  AgentAutomationRunPage,
+  AgentAutomationTask,
+  AgentAutomationTaskListOptions,
+  AgentAutomationTaskPage,
+  AgentAutomationTaskStateChangeRequest,
+  CancelAgentAutomationRunRequest,
+  CancelAgentAutomationTaskRequest,
+  CreateAgentAutomationTaskRequest,
+  ExecuteAgentAutomationTaskRequest,
+  IAgentAutomationService,
+  ReplaceAgentAutomationTaskRequest,
+  RetryAgentAutomationRunRequest,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentAutomationService';
+export type {
   AgentInteractionClaim,
   AgentProjectSessionPageRequest,
   AgentScopedSessionPageRequest,

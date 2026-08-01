@@ -1750,9 +1750,9 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     if (!completion) {
       throwIfTurnDeliveryAborted(options.signal);
       const clientWithHttp = this.client as AgentsAppSdkClient & {
-        http?: { post?: unknown };
+        http?: { request?: unknown };
       };
-      if (typeof clientWithHttp.http?.post === 'function') {
+      if (typeof clientWithHttp.http?.request === 'function') {
         try {
           completion = await completeAgentTurn(
             this.client,

@@ -261,6 +261,15 @@ export type AgentSessionItemToolResultBlockView =
   | { type: 'list'; items: readonly string[]; totalItems?: number }
   | { type: 'error'; message: string };
 
+export type AgentSessionCommandActionKind = 'list_files' | 'read' | 'search' | 'unknown';
+
+export interface AgentSessionCommandActionView {
+  kind: AgentSessionCommandActionKind;
+  name?: string;
+  path?: string;
+  query?: string;
+}
+
 export interface AgentSessionItemToolCallView {
   id: string;
   type: string;
@@ -275,6 +284,11 @@ export interface AgentSessionItemToolCallView {
   serverName?: string;
   title?: string;
   durationMs?: number;
+  exitCode?: number;
+  processId?: string;
+  workingDirectory?: string;
+  parentExecutionId?: string;
+  commandAction?: AgentSessionCommandActionView;
   resultBlocks?: readonly AgentSessionItemToolResultBlockView[];
   interaction?: AgentSessionItemInteractionView;
 }
@@ -286,6 +300,12 @@ export interface AgentSessionCommandView {
   kind?: 'approval' | 'command' | 'file_change' | 'task' | 'tool' | 'user_question';
   toolName?: string;
   toolCallId?: string;
+  durationMs?: number;
+  exitCode?: number;
+  processId?: string;
+  workingDirectory?: string;
+  parentExecutionId?: string;
+  commandAction?: AgentSessionCommandActionView;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   requiresApproval?: boolean;
   requiresReply?: boolean;

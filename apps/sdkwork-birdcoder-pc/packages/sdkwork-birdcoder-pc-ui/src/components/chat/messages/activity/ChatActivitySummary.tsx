@@ -54,6 +54,28 @@ export interface ChatActivitySummaryProps {
   toggleDisclosure: (key: string) => void;
 }
 
+export function resolveChatActivityActionLabel(
+  fileCount: number,
+  commandCount: number,
+  t?: ChatMessageEnvironment['t'],
+): string {
+  const editedFilesLabel = t?.('chat.activityEditedFilesSummary', { count: fileCount })
+    ?? (fileCount === 1 ? 'Edited a file' : 'Edited files');
+  const ranCommandsLabel = t?.('chat.activityRanCommandsSummary', { count: commandCount })
+    ?? (commandCount === 1 ? 'Ran a command' : 'Ran commands');
+  const ranCommandsContinuation = t?.('chat.activityRanCommandsContinuation', {
+    count: commandCount,
+  }) ?? (commandCount === 1 ? 'ran a command' : 'ran commands');
+
+  if (fileCount > 0 && commandCount > 0) {
+    return t?.('chat.activityCombinedSummary', {
+      commands: ranCommandsContinuation,
+      files: editedFilesLabel,
+    }) ?? `${editedFilesLabel}, ${ranCommandsContinuation}`;
+  }
+  return fileCount > 0 ? editedFilesLabel : ranCommandsLabel;
+}
+
 export const ChatActivitySummary = memo(function ChatActivitySummary({
   commands: rawCommands,
   compact = false,
@@ -99,11 +121,11 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
   const ranCommandsCountLabel = environment?.t('chat.ranCommandsSummary', {
     count: commands.length,
   }) ?? `Ran ${commands.length} command${commands.length === 1 ? '' : 's'}`;
-  const activityLabel = fileChanges.length > 0 && commands.length > 0
-    ? environment?.t('chat.editedFilesAndRanCommandsGroup') ?? 'Edited files, ran commands'
-    : fileChanges.length > 0
-      ? environment?.t('chat.editedFilesGroup') ?? 'Edited files'
-      : environment?.t('chat.ranCommandsGroup') ?? 'Ran commands';
+  const activityLabel = resolveChatActivityActionLabel(
+    fileChanges.length,
+    commands.length,
+    environment?.t,
+  );
   const activityAccessibleLabel = fileChanges.length > 0 && commands.length > 0
     ? `${editedFilesCountLabel}; ${ranCommandsCountLabel}`
     : fileChanges.length > 0

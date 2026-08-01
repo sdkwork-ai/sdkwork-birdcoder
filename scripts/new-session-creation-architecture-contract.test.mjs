@@ -182,7 +182,7 @@ assert.match(
 assert.match(
   chatSelection,
   /resolveWorkbenchRuntimeBindingIdentity\([\s\S]*resolvedEngineId,[\s\S]*resolvedModelId[\s\S]*createAgentSession\([\s\S]*\.\.\.runtimeIdentity/,
-  "The selected engine and model must resolve the corresponding Provider runtime identity before Session creation.",
+  "The selected engine and model must resolve the corresponding Provider host identity before Session creation.",
 );
 assert.doesNotMatch(
   projects,

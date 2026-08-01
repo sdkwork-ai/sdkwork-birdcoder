@@ -7,6 +7,7 @@ import type { AgentTurnInputQueueEntry } from '@sdkwork/birdcoder-pc-core/sdk/ag
 import {
   clearWorkbenchAgentTurnInputQueueMemory,
   MAX_QUEUED_AGENT_TURN_INPUT_SCOPES,
+  MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE,
   MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE,
   removeWorkbenchQueuedAgentTurnInputProjection,
   setWorkbenchQueuedAgentTurnInputs,
@@ -144,10 +145,14 @@ assert.throws(
 );
 assert.throws(
   () => setWorkbenchQueuedAgentTurnInputs(sessionId, [
-    createQueueEntry('queue-entry.memory-budget', { content: 'x'.repeat(4 * 1_048_576 + 1) }),
+    createQueueEntry('queue-entry.memory-budget', {
+      content: '\u754c'.repeat(
+        Math.floor(MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE / 3),
+      ),
+    }),
   ]),
-  /Session memory budget/u,
-  'untrusted remote projection content must not exceed the per-Session memory budget.',
+  /Session UTF-8 byte budget/u,
+  'untrusted multibyte projection content must not exceed the exact per-Session byte budget.',
 );
 
 clearWorkbenchAgentTurnInputQueueMemory();
@@ -172,6 +177,11 @@ assert.doesNotMatch(
   /localStorage|sessionStorage|indexedDB/u,
   'the browser projection must not become a second persistence authority.',
 );
+assert.match(
+  queueProjectionSource,
+  /totalAgentTurnInputQueueStoredBytes[\s\S]*previousStoredBytes[\s\S]*nextStoredBytes/u,
+  'projection budget updates must use per-scope incremental accounting instead of rescanning all scopes.',
+);
 assert.doesNotMatch(
   queueProjectionSource,
   /enqueueWorkbenchQueuedAgentTurnInput|dequeueWorkbenchQueuedAgentTurnInput|restoreWorkbenchQueuedAgentTurnInputsToFront/u,
@@ -192,6 +202,11 @@ assert.match(
   queueHookSource,
   /generationRef\.current \+= 1;[\s\S]*controller\.abort\(\)/u,
   'Session identity changes must invalidate and abort stale hydration work.',
+);
+assert.match(
+  queueHookSource,
+  /hydrationRequest !== hydrationRequestRef\.current[\s\S]*projectionMutationEpoch !== projectionMutationEpochRef\.current/u,
+  'same-Session hydration must be latest-wins and fenced from local projection mutations.',
 );
 assert.match(
   queueHookSource,
@@ -235,8 +250,18 @@ assert.match(
 );
 assert.match(
   queueHookSource,
-  /if \(mutationRef\.current\)[\s\S]*mutation is already in progress/u,
+  /if \(mutationRef\.current !== null\)[\s\S]*mutation is already in progress/u,
   'overlapping user mutations must be rejected instead of racing optimistic versions.',
+);
+assert.match(
+  queueHookSource,
+  /pendingCreateAttemptRef[\s\S]*`queue-entry\.\$\{uuid\(\)\}`[\s\S]*queueEntryId,[\s\S]*requestedAt/u,
+  'retriable create calls must send a stable client queueEntryId until the logical action succeeds.',
+);
+assert.match(
+  queueHookSource,
+  /processingPausedRef\.current =[\s\S]*pausedQueueEntryId\?\.trim\(\)[\s\S]*generation !== generationRef\.current \|\| processingPausedRef\.current/u,
+  'editing any queue entry must stop this window before its next atomic claim.',
 );
 for (const operation of [
   'createTurnInputQueueEntry',

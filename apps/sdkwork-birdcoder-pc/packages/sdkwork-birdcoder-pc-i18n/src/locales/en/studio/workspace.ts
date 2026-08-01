@@ -2,7 +2,7 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('studio/workspace', {
   "studio": {
-    "searchProjects": "Search projects...",
+    "searchProjects": "Search projects or sessions...",
     "projectSessionSwitcher": "Projects and Sessions",
     "closeProjectSessionSwitcher": "Close projects and sessions",
     "projects": "Projects",

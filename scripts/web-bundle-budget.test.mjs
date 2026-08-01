@@ -12,6 +12,14 @@ const rootDir = process.cwd();
 const webDistDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'dist');
 const assetsDir = path.join(webDistDir, 'assets');
 const indexHtmlPath = path.join(webDistDir, 'index.html');
+const MONACO_WORKER_ASSET_PATTERN = /^(?:css|editor|html|json|ts)\.worker-[A-Za-z0-9_-]+\.js$/u;
+const REQUIRED_MONACO_WORKER_PREFIXES = [
+  'css.worker-',
+  'editor.worker-',
+  'html.worker-',
+  'json.worker-',
+  'ts.worker-',
+];
 
 function formatKb(bytes) {
   return `${(bytes / 1024).toFixed(1)} KiB`;
@@ -150,18 +158,63 @@ const jsAssets = fs
 assert.ok(jsAssets.length > 0, 'web bundle budget check expected at least one built JS asset.');
 assertNoStaticChunkCycles(jsAssets);
 
-const largestAsset = jsAssets[0];
+const monacoWorkerAssets = jsAssets.filter((asset) =>
+  MONACO_WORKER_ASSET_PATTERN.test(asset.name));
+const deferredMonacoAssets = jsAssets.filter((asset) =>
+  !MONACO_WORKER_ASSET_PATTERN.test(asset.name)
+  && (
+    asset.name.startsWith('vendor-monaco-')
+    || asset.name.startsWith('vendor-monaco~')
+    || /(?:^|~)(?:DiffEditor|CodeEditor)(?:~|-)/u.test(asset.name)
+  ));
+const generalJsAssets = jsAssets.filter((asset) =>
+  !monacoWorkerAssets.includes(asset) && !deferredMonacoAssets.includes(asset));
+
+assert.deepEqual(
+  REQUIRED_MONACO_WORKER_PREFIXES.filter((prefix) =>
+    !monacoWorkerAssets.some((asset) => asset.name.startsWith(prefix))),
+  [],
+  'web bundle budget check requires every offline Monaco worker asset.',
+);
+for (const asset of monacoWorkerAssets) {
+  assert.ok(
+    asset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webMonacoWorkerJsBytes,
+    `web Monaco worker exceeds budget: ${asset.name} is ${formatKb(asset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webMonacoWorkerJsBytes)}.`,
+  );
+}
+
+assert.ok(
+  deferredMonacoAssets.length > 0,
+  'web bundle budget check expected a deferred local Monaco editor chunk.',
+);
+for (const asset of deferredMonacoAssets) {
+  assert.ok(
+    asset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webDeferredMonacoJsBytes,
+    `web deferred Monaco JS asset exceeds budget: ${asset.name} is ${formatKb(asset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webDeferredMonacoJsBytes)}.`,
+  );
+}
+
+assert.ok(generalJsAssets.length > 0, 'web bundle budget check expected a non-Monaco JS asset.');
+const largestAsset = generalJsAssets[0];
 assert.ok(
   largestAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webAnyJsAssetBytes,
   [
-    `largest web JS asset exceeds budget: ${largestAsset.name} is ${formatKb(largestAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webAnyJsAssetBytes)}.`,
-    'Top built assets:',
-    listTopAssets(jsAssets),
+    `largest general web JS asset exceeds budget: ${largestAsset.name} is ${formatKb(largestAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webAnyJsAssetBytes)}.`,
+    'Top general assets:',
+    listTopAssets(generalJsAssets),
   ].join('\n'),
 );
 
 const indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
 const entryMatch = indexHtml.match(/<script[^>]*src="(?:\.\/|\/)?assets\/([^"]+\.js)"/);
+
+for (const workerPrefix of REQUIRED_MONACO_WORKER_PREFIXES) {
+  assert.doesNotMatch(
+    indexHtml,
+    new RegExp(`assets\\/${escapeRegex(workerPrefix)}`, 'u'),
+    `web entry HTML must not preload the deferred ${workerPrefix} Monaco worker.`,
+  );
+}
 
 assert.ok(entryMatch, 'web bundle budget check could not resolve the entry JS asset from index.html.');
 
@@ -332,5 +385,5 @@ assertChunkSizeByPrefix(
 );
 
 console.log(
-  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largest=${largestAsset.name} (${formatKb(largestAsset.size)}), markdown=${markdownAsset ? `${markdownAsset.name} (${formatKb(markdownAsset.size)})` : 'merged'}, codeHighlight=${codeHighlightAsset ? `${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)})` : 'merged'}.`,
+  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largestGeneral=${largestAsset.name} (${formatKb(largestAsset.size)}), largestMonaco=${deferredMonacoAssets[0]?.name} (${formatKb(deferredMonacoAssets[0]?.size ?? 0)}), largestWorker=${monacoWorkerAssets[0]?.name} (${formatKb(monacoWorkerAssets[0]?.size ?? 0)}), markdown=${markdownAsset ? `${markdownAsset.name} (${formatKb(markdownAsset.size)})` : 'merged'}, codeHighlight=${codeHighlightAsset ? `${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)})` : 'merged'}.`,
 );

@@ -15,10 +15,14 @@ const MAX_PROVIDER_REASONING_CHARACTERS = 8_000;
 const MAX_PROVIDER_SERIALIZED_INPUT_CHARACTERS = 64_000;
 
 const PROVIDER_TOOL_BLOCK_TYPES = new Set([
+  'approval_request',
   'collab_agent_tool_call',
   'command_execution',
   'dynamic_tool_call',
   'file_change',
+  'function',
+  'function_call',
+  'function_call_output',
   'image_generation',
   'image_generation_call',
   'mcp_tool_call',
@@ -27,6 +31,7 @@ const PROVIDER_TOOL_BLOCK_TYPES = new Set([
   'sleep',
   'sub_agent_activity',
   'tool',
+  'tool_call',
   'tool_call_confirmation',
   'tool_call_request',
   'tool_call_response',
@@ -49,8 +54,10 @@ const PROVIDER_LIFECYCLE_ONLY_TYPES = new Set([
 const PROVIDER_PAYLOAD_CHILD_KEYS = [
   'contentBlock',
   'content_block',
+  'data',
   'delta',
   'event',
+  'events',
   'item',
   'message',
   'params',
@@ -58,6 +65,9 @@ const PROVIDER_PAYLOAD_CHILD_KEYS = [
   'parts',
   'payload',
   'properties',
+  'response',
+  'toolCalls',
+  'tool_calls',
   'value',
 ] as const;
 
@@ -107,6 +117,174 @@ function readBoundedString(value: unknown, maxCharacters: number): string {
     : normalized;
 }
 
+function readBoundedRawString(value: unknown, maxCharacters: number): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.length > maxCharacters
+    ? value.slice(0, maxCharacters)
+    : value;
+}
+
+function appendBoundedRawString(
+  current: string,
+  value: unknown,
+  maxCharacters: number,
+): string {
+  if (typeof value !== 'string' || current.length >= maxCharacters) {
+    return current;
+  }
+  return current + value.slice(0, maxCharacters - current.length);
+}
+
+interface OpenCodePartReplayState {
+  partKeysByMessage: Map<string, Set<string>>;
+  parts: Map<string, Record<string, unknown>>;
+  removedMessages: Set<string>;
+}
+
+function openCodeMessageKey(sessionId: string, messageId: string): string {
+  return `${sessionId}\u0000${messageId}`;
+}
+
+function openCodePartKey(sessionId: string, messageId: string, partId: string): string {
+  return `${openCodeMessageKey(sessionId, messageId)}\u0000${partId}`;
+}
+
+function removeOpenCodePart(
+  state: OpenCodePartReplayState,
+  sessionId: string,
+  messageId: string,
+  partId: string,
+): void {
+  const messageKey = openCodeMessageKey(sessionId, messageId);
+  const partKey = openCodePartKey(sessionId, messageId, partId);
+  state.parts.delete(partKey);
+  const partKeys = state.partKeysByMessage.get(messageKey);
+  partKeys?.delete(partKey);
+  if (partKeys?.size === 0) {
+    state.partKeysByMessage.delete(messageKey);
+  }
+}
+
+function removeOpenCodeMessage(
+  state: OpenCodePartReplayState,
+  sessionId: string,
+  messageId: string,
+): void {
+  const messageKey = openCodeMessageKey(sessionId, messageId);
+  for (const partKey of state.partKeysByMessage.get(messageKey) ?? []) {
+    state.parts.delete(partKey);
+  }
+  state.partKeysByMessage.delete(messageKey);
+  state.removedMessages.add(messageKey);
+}
+
+function replayOpenCodeMessageEvent(
+  record: Record<string, unknown>,
+  state: OpenCodePartReplayState,
+): boolean {
+  const type = normalizeProviderPayloadType(record.type);
+  if (![
+    'message_part_delta',
+    'message_part_removed',
+    'message_part_updated',
+    'message_removed',
+    'message_updated',
+  ].includes(type)) {
+    return false;
+  }
+  const properties = readRecord(record.properties);
+  if (!properties) {
+    return false;
+  }
+
+  if (type === 'message_updated') {
+    const info = readRecord(properties.info);
+    const sessionId = readBoundedString(
+      info?.sessionID ?? properties.sessionID,
+      256,
+    );
+    const messageId = readBoundedString(info?.id, 256);
+    const aggregateSessionId = readBoundedString(properties.sessionID, 256);
+    if (sessionId && messageId && (!aggregateSessionId || aggregateSessionId === sessionId)) {
+      state.removedMessages.delete(openCodeMessageKey(sessionId, messageId));
+    }
+    return true;
+  }
+
+  const sessionId = readBoundedString(properties.sessionID, 256);
+  if (type === 'message_removed') {
+    const messageId = readBoundedString(properties.messageID, 256);
+    if (sessionId && messageId) {
+      removeOpenCodeMessage(state, sessionId, messageId);
+    }
+    return true;
+  }
+
+  if (type === 'message_part_updated') {
+    const part = readRecord(properties.part);
+    const partSessionId = readBoundedString(part?.sessionID, 256);
+    const messageId = readBoundedString(part?.messageID, 256);
+    const partId = readBoundedString(part?.id, 256);
+    if (!part) {
+      return true;
+    }
+    if (!partSessionId || !messageId || !partId) {
+      return false;
+    }
+    const resolvedSessionId = sessionId || partSessionId;
+    if (
+      (sessionId && sessionId !== partSessionId)
+      || state.removedMessages.has(openCodeMessageKey(resolvedSessionId, messageId))
+    ) {
+      return true;
+    }
+    const messageKey = openCodeMessageKey(resolvedSessionId, messageId);
+    const partKey = openCodePartKey(resolvedSessionId, messageId, partId);
+    state.parts.set(partKey, part);
+    const partKeys = state.partKeysByMessage.get(messageKey) ?? new Set<string>();
+    partKeys.add(partKey);
+    state.partKeysByMessage.set(messageKey, partKeys);
+    return true;
+  }
+
+  const messageId = readBoundedString(properties.messageID, 256);
+  const partId = readBoundedString(properties.partID, 256);
+  if (!sessionId || !messageId || !partId) {
+    return true;
+  }
+  if (type === 'message_part_removed') {
+    removeOpenCodePart(state, sessionId, messageId, partId);
+    return true;
+  }
+
+  const field = readBoundedString(properties.field, 256);
+  if (!field || typeof properties.delta !== 'string') {
+    return true;
+  }
+  const partKey = openCodePartKey(sessionId, messageId, partId);
+  const part = state.parts.get(partKey);
+  if (!part || state.removedMessages.has(openCodeMessageKey(sessionId, messageId))) {
+    return true;
+  }
+  const current = part[field];
+  const currentText = current === undefined || current === null
+    ? ''
+    : typeof current === 'string'
+      ? current
+      : String(current);
+  state.parts.set(partKey, {
+    ...part,
+    [field]: appendBoundedRawString(
+      currentText,
+      properties.delta,
+      MAX_PROVIDER_TEXT_CHARACTERS,
+    ),
+  });
+  return true;
+}
+
 function normalizeProviderPayloadType(value: unknown): string {
   return readBoundedString(value, 128)
     .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
@@ -115,6 +293,10 @@ function normalizeProviderPayloadType(value: unknown): string {
 }
 
 function resolveProviderPayloadType(record: Record<string, unknown>): string {
+  const params = readRecord(record.params);
+  if (normalizeProviderPayloadType(record.method) === 'event' && params?.type !== undefined) {
+    return normalizeProviderPayloadType(params.type);
+  }
   return normalizeProviderPayloadType(
     record.type ?? record.method ?? record.sessionUpdate,
   );
@@ -123,9 +305,373 @@ function resolveProviderPayloadType(record: Record<string, unknown>): string {
 function resolveProviderEnvelopePayload(
   record: Record<string, unknown>,
 ): Record<string, unknown> {
-  return readRecord(record.params)
+  const params = readRecord(record.params);
+  return readRecord(params?.payload)
+    ?? readRecord(record.payload)
+    ?? params
     ?? readRecord(record.properties)
     ?? record;
+}
+
+interface ProviderEventEnvelope {
+  payload: Record<string, unknown>;
+  type: string;
+}
+
+function resolveProviderEventEnvelope(
+  record: Record<string, unknown>,
+): ProviderEventEnvelope | null {
+  const params = readRecord(record.params);
+  const isJsonRpcEvent = normalizeProviderPayloadType(record.method) === 'event'
+    && params !== null;
+  const type = normalizeProviderPayloadType(
+    isJsonRpcEvent ? params.type : record.type,
+  );
+  if (!type) {
+    return null;
+  }
+  const payload = isJsonRpcEvent
+    ? readRecord(params.payload) ?? params
+    : readRecord(record.payload) ?? record;
+  return { payload, type };
+}
+
+function readProviderEventPayload(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  const params = readRecord(record.params);
+  return readRecord(record.data)
+    ?? readRecord(record.payload)
+    ?? readRecord(params?.payload)
+    ?? params
+    ?? readRecord(record.properties)
+    ?? record;
+}
+
+function resolveProviderQuestionRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const event = resolveProviderEventEnvelope(record);
+  if (!event || !['clarify_request', 'clarify_expire'].includes(event.type)) {
+    return null;
+  }
+  const requestId = readBoundedString(
+    event.payload.request_id ?? event.payload.requestId,
+    256,
+  );
+  if (!requestId) {
+    return null;
+  }
+  if (event.type === 'clarify_expire') {
+    return {
+      id: requestId,
+      name: 'question',
+      output: { reason: 'expired', requestId },
+      requiresResponse: false,
+      status: 'cancelled',
+      type: 'tool_result',
+    };
+  }
+
+  const question = readBoundedString(
+    event.payload.question ?? event.payload.prompt,
+    MAX_PROVIDER_TEXT_CHARACTERS,
+  );
+  if (!question) {
+    return null;
+  }
+  const choices = Array.isArray(event.payload.choices)
+    ? event.payload.choices.slice(0, MAX_PROVIDER_TEXT_ITEMS).flatMap((choice) => {
+        const label = readBoundedString(choice, MAX_PROVIDER_TEXT_CHARACTERS);
+        return label ? [{ label }] : [];
+      })
+    : [];
+  const multiple = event.payload.multi_select === true
+    || event.payload.multiSelect === true;
+  return {
+    arguments: {
+      questions: [{
+        id: requestId,
+        question,
+        ...(choices.length > 0 ? { options: choices } : {}),
+        ...(multiple ? { multiple: true } : {}),
+        custom: true,
+      }],
+    },
+    id: requestId,
+    name: 'question',
+    requiresResponse: true,
+    status: 'waiting',
+    type: 'tool_call',
+  };
+}
+
+function resolveProviderToolLifecycleRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const recordType = resolveProviderPayloadType(record);
+  const jsonRpcParams = normalizeProviderPayloadType(record.method) === 'event'
+    ? readRecord(record.params)
+    : null;
+  const directTuiEventType = ['tool_start', 'tool_complete'].includes(recordType)
+    ? recordType
+    : '';
+  const tuiEventType = normalizeProviderPayloadType(jsonRpcParams?.type)
+    || directTuiEventType;
+  const isTuiToolEvent = ['tool_start', 'tool_complete'].includes(tuiEventType);
+  const eventType = normalizeProviderPayloadType(record.event);
+  const stream = normalizeProviderPayloadType(record.stream);
+  const isWrappedToolEvent = isTuiToolEvent
+    || stream === 'tool'
+    || eventType === 'hermes_tool_progress';
+  const payload = isTuiToolEvent
+    ? readRecord(jsonRpcParams?.payload)
+      ?? readRecord(record.payload)
+      ?? record
+    : isWrappedToolEvent
+      ? readProviderEventPayload(record)
+      : record;
+  const phase = isTuiToolEvent
+    ? tuiEventType === 'tool_complete' ? 'completed' : 'started'
+    : normalizeProviderPayloadType(payload.phase ?? payload.status);
+  const directType = resolveProviderPayloadType(payload);
+  const explicitToolCallId = readBoundedString(
+    payload.toolCallId
+      ?? payload.tool_call_id
+      ?? payload.tool_id
+      ?? payload.callId
+      ?? payload.call_id,
+    256,
+  );
+  const isDirectToolEvent = Boolean(explicitToolCallId)
+    && [
+      '',
+      'function',
+      'function_call',
+      'function_call_output',
+      'tool',
+      'tool_call',
+      'tool_progress',
+      'tool_result',
+    ].includes(directType);
+  if (
+    (!isWrappedToolEvent && !isDirectToolEvent)
+    || ![
+      'complete',
+      'completed',
+      'done',
+      'error',
+      'failed',
+      'in_progress',
+      'result',
+      'running',
+      'start',
+      'started',
+      'update',
+    ]
+      .includes(phase)
+  ) {
+    return null;
+  }
+
+  const toolCallId = readBoundedString(
+    explicitToolCallId || payload.id,
+    256,
+  );
+  const name = readBoundedString(payload.name ?? payload.tool ?? payload.toolName, 256);
+  if (!toolCallId) {
+    return null;
+  }
+
+  const errorValue = payload.error
+    ?? payload.toolErrorSummary
+    ?? payload.tool_error_summary;
+  const hasErrorValue = errorValue !== undefined
+    && errorValue !== null
+    && (typeof errorValue !== 'string' || errorValue.trim().length > 0);
+  const isError = payload.isError === true
+    || hasErrorValue
+    || ['error', 'failed'].includes(phase);
+  const isTerminal = isError || ['completed', 'complete', 'done', 'result'].includes(phase);
+  const context = readBoundedString(payload.context, MAX_PROVIDER_TEXT_CHARACTERS);
+  const argumentsValue = payload.args
+    ?? payload.arguments
+    ?? payload.input
+    ?? (payload.args_text !== undefined ? readStructuredValue(payload.args_text) : undefined)
+    ?? (context ? { context } : undefined);
+  const outputValue = payload.result
+    ?? payload.result_text
+    ?? payload.summary
+    ?? payload.partialResult
+    ?? payload.output;
+  const resultText = readBoundedRawString(
+    payload.result_text,
+    MAX_PROVIDER_TEXT_CHARACTERS,
+  );
+  const inlineDiff = readBoundedRawString(
+    payload.inline_diff ?? payload.inlineDiff,
+    MAX_PROVIDER_TEXT_CHARACTERS,
+  );
+  const supplementalResults: unknown[] = [];
+  if (
+    payload.result !== undefined
+    && resultText.trim()
+    && (typeof payload.result !== 'string' || payload.result !== resultText)
+  ) {
+    supplementalResults.push({ text: resultText, type: 'text' });
+  }
+  if (inlineDiff.trim()) {
+    supplementalResults.push({ diff: inlineDiff, type: 'diff' });
+  }
+  const existingAttachments = Array.isArray(payload.attachments)
+    ? payload.attachments
+    : payload.attachments === undefined
+      ? []
+      : [payload.attachments];
+  const durationSeconds = typeof payload.duration_s === 'number'
+    && Number.isFinite(payload.duration_s)
+    && payload.duration_s >= 0
+    ? payload.duration_s
+    : undefined;
+  return {
+    ...payload,
+    id: toolCallId,
+    ...(name ? { name } : {}),
+    type: isTerminal ? 'tool_result' : 'tool_call',
+    status: isError ? 'failed' : isTerminal ? 'completed' : 'running',
+    ...(context ? { title: context } : {}),
+    ...(argumentsValue !== undefined ? { arguments: argumentsValue } : {}),
+    ...(outputValue !== undefined ? { output: outputValue } : {}),
+    ...(supplementalResults.length > 0
+      ? { attachments: [...existingAttachments, ...supplementalResults] }
+      : {}),
+    ...(isError && errorValue !== undefined ? { error: errorValue } : {}),
+    ...(durationSeconds !== undefined ? { durationMs: Math.round(durationSeconds * 1_000) } : {}),
+    ...(record.runId !== undefined ? { providerRunId: record.runId } : {}),
+    ...(record.seq !== undefined ? { providerSequence: record.seq } : {}),
+    ...(record.ts !== undefined ? { providerTimestamp: record.ts } : {}),
+  };
+}
+
+function resolveProviderApprovalRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const eventType = normalizeProviderPayloadType(
+    record.event ?? record.method ?? record.type,
+  );
+  if (
+    eventType !== 'session_approval'
+    && eventType !== 'exec_approval_requested'
+    && eventType !== 'exec_approval_resolved'
+  ) {
+    return null;
+  }
+
+  const payload = readProviderEventPayload(record);
+  if (eventType === 'session_approval') {
+    const approval = readRecord(payload.approval) ?? payload;
+    const presentation = readRecord(approval.presentation) ?? {};
+    const approvalId = readBoundedString(approval.id, 256);
+    if (!approvalId) {
+      return null;
+    }
+    const approvalStatus = normalizeProviderPayloadType(approval.status ?? payload.phase);
+    const decision = readBoundedString(
+      approval.decision
+        ?? (approvalStatus === 'allowed'
+          ? 'allowed'
+          : approvalStatus === 'denied'
+            ? 'denied'
+            : undefined),
+      128,
+    );
+    const isPending = approvalStatus === 'pending';
+    const isCancelled = ['cancelled', 'canceled', 'denied'].includes(approvalStatus);
+    const status = isPending
+      ? 'waiting'
+      : isCancelled
+        ? 'cancelled'
+        : approvalStatus === 'allowed'
+          ? 'completed'
+          : 'failed';
+    const presentationKind = readBoundedString(presentation.kind, 128) || 'provider';
+    const commandText = readBoundedString(
+      presentation.commandPreview ?? presentation.commandText,
+      MAX_PROVIDER_TEXT_CHARACTERS,
+    );
+    const description = readBoundedString(
+      presentation.description ?? presentation.title ?? commandText,
+      MAX_PROVIDER_TEXT_CHARACTERS,
+    );
+    const detail = readBoundedString(
+      presentation.detail ?? presentation.warningText ?? approval.reason,
+      MAX_PROVIDER_TEXT_CHARACTERS,
+    );
+    return {
+      ...approval,
+      action: readBoundedString(presentation.toolName, 256) || commandText || presentationKind,
+      arguments: presentation,
+      ...(decision ? { decision } : {}),
+      ...(description ? { message: description } : {}),
+      ...(detail ? { detail } : {}),
+      id: approvalId,
+      name: `${presentationKind}_approval`,
+      requiresResponse: isPending,
+      status,
+      type: 'approval_request',
+    };
+  }
+
+  const request = readRecord(payload.request) ?? {};
+  const approvalId = readBoundedString(payload.id, 256);
+  if (!approvalId) {
+    return null;
+  }
+  const isRequested = eventType === 'exec_approval_requested';
+  const decision = readBoundedString(payload.decision, 128);
+  const command = readBoundedString(request.command, MAX_PROVIDER_TEXT_CHARACTERS);
+  const warning = readBoundedString(request.warningText, MAX_PROVIDER_TEXT_CHARACTERS);
+  return {
+    ...payload,
+    ...(isRequested ? { action: command || 'exec', arguments: request } : {}),
+    ...(decision ? { decision } : {}),
+    ...(isRequested && (warning || command) ? { message: warning || command } : {}),
+    id: approvalId,
+    name: 'exec_approval',
+    requiresResponse: isRequested,
+    status: isRequested
+      ? 'waiting'
+      : ['deny', 'denied'].includes(normalizeProviderPayloadType(decision))
+        ? 'cancelled'
+        : 'completed',
+    type: 'approval_request',
+  };
+}
+
+function providerToolLifecycleRank(record: Record<string, unknown>): number {
+  const phase = normalizeProviderPayloadType(record.phase);
+  const status = normalizeProviderPayloadType(record.status);
+  const type = normalizeProviderPayloadType(record.type);
+  if (
+    ['completed', 'error', 'failed', 'success', 'cancelled', 'canceled'].includes(status)
+    || ['result', 'terminal', 'resolved'].includes(phase)
+    || ['function_call_output', 'tool_result'].includes(type)
+  ) {
+    return 3;
+  }
+  if (phase === 'update') {
+    return 2;
+  }
+  return 1;
+}
+
+function mergeProviderToolRecords(
+  previous: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  return providerToolLifecycleRank(incoming) >= providerToolLifecycleRank(previous)
+    ? { ...previous, ...incoming }
+    : { ...incoming, ...previous };
 }
 
 function readStringArray(value: unknown): string[] {
@@ -264,7 +810,7 @@ export function resolveAgentSessionProviderPayload(
   const reasoningKeys = new Set<string>();
   const resourceInputs: unknown[] = [];
   const toolCalls: unknown[] = [];
-  const toolCallKeys = new Set<string>();
+  const toolCallIndexByKey = new Map<string, number>();
   const pendingValues: unknown[] = [];
   const visitedRecords = new WeakSet<object>();
   let consumed = false;
@@ -272,6 +818,16 @@ export function resolveAgentSessionProviderPayload(
   let pendingValueIndex = 0;
   let taskProgress: AgentSessionTaskProgressView | undefined;
   let contentRole: AgentSessionItemView['role'] = 'assistant';
+  let providerContentDelta = '';
+  let providerContentSnapshot: string | undefined;
+  let providerReasoningDelta = '';
+  let providerReasoningSnapshot = '';
+  const openCodeReplayState: OpenCodePartReplayState = {
+    partKeysByMessage: new Map(),
+    parts: new Map(),
+    removedMessages: new Set(),
+  };
+  let openCodePartsQueued = false;
 
   const enqueueValue = (value: unknown): void => {
     if (pendingValues.length >= MAX_PROVIDER_PAYLOAD_NODES) {
@@ -307,7 +863,15 @@ export function resolveAgentSessionProviderPayload(
     retainedContentCharacters += bounded.length;
   };
 
-  while (pendingValueIndex < pendingValues.length) {
+  while (
+    pendingValueIndex < pendingValues.length
+    || (!openCodePartsQueued && openCodeReplayState.parts.size > 0)
+  ) {
+    if (pendingValueIndex >= pendingValues.length) {
+      openCodePartsQueued = true;
+      enqueueValues([...openCodeReplayState.parts.values()]);
+      continue;
+    }
     const value = pendingValues[pendingValueIndex];
     pendingValueIndex += 1;
     if (Array.isArray(value)) {
@@ -320,7 +884,90 @@ export function resolveAgentSessionProviderPayload(
     }
     visitedRecords.add(record);
 
-    const type = resolveProviderPayloadType(record);
+    if (replayOpenCodeMessageEvent(record, openCodeReplayState)) {
+      consumed = true;
+      continue;
+    }
+
+    const providerEvent = resolveProviderEventEnvelope(record);
+    if (providerEvent) {
+      if (providerEvent.type === 'message_delta') {
+        providerContentDelta = appendBoundedRawString(
+          providerContentDelta,
+          providerEvent.payload.text ?? providerEvent.payload.rendered,
+          MAX_PROVIDER_TEXT_CHARACTERS,
+        );
+        consumed = true;
+        continue;
+      }
+      if (providerEvent.type === 'message_complete') {
+        const snapshotValue = typeof providerEvent.payload.text === 'string'
+          ? providerEvent.payload.text
+          : providerEvent.payload.rendered;
+        if (typeof snapshotValue === 'string') {
+          providerContentSnapshot = readBoundedRawString(
+            snapshotValue,
+            MAX_PROVIDER_TEXT_CHARACTERS,
+          );
+        }
+        if (!providerReasoningDelta.trim() && !providerReasoningSnapshot.trim()) {
+          providerReasoningSnapshot = readBoundedRawString(
+            providerEvent.payload.reasoning,
+            MAX_PROVIDER_REASONING_CHARACTERS,
+          );
+        }
+        consumed = true;
+        continue;
+      }
+      if (providerEvent.type === 'reasoning_delta') {
+        providerReasoningDelta = appendBoundedRawString(
+          providerReasoningDelta,
+          providerEvent.payload.text,
+          MAX_PROVIDER_REASONING_CHARACTERS,
+        );
+        consumed = true;
+        continue;
+      }
+      if (providerEvent.type === 'reasoning_available') {
+        if (!providerReasoningDelta.trim() && !providerReasoningSnapshot.trim()) {
+          providerReasoningSnapshot = readBoundedRawString(
+            providerEvent.payload.text,
+            MAX_PROVIDER_REASONING_CHARACTERS,
+          );
+        }
+        consumed = true;
+        continue;
+      }
+      if (
+        providerEvent.type === 'message_start'
+        || providerEvent.type === 'message_interim'
+        || providerEvent.type === 'status_update'
+        || providerEvent.type === 'error'
+      ) {
+        consumed = true;
+        continue;
+      }
+      if (providerEvent.type === 'approval_request') {
+        consumed = true;
+        continue;
+      }
+    }
+
+    const projectedQuestionRecord = resolveProviderQuestionRecord(record);
+    if (
+      providerEvent
+      && ['clarify_request', 'clarify_expire'].includes(providerEvent.type)
+      && !projectedQuestionRecord
+    ) {
+      consumed = true;
+      continue;
+    }
+    const projectedToolRecord = projectedQuestionRecord
+      ?? resolveProviderApprovalRecord(record)
+      ?? resolveProviderToolLifecycleRecord(record)
+      ?? record;
+    const type = resolveProviderPayloadType(projectedToolRecord);
+    const role = normalizeProviderPayloadType(projectedToolRecord.role);
     if (PROVIDER_HIDDEN_TRANSCRIPT_TYPES.has(type)) {
       consumed = true;
       continue;
@@ -353,17 +1000,42 @@ export function resolveAgentSessionProviderPayload(
       appendContent(readBoundedString(payload.explanation, MAX_PROVIDER_TEXT_CHARACTERS));
       consumed = true;
     }
-    if (PROVIDER_TOOL_BLOCK_TYPES.has(type)) {
-      const callId = readBoundedString(
-        record.id ?? record.callID ?? record.callId ?? record.tool_use_id,
-        256,
-      );
+    const roleToolCallId = readBoundedString(
+      projectedToolRecord.callID
+        ?? projectedToolRecord.callId
+        ?? projectedToolRecord.call_id
+        ?? projectedToolRecord.tool_call_id
+        ?? projectedToolRecord.toolCallId
+        ?? projectedToolRecord.tool_id
+        ?? projectedToolRecord.tool_use_id
+        ?? projectedToolRecord.toolUseId
+        ?? projectedToolRecord.id,
+      256,
+    );
+    if (type === 'approval_request' && !roleToolCallId) {
+      consumed = true;
+      continue;
+    }
+    if (
+      PROVIDER_TOOL_BLOCK_TYPES.has(type)
+      || (
+        Boolean(roleToolCallId)
+        && (role === 'tool' || role === 'tool_result')
+      )
+    ) {
+      const callId = roleToolCallId;
       const key = callId || `${type}:${toolCalls.length}`;
-      if (!toolCallKeys.has(key)) {
-        toolCallKeys.add(key);
-        toolCalls.push(record);
+      const existingIndex = toolCallIndexByKey.get(key);
+      if (existingIndex === undefined) {
+        toolCallIndexByKey.set(key, toolCalls.length);
+        toolCalls.push(projectedToolRecord);
+      } else {
+        const existing = readRecord(toolCalls[existingIndex]);
+        toolCalls[existingIndex] = existing
+          ? mergeProviderToolRecords(existing, projectedToolRecord)
+          : projectedToolRecord;
       }
-      const state = readRecord(record.state);
+      const state = readRecord(projectedToolRecord.state);
       if (Array.isArray(state?.attachments)) {
         enqueueValues(state.attachments);
       }
@@ -418,13 +1090,43 @@ export function resolveAgentSessionProviderPayload(
         enqueueValue(child);
       }
     }
-    const role = normalizeProviderPayloadType(record.role);
-    if (
-      Array.isArray(record.content)
-      && (type === 'assistant' || type === 'message' || role === 'assistant')
-    ) {
-      enqueueValues(record.content);
+    if (Array.isArray(record.content)) {
+      if (type === 'assistant' || type === 'message' || role === 'assistant') {
+        enqueueValues(record.content);
+      } else if (role === 'user' || role === 'tool' || role === 'tool_result') {
+        enqueueValues(record.content.filter((contentBlock) => {
+          const contentRecord = readRecord(contentBlock);
+          return Boolean(
+            contentRecord
+            && PROVIDER_TOOL_BLOCK_TYPES.has(resolveProviderPayloadType(contentRecord)),
+          );
+        }));
+      }
     }
+  }
+
+  appendContent(
+    providerContentSnapshot !== undefined
+      ? providerContentSnapshot
+      : providerContentDelta,
+  );
+  const providerReasoning = (
+    providerReasoningDelta.trim()
+      ? providerReasoningDelta
+      : providerReasoningSnapshot
+  ).trim();
+  if (
+    providerReasoning
+    && reasoningItems.length < MAX_PROVIDER_REASONING_ITEMS
+  ) {
+    const completedAt = options.completedAt?.trim() || undefined;
+    reasoningItems.push({
+      id: `${options.itemId}:provider-reasoning:${reasoningItems.length + 1}`,
+      summary: providerReasoning,
+      createdAt: options.createdAt,
+      startedAt: options.createdAt,
+      ...(completedAt ? { completedAt } : {}),
+    });
   }
 
   const resources = normalizeAgentSessionItemResources(resourceInputs);

@@ -866,6 +866,51 @@ function resolveMountedTauriSystemPath(
   return `${normalizedRootSystemPath}${pathSeparator}${relativePath.replace(/\//gu, pathSeparator)}`;
 }
 
+export function resolveTauriImagePreviewMountedPath(
+  rootSystemPath: string,
+  rootVirtualPath: string,
+  requestedPath: string,
+): string | null {
+  const normalizedRootVirtualPath = normalizeMountedVirtualPath(rootVirtualPath);
+  const normalizedRequestedPath = requestedPath.trim().replace(/\\/gu, '/').replace(/\/+/gu, '/');
+  if (!normalizedRootVirtualPath || !normalizedRequestedPath) {
+    return null;
+  }
+
+  const normalizedRootSystemPath = rootSystemPath
+    .trim()
+    .replace(/\\/gu, '/')
+    .replace(/\/+$/u, '');
+  const compareCaseInsensitively = /^[a-z]:\//iu.test(normalizedRootSystemPath)
+    || rootSystemPath.includes('\\');
+  const comparableRootSystemPath = compareCaseInsensitively
+    ? normalizedRootSystemPath.toLowerCase()
+    : normalizedRootSystemPath;
+  const comparableRequestedPath = compareCaseInsensitively
+    ? normalizedRequestedPath.toLowerCase()
+    : normalizedRequestedPath;
+  const rootSystemPrefix = `${comparableRootSystemPath}/`;
+
+  if (comparableRequestedPath.startsWith(rootSystemPrefix)) {
+    const relativePath = normalizedRequestedPath.slice(normalizedRootSystemPath.length + 1);
+    return normalizeMountedVirtualPath(`${normalizedRootVirtualPath}/${relativePath}`);
+  }
+  if (comparableRequestedPath === comparableRootSystemPath) {
+    return null;
+  }
+
+  const requestedVirtualPath = normalizeMountedVirtualPath(normalizedRequestedPath);
+  if (requestedVirtualPath) {
+    const rootVirtualPrefix = `${normalizedRootVirtualPath}/`;
+    return requestedVirtualPath.startsWith(rootVirtualPrefix) ? requestedVirtualPath : null;
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/iu.test(normalizedRequestedPath)) {
+    return null;
+  }
+  return normalizeMountedVirtualPath(`${normalizedRootVirtualPath}/${normalizedRequestedPath}`);
+}
+
 export class RuntimeFileSystemService implements IFileSystemService {
   private readonly projectBrowserMounts: Record<string, BrowserMountState> = {};
   private readonly projectTauriMounts: Record<string, TauriMountState> = {};
@@ -1239,6 +1284,40 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     throw new Error(`File "${path}" is not available because project "${projectId}" is not mounted.`);
+  }
+
+  async resolveProjectImagePreviewUrl(
+    projectId: string,
+    path: string,
+  ): Promise<string | undefined> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return undefined;
+    }
+
+    const mount = this.projectTauriMounts[projectId];
+    const mountedPath = mount
+      ? resolveTauriImagePreviewMountedPath(
+          mount.rootSystemPath,
+          mount.rootVirtualPath,
+          path,
+        )
+      : null;
+    if (!mount || !mountedPath) {
+      return undefined;
+    }
+
+    try {
+      const previewUrl = await this.tauriRuntime.readImagePreview(
+        mount.rootSystemPath,
+        mount.rootVirtualPath,
+        mountedPath,
+      );
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return previewUrl;
+    } catch {
+      return undefined;
+    }
   }
 
   async getFileRevision(projectId: string, path: string): Promise<string> {

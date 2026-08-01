@@ -10,6 +10,7 @@ import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer'
 import type {
   UniversalChatComposerSelection,
   UniversalChatComposerSubmission,
+  UniversalChatProps,
 } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 
 export interface CodeEditorWorkspacePanelProps {
@@ -81,6 +82,8 @@ export interface CodeEditorWorkspacePanelProps {
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
+  resolveLocalImagePreviewUrl:
+    NonNullable<UniversalChatProps['resolveLocalImagePreviewUrl']>;
   onCreateRootFile: () => void;
   getLanguageFromPath: (path: string) => string;
 }
@@ -109,6 +112,8 @@ export interface EditorChatProps {
   onDeleteMessage: (messageIds: string[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
+  resolveLocalImagePreviewUrl:
+    NonNullable<UniversalChatProps['resolveLocalImagePreviewUrl']>;
   onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;

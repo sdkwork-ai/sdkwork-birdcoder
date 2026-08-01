@@ -19,7 +19,7 @@
     "rendererPackageVersion": "26.721.81911",
     "platform": "windows-x64",
     "runtime": "electron",
-    "providerRuntime": {
+    "providerHost": {
       "version": "0.146.0-alpha.3.1",
       "executablePath": "app/resources/codex.exe",
       "executableSha256": "39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3"
@@ -54,6 +54,16 @@
         "sizeBytes": 5536
       },
       {
+        "path": "app/resources/app.asar::.vite/build/main-Dnwk9I3e.js",
+        "sha256": "6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be",
+        "sizeBytes": 2362317
+      },
+      {
+        "path": "app/resources/app.asar::.vite/build/src-BPbHdvxe.js",
+        "sha256": "efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38",
+        "sizeBytes": 1443629
+      },
+      {
         "path": "app/resources/codex.exe",
         "sha256": "39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3",
         "sizeBytes": 353628464
@@ -73,9 +83,29 @@
         "sizeBytes": 2193
       },
       {
+        "path": "app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md",
+        "sha256": "b5adddc633a50b6434a06b0387c2f7985cb243a0af3021e9abcdad4fc4b61451",
+        "sizeBytes": 4462
+      },
+      {
+        "path": "app/resources/plugins/openai-bundled/plugins/browser/docs/api.json",
+        "sha256": "33e761f616e8f7057bb43841edcadfc64f0747202b08355099473c18f3ebb4c3",
+        "sizeBytes": 53368
+      },
+      {
+        "path": "app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+        "sha256": "14e425736668bf21b5b39f2cc022ee8684728617fb5c49f35533c2e349f47193",
+        "sizeBytes": 1002051
+      },
+      {
         "path": "app/resources/app.asar::webview/assets/automations-page-CNlcT7yo.js",
         "sha256": "3bdf115c9fc72298d04510177a343ba8c6b3436a3f77f71abe5baf6c443affe7",
         "sizeBytes": 84851
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js",
+        "sha256": "5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254",
+        "sizeBytes": 14023273
       },
       {
         "path": "app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js",
@@ -83,9 +113,24 @@
         "sizeBytes": 651835
       },
       {
+        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js",
+        "sha256": "7b830a4e028636ca323a98b438192ceff0dfc6ffbf33d1eb0b142a94cc353bc1",
+        "sizeBytes": 2553
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js",
+        "sha256": "758040f4e7796968e0fa3c797dca61d6cf22045c6ba81bcd59331dc76ace0efb",
+        "sizeBytes": 2375
+      },
+      {
         "path": "app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js",
         "sha256": "c3b75cff167c750a2e22f531996fdb3e3ca7db593ec0a209903d5307c12d63e8",
         "sizeBytes": 92415
+      },
+      {
+        "path": "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-BrIOEvhE.js",
+        "sha256": "bb587f7b72359676801b428415630dbe3de66340f3b93c1cdeaee02052c240f5",
+        "sizeBytes": 152
       },
       {
         "path": "app/resources/app.asar::webview/assets/remote-connections-settings-DwcGEEux.js",
@@ -142,9 +187,41 @@
         "archiveByteOffset": 27457094
       },
       "rawArchiveEvidence": {
+        "turnInterruptFallback": {
+          "rawLine": 697,
+          "entryByteOffset": 2763549
+        },
+        "turnInterruptManager": {
+          "rawLine": 747,
+          "entryByteOffset": 3191900
+        },
+        "turnStartedDispatcher": {
+          "rawLine": 749,
+          "entryByteOffset": 3204170
+        },
+        "turnCompletedDispatcher": {
+          "rawLine": 749,
+          "entryByteOffset": 3206481
+        },
+        "itemStartedDispatcher": {
+          "rawLine": 749,
+          "entryByteOffset": 3209764
+        },
+        "itemCompletedDispatcher": {
+          "rawLine": 749,
+          "entryByteOffset": 3210924
+        },
+        "itemDeltaDispatcher": {
+          "rawLine": 749,
+          "entryByteOffset": 3213000
+        },
         "composerStop": {
           "rawLine": 8804,
           "entryByteOffset": 9544717
+        },
+        "composerControlState": {
+          "rawLine": 8804,
+          "entryByteOffset": 9553000
         },
         "composerSend": {
           "rawLine": 8804,
@@ -572,11 +649,14 @@
       "evidence": {
         "paths": [
           "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentSessionInteractions.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionInteractionRefresh.test.tsx",
           "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.test.tsx",
           "apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-interactions.spec.ts",
           "scripts/pc-e2e-mock-api-server.mjs"
         ],
         "commands": [
+          "pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench test -- agentSessionInteractionRefresh.test.tsx",
           "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
           "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-interactions.spec.ts --project=chromium"
         ]
@@ -592,7 +672,16 @@
         "paths": [
           "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/CommandExecutionApprovalDecision.ts",
           "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/FileChangeApprovalDecision.ts",
-          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/PermissionsRequestApprovalResponse.ts"
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/PermissionsRequestApprovalResponse.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-runtime.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "../sdkwork-kernel/specs/AGENT_PROVIDER_INTEGRATION_SPEC.md"
+        ],
+        "commands": [
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs"
         ]
       }
     },
@@ -605,7 +694,16 @@
       "evidence": {
         "paths": [
           "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
-          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputResponse.ts"
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputResponse.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-runtime.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "../sdkwork-kernel/specs/AGENT_PROVIDER_INTEGRATION_SPEC.md"
+        ],
+        "commands": [
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs"
         ]
       }
     },
@@ -648,7 +746,7 @@
             "referenceBuild": "26.721.11231.0",
             "referenceArtifactSha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
             "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-desktop-1440x900-chromium-win32.png",
-            "snapshotSha256": "b20a7f6213ebbae2582e57f3d197e50137dc7f4b14397c988e06b88e9a40d8c5",
+            "snapshotSha256": "6ba1bba3af7d4c6b8cc6882ece3adb56e656571fdf1b10395cca5729acd85917",
             "status": "passed"
           },
           {
@@ -662,7 +760,7 @@
             "referenceBuild": "26.721.11231.0",
             "referenceArtifactSha256": "23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5",
             "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-narrow-900x800-chromium-win32.png",
-            "snapshotSha256": "6b651f0fe9d9db3cf6a539d17520ba2a6853e95243a1a4c643a03da74bb212b7",
+            "snapshotSha256": "707837166862424cb75553bbae3c0312b87f142fbf1d4bdf075e8de36d22d784",
             "status": "passed"
           }
         ]
@@ -678,28 +776,84 @@
           "apps/sdkwork-birdcoder-pc/playwright.codex-provider-live.config.ts",
           "apps/sdkwork-birdcoder-pc/tests/e2e-live/codex-provider-live.spec.ts",
           "apps/sdkwork-birdcoder-pc/tests/e2e-live/codexProviderLiveHarness.ts",
+          "scripts/release/probe-desktop-codex-app-server-live.mjs",
+          "scripts/release/probe-desktop-codex-app-server-live.test.mjs",
           "scripts/run-codex-provider-live-e2e.mjs",
           "scripts/codex-provider-live-e2e-contract.test.mjs"
         ],
         "commands": [
+          "node scripts/release/probe-desktop-codex-app-server-live.test.mjs",
+          "node scripts/release/probe-desktop-codex-app-server-live.mjs --host-root target/release/provider-host --preflight-only",
+          "node scripts/release/probe-desktop-codex-app-server-live.mjs --host-root target/release/provider-host",
           "node scripts/codex-provider-live-e2e-contract.test.mjs",
           "node scripts/run-codex-provider-live-e2e.mjs --preflight-only",
           "node scripts/run-codex-provider-live-e2e.mjs"
         ],
-        "pendingReason": "Credentialed live provider E2E is pending because the local Codex provider host is not authenticated.",
+        "pendingReason": "Credentialed live provider E2E is pending because its required environment configuration is absent; provider-host authentication has not yet been reached.",
         "contractBlockerIds": [
           "CDB-001",
           "CDB-005",
           "CDB-006"
         ],
-        "runtimeBlockerReason": "Agents currently buffers provider output until Turn completion, cancellation does not route a canonical Turn to the provider request handle, and Interaction resolution does not continue the Codex app-server request.",
+        "runtimeBlockerReason": "Agents now forwards bounded incremental Turn SSE, but it has no persistent provider execution handle or restart-safe live-event ledger; cancellation does not reach the provider request, and Interaction resolution does not continue the Codex app-server request.",
+        "requiredAssertions": [
+          "run through the non-test BirdCoder UI and injected generated Agents SDK clients without mock or raw HTTP transport",
+          "a fresh canonical Session has no provider continuation identity before its first Turn",
+          "the first visible assistant delta arrives before the original SSE response body finishes",
+          "the opaque provider Session identity remains stable after provider service restart and canonical Session resume",
+          "cancellation returns the matching canonical Session and Turn as cancelled",
+          "the cancellation probe confirms provider execution termination, the original SSE finishes, and the composer returns to ready",
+          "the cancelled Turn never commits its forbidden completion marker",
+          "approval submission is followed by provider continuation and the requested completion marker",
+          "question submission is followed by provider continuation and the requested completion marker"
+        ],
         "preflight": {
           "command": "node scripts/run-codex-provider-live-e2e.mjs --preflight-only",
           "status": "failed-closed",
-          "providerHost": "local",
-          "reason": "The local Codex provider host is not authenticated.",
+          "stage": "environment-configuration",
+          "providerHost": null,
+          "reason": "Missing required live E2E environment keys.",
+          "missingKeys": [
+            "SDKWORK_CODEX_LIVE_E2E",
+            "SDKWORK_CODEX_LIVE_WEB_URL",
+            "SDKWORK_CODEX_LIVE_ACCOUNT",
+            "SDKWORK_CODEX_LIVE_PASSWORD",
+            "SDKWORK_CODEX_LIVE_PROJECT_NAME",
+            "SDKWORK_CODEX_LIVE_SEND_SESSION_ID",
+            "SDKWORK_CODEX_LIVE_CANCEL_SESSION_ID",
+            "SDKWORK_CODEX_LIVE_APPROVAL_SESSION_ID",
+            "SDKWORK_CODEX_LIVE_QUESTION_SESSION_ID",
+            "SDKWORK_CODEX_LIVE_PROVIDER_HOST",
+            "SDKWORK_CODEX_LIVE_RESTART_EXECUTABLE",
+            "SDKWORK_CODEX_LIVE_RESTART_ARGUMENTS_JSON",
+            "SDKWORK_CODEX_LIVE_CANCEL_PROBE_EXECUTABLE",
+            "SDKWORK_CODEX_LIVE_CANCEL_PROBE_ARGUMENTS_JSON"
+          ],
           "credentialedCasesRun": 0,
           "checkedAt": "2026-07-31"
+        },
+        "packagedAppServerLiveProbe": {
+          "command": "node scripts/release/probe-desktop-codex-app-server-live.mjs --host-root target/release/provider-host",
+          "environmentGate": "SDKWORK_CODEX_APP_SERVER_LIVE_PROBE=1",
+          "status": "passed",
+          "checkedAt": "2026-07-31",
+          "runtimeTargetTriple": "x86_64-pc-windows-msvc",
+          "codexVersion": "0.146.0",
+          "nodeVersion": "22.20.0",
+          "firstChunkCount": 28,
+          "resumedChunkCount": 31,
+          "firstKernelEventCount": 40,
+          "resumedKernelEventCount": 42,
+          "assertions": [
+            "the packaged Node.js process invoked the packaged Codex app-server executable through the staged Kernel runtime module",
+            "the first request started with canonical sessionId and without providerSessionId",
+            "every emitted Kernel event retained the canonical sessionId",
+            "the established providerSessionId was non-empty, independent from sessionId, omitted from the report, and stable across resume",
+            "both Turns emitted incremental chunks and authoritative completion events",
+            "the resumed Turn recovered the first Turn marker from provider context"
+          ],
+          "continuationPersistence": "The probe intentionally uses a persistent provider Session because Codex ephemeral Sessions do not retain a resumable rollout.",
+          "scopeLimit": "This verifies the packaged Kernel app-server transport and real Codex continuation only; it does not satisfy the credentialed BirdCoder UI, cancellation, approval, question, restart, or recovery assertions."
         }
       }
     },
@@ -714,12 +868,24 @@
           "docs/providers/codex/README.md",
           "scripts/codex-desktop-parity-contract.test.mjs",
           "scripts/agent-session-item-view-contract.test.ts",
+          "apps/sdkwork-birdcoder-pc/tests/e2e/codex-session-parity.spec.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.interaction.test.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/InspectedImageGallery.test.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/toolCallActionPresentation.test.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts",
           "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts"
         ],
         "commands": [
           "node scripts/codex-desktop-parity-contract.test.mjs",
-          "node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts"
-        ]
+          "node scripts/run-local-tsx.mjs scripts/agent-session-item-view-contract.test.ts",
+          "node scripts/run-pc-playwright-e2e.mjs tests/e2e/codex-session-parity.spec.ts --project=chromium",
+          "pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui exec vitest run src/components/chat/messages/activity/ChatActivitySummary.interaction.test.tsx src/components/chat/messages/contentBlocks/InspectedImageGallery.test.tsx src/components/chat/messages/contentBlocks/toolCallActionPresentation.test.ts --config vitest.config.ts",
+          "pnpm exec vitest run apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionCodexSyntheticItemPresentation.test.ts"
+        ],
+        "contractBlockerIds": [
+          "CDB-001"
+        ],
+        "partialReason": "All provider item types and non-blocked desktop synthetic types have canonical Session presentation fixtures; automaticApprovalReview, userInputResponse, mcpServerElicitation, and permissionRequest remain blocked until the owner Interaction contract preserves their full semantics."
       }
     },
     {
@@ -747,12 +913,25 @@
       "blockerId": "CDB-003",
       "evidence": {
         "paths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/BrowserPreviewSurface.tsx"
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/BrowserPreviewSurface.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/settings/integrationPreferences.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/BrowserSettings.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/integration-settings/BrowserWebsitePermissions.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/integration-settings/browserSettingsUtils.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs"
         ],
         "referenceArtifacts": [
+          "app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js",
           "app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js",
+          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js",
+          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js",
           "app/resources/app.asar::webview/assets/browser-use-settings-52aGrZMW.js",
-          "app/resources/cua_node/manifest.json"
+          "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-BrIOEvhE.js",
+          "app/resources/cua_node/manifest.json",
+          "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
+          "app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md",
+          "app/resources/plugins/openai-bundled/plugins/browser/docs/api.json",
+          "app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs"
         ]
       }
     },
@@ -775,22 +954,46 @@
     {
       "id": "CDP-015",
       "area": "provider-server-request",
-      "title": "Pinned Codex app-server v2 ServerRequest dispatch, response continuation, and host capability coverage",
+      "title": "Pinned Codex app-server v2 ServerRequest and desktop request-projection dispatch, continuation, and host capability coverage",
       "status": "blocked-contract",
       "blockerId": "CDB-006",
       "evidence": {
         "paths": [
           "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "external/codex/codex-rs/app-server-protocol/src/protocol/v2/current_time.rs",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/ServerRequest.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ServerRequestResolvedNotification.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ChatgptAuthTokensRefreshResponse.ts",
           "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
           "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
           "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
           "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-live.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-live.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-runtime.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-host-requests.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-host-requests.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "../sdkwork-kernel/specs/AGENT_PROVIDER_INTEGRATION_SPEC.md",
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/domain.rs",
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs"
+        ],
+        "commands": [
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-host-requests.test.mjs",
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "node --test ../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-live.test.mjs"
         ],
         "relatedBlockerIds": [
           "CDB-001",
           "CDB-005"
+        ],
+        "referenceArtifacts": [
+          "app/resources/app.asar::.vite/build/main-Dnwk9I3e.js",
+          "app/resources/app.asar::.vite/build/src-BPbHdvxe.js",
+          "app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js"
         ]
       }
     }
@@ -806,20 +1009,263 @@
       "evidence": {
         "paths": [
           "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/CommandExecutionRequestApprovalParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/CommandExecutionApprovalDecision.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/FileChangeRequestApprovalParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/FileChangeApprovalDecision.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputQuestion.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputOption.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputAnswer.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputResponse.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/McpServerElicitationRequestParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/McpServerElicitationRequestResponse.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/PermissionsRequestApprovalParams.ts",
+          "external/codex/codex-rs/app-server-protocol/schema/typescript/v2/PermissionsRequestApprovalResponse.ts",
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/domain.rs",
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs"
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/agent-interaction-kind.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/agent-interaction-record.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/approve-agent-interaction-request.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/answer-agent-interaction-request.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-runtime.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "../sdkwork-kernel/specs/AGENT_PROVIDER_INTEGRATION_SPEC.md",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentSessionInteractions.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx"
+        ],
+        "observedContractFacts": [
+          "Codex command approval preserves callback, environment, command, working-directory, parsed-action, network-context, exec-policy amendment, and network-policy amendment data, while Agents records only a generic prompt and flat options",
+          "Codex command approval has six typed outcomes and file approval has four typed outcomes, while the generated Agents approval request exposes only approved: boolean plus an optional reason",
+          "Codex user input carries multiple questions with stable IDs, headers, other and secret flags, nullable options, answer arrays keyed by question ID, and autoResolutionMs, while Agents exposes one prompt, flat options, one answer, one selected option, and rejected",
+          "Codex MCP elicitation distinguishes form, openai/form, and URL modes and returns action, structured content, and metadata; Agents has no MCP elicitation Interaction kind or typed payload",
+          "Codex permission approval preserves requested and granted filesystem and network profiles, turn or session scope, and strictAutoReview; Agents collapses the request into generic approval",
+          "The Kernel Codex app-server adapter now losslessly normalizes the five canonical request families plus desktop onboarding, option-picker, context-source, and setup-step variants and compiles typed resolutions back to exact Codex wire responses, but Agents persistence, OpenAPI, generated SDKs, runtime continuation, and BirdCoder still do not carry that envelope end to end",
+          "The current Agents record has providerInteractionId but no typed provider request kind or request/response payload capable of reconstructing the original Codex callback",
+          "BirdCoder maps every pending user_question record to a one-element questions array and maps approved, denied, and blocked UI choices back to approved: boolean, so its richer-looking view cannot restore semantics already lost by the owner contract"
         ],
         "observedProviderRequestMethods": [
           "item/commandExecution/requestApproval",
           "item/fileChange/requestApproval",
           "item/tool/requestUserInput",
           "mcpServer/elicitation/request",
-          "item/permissions/requestApproval"
+          "item/permissions/requestApproval",
+          "item/tool/requestOptionPicker",
+          "item/tool/requestSetupCodexContextPicker"
         ],
         "observedAgentsInteractionKinds": [
           "approval",
           "user_question"
-        ]
+        ],
+        "interactionContractComparison": {
+          "codexCommandApproval": {
+            "requestFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "startedAtMs",
+              "approvalId",
+              "environmentId",
+              "reason",
+              "networkApprovalContext",
+              "command",
+              "cwd",
+              "commandActions",
+              "proposedExecpolicyAmendment",
+              "proposedNetworkPolicyAmendments"
+            ],
+            "decisionVariants": [
+              "accept",
+              "acceptForSession",
+              "acceptWithExecpolicyAmendment",
+              "applyNetworkPolicyAmendment",
+              "decline",
+              "cancel"
+            ]
+          },
+          "codexFileChangeApproval": {
+            "requestFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "startedAtMs",
+              "reason",
+              "grantRoot"
+            ],
+            "decisionVariants": [
+              "accept",
+              "acceptForSession",
+              "decline",
+              "cancel"
+            ]
+          },
+          "codexUserInput": {
+            "requestFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "questions",
+              "autoResolutionMs"
+            ],
+            "questionFields": [
+              "id",
+              "header",
+              "question",
+              "isOther",
+              "isSecret",
+              "options"
+            ],
+            "responseShape": "Record<questionId, { answers: string[] }>"
+          },
+          "codexMcpElicitation": {
+            "modes": [
+              "form",
+              "openai/form",
+              "url"
+            ],
+            "requestFields": [
+              "threadId",
+              "turnId",
+              "serverName",
+              "message",
+              "requestedSchema",
+              "url",
+              "elicitationId",
+              "_meta"
+            ],
+            "responseFields": [
+              "action",
+              "content",
+              "_meta"
+            ]
+          },
+          "codexPermissionApproval": {
+            "requestFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "environmentId",
+              "startedAtMs",
+              "cwd",
+              "reason",
+              "permissions"
+            ],
+            "responseFields": [
+              "permissions",
+              "scope",
+              "strictAutoReview"
+            ],
+            "scopeValues": [
+              "turn",
+              "session"
+            ]
+          },
+          "kernelAdapter": {
+            "canonicalCategories": [
+              "approval",
+              "user_input",
+              "elicitation",
+              "setup"
+            ],
+            "canonicalKinds": [
+              "command_execution",
+              "file_change",
+              "permission_profile",
+              "question_set",
+              "onboarding_question_set",
+              "option_picker",
+              "context_source_picker",
+              "setup_step",
+              "mcp_elicitation"
+            ],
+            "correlationFields": [
+              "sessionId",
+              "providerSessionId",
+              "providerTurnId",
+              "providerItemId",
+              "providerRequestId",
+              "providerRequestIdType",
+              "providerToolCallId",
+              "providerToolName",
+              "providerToolNamespace",
+              "protocolMethod"
+            ],
+            "providerRequestIdWireTypes": [
+              "string",
+              "number"
+            ],
+            "runtimeResponseMethod": "sdkwork/serverRequest.respond",
+            "coverage": "lossless provider-adapter normalization and response compilation only; the Agents owner contract and BirdCoder consumer path remain blocked"
+          },
+          "currentAgents": {
+            "interactionKinds": [
+              "approval",
+              "user_question"
+            ],
+            "recordPayloadFields": [
+              "providerInteractionId",
+              "kind",
+              "prompt",
+              "options",
+              "resolution"
+            ],
+            "approvalRequestFields": [
+              "approved",
+              "reason",
+              "claimToken",
+              "fencingToken",
+              "expectedVersion",
+              "requestedAt"
+            ],
+            "answerRequestFields": [
+              "answer",
+              "selectedOptionValue",
+              "rejected",
+              "claimToken",
+              "fencingToken",
+              "expectedVersion",
+              "requestedAt"
+            ]
+          },
+          "birdCoderProjection": {
+            "approvalDecisions": [
+              "approved",
+              "denied",
+              "blocked"
+            ],
+            "questionCardinality": "one generated question per Agents Interaction",
+            "lostSemantics": [
+              "provider request kind and callback identity",
+              "approval grant scope and cancel versus decline",
+              "exec-policy and network-policy amendments",
+              "permission profiles and strictAutoReview",
+              "question IDs, headers, other and secret flags, answer arrays, and autoResolutionMs",
+              "MCP elicitation mode, schema or URL, action, content, and metadata",
+              "desktop onboarding, option-picker, context-source, and setup-step request and response payloads"
+            ]
+          }
+        },
+        "generatedEvidence": {
+          "commandApprovalParamsSha256": "185d6a3190ff1b6c7051c5777241501ed158b904c108ce889d18d0d354b41403",
+          "commandApprovalDecisionSha256": "ac88e1083818b1f7220f642327a274ce0f6a5d02759e4b63e8a8073069ca555f",
+          "fileChangeApprovalParamsSha256": "7afe4fb8c0f76ca1cb6a370488b0c2d8bd9d597180ab3bd13279d0cdeb620a58",
+          "fileChangeApprovalDecisionSha256": "a5ef8676c01ecb67482e5ff7164554735a01e1ba799a49be71832eeba55353b3",
+          "userInputParamsSha256": "e3d55305c4fd4b40084335b8d0278ae910fa8d3f9be64de61d6171648957d41f",
+          "userInputQuestionSha256": "616a69a8b14407bce111a15976fa5a04a525474177f0b14f53d8e93b4c4c2135",
+          "userInputOptionSha256": "c533314ce2b35250180ebb5fac98733994c2dfcaa61780212b7fe4c9cc2d437c",
+          "userInputAnswerSha256": "a9ff61628f155b05fbf128ac9ccc0027f85f8a1f4cdd8a0fcc37215f6f537d95",
+          "userInputResponseSha256": "ded66ee234400bab77e214a4179318fef8a5187ab7f77393dae231ddfe72afe9",
+          "mcpElicitationParamsSha256": "2e2f2c6e7857aea916cbfb9f50a78e3125c14178904bad90042f5f596be79af3",
+          "mcpElicitationResponseSha256": "4f84effe0c566afcd0f93e5236b06d61be31e83a7797ee1610f6408b30af6e72",
+          "permissionsParamsSha256": "c80b30dde9911be77f398662daf05e779ad654f06121d1039ae5a05fbe422922",
+          "permissionsResponseSha256": "5c662efc16d5debe37c246e2bf9ea83a6f25631bc2a731401b7079a0d442cf93",
+          "agentsInteractionKindSha256": "d493b055b0e4887fa7c5493f087a2db5072d5683ee5323f30293abb868ad1334",
+          "agentsInteractionRecordSha256": "cebb7ed95be0e158252e85a80a37ecdf3d9246753314ccdc75f611811e1e83b1",
+          "agentsApproveRequestSha256": "885d975fed21824f8580bc6a23c442cf701e8253023e1843f7c506998604cf80",
+          "agentsAnswerRequestSha256": "43988c3c293a2ad1afdef6625c2f5a2e487bbbf199db071ad9e913ab44d0a75a"
+        }
       },
       "requiredContractExtensions": [
         "typed provider request kind and opaque request correlation identity",
@@ -829,7 +1275,8 @@
         "permission profile and strictAutoReview",
         "questions array with stable IDs, headers, other and secret flags, options, and multiple answers",
         "question ID to answer mapping and autoResolutionMs",
-        "MCP elicitation form and URL modes, requested schema, action, structured content, and metadata"
+        "MCP elicitation form and URL modes, requested schema, action, structured content, and metadata",
+        "carry the Kernel typed onboarding, option-picker, context-source, and setup-step Interaction variants through Agents owner contracts with provider correlation"
       ],
       "prohibitedWorkarounds": [
         "BirdCoder-local DTO fork",
@@ -844,18 +1291,129 @@
       "owner": "sdkwork-agents",
       "status": "pending-human-review",
       "humanReviewRequired": true,
-      "summary": "The generated Agents App SDK task request and operations cannot represent the server-owned canonical Session schedule, execution policy, pause/resume, run history, or notification semantics required by Codex Automations.",
+      "summary": "The generated Agents App SDK now represents canonical Session scheduling and most task/run operations, but recovery reconciliation, notification policy, and canonical HTTP conformance coverage remain incomplete for Codex Automations.",
       "evidence": {
         "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/dto.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/tests/http_axum_contracts.rs",
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/specs/openapi/agents-app-api.openapi.yaml",
           "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/openapi/sdkwork-agents-app-api.openapi.yaml",
-          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts"
-        ]
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/agent-task-record.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/execute-agent-task-request.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/agent-task-run-record.ts",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/api/ai.ts"
+        ],
+        "observedContractFacts": [
+          "The App OpenAPI and generated SDK now preserve canonical sessionId, complete schedule and execution policy, task status filtering, and the full AgentTaskRecord schedule and lifecycle shape",
+          "The generated agents.tasks.execute method now accepts ExecuteAgentTaskRequest and returns AgentTaskRunRecord with idempotency and Run semantics aligned to the owner runtime",
+          "The generated App SDK now exposes task replace, pause, resume, run list and retrieve, run retry and cancel, and run-attempt history",
+          "Per-Run reconciliation exists only on the backend owner route and is not exposed through the App OpenAPI or generated App SDK required for user-visible recovery",
+          "Automation notification policy remains absent from the owner App contract and generated SDK",
+          "Existing App HTTP task contract tests now cover canonical Session-bound create, list, retrieve, cancel, and manual execute, but not status-filtered cursor pagination, replace, pause and resume, Run lifecycle routes, reconciliation, or notification policy"
+        ],
+        "automationContractComparison": {
+          "runtimeCreateRequiredFields": [
+            "sessionId",
+            "title",
+            "prompt",
+            "scheduleKind",
+            "timezone",
+            "requestedAt"
+          ],
+          "openApiCreateRequiredFields": [
+            "sessionId",
+            "title",
+            "prompt",
+            "scheduleKind",
+            "timezone",
+            "requestedAt"
+          ],
+          "runtimeExecuteRequestFields": [
+            "idempotencyKey",
+            "expectedVersion",
+            "requestedAt"
+          ],
+          "generatedExecuteRequestType": "ExecuteAgentTaskRequest",
+          "runtimeExecuteResponseResource": "AgentTaskRunRecordDto",
+          "generatedExecuteResponseResource": "AgentTaskRunRecord",
+          "mountedAppTaskOperations": [
+            "list",
+            "create",
+            "retrieve",
+            "replace",
+            "pause",
+            "resume",
+            "cancel",
+            "execute",
+            "runs.list",
+            "runs.retrieve",
+            "runs.retry",
+            "runs.cancel",
+            "runs.attempts.list"
+          ],
+          "missingAppTaskOperations": [
+            "runs.reconcile",
+            "notificationPolicy"
+          ],
+          "generatedTaskRecordMissingFields": [],
+          "httpContractCoveredOperations": [
+            "canonical Session-bound create",
+            "list",
+            "retrieve",
+            "cancel",
+            "execute manual Run"
+          ],
+          "httpContractCoverageGaps": [
+            "status-filtered cursor task list",
+            "replace",
+            "pause and resume",
+            "Run list and retrieve",
+            "Run retry and cancel",
+            "Run attempt history",
+            "Run reconciliation",
+            "notification policy"
+          ]
+        },
+        "sourceSemanticAssertions": [
+          {
+            "label": "App Automation HTTP tests cover the current canonical Session subset",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/tests/http_axum_contracts.rs",
+            "scope": {
+              "startMarker": "async fn agent_tasks_should_work_over_http()",
+              "endMarker": "async fn agent_interactions_should_work_over_http()"
+            },
+            "orderedContains": [
+              "\"sessionId\": session_id",
+              "\"scheduleKind\": \"one_time\"",
+              "let list_uri = format!(\"/app/v3/api/ai/agents/{agent_id}/tasks\")",
+              "let get_uri = format!(\"/app/v3/api/ai/agents/{agent_id}/tasks/{task_id}\")",
+              "let cancel_uri = format!(\"/app/v3/api/ai/agents/{agent_id}/tasks/{task_id}/cancel\")",
+              "async fn agent_tasks_execute_should_create_manual_run_over_http()",
+              "\"idempotencyKey\": \"manual-task-run-http-1\"",
+              "let execute_uri = format!(\"/app/v3/api/ai/agents/{agent_id}/tasks/{task_id}/execute\")",
+              "assert_eq!(execute_response[\"data\"][\"item\"][\"triggerKind\"], \"manual\")",
+              "assert_eq!(execute_response[\"data\"][\"item\"][\"sessionId\"], session_id)"
+            ],
+            "notContains": [
+              "/pause",
+              "/resume",
+              "/runs"
+            ]
+          }
+        ],
+        "generatedEvidence": {
+          "createRequestSha256": "c827f4eab5e33713d271dd9ec6885dec4a3e50c0ee7ca79bd6abc09fa5765aee",
+          "taskRecordSha256": "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
+          "aiApiSha256": "c7e4e606b25d8c1178a042a3589c54165e8d18eefb5614ec332270d742bcacaa"
+        }
       },
       "requiredContractExtensions": [
-        "align the App OpenAPI CreateAgentTaskRequest with the server-owned CreateTaskRequestDto",
-        "preserve canonical sessionId, scheduleKind, timezone, cron and one-time schedule fields",
-        "expose run-now, pause, resume, run-history list, notification policy, cancellation, and recovery operations",
+        "expose generated App SDK operations for user-visible Run reconciliation and recovery",
+        "define Automation notification policy semantics and expose them through the owner App OpenAPI and generated SDK",
+        "extend the canonical App HTTP task fixtures from create, list, retrieve, cancel, and manual execute to complete task and Run lifecycle coverage",
         "regenerate every affected Agents SDK family from the owner OpenAPI"
       ],
       "prohibitedWorkarounds": [
@@ -871,16 +1429,448 @@
       "owner": "sdkwork-kernel and sdkwork-agents",
       "status": "pending-human-review",
       "humanReviewRequired": true,
-      "summary": "BirdCoder has an iframe preview but no Kernel desktop Browser host, provider Browser Session lifecycle, canonical Session binding, or site-permission contract equivalent to the Codex in-app Browser.",
+      "summary": "BirdCoder has a Studio iframe preview and local preference facade but no Kernel desktop Browser host, provider Browser runtime lifecycle, canonical Session binding, lossless site-permission contract, or host-backed Browser settings equivalent to the Codex in-app Browser.",
+      "evidence": {
+        "paths": [
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/BrowserPreviewSurface.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/settings/integrationPreferences.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/BrowserSettings.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/integration-settings/BrowserWebsitePermissions.tsx",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/integration-settings/browserSettingsUtils.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs"
+        ],
+        "rendererContract": {
+          "lifecycleArtifact": {
+            "path": "app/resources/app.asar::webview/assets/app-initial-CHAIly1j.js",
+            "sha256": "5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254",
+            "sizeBytes": 14023273
+          },
+          "negativeDotLottieEvidence": {
+            "path": "app/resources/app.asar::webview/assets/browser-Be3Y5Oyc.js",
+            "sha256": "dd35124bd1dc1d64f9206b5a5946175f2795ca88c7c9237c03b390bf11020839",
+            "sizeBytes": 651835,
+            "classification": "DotLottie rendering dependency; it is not Browser lifecycle, command, permission, or persistence evidence.",
+            "dotLottieEntryByteOffsets": [
+              26410,
+              32738
+            ],
+            "absentLifecycleMarkers": [
+              "thread-browser-tabs-v1:",
+              "capture-screenshot"
+            ]
+          },
+          "initialTabState": {
+            "entryByteOffset": 8744281,
+            "fields": [
+              "annotationFlow",
+              "tabType",
+              "isSuspended",
+              "title",
+              "url",
+              "faviconUrl",
+              "securityState",
+              "isLoading",
+              "isAtDocumentBottom",
+              "canGoBack",
+              "canGoForward",
+              "zoomPercent",
+              "commentModeDisabledReason",
+              "interactionMode",
+              "isAudible",
+              "isCapturingUserMedia",
+              "annotationEditorMode",
+              "isAnnotationAddModifierPressed",
+              "isOriginalViewEnabled",
+              "isTweaksEditorOpen",
+              "comments"
+            ]
+          },
+          "commandUnion": {
+            "entryByteOffset": 8727214,
+            "commands": [
+              "open-find",
+              "find-next",
+              "find-previous",
+              "focus-address",
+              "step-zoom",
+              "set-zoom-percent",
+              "reset-zoom",
+              "set-interaction-mode",
+              "add-annotations-to-composer",
+              "clear-comments",
+              "discard-pending-annotations",
+              "close-tab",
+              "capture-screenshot",
+              "go-back",
+              "go-forward",
+              "navigate",
+              "set-design-modifier-pressed",
+              "set-original-view-enabled",
+              "set-find-query",
+              "reload",
+              "print",
+              "reset",
+              "refresh-cursor",
+              "scroll",
+              "select-comment",
+              "close-find",
+              "transfer-conversation",
+              "stop"
+            ]
+          },
+          "referencePersistenceKeys": [
+            "persist:codex-browser-app-route:",
+            "thread-browser-tabs-v1:"
+          ],
+          "canonicalPersistenceRule": "BirdCoder persists only owner-approved Browser runtime bindings keyed by canonical sessionId; renderer conversation or provider thread vocabulary never becomes a BirdCoder store, DTO, event, or route name.",
+          "hiddenHostContracts": [
+            {
+              "kind": "adopted-background-web-contents",
+              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js",
+              "fields": [
+                "sessionId",
+                "providerBrowserTabId",
+                "adoptedWebContentsId",
+                "adoptionLease",
+                "initialUrl"
+              ],
+              "initialUrlFallback": "about:blank",
+              "isVisible": false,
+              "shouldBootstrapWhenHidden": true,
+              "shouldPaint": false
+            },
+            {
+              "kind": "hidden-browser-use",
+              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js",
+              "fields": [
+                "sessionId",
+                "providerBrowserTabId",
+                "initialUrl",
+                "hostKind"
+              ],
+              "hostKind": "hidden-browser-use",
+              "initialUrlFallback": "about:blank",
+              "isVisible": false,
+              "shouldBootstrapWhenHidden": true,
+              "shouldPaint": false
+            }
+          ],
+          "transferContract": {
+            "referenceCommand": "transfer-conversation",
+            "referenceFields": [
+              "sourceConversationId",
+              "sourceBrowserTabId",
+              "targetConversationId",
+              "targetBrowserTabId"
+            ],
+            "canonicalFields": [
+              "sourceSessionId",
+              "sourceProviderBrowserTabId",
+              "targetSessionId",
+              "targetProviderBrowserTabId"
+            ],
+            "rule": "Transfer is an atomic Session reassociation of one opaque provider tab; it preserves host state and cannot synthesize either Session identity or provider tab identity."
+          },
+          "hostBackedSettings": {
+            "embeddedSettingsKinds": [
+              "contactInfo",
+              "downloads",
+              "extensions",
+              "history",
+              "passwordManager",
+              "siteSettings"
+            ],
+            "linkTargets": [
+              "in-app-browser",
+              "external-browser"
+            ],
+            "annotationScreenshotOptions": [
+              "always include",
+              "only on drag selection"
+            ],
+            "browsingDataTypes": [
+              "cookies",
+              "siteData",
+              "cache",
+              "downloads",
+              "history",
+              "all"
+            ],
+            "securityRule": "Embedded settings and profile import remain host-mediated; React may receive bounded status and display metadata but never profile paths, cookies, passwords, tokens, or credential material."
+          }
+        },
+        "sitePermissionContract": {
+          "approvalModes": [
+            {
+              "id": "alwaysAsk",
+              "label": "Always ask"
+            },
+            {
+              "id": "neverAsk",
+              "label": "Always allow",
+              "elevatedRiskWarning": true
+            }
+          ],
+          "separateApprovalSettings": [
+            "website",
+            "history",
+            "download",
+            "upload"
+          ],
+          "resources": [
+            "origin",
+            "download",
+            "upload",
+            "fullCdp"
+          ],
+          "values": [
+            "default",
+            "allowed",
+            "denied"
+          ],
+          "originStateFields": [
+            "allowedOrigins",
+            "deniedOrigins",
+            "allowedDownloadOrigins",
+            "deniedDownloadOrigins",
+            "allowedUploadOrigins",
+            "deniedUploadOrigins",
+            "allowedFullCdpOrigins",
+            "deniedFullCdpOrigins"
+          ],
+          "mutationFields": [
+            "action",
+            "kind",
+            "origin",
+            "resource"
+          ],
+          "mutationValues": {
+            "action": [
+              "add",
+              "remove"
+            ],
+            "kind": [
+              "allowed",
+              "denied"
+            ]
+          },
+          "hostOperations": [
+            "browser-use-origin-state-read",
+            "browserUsePermissions.updateOriginRules",
+            "browser-use-approval-mode-write",
+            "browser-use-history-approval-mode-write",
+            "browser-use-file-transfer-approval-mode-write",
+            "browser-use-full-cdp-access-enabled-write",
+            "browser-browsing-data-clear"
+          ],
+          "approvalResourceVariants": [
+            "origin",
+            "fileTransfer:download",
+            "fileTransfer:upload",
+            "fullCdp",
+            "sensitiveData:browsing_history"
+          ],
+          "decisions": [
+            "approve",
+            "deny"
+          ],
+          "referenceScopes": [
+            "turn",
+            "conversation",
+            "global"
+          ],
+          "canonicalScopeMapping": {
+            "turn": "Turn",
+            "conversation": "Session",
+            "global": "global policy"
+          },
+          "decisionSources": [
+            "browser-use-persisted-state",
+            "codex-network-policy",
+            "guardian-origin-cache"
+          ],
+          "persistMapping": {
+            "session": "Session scope",
+            "always": "global policy"
+          },
+          "referenceSessionStorage": "browser/sessions/<id>.toml",
+          "actionTimeConfirmationRule": "Risky external side effects and sensitive-data transmission require the resource-specific decision at action time; a navigation allow decision does not authorize download, upload, history, or full CDP access."
+        },
+        "pluginApiContract": {
+          "artifacts": [
+            {
+              "path": "app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md",
+              "sha256": "b5adddc633a50b6434a06b0387c2f7985cb243a0af3021e9abcdad4fc4b61451",
+              "sizeBytes": 4462
+            },
+            {
+              "path": "app/resources/plugins/openai-bundled/plugins/browser/docs/api.json",
+              "sha256": "33e761f616e8f7057bb43841edcadfc64f0747202b08355099473c18f3ebb4c3",
+              "sizeBytes": 53368
+            },
+            {
+              "path": "app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+              "sha256": "14e425736668bf21b5b39f2cc022ee8684728617fb5c49f35533c2e349f47193",
+              "sizeBytes": 1002051
+            }
+          ],
+          "browserCollectionMethods": [
+            "get",
+            "getDefault",
+            "getForUrl",
+            "list"
+          ],
+          "browserMembers": [
+            "browserId",
+            "tabs",
+            "user",
+            "capabilities",
+            "documentation",
+            "nameSession"
+          ],
+          "tabsMethods": [
+            "new",
+            "get",
+            "list",
+            "selected",
+            "finalize",
+            "content"
+          ],
+          "tabMembers": [
+            "id",
+            "goto",
+            "back",
+            "forward",
+            "reload",
+            "close",
+            "title",
+            "url",
+            "screenshot",
+            "playwright",
+            "dom_cua",
+            "cua",
+            "content",
+            "clipboard",
+            "dev",
+            "capabilities",
+            "markHandoff",
+            "markDeliverable",
+            "getJsDialog"
+          ],
+          "browserUserMethods": [
+            "openTabs",
+            "claimTab",
+            "history"
+          ],
+          "tabFinalizationStatuses": [
+            "handoff",
+            "deliverable"
+          ],
+          "browserUserTabInfoFields": [
+            "id",
+            "providerTabId",
+            "title",
+            "url",
+            "lastOpened",
+            "tabGroup"
+          ],
+          "iabDiscovery": {
+            "referenceSessionMetadataField": "codexSessionId",
+            "referenceBuildMetadataField": "codexAppBuildFlavor",
+            "canonicalRuntimeField": "providerBrowserSessionId",
+            "rule": "Match the exact provider Browser session and app build flavor, then bind the opaque result to canonical sessionId through an owner record; never equate codexSessionId with sessionId."
+          }
+        },
+        "canonicalSessionMapping": {
+          "canonicalResource": "Session",
+          "canonicalField": "sessionId",
+          "providerContinuationField": "providerSessionId",
+          "providerBrowserRuntimeField": "providerBrowserSessionId",
+          "providerBrowserTabField": "providerBrowserTabId",
+          "referenceFieldMappings": [
+            {
+              "reference": "renderer conversationId",
+              "canonical": "sessionId",
+              "boundary": "Browser renderer adapter"
+            },
+            {
+              "reference": "Codex provider threadId",
+              "canonical": "providerSessionId",
+              "boundary": "Codex provider adapter"
+            },
+            {
+              "reference": "Browser plugin codexSessionId",
+              "canonical": "providerBrowserSessionId",
+              "boundary": "Kernel Browser host adapter"
+            }
+          ],
+          "ownerContractFields": [
+            "sessionId",
+            "turnId",
+            "providerSessionId",
+            "providerBrowserSessionId",
+            "providerBrowserTabId"
+          ],
+          "rule": "sessionId remains the only canonical continuation identity. Provider continuation, Browser runtime, and tab identifiers are independently resolved opaque values and cannot be synthesized from sessionId or from one another."
+        },
+        "currentBirdCoderGap": {
+          "previewAdapterFields": [
+            "id",
+            "render"
+          ],
+          "previewRenderContextFields": [
+            "refreshKey",
+            "title",
+            "url"
+          ],
+          "localNavigationFields": [
+            "entries",
+            "index"
+          ],
+          "iframeSandbox": "allow-scripts allow-forms allow-popups",
+          "localBrowserPreferenceFields": [
+            "browserAllowedSites",
+            "browserApprovalPolicy",
+            "browserAskDownloadLocation",
+            "browserDownloadLocation",
+            "browserEnabled",
+            "browserLocalLinkOpenTarget",
+            "browserScreenshotPolicy",
+            "browserWebLinkOpenTarget"
+          ],
+          "localApprovalPolicyValues": [
+            "always-ask",
+            "trusted-sites",
+            "never-ask"
+          ],
+          "localWebsitePermissionShape": "one allowedSites string array with no denied state or per-resource matrix",
+          "localDataClearScope": "matching localStorage and sessionStorage prefixes only",
+          "missingHostCapabilities": [
+            "native or sidecar web contents lifecycle",
+            "provider Browser runtime and tab binding",
+            "authoritative loading, security, history, media, zoom, comment, and suspension state",
+            "stop, capture, print, find, zoom, scroll, annotation, transfer, and reset commands",
+            "hidden bootstrap and adopted web contents lease recovery",
+            "resource-specific site permission decisions and action-time confirmation",
+            "separate website, history, download, upload, and full CDP policies",
+            "host-backed browsing-data clearing and embedded Browser settings",
+            "Session isolation, transfer, restart recovery, and real desktop E2E"
+          ]
+        }
+      },
       "requiredContractExtensions": [
         "Kernel desktop Browser host and lifecycle SPI",
-        "Agents canonical Session to Browser Session binding",
-        "site permission and always-ask decisions",
-        "navigation history, capture, stop, recovery, and Session isolation events",
-        "generated SDK and real desktop E2E surfaces"
+        "Agents canonical Session to opaque provider Browser runtime and tab binding",
+        "typed site permission resources, decisions, scopes, and action-time confirmation",
+        "Session-scoped navigation, history, capture, stop, annotation, transfer, reset, recovery, and isolation events",
+        "host-backed settings, profile mediation, file transfer, and browsing-data clearing without credential exposure",
+        "generated SDK plus real desktop and narrow-screen E2E surfaces"
       ],
       "prohibitedWorkarounds": [
+        "using the DotLottie browser-Be3Y5Oyc.js chunk as Browser lifecycle evidence",
         "treating a sandbox iframe as provider Browser parity",
+        "treating a local allowedSites array or trusted-sites policy as the reference permission contract",
+        "mapping Browser plugin codexSessionId directly to canonical sessionId",
         "exposing browser profile or credential storage to BirdCoder UI",
         "BirdCoder-local provider Browser DTO fork",
         "claiming Browser parity from mock-only tests"
@@ -913,7 +1903,7 @@
       "owner": "sdkwork-agents and sdkwork-kernel",
       "status": "pending-human-review",
       "humanReviewRequired": true,
-      "summary": "The current Agents execution chain buffers Codex output until Turn completion, cannot route canonical Turn cancellation to a provider request handle, and persists Interaction resolution without continuing the provider request.",
+      "summary": "Agents now forwards bounded incremental Codex output, but it has no persistent provider execution handle or restart-safe live-event ledger, cannot route canonical Turn cancellation to the provider request, and persists Interaction resolution without continuing that request.",
       "evidence": {
         "paths": [
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
@@ -929,21 +1919,269 @@
           "../sdkwork-kernel/external/codex/sdk/typescript/src/exec.ts"
         ],
         "observedRuntimeFacts": [
-          "HTTP handlers await service.execute_turn before turn_execution_http_response serializes collected deltas and completion into one Body::from SSE body",
-          "RuntimeFacadeTurnExecutor calls execute_code_engine_turn_with_stream, whose default sink is DiscardingModelStreamSink",
+          "Streaming HTTP requests attach a bounded TurnExecutionStreamSink, wait only for the first signal, and then forward ordered chunks through Body::from_stream while execution continues",
+          "RuntimeFacadeTurnExecutor forwards provider-neutral model chunks and Kernel events into the HTTP sink while retaining a bounded terminal copy for persistence",
           "Each Turn bootstraps a local CodeEngineSlot and the active Codex TypeScript SDK path spawns codex exec --experimental-json rather than retaining an app-server connection",
           "AgentTurnRecord persists no model request id or transport execution handle",
+          "Live stream items are persisted only from the terminal collected stream_events after provider execution returns, so restart-safe event replay and active execution recovery remain unavailable",
           "cancel_turn marks the repository record cancelled and writes audit events without invoking Kernel cancellation",
           "approve_interaction and answer_interaction persist resolution and audit without continuing a provider server request",
           "Kernel exposes incremental streaming and request-scoped cancellation primitives that are not wired to a persistent Agents execution registry"
+        ],
+        "executionRegistryContract": {
+          "owner": "sdkwork-agents",
+          "canonicalKeyFields": [
+            "tenantId",
+            "organizationId",
+            "ownerUserId",
+            "agentId",
+            "sessionId",
+            "turnId"
+          ],
+          "internalHandleFields": [
+            "executionHandle",
+            "generation",
+            "modelRequestId",
+            "providerSessionId",
+            "providerTurnId",
+            "transportLeaseId",
+            "lastProviderSequence",
+            "startedAt",
+            "heartbeatAt"
+          ],
+          "states": [
+            "registered",
+            "streaming",
+            "awaiting_interaction",
+            "cancelling",
+            "terminal_acknowledged",
+            "finalized",
+            "resolution_unknown"
+          ],
+          "registrationRule": "persist and fence the execution handle before the first provider byte or canonical stream event is emitted",
+          "streamingRule": "return an incremental bounded HTTP body immediately and persist ordered deltas while Kernel pushes them; never replay a completed in-memory vector as live streaming",
+          "disconnectRule": "HTTP consumer disconnect detaches that subscriber but does not erase the execution handle; bounded execution continues or is cancelled by explicit policy and remains recoverable by canonical Session and Turn",
+          "cancellationRule": "atomically fence running to cancelling, route canonical Session and Turn through the registry to Kernel turn/interrupt, wait for turn/completed interrupted, then persist cancelled and finalize the handle",
+          "cancellationTimeoutRule": "timeout or transport loss records resolution_unknown and triggers provider-history reconciliation; it must not persist cancelled without provider terminal proof",
+          "interactionRule": "register each provider request before exposing a canonical Interaction, claim and fence one response, continue the same provider request exactly once, wait for serverRequest/resolved, then persist the canonical resolution",
+          "responseLedgerKeyFields": [
+            "executionHandle",
+            "providerRequestId"
+          ],
+          "responseLedgerStates": [
+            "pending",
+            "responding",
+            "response_sent",
+            "provider_cleared",
+            "resolution_unknown"
+          ],
+          "recoveryRule": "on restart or lease loss, reconcile provider Session history, active Turn, pending requests, response ledger, and last provider sequence before resuming emission or accepting another response",
+          "terminalPersistenceRule": "canonical completed, failed, or cancelled state follows the matching provider terminal acknowledgement and closes the execution generation exactly once"
+        },
+        "kernelExecutionContract": {
+          "owner": "sdkwork-kernel",
+          "transport": "long-lived Codex app-server JSON-RPC connection scoped by an opaque provider Session binding and transport lease",
+          "requiredOperations": [
+            "start or resume provider Session",
+            "start Turn with incremental notification sink",
+            "continue ServerRequest response by request id",
+            "interrupt Turn by provider Session and Turn identity",
+            "read Session history and pending requests for reconciliation",
+            "close or renew transport lease"
+          ],
+          "terminalProof": "turn/completed with provider Turn identity and terminal status",
+          "forbiddenTransport": "per-Turn codex exec --experimental-json when desktop-equivalent continuation, ServerRequest, interruption, or recovery semantics are required"
+        },
+        "sourceSemanticAssertions": [
+          {
+            "label": "Turn dispatch selects the live response path for streaming requests",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+            "scope": {
+              "startMarker": "async fn execute_turn_http_response(",
+              "endMarker": "#[derive(Debug)]\nenum TurnHttpStreamSignal"
+            },
+            "orderedContains": [
+              "if !stream_requested {",
+              "with_service(state, move |service| service.execute_turn(command)).await?;",
+              "return turn_execution_http_response(",
+              "streaming_turn_execution_http_response(state, ctx, command, rich_events_requested).await"
+            ]
+          },
+          {
+            "label": "Turn SSE response forwards bounded sink output before completion",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+            "scope": {
+              "startMarker": "async fn streaming_turn_execution_http_response(",
+              "endMarker": "fn turn_completion_sse_chunk("
+            },
+            "orderedContains": [
+              "mpsc::channel(TURN_STREAM_CHANNEL_CAPACITY)",
+              "service.execute_turn_with_stream_sink(command, execution_sink);",
+              "let first = receiver.recv().await",
+              "ReceiverStream::new(receiver)",
+              ".body(Body::from_stream(body_stream))"
+            ],
+            "notContains": [
+              ".body(Body::from(body))"
+            ]
+          },
+          {
+            "label": "Agents runtime facade forwards provider chunks into the supplied sink",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs",
+            "scope": {
+              "startMarker": "impl TurnExecutor for RuntimeFacadeTurnExecutor",
+              "endMarker": "fn resolve_turn_model_id("
+            },
+            "orderedContains": [
+              "fn complete_with_stream_sink(",
+              "execute_runtime_facade_turn(input, true, Some(sink))",
+              "bootstrap_code_engine(engine_key)",
+              "if prefer_stream {",
+              "execute_code_engine_turn_with_stream_sink(&slot, &turn_input, &mut facade_sink)",
+              "stream_deltas: output.stream_deltas"
+            ]
+          },
+          {
+            "label": "Agent Turn record has no persistent provider execution handle",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/agent_turn.rs",
+            "scope": {
+              "startMarker": "pub struct AgentTurnRecord {",
+              "endMarker": "impl AgentTurnRecord {"
+            },
+            "contains": [
+              "pub session_id: String",
+              "pub turn_id: String",
+              "pub status: AgentTurnStatus"
+            ],
+            "notContains": [
+              "execution_handle",
+              "model_request_id",
+              "provider_session_id",
+              "provider_turn_id",
+              "transport_lease_id",
+              "last_provider_sequence"
+            ]
+          },
+          {
+            "label": "Default facade streaming entrypoint discards the live sink",
+            "path": "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs",
+            "scope": {
+              "startMarker": "pub fn execute_code_engine_turn_with_stream(",
+              "endMarker": "/// Execute a turn and forward each provider-neutral model chunk as it arrives."
+            },
+            "orderedContains": [
+              "let mut sink = DiscardingModelStreamSink;",
+              "execute_code_engine_turn_with_stream_sink(slot, input, &mut sink)"
+            ]
+          },
+          {
+            "label": "Turn cancellation persists before any provider interruption",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+            "scope": {
+              "startMarker": "pub fn cancel_turn(&self, command: CancelTurnCommand)",
+              "endMarker": "pub fn reconcile_stale_turns("
+            },
+            "orderedContains": [
+              "turn.mark_cancelled(command.requested_at.clone());",
+              "self.repository.update_turn_state(turn, expected_version)?;",
+              "AgentAuditAction::TurnCancelled",
+              "Ok(turn)"
+            ],
+            "notContains": [
+              "cancel_model",
+              "turn/interrupt",
+              "execution_handle",
+              "provider_turn_id"
+            ]
+          },
+          {
+            "label": "Approval resolution persists without provider request continuation",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+            "scope": {
+              "startMarker": "pub fn approve_interaction(",
+              "endMarker": "pub fn answer_interaction("
+            },
+            "orderedContains": [
+              "record.resolve(",
+              "self.repository.update_interaction(record.clone())?;",
+              "self.emit_interaction_audit_event(",
+              "Ok(record)"
+            ],
+            "notContains": [
+              "serverRequest",
+              "provider_request",
+              "continue_provider"
+            ]
+          },
+          {
+            "label": "Question resolution persists without provider request continuation",
+            "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+            "scope": {
+              "startMarker": "pub fn answer_interaction(",
+              "endMarker": "fn emit_interaction_audit_event("
+            },
+            "orderedContains": [
+              "record.resolve(",
+              "self.repository.update_interaction(record.clone())?;",
+              "self.emit_interaction_audit_event(",
+              "Ok(record)"
+            ],
+            "notContains": [
+              "serverRequest",
+              "provider_request",
+              "continue_provider"
+            ]
+          },
+          {
+            "label": "Kernel bridge exposes an incremental stream sink primitive",
+            "path": "../sdkwork-kernel/sdkwork-agent-api-bridge/src/bridge.rs",
+            "scope": {
+              "startMarker": "pub fn stream_model_for_session_into(",
+              "endMarker": "/// Build a model request from bridge session state without invoking a provider."
+            },
+            "orderedContains": [
+              "prepare_model_request_for_session(session_id, model_id, override_messages)?;",
+              ".stream_into(&request, provider_id.as_deref(), sink)"
+            ]
+          },
+          {
+            "label": "Kernel bridge exposes request-scoped cancellation",
+            "path": "../sdkwork-kernel/sdkwork-agent-api-bridge/src/bridge.rs",
+            "scope": {
+              "startMarker": "pub fn cancel_model(",
+              "endMarker": "/// List registered model descriptors"
+            },
+            "orderedContains": [
+              "model_request_id: &str",
+              ".cancel(model_request_id, model_provider_id)"
+            ]
+          },
+          {
+            "label": "Codex TypeScript SDK spawns one exec process per invocation",
+            "path": "../sdkwork-kernel/external/codex/sdk/typescript/src/exec.ts",
+            "scope": {
+              "startMarker": "async *run(args: CodexExecArgs)",
+              "endMarker": "function serializeConfigOverrides("
+            },
+            "orderedContains": [
+              "const commandArgs: string[] = [\"exec\", \"--experimental-json\"]",
+              "commandArgs.push(\"resume\", args.threadId)",
+              "const child = spawn(this.executablePath, commandArgs"
+            ],
+            "notContains": [
+              "\"app-server\""
+            ]
+          }
         ]
       },
-      "requiredContractExtensions": [
-        "Agents begin, stream, and finalize Turn phases backed by an incremental HTTP response body",
-        "server-owned long-lived runtime registry that survives HTTP request boundaries",
-        "persistent execution handle mapping canonical Session and Turn identities to modelRequestId, providerSessionId, providerTurnId, and transport lease",
+        "requiredContractExtensions": [
+          "server-owned long-lived runtime registry that survives HTTP request boundaries",
+          "persistent execution handle mapping canonical Session and Turn identities to modelRequestId, providerSessionId, providerTurnId, and transport lease",
+          "durable ordered live-event persistence and replay cursors bound to the fenced execution generation before terminal completion",
         "Kernel long-lived Codex app-server JSON-RPC transport with server-request continuation",
         "provider cancellation and execution timeout routed from canonical Session and Turn identities before terminal persistence",
+        "turn/interrupt routed with provider continuation and Turn identities and confirmed by turn/completed interrupted",
+        "at-most-once provider response ledger with reconnect correlation and resolution_unknown recovery",
         "provider-confirmed Interaction resolution before canonical terminal persistence",
         "credentialed real-provider E2E for first delta, cancellation, approval, question, restart, and recovery"
       ],
@@ -960,7 +2198,7 @@
       "owner": "sdkwork-kernel",
       "status": "pending-human-review",
       "humanReviewRequired": true,
-      "summary": "Kernel vendors an older Codex protocol baseline and currently uses an exec-only SDK transport, so it cannot prove complete typed dispatch and continuation for the pinned desktop app-server ServerRequest union.",
+      "summary": "Kernel now has a resident Codex app-server transport, typed continuation for the canonical and desktop setup Interaction families, and typed current-time/setup-completion host responses, but its vendored schema still drifts from the pinned desktop baseline and ordinary dynamic tools, private host requests, reconnect recovery, and the complete ServerRequest union remain unproven.",
       "evidence": {
         "paths": [
           "external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
@@ -968,14 +2206,64 @@
           "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/src/protocol/common.rs",
           "../sdkwork-kernel/external/codex/codex-rs/app-server-protocol/schema/typescript/v2/ToolRequestUserInputParams.ts",
           "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-live.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-live.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-runtime.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-interactions.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-host-requests.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/codex-app-server-host-requests.test.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker-app-server.test.mjs",
+          "../sdkwork-kernel/specs/AGENT_PROVIDER_INTEGRATION_SPEC.md",
           "../sdkwork-kernel/external/codex/sdk/typescript/src/exec.ts"
         ],
+        "observedRuntimeFacts": [
+          "Kernel now launches and retains a resident Codex app-server JSON-RPC transport instead of relying only on the exec SDK lane",
+          "Kernel normalizes the five canonical methods, two desktop-only methods, and four setup dynamic-tool variants into canonical Session Interaction envelopes and compiles typed resolutions back to exact provider responses",
+          "The adapter preserves canonical sessionId separately from providerSessionId and preserves exact string or number provider request IDs for response continuation",
+          "Kernel validates currentTime/read provider Session affinity and exact request ID, then responds inside the adapter with an injected-clock whole-Unix-seconds value without creating an Agents or BirdCoder Interaction",
+          "Kernel validates setup dynamic-tool arguments, returns desktop-compatible failed tool results for invalid option/onboarding/setup-step input, and auto-responds to setup completion without creating an Interaction",
+          "Kernel buffers same-provider-Session events until turn/start returns the authoritative Turn id, then replays only matching events so a late prior-Turn notification cannot capture the new execution",
+          "Complete parity remains blocked by vendored schema drift and missing typed host ports for ordinary dynamic tools, token refresh, attestation, reconnect recovery, Agents and BirdCoder contract propagation, and credentialed end-to-end interaction tests"
+        ],
+        "kernelAdapterCoverage": {
+          "status": "partial",
+          "typedUserMediatedMethods": [
+            "item/commandExecution/requestApproval",
+            "item/fileChange/requestApproval",
+            "item/tool/requestUserInput",
+            "mcpServer/elicitation/request",
+            "item/permissions/requestApproval",
+            "item/tool/requestOptionPicker",
+            "item/tool/requestSetupCodexContextPicker"
+          ],
+          "typedDynamicInteractionTools": [
+            "request_onboarding_input",
+            "request_option_picker",
+            "setup_codex_context_picker",
+            "setup_codex_step:role|task|context"
+          ],
+          "canonicalSessionField": "sessionId",
+          "providerSessionField": "providerSessionId",
+          "workerResponseMethod": "sdkwork/serverRequest.respond",
+          "typedHostAutoResponseMethods": [
+            "currentTime/read",
+            "item/tool/call:setup_codex_step.complete"
+          ],
+          "remainingProviderMethods": [
+            "item/tool/call",
+            "account/chatgptAuthTokens/refresh",
+            "attestation/generate"
+          ],
+          "remainingDesktopProjection": []
+        },
         "protocolBaseline": {
           "referenceCommit": "a05bcda3dbd68729caa2f11027b7f43974fda298",
           "kernelVendoredCommit": "ad2012d645b7146d31bb03f98e2bd9371635d11a",
           "referenceCommonSha256": "aef036e55042ba2fa2e310e02595da2af4553d28653217bebda3abbf8ac0cf78",
           "kernelCommonSha256": "96e3ecd3ee909b5c5b6bdd4c0609d5a20e980accb5820e3f1becfbb797a45a37",
           "referenceToolRequestUserInputParamsSha256": "e3d55305c4fd4b40084335b8d0278ae910fa8d3f9be64de61d6171648957d41f",
+          "referenceChatgptAuthTokensRefreshResponseSha256": "c940b1cca0998da071349e22332c95ae8d74e161418a438be4d7f580eb115b48",
           "kernelToolRequestUserInputParamsSha256": "f650142eb1dba090483314853e9d4caea200e4fb71d6b2df947f6ec0e2adf657",
           "confirmedSchemaDrift": "Kernel ToolRequestUserInputParams omits autoResolutionMs from the pinned reference schema."
         },
@@ -987,14 +2275,622 @@
           "item/permissions/requestApproval",
           "item/tool/call",
           "account/chatgptAuthTokens/refresh",
-          "attestation/generate"
-        ]
+          "attestation/generate",
+          "currentTime/read"
+        ],
+        "experimentalServerRequestMethods": [
+          "currentTime/read"
+        ],
+        "serverRequestParameterContracts": [
+          {
+            "method": "item/commandExecution/requestApproval",
+            "requiredFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "startedAtMs",
+              "environmentId"
+            ],
+            "optionalNullableFields": [
+              "approvalId",
+              "reason",
+              "networkApprovalContext",
+              "command",
+              "cwd",
+              "commandActions",
+              "proposedExecpolicyAmendment",
+              "proposedNetworkPolicyAmendments"
+            ],
+            "nullableFields": [
+              "environmentId"
+            ],
+            "timestampUnit": "Unix milliseconds"
+          },
+          {
+            "method": "item/fileChange/requestApproval",
+            "requiredFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "startedAtMs"
+            ],
+            "optionalNullableFields": [
+              "reason",
+              "grantRoot"
+            ],
+            "timestampUnit": "Unix milliseconds"
+          },
+          {
+            "method": "item/tool/requestUserInput",
+            "requiredFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "questions",
+              "autoResolutionMs"
+            ],
+            "nullableFields": [
+              "autoResolutionMs"
+            ],
+            "questionFields": [
+              "id",
+              "header",
+              "question",
+              "isOther",
+              "isSecret",
+              "options"
+            ],
+            "optionFields": [
+              "label",
+              "description"
+            ]
+          },
+          {
+            "method": "mcpServer/elicitation/request",
+            "commonRequiredFields": [
+              "threadId",
+              "turnId",
+              "serverName",
+              "mode",
+              "_meta",
+              "message"
+            ],
+            "nullableFields": [
+              "turnId",
+              "_meta"
+            ],
+            "modeContracts": {
+              "form": [
+                "requestedSchema"
+              ],
+              "openai/form": [
+                "requestedSchema"
+              ],
+              "url": [
+                "url",
+                "elicitationId"
+              ]
+            }
+          },
+          {
+            "method": "item/permissions/requestApproval",
+            "requiredFields": [
+              "threadId",
+              "turnId",
+              "itemId",
+              "environmentId",
+              "startedAtMs",
+              "cwd",
+              "reason",
+              "permissions"
+            ],
+            "nullableFields": [
+              "environmentId",
+              "reason"
+            ],
+            "permissionProfileFields": [
+              "network",
+              "fileSystem"
+            ],
+            "timestampUnit": "Unix milliseconds"
+          },
+          {
+            "method": "item/tool/call",
+            "requiredFields": [
+              "threadId",
+              "turnId",
+              "callId",
+              "namespace",
+              "tool",
+              "arguments"
+            ],
+            "nullableFields": [
+              "namespace"
+            ]
+          },
+          {
+            "method": "account/chatgptAuthTokens/refresh",
+            "requiredFields": [
+              "reason"
+            ],
+            "optionalNullableFields": [
+              "previousAccountId"
+            ],
+            "reasonValues": [
+              "unauthorized"
+            ],
+            "securityBoundary": "Kernel host only"
+          },
+          {
+            "method": "attestation/generate",
+            "requiredFields": [],
+            "securityBoundary": "Kernel host only"
+          },
+          {
+            "method": "currentTime/read",
+            "requiredFields": [
+              "threadId"
+            ],
+            "experimental": true
+          }
+        ],
+        "serverRequestResponseContracts": [
+          {
+            "method": "item/commandExecution/requestApproval",
+            "responseFields": [
+              "decision"
+            ],
+            "decisionVariants": [
+              "accept",
+              "acceptForSession",
+              "acceptWithExecpolicyAmendment",
+              "applyNetworkPolicyAmendment",
+              "decline",
+              "cancel"
+            ],
+            "declineSemantics": "deny the command and continue the Turn",
+            "cancelSemantics": "deny the command and interrupt the Turn"
+          },
+          {
+            "method": "item/fileChange/requestApproval",
+            "responseFields": [
+              "decision"
+            ],
+            "decisionVariants": [
+              "accept",
+              "acceptForSession",
+              "decline",
+              "cancel"
+            ],
+            "declineSemantics": "deny the file change and continue the Turn",
+            "cancelSemantics": "deny the file change and interrupt the Turn"
+          },
+          {
+            "method": "item/tool/requestUserInput",
+            "responseFields": [
+              "answers"
+            ],
+            "answersShape": "Record<questionId, { answers: string[] }>"
+          },
+          {
+            "method": "mcpServer/elicitation/request",
+            "responseFields": [
+              "action",
+              "content",
+              "_meta"
+            ],
+            "requiredFields": [
+              "action",
+              "content",
+              "_meta"
+            ],
+            "actionValues": [
+              "accept",
+              "decline",
+              "cancel"
+            ],
+            "nullableFields": [
+              "content",
+              "_meta"
+            ]
+          },
+          {
+            "method": "item/permissions/requestApproval",
+            "responseFields": [
+              "permissions",
+              "scope",
+              "strictAutoReview"
+            ],
+            "scopeValues": [
+              "turn",
+              "session"
+            ],
+            "optionalFields": [
+              "strictAutoReview"
+            ],
+            "denialSemantics": "omit denied grants from the granted permission profile"
+          },
+          {
+            "method": "item/tool/call",
+            "responseFields": [
+              "contentItems",
+              "success"
+            ],
+            "contentItemTypes": [
+              "inputText",
+              "inputImage",
+              "inputAudio"
+            ]
+          },
+          {
+            "method": "account/chatgptAuthTokens/refresh",
+            "responseFields": [
+              "accessToken",
+              "chatgptAccountId",
+              "chatgptPlanType"
+            ],
+            "requiredFields": [
+              "accessToken",
+              "chatgptAccountId",
+              "chatgptPlanType"
+            ],
+            "nullableFields": [
+              "chatgptPlanType"
+            ],
+            "securityBoundary": "Kernel host only"
+          },
+          {
+            "method": "attestation/generate",
+            "responseFields": [
+              "token"
+            ],
+            "securityBoundary": "Kernel host only"
+          },
+          {
+            "method": "currentTime/read",
+            "responseFields": [
+              "currentTimeAt"
+            ],
+            "timeUnit": "whole Unix seconds",
+            "experimental": true
+          }
+        ],
+        "desktopAppServerTransport": {
+          "archiveResource": "app/resources/app.asar",
+          "entryOffsetUnit": "uncompressed entry bytes",
+          "mainArchiveEntry": ".vite/build/main-Dnwk9I3e.js",
+          "mainArchiveEntrySizeBytes": 2362317,
+          "mainArchiveEntrySha256": "6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be",
+          "sharedArchiveEntry": ".vite/build/src-BPbHdvxe.js",
+          "sharedArchiveEntrySizeBytes": 1443629,
+          "sharedArchiveEntrySha256": "efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38",
+          "mainIpcEntryByteOffsets": {
+            "rendererReady": 1534452,
+            "initializationSnapshot": 1534704,
+            "autoResolutionSnapshot": 1534736,
+            "restart": 1548020,
+            "clientRequest": 1550521,
+            "abandonClientRequest": 1552021,
+            "clientNotification": 1552186,
+            "clientResponse": 1552460
+          },
+          "sharedConnectionEntryByteOffsets": {
+            "localStdioArguments": 739464,
+            "initializeRequestIdDeclaration": 803237,
+            "reconnectConstants": 812548,
+            "autoResolutionSnapshot": 843422,
+            "initializationSnapshot": 843657,
+            "handleClientRequest": 863035,
+            "abandonClientRequest": 863192,
+            "handleClientNotification": 863261,
+            "handleClientResponse": 863560,
+            "failPendingClientRequestsOnClose": 879678,
+            "rejectInternalRequestsOnClose": 879753,
+            "scheduleReconnect": 881722,
+            "startScheduledReconnect": 882680,
+            "initializeResponseRoute": 891043,
+            "serverRequestRoute": 892430,
+            "rendererRequestBroadcast": 893114,
+            "rendererNotificationBroadcast": 896848
+          },
+          "localStdioLaunchArguments": [
+            "-c",
+            "features.code_mode_host=true",
+            "app-server",
+            "--analytics-default-enabled"
+          ],
+          "handshake": {
+            "requestId": "__codex_initialize__",
+            "method": "initialize",
+            "timeoutMs": 30000,
+            "paramsFields": [
+              "clientInfo",
+              "capabilities"
+            ],
+            "capabilityFields": [
+              "experimentalApi",
+              "mcpServerOpenaiFormElicitation",
+              "requestAttestation",
+              "optOutNotificationMethods"
+            ],
+            "conditionalCapabilityFields": [
+              "extensions"
+            ],
+            "experimentalApi": true,
+            "preInitializationRule": "route only the matching initialize response and already registered internal responses; warn and do not dispatch other messages",
+            "timeoutRule": "reject the handshake after 30 seconds; remote control fails the connection and local transport requires restart"
+          },
+          "connectionModel": {
+            "states": [
+              "disconnected",
+              "connecting",
+              "connected",
+              "error",
+              "restarting"
+            ],
+            "progressStates": [
+              "initializing",
+              "waiting-for-device",
+              "confirming-connection"
+            ],
+            "rendererReadyRule": "send the current connection state, then the initialization snapshot when initialized and the pending auto-resolution snapshot for every registered host"
+          },
+          "ipcRouting": {
+            "rendererToMainRequest": "mcp-request",
+            "rendererToMainAbandon": "mcp-request-abandon",
+            "rendererToMainNotification": "mcp-notification",
+            "rendererToMainResponse": "mcp-response",
+            "providerToRendererRequest": "mcp-request",
+            "providerToRendererNotification": "mcp-notification",
+            "requestIdRule": "preserve the exact JSON-RPC request ID across renderer, main process, and provider response",
+            "serverRequestRule": "run registered internal host handlers first and otherwise broadcast the request to renderer surfaces",
+            "serverNotificationRule": "apply host-side observation and filtering before broadcasting the notification to renderer surfaces"
+          },
+          "closePolicy": {
+            "clearPendingAutoResolutionRequests": true,
+            "failPendingClientRequests": true,
+            "failPendingInternalRequests": true,
+            "blindReplay": false,
+            "rule": "transport close fails the exact in-flight client and internal requests; reconnect establishes a fresh transport and must not blindly replay them"
+          },
+          "reconnectPolicy": {
+            "reconnectCapableTransport": "websocket",
+            "stdioReconnect": false,
+            "initialDelayMs": 1000,
+            "backoffMultiplier": 2,
+            "maxDelayMs": 20000,
+            "sshDeterministicJitterMs": {
+              "min": 0,
+              "max": 500,
+              "seed": "hostId:attempt"
+            },
+            "networkOnlineFastPath": true,
+            "skipReasons": [
+              "unsupported transport",
+              "timer already scheduled",
+              "initialization in flight",
+              "disposed",
+              "app quitting",
+              "login required",
+              "version error"
+            ]
+          },
+          "canonicalBoundary": "Codex provider request and notification identities stay inside the Kernel adapter; Agents and BirdCoder correlate only canonical Session, Turn, execution handle, and providerSessionId."
+        },
+        "desktopServerRequestProjection": {
+          "rendererArchiveEntry": "webview/assets/app-initial-CHAIly1j.js",
+          "rendererArchiveResource": "resources/app.asar",
+          "rendererArchiveEntrySizeBytes": 14023273,
+          "rendererArchiveEntrySha256": "5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254",
+          "entryOffsetUnit": "uncompressed entry bytes",
+          "requestGroupingEntryByteOffset": 1683149,
+          "requestDispatcherEntryByteOffset": 3214824,
+          "canonicalInteractionMethods": [
+            "item/commandExecution/requestApproval",
+            "item/fileChange/requestApproval",
+            "item/tool/requestUserInput",
+            "mcpServer/elicitation/request",
+            "item/permissions/requestApproval"
+          ],
+          "desktopInternalInteractionMethods": [
+            {
+              "method": "item/tool/requestOptionPicker",
+              "entryByteOffsets": [
+                1683879,
+                3216523
+              ]
+            },
+            {
+              "method": "item/tool/requestSetupCodexContextPicker",
+              "entryByteOffsets": [
+                1684174,
+                3216871
+              ]
+            }
+          ],
+          "dynamicToolCall": {
+            "method": "item/tool/call",
+            "pendingInteractionToolNames": [
+              "request_onboarding_input",
+              "request_option_picker",
+              "setup_codex_context_picker",
+              "setup_codex_step"
+            ],
+            "bundleEntryByteOffsets": {
+              "successEnvelopeHelper": 1614578,
+              "toolSchemaDeclaration": 1614670,
+              "optionPickerSchema": 1614999,
+              "onboardingQuestionSchema": 1615237,
+              "setupStepSchema": 1615288,
+              "setupResponseCompiler": 2689100,
+              "failureEnvelopeHelper": 2462463,
+              "setupStepDispatcher": 3182450,
+              "argumentValidationDispatcher": 3182965
+            },
+            "invalidArgumentResponse": {
+              "tools": [
+                "request_option_picker",
+                "request_onboarding_input",
+                "setup_codex_step"
+              ],
+              "contentItemType": "inputText",
+              "messageTemplate": "<tool> received invalid arguments.",
+              "success": false
+            },
+            "setupCompletionResponse": {
+              "step": "complete",
+              "payload": {
+                "completed": true
+              },
+              "textEncoding": "JSON.stringify(payload)",
+              "success": true,
+              "createsInteraction": false
+            }
+          },
+          "hostAutoResponseMethods": [
+            "currentTime/read",
+            "item/tool/call:setup_codex_step.complete"
+          ],
+          "hostPrivateMethods": [
+            "account/chatgptAuthTokens/refresh",
+            "attestation/generate"
+          ],
+          "ignoredLegacyServerRequestVariants": [
+            "applyPatchApproval",
+            "execCommandApproval"
+          ],
+          "locallySynthesizedActionsNotProviderRequests": [
+            "item/plan/requestImplementation"
+          ],
+          "internalResponseContracts": {
+            "optionPicker": {
+              "actions": [
+                "submit",
+                "skip",
+                "dismiss"
+              ],
+              "fields": [
+                "action",
+                "selectedOptions",
+                "freeformAnswer"
+              ]
+            },
+            "contextPicker": {
+              "actions": [
+                "continue",
+                "skip",
+                "dismiss"
+              ],
+              "fields": [
+                "action",
+                "selectedSources"
+              ]
+            },
+            "setupStep": {
+              "roleFields": [
+                "action",
+                "selectedRoles"
+              ],
+              "taskFields": [
+                "action",
+                "answers"
+              ],
+              "contextFields": [
+                "action",
+                "selectedSources"
+              ]
+            },
+            "dynamicToolResponseEnvelope": {
+              "contentItemType": "inputText",
+              "textEncoding": "JSON.stringify(payload)",
+              "success": true
+            }
+          },
+          "resolutionLifecycle": {
+            "notificationMethod": "serverRequest/resolved",
+            "transportStates": [
+              "pending",
+              "responding",
+              "response_sent",
+              "provider_cleared",
+              "cancelled",
+              "resolution_unknown"
+            ],
+            "correlationKeys": [
+              "sessionId",
+              "turnId",
+              "executionHandle",
+              "providerSessionId",
+              "providerTurnId",
+              "providerItemId",
+              "providerRequestId"
+            ],
+            "responseCardinality": "at-most-once per providerRequestId and executionHandle",
+            "notificationSemantics": "serverRequest/resolved proves provider cleanup but does not by itself prove that this client sent a response",
+            "notificationWireFields": [
+              "threadId",
+              "requestId"
+            ],
+            "providerRequestIdWireType": "string | number",
+            "canonicalTerminalRule": "mark resolved only when this execution recorded response_sent before provider_cleared; otherwise preserve lifecycle-cleared or resolution-unknown semantics",
+            "recoveryRule": "reconcile the provider pending request before replay and never resend from a persisted canonical resolution alone",
+            "itemTerminalAuthority": "item/completed remains authoritative for command and file item outcomes",
+            "turnStreamingLifecycle": {
+              "preTurnBindingRule": "buffer ordered same-provider-Session events carrying a provider Turn id until turn/start returns the authoritative new Turn id; replay only matching events and discard late prior-Turn events",
+              "preTurnBufferLimit": 1024,
+              "notificationOrder": [
+                "turn/started",
+                "item/started",
+                "item-specific delta notifications",
+                "item/completed",
+                "turn/completed"
+              ],
+              "turnStartRule": "mark the canonical Turn in progress and the Session streaming; rebind the matching placeholder or synthesize the missing Turn from canonical Session settings",
+              "itemStartRule": "mark the Session streaming, correlate by provider item identity, and synthesize a missing in-progress Turn when history races live notifications",
+              "deltaRule": "apply each item-specific delta only to its correlated item identity and drain buffered text before either item or Turn completion",
+              "itemCompletionRule": "replace or merge the correlated item with the authoritative full item and preserve one canonical item identity",
+              "turnCompletionRule": "apply status, error, and duration, clear terminal input buffers for interrupted or failed Turns, restore eligible queued steering input, emit completion, and only then return the composer to ready",
+              "terminalStatuses": [
+                "completed",
+                "interrupted",
+                "failed"
+              ]
+            },
+            "turnCancellation": {
+              "requestMethod": "turn/interrupt",
+              "adapterWireParams": [
+                "threadId",
+                "turnId"
+              ],
+              "successResponse": "{}",
+              "acknowledgementMethod": "turn/completed",
+              "acknowledgementStatus": "interrupted",
+              "terminalRule": "do not persist canonical cancellation as terminal until the provider interruption acknowledgement arrives",
+              "pendingRequestSettlement": {
+                "commandExecutionApproval": "decline",
+                "fileChangeApproval": "decline",
+                "permissionsApproval": "empty permissions scoped to the Turn",
+                "userInput": "empty answers",
+                "optionPicker": "dismiss with no selected options or freeform answer",
+                "contextPicker": "dismiss with no selected sources",
+                "mcpElicitation": "decline"
+              },
+              "executionCleanup": "clean background terminals and terminate active request-scoped Node REPL executions after issuing the provider interruption",
+              "descendantRule": "a user stop interrupts descendant executions in the background; system interruption waits for descendant cleanup; a follower forwards interruption to the owning client and falls back locally only when that owner is unavailable",
+              "noActiveTurnRecovery": "provider no-active-turn means the live execution is already terminal or its notification was missed; reconcile provider history before recording the canonical interrupted terminal state",
+              "composerRule": "while streaming, render an enabled Stop button of type button; after authoritative terminal reconciliation, render Send and apply the normal submit disabled/loading rules"
+            }
+          }
+        }
       },
       "requiredContractExtensions": [
         "align Kernel vendored Codex to the pinned desktop protocol baseline or provide a versioned compatibility adapter with equivalent schema tests",
         "generate and lock the complete current v2 ServerRequest request and response union",
-        "typed dispatch and response continuation for all eight pinned ServerRequest methods",
-        "canonical Interaction routing for user-mediated requests and secure Kernel host ports for dynamic tools, token refresh, and attestation",
+        "extend typed dispatch and response continuation from the implemented canonical and desktop setup Interaction families plus current-time/setup-completion host responses to all remaining default-exported v2 ServerRequest methods",
+        "route the Kernel canonical Interaction envelope through Agents persistence, OpenAPI, generated SDKs, runtime continuation, and BirdCoder, and add secure Kernel host ports for dynamic tools, token refresh, and attestation",
+        "route typed desktop onboarding, option-picker, and Codex-context setup Interactions through Agents persistence, generated SDKs, and BirdCoder",
+        "durable at-most-once response correlation and ambiguous resolution recovery",
+        "long-lived app-server initialize handshake, exact-ID IPC bridge, deterministic close failure, and bounded websocket reconnect state machine",
         "provider thread and turn identities confined to the adapter and mapped to canonical Session execution handles",
         "contract and credentialed real-provider E2E for every user-mediated and host-mediated request class"
       ],
@@ -1003,6 +2899,8 @@
         "dropping unknown server requests or fields while claiming compatibility",
         "treating the exec-only SDK stream as app-server ServerRequest parity",
         "passing auth tokens or attestation payloads through BirdCoder UI or Agents persistence",
+        "treating locally synthesized plan implementation as a provider ServerRequest",
+        "blindly replaying in-flight provider requests after transport close",
         "claiming protocol compatibility from version strings without schema and behavior evidence"
       ]
     }

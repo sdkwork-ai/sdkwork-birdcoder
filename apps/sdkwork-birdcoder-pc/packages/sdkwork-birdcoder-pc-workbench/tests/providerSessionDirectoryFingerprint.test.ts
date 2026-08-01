@@ -18,7 +18,7 @@ function directoryHandle(
     },
     kind: 'directory',
     name: 'BirdCoder',
-  } as FileSystemDirectoryHandle;
+  } as unknown as FileSystemDirectoryHandle;
 }
 
 describe('browser provider Session directory identity', () => {

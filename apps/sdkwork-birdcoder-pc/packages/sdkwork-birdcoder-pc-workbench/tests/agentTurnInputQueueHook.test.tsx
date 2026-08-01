@@ -79,10 +79,12 @@ function createPage(items: readonly AgentTurnInputQueueEntry[]) {
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolver) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolver, rejecter) => {
     resolve = resolver;
+    reject = rejecter;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 class QueueBroadcastChannelMock {
@@ -328,5 +330,214 @@ describe('Agent Turn input queue lifecycle', () => {
       await staleRefresh.promise;
     });
     expect(result.current.queuedTurnInputs[0]?.queueEntryId).toBe(newEntry.queueEntryId);
+  });
+
+  it('keeps the latest same-Session hydration when responses resolve out of order', async () => {
+    const staleEntry = createQueueEntry('queue-entry.stale-hydration');
+    const latestEntry = createQueueEntry('queue-entry.latest-hydration');
+    const staleRefresh = createDeferred<ReturnType<typeof createPage>>();
+    const latestRefresh = createDeferred<ReturnType<typeof createPage>>();
+    const list = vi.fn()
+      .mockResolvedValueOnce(createPage([]))
+      .mockImplementationOnce(() => staleRefresh.promise)
+      .mockImplementationOnce(() => latestRefresh.promise);
+    mocks.ideServices.agentSessionService = {
+      listTurnInputQueueEntries: list,
+    };
+
+    const { result } = renderHook(() => useAgentTurnInputQueue({
+      agentId,
+      disabled: true,
+      isActive: true,
+      isTurnBusy: false,
+      onDispatch: vi.fn(),
+      sessionId,
+    }));
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+
+    await act(async () => {
+      latestRefresh.resolve(createPage([latestEntry]));
+      await latestRefresh.promise;
+    });
+    expect(result.current.queuedTurnInputs[0]?.queueEntryId).toBe(latestEntry.queueEntryId);
+
+    await act(async () => {
+      staleRefresh.resolve(createPage([staleEntry]));
+      await staleRefresh.promise;
+    });
+    expect(result.current.queuedTurnInputs[0]?.queueEntryId).toBe(latestEntry.queueEntryId);
+  });
+
+  it('does not let a hydration started before a mutation overwrite its result', async () => {
+    const original = createQueueEntry('queue-entry.hydrate-mutation');
+    const updated = {
+      ...original,
+      content: 'updated authoritative content',
+      displayText: 'updated display text',
+      updatedAt: '2026-07-31T00:00:01.000Z',
+      version: '1',
+    };
+    const staleRefresh = createDeferred<ReturnType<typeof createPage>>();
+    const list = vi.fn()
+      .mockResolvedValueOnce(createPage([original]))
+      .mockImplementationOnce(() => staleRefresh.promise);
+    const update = vi.fn(async () => updated);
+    mocks.ideServices.agentSessionService = {
+      listTurnInputQueueEntries: list,
+      updateTurnInputQueueEntry: update,
+    };
+
+    const { result } = renderHook(() => useAgentTurnInputQueue({
+      agentId,
+      disabled: true,
+      isActive: true,
+      isTurnBusy: false,
+      onDispatch: vi.fn(),
+      sessionId,
+    }));
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      await result.current.update(original, updated.content, updated.displayText);
+    });
+    expect(result.current.queuedTurnInputs[0]).toMatchObject({
+      content: updated.content,
+      version: updated.version,
+    });
+
+    await act(async () => {
+      staleRefresh.resolve(createPage([original]));
+      await staleRefresh.promise;
+    });
+    expect(result.current.queuedTurnInputs[0]).toMatchObject({
+      content: updated.content,
+      version: updated.version,
+    });
+  });
+
+  it('suppresses a stale hydration error after the Session identity changes', async () => {
+    const oldSessionId = 'session.queue.error-old';
+    const newSessionId = 'session.queue.error-new';
+    const staleRefresh = createDeferred<ReturnType<typeof createPage>>();
+    const list = vi.fn()
+      .mockResolvedValueOnce(createPage([]))
+      .mockImplementationOnce(() => staleRefresh.promise)
+      .mockResolvedValueOnce(createPage([]));
+    const onError = vi.fn();
+    mocks.ideServices.agentSessionService = {
+      listTurnInputQueueEntries: list,
+    };
+
+    const { rerender, result } = renderHook(
+      ({ currentSessionId }) => useAgentTurnInputQueue({
+        agentId,
+        disabled: true,
+        isActive: true,
+        isTurnBusy: false,
+        onDispatch: vi.fn(),
+        onError,
+        scopeKey: 'shared-error-projection',
+        sessionId: currentSessionId,
+      }),
+      { initialProps: { currentSessionId: oldSessionId } },
+    );
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    rerender({ currentSessionId: newSessionId });
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+
+    await act(async () => {
+      staleRefresh.reject(new Error('stale Session refresh failed'));
+      await staleRefresh.promise.catch(() => undefined);
+    });
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('pauses all claims while any queued entry is being edited and resumes afterward', async () => {
+    const first = createQueueEntry('queue-entry.edit-first');
+    const second = createQueueEntry('queue-entry.edit-second', { position: '2' });
+    const claimNext = vi.fn(async () => ({
+      claimToken: null,
+      entry: null,
+      outcome: 'empty' as const,
+    }));
+    mocks.ideServices.agentSessionService = {
+      claimNextTurnInputQueueEntry: claimNext,
+      listTurnInputQueueEntries: vi.fn(async () => createPage([first, second])),
+    };
+
+    const { rerender, result } = renderHook(
+      ({ pausedQueueEntryId }) => useAgentTurnInputQueue({
+        agentId,
+        disabled: false,
+        isActive: true,
+        isTurnBusy: false,
+        onDispatch: vi.fn(),
+        pausedQueueEntryId,
+        sessionId,
+      }),
+      { initialProps: { pausedQueueEntryId: second.queueEntryId as string | null } },
+    );
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    expect(claimNext).not.toHaveBeenCalled();
+    rerender({ pausedQueueEntryId: null });
+    await waitFor(() => expect(claimNext).toHaveBeenCalledTimes(1));
+  });
+
+  it('reuses a stable queue entry ID only for retries of the same create action', async () => {
+    const create = vi.fn()
+      .mockRejectedValueOnce(new Error('first create response was lost'))
+      .mockRejectedValueOnce(new Error('second create response was lost'))
+      .mockImplementation(async (
+        _identity: unknown,
+        request: { content: string; queueEntryId: string },
+      ) => createQueueEntry(request.queueEntryId, {
+        content: request.content,
+        displayText: request.content,
+      }));
+    mocks.ideServices.agentSessionService = {
+      createTurnInputQueueEntry: create,
+      listTurnInputQueueEntries: vi.fn(async () => createPage([])),
+    };
+    const { result } = renderHook(() => useAgentTurnInputQueue({
+      agentId,
+      disabled: true,
+      isActive: true,
+      isTurnBusy: false,
+      onDispatch: vi.fn(),
+      sessionId,
+    }));
+    const firstRequest = { content: 'first action', turnMode: 'interactive' as const };
+    const secondRequest = { content: 'second action', turnMode: 'interactive' as const };
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    await act(async () => {
+      await expect(result.current.enqueue(firstRequest)).rejects.toThrow('response was lost');
+    });
+    await act(async () => {
+      await expect(result.current.enqueue(secondRequest)).rejects.toThrow('response was lost');
+    });
+    await act(async () => {
+      await result.current.enqueue(secondRequest);
+    });
+    await act(async () => {
+      await result.current.enqueue(secondRequest);
+    });
+
+    const queueEntryIds = create.mock.calls.map(([, request]) => request.queueEntryId as string);
+    expect(queueEntryIds[0]).toMatch(/^queue-entry\./);
+    expect(queueEntryIds[1]).not.toBe(queueEntryIds[0]);
+    expect(queueEntryIds[2]).toBe(queueEntryIds[1]);
+    expect(queueEntryIds[3]).not.toBe(queueEntryIds[2]);
   });
 });

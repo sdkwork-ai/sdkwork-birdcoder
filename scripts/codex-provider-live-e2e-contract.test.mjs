@@ -57,6 +57,10 @@ assert.match(harnessSource, /buildProviderProcessEnvironment/u);
 assert.match(specSource, /responseFinishedAt\(\)[\s\S]*toBeNull\(\)/u);
 assert.match(specSource, /restartProviderService/u);
 assert.match(specSource, /waitForProviderProcessTermination/u);
+assert.match(specSource, /assertCanonicalCancellationAccepted/u);
+assert.match(specSource, /assertProviderCancellationSettled/u);
+assert.match(harnessSource, /status:\s*['"]cancelled['"]/u);
+assert.match(harnessSource, /original streamed Turn response must finish after provider cancellation/iu);
 assert.match(specSource, /approval returns to the waiting Codex provider/u);
 assert.match(specSource, /question answer returns to the waiting Codex provider/u);
 

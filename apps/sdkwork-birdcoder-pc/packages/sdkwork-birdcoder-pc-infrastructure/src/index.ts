@@ -17,6 +17,8 @@ export * from './services/birdcoderDriveUpload.ts';
 export * from './services/agentsSessionService.ts';
 export * from './services/birdCoderSdkClient.ts';
 export * from './services/interfaces/IAgentSessionService.ts';
+export * from './services/interfaces/IAgentAutomationService.ts';
+export * from './services/impl/AgentsSdkAutomationService.ts';
 export * from './services/impl/DriveSandboxProjectFileSystemService.ts';
 export * from './services/sessionService.ts';
 export * from './services/skillsSdkClient.ts';

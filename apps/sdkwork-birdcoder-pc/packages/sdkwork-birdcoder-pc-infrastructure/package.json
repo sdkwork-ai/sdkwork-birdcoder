@@ -151,6 +151,10 @@
       "import": "./src/services/interfaces/IAgentSessionService.ts",
       "types": "./src/services/interfaces/IAgentSessionService.ts"
     },
+    "./services/interfaces/IAgentAutomationService": {
+      "import": "./src/services/interfaces/IAgentAutomationService.ts",
+      "types": "./src/services/interfaces/IAgentAutomationService.ts"
+    },
     "./services/birdcoderDriveUpload": {
       "import": "./src/services/birdcoderDriveUpload.ts",
       "types": "./src/services/birdcoderDriveUpload.ts"

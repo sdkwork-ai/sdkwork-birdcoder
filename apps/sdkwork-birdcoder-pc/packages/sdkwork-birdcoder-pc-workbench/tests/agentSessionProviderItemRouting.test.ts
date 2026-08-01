@@ -167,8 +167,8 @@ describe('Codex provider Session item routing', () => {
       .not.toContain('hidden chain-of-thought sentinel');
   });
 
-  it('codex-provider-item-command-execution: routes command state and bounded output', () => {
-    const call = projectSingleToolCall(createProviderSessionItem('codex-command-1', {
+  it('codex-provider-item-command-execution: expands actions and preserves execution facts', () => {
+    const view = toAgentSessionItemView(createProviderSessionItem('codex-command-1', {
       id: 'codex-command-1',
       type: 'commandExecution',
       pluginId: null,
@@ -178,19 +178,91 @@ describe('Codex provider Session item routing', () => {
       processId: 'process-1',
       source: 'agent',
       status: 'completed',
-      commandActions: [],
+      commandActions: [
+        {
+          type: 'read',
+          command: 'Get-Content src/session.ts',
+          name: 'session.ts',
+          path: 'src/session.ts',
+        },
+        {
+          type: 'search',
+          command: 'rg Session src',
+          path: 'src',
+          query: 'Session',
+        },
+        {
+          type: 'unknown',
+          command: 'pnpm typecheck',
+        },
+      ],
       aggregatedOutput: 'Types are valid.',
       exitCode: 0,
       durationMs: 42,
     }));
+    const calls = normalizeAgentSessionItemToolCalls(view.tool_calls, { engineId: 'codex' });
 
-    expect(call).toEqual(expect.objectContaining({
+    expect(calls).toHaveLength(3);
+    expect(calls.map((call) => call.id)).toEqual([
+      'codex-command-1:0',
+      'codex-command-1:1',
+      'codex-command-1:2',
+    ]);
+    expect(calls.map((call) => call.command)).toEqual([
+      'Get-Content src/session.ts',
+      'rg Session src',
+      'pnpm typecheck',
+    ]);
+    expect(calls[0]).toEqual(expect.objectContaining({
+      commandAction: {
+        kind: 'read',
+        name: 'session.ts',
+        path: 'src/session.ts',
+      },
+      durationMs: 42,
+      exitCode: 0,
       kind: 'command',
+      output: 'Types are valid.',
+      parentExecutionId: 'codex-command-1',
+      processId: 'process-1',
+      status: 'success',
+      workingDirectory: 'E:\\workspace',
+    }));
+    expect(calls[1]?.commandAction).toEqual({
+      kind: 'search',
+      path: 'src',
+      query: 'Session',
+    });
+
+    const commands = resolveAgentSessionItemPresentation(view, { engineId: 'codex' })
+      .blocks.flatMap((block) => block.type === 'activity' ? block.commands : []);
+    expect(commands).toHaveLength(3);
+    expect(commands[2]).toEqual(expect.objectContaining({
       command: 'pnpm typecheck',
       durationMs: 42,
-      status: 'success',
+      exitCode: 0,
+      parentExecutionId: 'codex-command-1',
+      processId: 'process-1',
+      workingDirectory: 'E:\\workspace',
     }));
-    expect(call?.output).toContain('Types are valid.');
+  });
+
+  it('codex-provider-item-command-execution: treats a non-zero exit code as failed', () => {
+    const call = projectSingleToolCall(createProviderSessionItem('codex-command-failed', {
+      id: 'codex-command-failed',
+      type: 'commandExecution',
+      command: 'pnpm test',
+      status: 'completed',
+      commandActions: [],
+      aggregatedOutput: 'Tests failed.',
+      exitCode: 1,
+    }));
+
+    expect(call).toEqual(expect.objectContaining({
+      command: 'pnpm test',
+      exitCode: 1,
+      status: 'error',
+    }));
   });
 
   it('codex-provider-item-file-change: routes non-empty changes and suppresses empty changes', () => {
@@ -413,13 +485,13 @@ describe('Codex provider Session item routing', () => {
     const item = createProviderSessionItem('codex-context-compaction-1', {
       id: 'codex-context-compaction-1',
       type: 'contextCompaction',
-      source: 'manual',
     });
     const view = toAgentSessionItemView(item);
     const presentation = resolveAgentSessionItemPresentation(view);
 
     expect(isAgentSessionItemVisibleInTranscript(view)).toBe(true);
     expect(view.lifecycleEvents).toEqual([{
+      automatic: true,
       id: 'codex-context-compaction-1',
       kind: 'compacted',
     }]);
@@ -467,5 +539,140 @@ describe('Codex provider Session item routing', () => {
     expect(call?.resultBlocks).toEqual([
       expect.objectContaining({ type: 'image', source: 'data:image/png;base64,aGVsbG8=' }),
     ]);
+  });
+});
+
+function createOpenCodeEventItem(
+  sequence: number,
+  event: Record<string, unknown>,
+): AgentSessionItemRecord {
+  return {
+    ...createProviderSessionItem(`opencode-event-${sequence}`, event),
+    sequence: String(sequence),
+    toolResult: event,
+  };
+}
+
+describe('OpenCode provider Session event replay', () => {
+  const providerIdentity = { engineId: 'opencode' } as const;
+
+  it('keeps an identity-less full text snapshot visible as compatibility payload', () => {
+    const views = toAgentSessionTranscriptItemViews([createOpenCodeEventItem(1, {
+      type: 'message.part.updated',
+      properties: {
+        part: {
+          id: 'opencode-text-part-without-parent-identity',
+          text: 'Visible compatibility snapshot',
+          type: 'text',
+        },
+      },
+    })], providerIdentity);
+
+    expect(views).toHaveLength(1);
+    expect(views[0]).toEqual(expect.objectContaining({
+      content: 'Visible compatibility snapshot',
+      role: 'assistant',
+    }));
+    expect(views[0]?.tool_calls).toBeUndefined();
+  });
+
+  it('replays part deltas across canonical Session Items without creating delta rows', () => {
+    const sessionID = 'opencode-provider-session-cross-item';
+    const messageID = 'opencode-message-cross-item';
+    const partID = 'opencode-part-cross-item';
+    const items = [
+      createOpenCodeEventItem(1, {
+        type: 'message.part.updated',
+        properties: {
+          part: { id: partID, messageID, sessionID, text: 'ha', type: 'text' },
+          sessionID,
+          time: 1_785_568_800_001,
+        },
+      }),
+      createOpenCodeEventItem(2, {
+        type: 'message.part.delta',
+        properties: { delta: ' ha', field: 'text', messageID, partID, sessionID },
+      }),
+      createOpenCodeEventItem(3, {
+        type: 'message.part.delta',
+        properties: { delta: ' ha', field: 'text', messageID, partID, sessionID },
+      }),
+    ];
+
+    const views = toAgentSessionTranscriptItemViews(items, providerIdentity);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.content).toBe('ha ha ha');
+  });
+
+  it('removes a cross-Item part and restores it only from a later full snapshot', () => {
+    const sessionID = 'opencode-provider-session-cross-remove';
+    const messageID = 'opencode-message-cross-remove';
+    const partID = 'opencode-part-cross-remove';
+    const updated = (sequence: number, text: string) => createOpenCodeEventItem(sequence, {
+      type: 'message.part.updated',
+      properties: {
+        part: { id: partID, messageID, sessionID, text, type: 'text' },
+        sessionID,
+        time: 1_785_568_800_000 + sequence,
+      },
+    });
+    const removed = createOpenCodeEventItem(2, {
+      type: 'message.part.removed',
+      properties: { messageID, partID, sessionID },
+    });
+
+    expect(toAgentSessionTranscriptItemViews([
+      updated(1, 'Removed text'),
+      removed,
+    ], providerIdentity)).toEqual([]);
+
+    const restored = toAgentSessionTranscriptItemViews([
+      updated(1, 'Removed text'),
+      removed,
+      updated(3, 'Restored text'),
+    ], providerIdentity);
+    expect(restored).toHaveLength(1);
+    expect(restored[0]?.content).toBe('Restored text');
+  });
+
+  it('groups ordered parts from one OpenCode message into one transcript row', () => {
+    const sessionID = 'opencode-provider-session-grouped';
+    const messageID = 'opencode-message-grouped';
+    const updated = (sequence: number, id: string, text: string) =>
+      createOpenCodeEventItem(sequence, {
+        type: 'message.part.updated',
+        properties: {
+          part: { id, messageID, sessionID, text, type: 'text' },
+          sessionID,
+          time: 1_785_568_800_000 + sequence,
+        },
+      });
+
+    const views = toAgentSessionTranscriptItemViews([
+      updated(1, 'opencode-part-grouped-2', 'Second part'),
+      updated(2, 'opencode-part-grouped-1', 'First part'),
+    ], providerIdentity);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.content).toBe('First part\n\nSecond part');
+  });
+
+  it('correlates equal message and part IDs independently by provider Session', () => {
+    const messageID = 'opencode-message-shared';
+    const partID = 'opencode-part-shared';
+    const updated = (sequence: number, sessionID: string, text: string) =>
+      createOpenCodeEventItem(sequence, {
+        type: 'message.part.updated',
+        properties: {
+          part: { id: partID, messageID, sessionID, text, type: 'text' },
+          sessionID,
+          time: 1_785_568_800_000 + sequence,
+        },
+      });
+
+    const views = toAgentSessionTranscriptItemViews([
+      updated(1, 'opencode-provider-session-a', 'Session A'),
+      updated(2, 'opencode-provider-session-b', 'Session B'),
+    ], providerIdentity);
+    expect(views.map((view) => view.content)).toEqual(['Session A', 'Session B']);
   });
 });

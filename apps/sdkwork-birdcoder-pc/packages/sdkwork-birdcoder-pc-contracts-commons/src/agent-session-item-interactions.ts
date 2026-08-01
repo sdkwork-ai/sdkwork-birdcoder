@@ -257,7 +257,18 @@ function resolveInteractionStatus(
 ): AgentSessionItemInteractionStatus {
   const normalizedDecision = normalizeToken(decision);
   if (kind === 'approval') {
-    if (['always', 'allow', 'allowed', 'approve', 'approved', 'once'].includes(normalizedDecision)) {
+    if (
+      [
+        'always',
+        'allow',
+        'allow_always',
+        'allow_once',
+        'allowed',
+        'approve',
+        'approved',
+        'once',
+      ].includes(normalizedDecision)
+    ) {
       return 'approved';
     }
     if (['blocked', 'deny', 'denied', 'decline', 'declined', 'reject', 'rejected'].includes(normalizedDecision)) {

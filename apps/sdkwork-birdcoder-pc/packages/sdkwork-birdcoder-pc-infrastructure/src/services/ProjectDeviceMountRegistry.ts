@@ -752,11 +752,26 @@ function compareUtf8(left: string, right: string): number {
   return leftBytes.length - rightBytes.length;
 }
 
+interface BrowserDirectoryEntryIterable {
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+}
+
+function browserDirectoryEntries(
+  handle: FileSystemDirectoryHandle,
+): AsyncIterableIterator<[string, FileSystemHandle]> {
+  const iterableHandle = handle as FileSystemDirectoryHandle
+    & Partial<BrowserDirectoryEntryIterable>;
+  if (typeof iterableHandle.entries !== 'function') {
+    throw new Error('browser directory handle does not support entry iteration');
+  }
+  return iterableHandle.entries();
+}
+
 export async function fingerprintBrowserDirectoryHandle(
   handle: FileSystemDirectoryHandle,
 ): Promise<string> {
   const entries: Array<{ kind: 'd' | 'f' | 'o'; name: string }> = [];
-  for await (const [name, entry] of handle.entries()) {
+  for await (const [name, entry] of browserDirectoryEntries(handle)) {
     entries.push({
       kind: entry.kind === 'directory' ? 'd' : entry.kind === 'file' ? 'f' : 'o',
       name,

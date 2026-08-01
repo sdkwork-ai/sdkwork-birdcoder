@@ -226,7 +226,7 @@ test('browser cloud providers fail closed before creating Agent Sessions without
         json: {
           code: 0,
           data: createRuntimeBindingRecord(sequence),
-          traceId: `provider-runtime-binding-${sequence}`,
+          traceId: `provider-host-binding-${sequence}`,
         },
       });
     },
@@ -253,7 +253,7 @@ test('browser cloud providers fail closed before creating Agent Sessions without
               totalPages: 1,
             },
           },
-          traceId: `provider-runtime-bindings-${sequence}`,
+          traceId: `provider-host-bindings-${sequence}`,
         },
       });
     },

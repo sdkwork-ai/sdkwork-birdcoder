@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import {
+  assertCanonicalCancellationAccepted,
   assertCompletedLiveTurn,
-  assertAssistantMarkerAbsent,
   assertOpaqueProviderSessionId,
+  assertProviderCancellationSettled,
   attachJsonEvidence,
   authenticateAndOpenSession,
   fingerprintProviderSessionId,
@@ -136,7 +137,11 @@ test('canonical Session stop terminates the provider process', async ({ page }, 
   ));
   await page.locator('[data-composer-engine="codex"]:visible button').last().click();
   const cancellationResponse = await cancellationResponsePromise;
-  expect(cancellationResponse.ok()).toBe(true);
+  await assertCanonicalCancellationAccepted(
+    cancellationResponse,
+    environment.cancelSessionId,
+    turnId,
+  );
   const cancellationRequest = readResponseRequestBody(cancellationResponse);
   expect(cancellationRequest.expectedVersion).toEqual(expect.stringMatching(/^\d+$/u));
 
@@ -146,10 +151,16 @@ test('canonical Session stop terminates the provider process', async ({ page }, 
     environment.cancelSessionId,
     turnId,
   );
-  await assertAssistantMarkerAbsent(page, cancellationMarker);
+  const streamedResponseFinishedAt = await assertProviderCancellationSettled(
+    page,
+    delivery,
+    cancellationMarker,
+  );
   await attachJsonEvidence(testInfo, 'provider-process-cancellation', {
     canonicalSessionId: environment.cancelSessionId,
+    canonicalTurnCancelled: true,
     providerProcessTerminated: true,
+    streamedResponseFinishedAt,
     turnId,
   });
 });

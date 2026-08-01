@@ -57,6 +57,16 @@ export interface IFileSystemService {
   getFileContent(projectId: string, path: string): Promise<string>;
 
   /**
+   * Resolves a bounded, format-verified image preview within the active project mount.
+   * Native filesystem paths remain behind the service boundary. Unsupported,
+   * unavailable, or out-of-scope resources return undefined.
+   */
+  resolveProjectImagePreviewUrl(
+    projectId: string,
+    path: string,
+  ): Promise<string | undefined>;
+
+  /**
    * Retrieves a lightweight revision token for a specific file.
    * The revision changes whenever the underlying file metadata changes.
    * @param projectId The ID of the project.

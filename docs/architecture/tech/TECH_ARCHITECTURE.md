@@ -409,11 +409,20 @@ UnifiedChat busy submission
 ```
 
 BirdCoder keeps at most 32 entries per Session projection, 32 Session scopes,
-4 MiB per scope, and 16 MiB total in process memory. Startup, focus,
+4 MiB of exact UTF-8 string data per scope, and 16 MiB total in process memory.
+Per-scope and global counters avoid rescanning unrelated Session projections.
+Startup, focus,
 visibility, connectivity, and `BroadcastChannel` invalidation re-read Agents;
 cross-window messages contain only Agent/Session identity and source identity,
 never queue content. A generation fence discards responses from a previously
-selected Session.
+selected Session. Same-Session requests are latest-wins, and a mutation epoch
+fences refresh results from authoritative local mutation and claim updates.
+Any open queue edit pauses that window before its next claim.
+
+Before create, BirdCoder generates a stable `queueEntryId`. Retries of the
+same uncertain create reuse it, while different or already successful actions
+receive new IDs. The queue ID and Turn idempotency pair prevent duplicate
+accepted Turns across response loss and reconciliation.
 
 The server claim operation serializes windows and reconciles the prior claimed
 entry before advancing. Completed Turns delete the entry; failed or cancelled
@@ -478,7 +487,7 @@ registry. It is subject-scoped and keyed by canonical `projectId`.
 
 BirdCoder does not expose remote Git, project-path, mount, or runtime-location
 registration APIs. A local mount or opaque runtime id does not authorize remote
-execution. Agents, Kernel, and provider runtimes own any future remote execution
+execution. Agents, Kernel, and provider hosts own any future remote execution
 and target validation.
 
 ## 7. Security, Performance, And Observability

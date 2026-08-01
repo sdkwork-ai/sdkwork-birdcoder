@@ -4,6 +4,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 const APP_IDE_SERVICE_KEYS = [
+  'agentAutomationService',
   'agentSessionService',
   'applicationPublishService',
   'authService',
@@ -139,6 +140,9 @@ function createLazyServiceProxy<Service extends object>(
 
 export function createLazyDefaultIdeServices(): AppIdeServices {
   return {
+    agentAutomationService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('agentAutomationService'),
+    ),
     agentSessionService: createLazyServiceProxy(
       async () => loadDefaultIdeService('agentSessionService'),
     ),

@@ -144,6 +144,7 @@ function CodePageComponent({
   });
   const {
     agentSessionService,
+    fileSystemService,
     projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
@@ -1326,6 +1327,12 @@ function CodePageComponent({
       settleSelection(selectionResult);
     }
   }, [addToast, selectMessageFile, t]);
+  const resolveLocalImagePreviewUrl = useCallback((path: string) => {
+    if (!currentProjectId) {
+      return Promise.resolve(undefined);
+    }
+    return fileSystemService.resolveProjectImagePreviewUrl(currentProjectId, path);
+  }, [currentProjectId, fileSystemService]);
   const handleSelectWorkspaceFile = useCallback((path: string) => {
     setViewingDiff(null);
     selectFile(path);
@@ -1524,6 +1531,7 @@ function CodePageComponent({
     onRefreshAgentSessionItems: handleRefreshAgentSessionItems,
     onRefreshProjectSessions: handleRefreshProjectSessions,
     onRegenerateMessage: handleRegenerateSelectedAgentSessionItem,
+    resolveLocalImagePreviewUrl,
     onCloseDiff: handleCloseViewingDiff,
     onReimportProjectFolder: handleReimportProjectFolderAction,
     onRenameAgentSession: handleRenameSession,

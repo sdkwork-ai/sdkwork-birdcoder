@@ -7,6 +7,7 @@ import {
 } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService';
 import {
   clearWorkbenchAgentTurnInputQueueMemory,
+  MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE,
   removeWorkbenchQueuedAgentTurnInputProjection,
   setWorkbenchQueuedAgentTurnInputs,
   upsertWorkbenchQueuedAgentTurnInput,
@@ -88,6 +89,7 @@ describe('Agent Turn input queue SDK adapter', () => {
     });
     await expect(service.createTurnInputQueueEntry(identity, {
       content: entry.content,
+      queueEntryId: entry.queueEntryId,
       requestedAt,
       turnMode: 'interactive',
     })).resolves.toMatchObject({ queueEntryId: entry.queueEntryId });
@@ -100,7 +102,10 @@ describe('Agent Turn input queue SDK adapter', () => {
     expect(create).toHaveBeenCalledWith(
       agentId,
       sessionId,
-      expect.objectContaining({ content: entry.content }),
+      expect.objectContaining({
+        content: entry.content,
+        queueEntryId: entry.queueEntryId,
+      }),
       {},
     );
     expect(claimNext).toHaveBeenCalledWith(
@@ -228,5 +233,61 @@ describe('Agent Turn input queue remote projection', () => {
       sessionId,
       first.queueEntryId,
     ).map((entry) => entry.queueEntryId)).toEqual(['queue-entry.second']);
+  });
+
+  it('preserves snapshot identity only when the complete authoritative entry is unchanged', () => {
+    const original = createQueueEntry('queue-entry.snapshot');
+    const firstSnapshot = setWorkbenchQueuedAgentTurnInputs(sessionId, [original]);
+    const equivalentSnapshot = setWorkbenchQueuedAgentTurnInputs(sessionId, [{
+      ...original,
+      attachmentNames: [...original.attachmentNames],
+      driveRefs: [...original.driveRefs],
+    }]);
+    expect(equivalentSnapshot).toBe(firstSnapshot);
+
+    const changedSnapshot = setWorkbenchQueuedAgentTurnInputs(sessionId, [{
+      ...original,
+      content: 'changed without a version bump',
+    }]);
+    expect(changedSnapshot).not.toBe(firstSnapshot);
+    expect(changedSnapshot[0]?.content).toBe('changed without a version bump');
+  });
+
+  it('enforces the Session projection budget using UTF-8 bytes', () => {
+    const multibyteContent = '\u754c'.repeat(
+      Math.floor(MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE / 3),
+    );
+    expect(() => setWorkbenchQueuedAgentTurnInputs(sessionId, [createQueueEntry(
+      'queue-entry.multibyte-budget',
+      { content: multibyteContent },
+    )])).toThrow('UTF-8 byte budget');
+  });
+
+  it('releases incremental global budget on scope removal and full memory clear', () => {
+    const largeContent = 'x'.repeat(3 * 1_048_576);
+    for (let index = 0; index < 5; index += 1) {
+      setWorkbenchQueuedAgentTurnInputs(`session.queue.budget.${index}`, [createQueueEntry(
+        `queue-entry.budget.${index}`,
+        { content: largeContent, sessionId: `session.queue.budget.${index}` },
+      )]);
+    }
+    expect(() => setWorkbenchQueuedAgentTurnInputs('session.queue.budget.5', [createQueueEntry(
+      'queue-entry.budget.5',
+      { content: largeContent, sessionId: 'session.queue.budget.5' },
+    )])).toThrow('global UTF-8 byte budget');
+
+    setWorkbenchQueuedAgentTurnInputs('session.queue.budget.0', []);
+    expect(() => setWorkbenchQueuedAgentTurnInputs('session.queue.budget.5', [createQueueEntry(
+      'queue-entry.budget.5',
+      { content: largeContent, sessionId: 'session.queue.budget.5' },
+    )])).not.toThrow();
+
+    clearWorkbenchAgentTurnInputQueueMemory();
+    expect(() => setWorkbenchQueuedAgentTurnInputs('session.queue.budget.after-clear', [
+      createQueueEntry('queue-entry.budget.after-clear', {
+        content: largeContent,
+        sessionId: 'session.queue.budget.after-clear',
+      }),
+    ])).not.toThrow();
   });
 });

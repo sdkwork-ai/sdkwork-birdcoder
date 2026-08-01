@@ -272,6 +272,7 @@ export interface UniversalChatProps {
   layout?: 'sidebar' | 'main';
   onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage?: (messageIds: string[]) => void;
+  resolveLocalImagePreviewUrl?: (path: string) => Promise<string | undefined>;
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
@@ -405,6 +406,7 @@ interface UniversalChatTranscriptEnvironment {
   onDeleteMessage?: (messageIds: string[]) => void;
   onOpenDriveAttachment?: (nodeId: string, title: string) => void;
   resolveDriveAttachmentPreviewUrl?: (nodeId: string) => Promise<string | undefined>;
+  resolveLocalImagePreviewUrl?: (path: string) => Promise<string | undefined>;
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
@@ -839,6 +841,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
         ? (...args) => environmentRef.current?.resolveDriveAttachmentPreviewUrl?.(...args)
           ?? Promise.resolve(undefined)
         : undefined,
+      resolveLocalImagePreviewUrl: snapshot.resolveLocalImagePreviewUrl
+        ? (...args) => environmentRef.current?.resolveLocalImagePreviewUrl?.(...args)
+          ?? Promise.resolve(undefined)
+        : undefined,
       onOpenFile: snapshot.onOpenFile
         ? (...args) => environmentRef.current?.onOpenFile?.(...args)
         : undefined,
@@ -1122,6 +1128,7 @@ export const UniversalChat = memo(function UniversalChat({
   layout = 'sidebar',
   onEditMessage,
   onDeleteMessage,
+  resolveLocalImagePreviewUrl,
   onOpenFile,
   onOpenUrl,
   onRegenerateMessage,
@@ -1177,6 +1184,7 @@ export const UniversalChat = memo(function UniversalChat({
       canRestore: !disabled && Boolean(onRestore),
       canViewChanges: Boolean(onViewChanges),
       canOpenFile: Boolean(onOpenFile),
+      canResolveLocalImagePreview: Boolean(resolveLocalImagePreviewUrl),
       canOpenUrl: Boolean(onOpenUrl),
       skills: skills.map(({ desc, icon, id, name }) => ({ desc, icon, id, name })),
     }),
@@ -1189,6 +1197,7 @@ export const UniversalChat = memo(function UniversalChat({
       onRegenerateMessage,
       onRestore,
       onViewChanges,
+      resolveLocalImagePreviewUrl,
       skills,
     ],
   );
@@ -1784,6 +1793,7 @@ export const UniversalChat = memo(function UniversalChat({
     onDeleteMessage: disabled ? undefined : onDeleteMessage,
     onOpenDriveAttachment: openDriveAttachment,
     resolveDriveAttachmentPreviewUrl: resolveBirdCoderChatAttachmentPreviewUrl,
+    resolveLocalImagePreviewUrl,
     onOpenFile,
     onOpenUrl,
     onRegenerateMessage: disabled ? undefined : onRegenerateMessage,
@@ -2984,15 +2994,15 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
       const measuredScrollHeight = textareaRef.current.scrollHeight;
       const targetHeight =
         manualComposerHeight === null
           ? Math.min(measuredScrollHeight, AUTO_RESIZE_TEXTAREA_MAX_HEIGHT)
           : clampComposerHeight(manualComposerHeight);
-      textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.max(24, targetHeight)}px`;
     }
-  }, [inputValue, isActive, manualComposerHeight]);
+  }, [inputValue, isActive, manualComposerHeight, shouldPresentNewSessionComposer]);
 
   const hasOpenFloatingMenu = showAttachmentMenu;
   const hasOpenComposerMenu =

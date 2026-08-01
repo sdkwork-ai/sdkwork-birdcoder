@@ -13,7 +13,13 @@
 
 OpenCode stores a message `info` record and an ordered collection of `parts`. User and assistant info records have distinct fields, while part types carry text, reasoning, tools, files, steps, snapshots, patches, retry/compaction metadata, and provider-specific extensions.
 
-The BirdCoder session maps to an OpenCode session. OpenCode message IDs map to canonical item/message identities; part IDs remain child identities and must not be flattened in a way that loses their ordering or lifecycle.
+The SDKWork canonical Session is identified by `sessionId` and binds to the
+OpenCode provider session identity stored unchanged as `providerSessionId`.
+Raw OpenCode `sessionID` fields are provider-wire evidence for that opaque
+binding; they never replace `sessionId`, and `providerSessionId` must never be
+synthesized from `sessionId`. OpenCode message IDs map to canonical Session
+Item identities; part IDs remain child identities and must not be flattened in
+a way that loses their ordering or lifecycle.
 
 User message info includes creation time, agent/model selection, optional format/summary/system/tools, and model variant. Assistant info includes `parentID`, model/provider/agent/mode, cwd/root, creation/completion time, cost/tokens, optional structured output, finish reason, and a discriminated provider error. `parentID` is the turn correlation key; it must not be replaced by adjacency after pagination.
 
@@ -48,7 +54,12 @@ message.part.delta
 message.part.removed
 ```
 
-`message.part.updated` is the current full part snapshot. `message.part.delta` applies to a declared field of the same part identity. Removal events are authoritative deletions. Repeated events must be idempotent.
+`message.part.updated` is the current full part snapshot. `message.part.delta`
+applies to a declared field of the same part identity. Removal events are
+authoritative deletions. Full replacements and removals are idempotent. A
+delta has no provider event identity, so it is applied exactly once in received
+wire order; reconnect must reconcile from an authoritative snapshot or cursor
+instead of blindly replaying already delivered deltas.
 
 `message.updated` replaces message info, `message.part.updated` replaces the full part snapshot, and `message.part.delta` applies `delta` to the declared `field` for the same session/message/part IDs. `message.removed` and `message.part.removed` are authoritative deletions. `session.diff` is structured file evidence and `session.error` settles the affected session/assistant state without manufacturing assistant text.
 
@@ -90,6 +101,39 @@ New part kinds are retained as bounded provider data and rendered as a generic v
 - Keep the `before` cursor opaque.
 - Project tool state and attachments through the shared tool/resource UI.
 - Prefer the final part snapshot after streamed deltas.
+- Keep the disposable loaded source window bounded to 500 canonical Session
+  Items and 4 MiB; expose `retentionLimitReached` when either limit truncates
+  history so the UI does not continue unbounded earlier-page loading.
+
+[`openCodeSessionItemReplay.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/openCodeSessionItemReplay.ts),
+[`agentSessionItemSourceWindow.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionItemSourceWindow.ts),
+[`agentSessionOpenCodeReplay.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionOpenCodeReplay.test.ts),
+[`agentSessionProviderRealtimeEvents.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderRealtimeEvents.test.ts),
+and
+[`agentSessionProviderItemRouting.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderItemRouting.test.ts)
+now verify full-snapshot replacement, exact repeated-delta order, authoritative
+part and message removal, later full-snapshot restoration, `callID` tool
+correlation, and provider Session isolation both within one payload and across
+canonical Session Items in the loaded transcript source window. The replay
+produces one bounded full-snapshot envelope rather than visible delta rows.
+The source-window tests also cover stable canonical Item deduplication,
+same-version provider payload replacement, the shared 500 Item / 4 MiB
+retention limits, and propagation of `retentionLimitReached`.
+
+[`sessionRefresh.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/sessionRefresh.test.ts)
+also verifies the pagination boundary where a latest-page delta is initially
+incomplete, its full part snapshot arrives on an earlier page, the opaque
+canonical cursor is forwarded unchanged, and the merged source window
+reprojects one complete visible row.
+
+The OpenCode replay suite additionally verifies the client sequence
+`refresh -> load earlier -> reconnect refresh`: the older snapshot and newer
+delta produce one visible row, and a reconnect refresh remains idempotent.
+
+This still does not prove OpenCode-to-Agents deep provider-cursor translation,
+transport-level reconnect delivery/reconciliation, or credentialed provider
+E2E. Those gates require owner transport evidence and must not be inferred
+from the in-memory replay, canonical pagination, and simulated reconnect tests.
 
 ## Conformance Checklist
 
@@ -97,5 +141,6 @@ New part kinds are retained as bounded provider data and rendered as a generic v
 - Apply part deltas to the named field and replace them with later full snapshots.
 - Honor authoritative message and part removals.
 - Keep cursor, `more`, and tail identity semantics intact across deep history.
+- Bound the disposable source window and stop paging when retention is reached.
 - Render retry, compaction, snapshot, patch, step, and subtask parts without blank rows.
 - Keep tool attachments structured and interrupted pending/running tools non-successful.

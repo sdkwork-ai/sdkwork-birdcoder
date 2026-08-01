@@ -422,6 +422,49 @@ export async function assertCompletedLiveTurn(
   return response;
 }
 
+export async function assertCanonicalCancellationAccepted(
+  response: Response,
+  sessionId: string,
+  turnId: string,
+): Promise<void> {
+  expect(response.ok()).toBe(true);
+  const payload = asRecord(await response.json());
+  const item = asRecord(asRecord(payload?.data)?.item);
+  expect(item).toMatchObject({
+    sessionId,
+    status: 'cancelled',
+    turnId,
+  });
+}
+
+export async function assertProviderCancellationSettled(
+  page: Page,
+  delivery: LiveTurnDelivery,
+  forbiddenCompletionMarker: string,
+): Promise<number> {
+  const response = await delivery.responsePromise;
+  expect(response.ok()).toBe(true);
+  expect(response.headers()['content-type']?.toLowerCase()).toContain('text/event-stream');
+  await expect.poll(delivery.responseFinishedAt, {
+    message: 'The original streamed Turn response must finish after provider cancellation.',
+    timeout: 60_000,
+  }).not.toBeNull();
+  const responseError = await delivery.responseFinishedPromise;
+  expect(responseError).toBeNull();
+  await expect(page.locator('[data-chat-turn-active-tail="true"]')).toHaveCount(0, {
+    timeout: 60_000,
+  });
+  await expect(getComposer(page)).toBeEnabled({ timeout: 60_000 });
+  await assertAssistantMarkerAbsent(page, forbiddenCompletionMarker);
+
+  const finishedAt = delivery.responseFinishedAt();
+  if (finishedAt === null) {
+    throw new Error('The cancelled Turn response did not record its completion time.');
+  }
+  expect(finishedAt).toBeGreaterThanOrEqual(delivery.submittedAt);
+  return finishedAt;
+}
+
 export async function assertAssistantMarkerAbsent(
   page: Page,
   marker: string,

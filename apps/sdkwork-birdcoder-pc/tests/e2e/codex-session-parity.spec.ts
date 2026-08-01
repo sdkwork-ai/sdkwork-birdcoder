@@ -159,17 +159,79 @@ test('Codex canonical Session presents history and completes a streamed Turn', a
   await expect(compactedLifecycle).toHaveCount(1);
   await expect(compactedLifecycle).toContainText('Context compacted');
 
-  const imageResourceGroups = transcript
-    .locator('[data-chat-message-resources]')
-    .filter({ has: page.locator('[data-chat-message-resource="image"]') });
-  await expect(imageResourceGroups).toHaveCount(2);
-  await expect(imageResourceGroups.nth(0).locator('[data-chat-message-resource="image"]'))
-    .toHaveCount(2);
-  await expect(imageResourceGroups.nth(0)).toContainText('codex-image-consecutive-1.png');
-  await expect(imageResourceGroups.nth(0)).toContainText('codex-image-consecutive-2.png');
-  await expect(imageResourceGroups.nth(1).locator('[data-chat-message-resource="image"]'))
-    .toHaveCount(1);
-  await expect(imageResourceGroups.nth(1)).toContainText('codex-image-after-sleep.png');
+  const commandActivity = transcript.locator('[data-chat-activity-summary="inline"]');
+  await expect(commandActivity).toHaveCount(1);
+  const commandActivityDisclosure = commandActivity.locator(':scope > button').first();
+  await expect(commandActivityDisclosure).toContainText('Ran commands');
+  await expect(commandActivityDisclosure).toHaveAccessibleName(
+    'Ran 2 commands. Show activity details',
+  );
+  await expect(commandActivityDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await commandActivityDisclosure.click();
+  const commandDisclosures = commandActivity.locator('[data-chat-command-disclosure="true"]');
+  await expect(commandDisclosures).toHaveCount(2);
+  await commandDisclosures.nth(0).click();
+  await commandDisclosures.nth(1).click();
+  const commandDetails = commandActivity.locator('[data-chat-command-details="true"]');
+  await expect(commandDetails).toHaveCount(2);
+  await expect(commandDetails.nth(0)).toContainText('pnpm typecheck');
+  await expect(commandDetails.nth(0)).toContainText('TypeScript check passed.');
+  await expect(commandDetails.nth(1)).toContainText('pnpm test -- --runInBand');
+  await expect(commandDetails.nth(1)).toContainText('All focused tests passed.');
+
+  const imageActivityGroups = transcript.locator('[data-chat-inspected-images="true"]');
+  await expect(imageActivityGroups).toHaveCount(2);
+
+  const consecutiveImageActivity = imageActivityGroups.nth(0);
+  const consecutiveImageDisclosure = consecutiveImageActivity.locator(':scope > button').first();
+  await expect(consecutiveImageDisclosure).toHaveAccessibleName(
+    'Viewed 2 images. Show inspected images',
+  );
+  await expect(consecutiveImageDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await consecutiveImageDisclosure.click();
+  await expect(consecutiveImageDisclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect(consecutiveImageDisclosure).toHaveAccessibleName(
+    'Viewed 2 images. Hide inspected images',
+  );
+  const consecutiveImageThumbnails = consecutiveImageActivity.locator(
+    '[data-chat-inspected-image-thumbnails="true"]',
+  );
+  await expect(consecutiveImageThumbnails).toBeVisible();
+  await expect(consecutiveImageThumbnails.getByRole('button', {
+    name: 'Preview image: E:\\workspace\\codex-image-consecutive-1.png',
+  })).toHaveCount(1);
+  await expect(consecutiveImageThumbnails.getByRole('button', {
+    name: 'Preview image: E:\\workspace\\codex-image-consecutive-2.png',
+  })).toHaveCount(1);
+  const firstImagePreviewButton = consecutiveImageThumbnails.getByRole('button', {
+    name: 'Preview image: E:\\workspace\\codex-image-consecutive-1.png',
+  });
+  await expect(firstImagePreviewButton).toBeEnabled();
+  await expect.poll(() => firstImagePreviewButton.locator('img').evaluate((image) => (
+    image instanceof HTMLImageElement ? image.naturalWidth : 0
+  ))).toBeGreaterThan(0);
+  await firstImagePreviewButton.click();
+  const inspectedImageDialog = page.locator('[data-chat-inspected-image-dialog="true"]');
+  await expect(inspectedImageDialog).toBeVisible();
+  await expect(inspectedImageDialog.getByText('1 / 2', { exact: true })).toBeVisible();
+  await inspectedImageDialog.getByRole('button', { name: 'Next image' }).click();
+  await expect(inspectedImageDialog.getByText('2 / 2', { exact: true })).toBeVisible();
+  await inspectedImageDialog.getByRole('button', { name: 'Close image preview' }).click();
+  await expect(inspectedImageDialog).toHaveCount(0);
+  await expect(firstImagePreviewButton).toBeFocused();
+
+  const laterImageActivity = imageActivityGroups.nth(1);
+  await expect(laterImageActivity.getByRole('button', {
+    name: 'Viewed an image. Show inspected images',
+  })).toHaveAttribute('aria-expanded', 'false');
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect.poll(() => transcript.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => consecutiveImageActivity.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await page.setViewportSize({ width: 1_440, height: 900 });
   await expect(transcript).not.toContainText('INTERNAL_CODEX_ENTERED_REVIEW_MODE_MUST_NOT_RENDER');
   await expect(transcript).not.toContainText('INTERNAL_CODEX_EXITED_REVIEW_MODE_MUST_NOT_RENDER');
 

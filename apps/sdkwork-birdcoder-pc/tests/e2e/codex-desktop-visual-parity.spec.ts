@@ -426,6 +426,7 @@ for (const visualCase of visualCases) {
       'textarea[placeholder="Ask anything or request changes..."]:visible',
     );
     await expect(composer).toBeEditable();
+    await expect(composer).toHaveAttribute('rows', '2');
 
     await waitForStableVisualState(page);
     await assertVisualLayout(page);

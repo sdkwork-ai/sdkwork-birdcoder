@@ -191,6 +191,8 @@ interface UseCodePageSurfacePropsOptions {
     NonNullable<ProjectExplorerProps['onRefreshAgentSessionItems']>;
   onRefreshProjectSessions: NonNullable<ProjectExplorerProps['onRefreshProjectSessions']>;
   onRegenerateMessage: NonNullable<UniversalChatComponentProps['onRegenerateMessage']>;
+  resolveLocalImagePreviewUrl:
+    NonNullable<UniversalChatComponentProps['resolveLocalImagePreviewUrl']>;
   onCloseDiff: CodeEditorWorkspacePanelProps['onCloseDiff'];
   onReimportProjectFolder:
     NonNullable<CodeWorkspaceOverlaysComponentProps['onReimportProjectFolder']>;
@@ -346,6 +348,7 @@ export function useCodePageSurfaceProps({
   onRefreshAgentSessionItems,
   onRefreshProjectSessions,
   onRegenerateMessage,
+  resolveLocalImagePreviewUrl,
   onCloseDiff,
   onReimportProjectFolder,
   onRenameAgentSession,
@@ -661,6 +664,7 @@ export function useCodePageSurfaceProps({
     setSelectedModelId: onSelectedModelIdChange,
     layout: 'main',
     onOpenFile: onOpenMessageFile,
+    resolveLocalImagePreviewUrl,
     onViewChanges: onViewChangesAndOpenEditor,
     onRestore: onRestoreMessage,
     emptyState: mainChatEmptyState,
@@ -703,6 +707,7 @@ export function useCodePageSurfaceProps({
     onNewProject,
     onNewSessionProjectSelect,
     onRestoreMessage,
+    resolveLocalImagePreviewUrl,
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
@@ -786,6 +791,7 @@ export function useCodePageSurfaceProps({
     onEditMessage,
     onDeleteMessage,
     onRegenerateMessage,
+    resolveLocalImagePreviewUrl,
     onCreateRootFile,
     getLanguageFromPath,
   }), [
@@ -820,6 +826,7 @@ export function useCodePageSurfaceProps({
     onExplorerResize,
     onFileDraftChange,
     onRegenerateMessage,
+    resolveLocalImagePreviewUrl,
     onCloseDiff,
     onRenameNode,
     onRetryFileTreeLoad,

@@ -19,6 +19,7 @@ permissions = [
   "allow-fs-list-directory",
   "allow-fs-snapshot-folder",
   "allow-fs-read-file",
+  "allow-fs-read-image-preview",
   "allow-fs-get-file-revision",
   "allow-fs-get-file-revisions",
   "allow-fs-get-directory-revisions",
@@ -97,6 +98,7 @@ permissions = [
   "allow-fs-list-directory",
   "allow-fs-snapshot-folder",
   "allow-fs-read-file",
+  "allow-fs-read-image-preview",
   "allow-fs-get-file-revision",
   "allow-fs-get-file-revisions",
   "allow-fs-get-directory-revisions",
@@ -233,6 +235,11 @@ commands.allow = ["fs_snapshot_folder"]
 identifier = "allow-fs-read-file"
 description = "Enables the fs_read_file command."
 commands.allow = ["fs_read_file"]
+
+[[permission]]
+identifier = "allow-fs-read-image-preview"
+description = "Enables bounded, format-verified image previews within an authorized project root."
+commands.allow = ["fs_read_image_preview"]
 
 [[permission]]
 identifier = "allow-fs-get-file-revision"

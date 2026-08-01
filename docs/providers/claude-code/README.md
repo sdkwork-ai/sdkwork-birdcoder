@@ -56,7 +56,17 @@ Tool result `is_error`/`isError` settles the call as failed. Progress remains pe
 
 ## Session And History
 
-The provider session ID is the canonical resume key. Resume/fork operations must keep the returned provider identity rather than synthesize one. History reconstruction reads the provider's durable JSONL records and preserves their order. Stream events update in-flight items but are not replayed as duplicate durable messages.
+The SDKWork canonical Session is identified by `sessionId`. Claude Code's
+returned resume identity is stored unchanged as the opaque
+`providerSessionId` on its runtime binding. The raw JSONL field named
+`sessionId` is provider-wire evidence and maps to `providerSessionId`; it is not
+the SDKWork `sessionId`. Resume and fork operations retain the returned
+provider identity, and no layer may synthesize it from the canonical
+`sessionId`.
+
+History reconstruction reads the provider's durable JSONL records and
+preserves their order. Stream events update in-flight items but are not
+replayed as duplicate durable messages.
 
 `uuid` or nested message ID is the preferred item identity. `parentUuid` expresses lineage; `tool_use.id`/`tool_result.tool_use_id` expresses call correlation. A deterministic line-derived ID is a last-resort history identity only when the record type has no ID. Sidechain records keep their lineage metadata so the UI can distinguish delegated work from the main response.
 
@@ -79,6 +89,11 @@ New content block and top-level record types must survive in bounded provider me
 - Preserve thinking separately from final text.
 - Keep hook, permission, and user-question states actionable.
 - Use the generated/canonical SDK integration; do not add handwritten provider HTTP.
+
+[`agentSessionProviderRealtimeEvents.test.ts`](../../../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/agentSessionProviderRealtimeEvents.test.ts)
+independently verifies that an assistant `tool_use` and the matching user
+`tool_result` content block become one settled canonical tool row. This fixture
+does not prove complete JSONL history, reconnect, or credentialed provider E2E.
 
 ## Terminal And Error Mapping
 

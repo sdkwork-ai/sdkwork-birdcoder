@@ -6,6 +6,7 @@ import {
   normalizeAgentSessionItemToolCalls as projectChatMessageToolCalls,
   normalizeAgentSessionItemToolNotice as projectChatMessageToolNotice,
   normalizeAgentSessionItemToolNotices as projectChatMessageToolNotices,
+  resolvePreferredAgentSessionItemToolProtocolAdapterId,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts';
 import {
   composeAgentSessionTranscriptActivity as projectChatTranscriptToolActivity,
@@ -38,6 +39,49 @@ const projectedToolCalls = projectChatMessageToolCalls([
 ]);
 assert.equal(projectedToolCalls.length, 2);
 assert.equal(projectedToolCalls[1]?.name, 'tool');
+
+assert.equal(
+  resolvePreferredAgentSessionItemToolProtocolAdapterId('openclaw'),
+  'openai.function',
+);
+assert.equal(
+  resolvePreferredAgentSessionItemToolProtocolAdapterId('hermes'),
+  'openai.function',
+);
+
+const openClawFunctionCall = projectChatMessageToolCall({
+  id: 'openclaw-tool-1',
+  type: 'function',
+  function: {
+    name: 'web_search',
+    arguments: '{"query":"SDKWork Session"}',
+  },
+}, 0, { engineId: 'openclaw' });
+assert.equal(openClawFunctionCall?.id, 'openclaw-tool-1');
+assert.equal(openClawFunctionCall?.kind, 'web');
+assert.equal(openClawFunctionCall?.target, 'SDKWork Session');
+
+const hermesMcpCall = projectChatMessageToolCall({
+  type: 'function_call',
+  call_id: 'hermes-tool-1',
+  name: 'mcp__filesystem__read_file',
+  arguments: '{"path":"README.md"}',
+}, 0, { engineId: 'hermes' });
+assert.equal(hermesMcpCall?.id, 'hermes-tool-1');
+assert.equal(hermesMcpCall?.kind, 'mcp');
+assert.equal(hermesMcpCall?.serverName, 'filesystem');
+assert.equal(hermesMcpCall?.name, 'read_file');
+
+const hermesMcpResult = projectChatMessageToolCall({
+  role: 'tool',
+  tool_call_id: 'hermes-tool-1',
+  tool_name: 'mcp__filesystem__read_file',
+  content: 'README content',
+}, 0, { engineId: 'hermes' });
+assert.equal(hermesMcpResult?.id, 'hermes-tool-1');
+assert.equal(hermesMcpResult?.kind, 'mcp');
+assert.equal(hermesMcpResult?.status, 'success');
+assert.equal(hermesMcpResult?.output, 'README content');
 
 const canonicalCommandResult = projectChatMessageToolCall({
   id: 'canonical-command-result',
@@ -151,6 +195,56 @@ assert.equal(codexLocalShellCall?.id, 'call-codex-shell-1');
 assert.equal(codexLocalShellCall?.kind, 'command');
 assert.equal(codexLocalShellCall?.command, 'git commit -m "align providers"');
 assert.equal(codexLocalShellCall?.status, 'success');
+assert.equal(codexLocalShellCall?.workingDirectory, 'E:/workspace');
+
+const codexCommandActions = projectChatMessageToolCalls([{
+  id: 'codex-command-actions-1',
+  type: 'commandExecution',
+  command: 'Get-Content README.md; rg Session src; pnpm typecheck',
+  commandActions: [
+    { type: 'read', command: 'Get-Content README.md', path: 'README.md' },
+    { type: 'search', command: 'rg Session src', path: 'src', query: 'Session' },
+    { type: 'unknown', command: 'pnpm typecheck' },
+  ],
+  cwd: 'E:/workspace',
+  processId: 'process-command-actions-1',
+  status: 'completed',
+  aggregatedOutput: 'Types are valid.',
+  exitCode: 0,
+  durationMs: 42,
+}], { engineId: 'codex' });
+assert.deepEqual(
+  codexCommandActions.map((call) => call.id),
+  ['codex-command-actions-1:0', 'codex-command-actions-1:1', 'codex-command-actions-1:2'],
+);
+assert.deepEqual(
+  codexCommandActions.map((call) => call.command),
+  ['Get-Content README.md', 'rg Session src', 'pnpm typecheck'],
+);
+assert.deepEqual(codexCommandActions[0]?.commandAction, {
+  kind: 'read',
+  path: 'README.md',
+});
+assert.equal(codexCommandActions[0]?.workingDirectory, 'E:/workspace');
+assert.equal(codexCommandActions[0]?.processId, 'process-command-actions-1');
+assert.equal(codexCommandActions[0]?.durationMs, 42);
+assert.equal(codexCommandActions[0]?.exitCode, 0);
+assert.equal(codexCommandActions[0]?.output, 'Types are valid.');
+assert.deepEqual(
+  codexCommandActions.map((call) => call.output),
+  ['Types are valid.', undefined, undefined],
+  'An indivisible aggregate must be retained once instead of duplicated across expanded commands.',
+);
+assert.deepEqual(
+  projectChatMessageToolCalls(codexCommandActions, { engineId: 'codex' })
+    .map((call) => call.output),
+  ['Types are valid.', undefined, undefined],
+  'Re-normalizing canonical command rows must preserve their correlated output.',
+);
+assert.deepEqual(
+  codexCommandActions.map(projectChatMessageCommand).map((command) => command?.parentExecutionId),
+  ['codex-command-actions-1', 'codex-command-actions-1', 'codex-command-actions-1'],
+);
 
 const codexCustomToolCall = projectChatMessageToolCall({
   type: 'custom_tool_call',

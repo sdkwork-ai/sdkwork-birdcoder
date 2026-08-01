@@ -1,5 +1,6 @@
 export type { AgentSessionItemToolCallView } from './agent-session-view.ts';
 import type {
+  AgentSessionCommandActionView,
   AgentSessionItemToolCallView,
   AgentSessionItemToolCallKind,
   AgentSessionItemToolCallStatus,
@@ -34,6 +35,9 @@ export const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE = {
   'claude-code': 'claude.content-block',
   codex: 'codex.item',
   gemini: 'gemini.event',
+  hermes: 'openai.function',
+  'hermes-agent': 'openai.function',
+  openclaw: 'openai.function',
   opencode: 'opencode.part',
 } as const satisfies Readonly<Record<string, AgentSessionItemToolProtocolAdapterId>>;
 
@@ -47,6 +51,18 @@ const AGENT_SESSION_ITEM_TOOL_COMPATIBLE_PROTOCOL_ADAPTER_IDS_BY_ENGINE = {
     'openai.function',
   ],
   gemini: [AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.gemini],
+  hermes: [
+    AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.hermes,
+    'canonical',
+  ],
+  'hermes-agent': [
+    AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE['hermes-agent'],
+    'canonical',
+  ],
+  openclaw: [
+    AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.openclaw,
+    'canonical',
+  ],
   opencode: [AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.opencode],
 } as const satisfies Readonly<
   Record<AgentSessionItemToolProtocolEngineId, readonly AgentSessionItemToolProtocolAdapterId[]>
@@ -89,6 +105,12 @@ export interface NormalizedAgentSessionCommand {
   kind: 'command';
   toolName: string;
   toolCallId: string;
+  durationMs?: number;
+  exitCode?: number;
+  processId?: string;
+  workingDirectory?: string;
+  parentExecutionId?: string;
+  commandAction?: AgentSessionCommandActionView;
 }
 
 export interface NormalizedAgentSessionItemToolNotice {
@@ -147,6 +169,7 @@ const COMMAND_TOOL_NAMES = new Set([
   'command',
   'command_execution',
   'execute_command',
+  'exec',
   'exec_command',
   'pty_exec',
   'power_shell',
@@ -371,26 +394,164 @@ interface AgentSessionItemToolProtocolAdapter {
   adapt: (record: Record<string, unknown>) => Record<string, unknown> | null;
 }
 
-function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+function resolveCodexToolSourceRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
   const item = readToolCallRecord(record.item);
-  const source = item ? { ...record, ...item } : record;
+  return item ? { ...record, ...item } : record;
+}
+
+function normalizeCodexCommandAction(
+  value: unknown,
+): AgentSessionCommandActionView | null {
+  const action = readToolCallRecord(value);
+  if (!action) {
+    return null;
+  }
+  const rawKind = normalizeToolCallName(
+    readNonEmptyString(action.kind) || readNonEmptyString(action.type),
+  );
+  const kind = rawKind === 'listfiles' || rawKind === 'list_files'
+    ? 'list_files'
+    : rawKind === 'read' || rawKind === 'search'
+      ? rawKind
+      : 'unknown';
+  const name = readNonEmptyString(action.name);
+  const path = readNonEmptyString(action.path);
+  const query = readNonEmptyString(action.query);
+  return {
+    kind,
+    ...(name ? { name } : {}),
+    ...(path ? { path } : {}),
+    ...(query ? { query } : {}),
+  };
+}
+
+function readCodexCommandExecutionOutput(record: Record<string, unknown>): string {
+  return readNonEmptyString(record.output)
+    || readNonEmptyString(record.aggregatedOutput)
+    || readNonEmptyString(record.aggregated_output);
+}
+
+function correlateCodexCommandExecutionOutputs(
+  source: Record<string, unknown>,
+  actions: readonly Record<string, unknown>[],
+): readonly string[] {
+  const actionOutputs = actions.map(readCodexCommandExecutionOutput);
+  if (actionOutputs.some(Boolean)) {
+    return actionOutputs;
+  }
+
+  const aggregatedOutput = readCodexCommandExecutionOutput(source);
+  if (!aggregatedOutput) {
+    return actionOutputs;
+  }
+  if (actions.length === 1) {
+    return [aggregatedOutput];
+  }
+
+  const outputLines = aggregatedOutput.replace(/\r\n?/gu, '\n').split('\n');
+  if (
+    outputLines.length === actions.length
+    && outputLines.every((line) => line.trim().length > 0)
+  ) {
+    return outputLines;
+  }
+
+  return actions.map((_, actionIndex) => actionIndex === 0 ? aggregatedOutput : '');
+}
+
+function expandCodexCommandExecutionRecords(
+  value: unknown,
+  index: number,
+): readonly unknown[] {
+  const record = readToolCallRecord(value);
+  if (!record) {
+    return [value];
+  }
+  const source = resolveCodexToolSourceRecord(record);
+  if (normalizeToolCallName(readNonEmptyString(source.type)) !== 'command_execution') {
+    return [value];
+  }
+  const rawActions = Array.isArray(source.commandActions)
+    ? source.commandActions
+    : Array.isArray(source.command_actions)
+      ? source.command_actions
+      : [];
+  const actions = rawActions.flatMap((action) => {
+    const actionRecord = readToolCallRecord(action);
+    return actionRecord ? [actionRecord] : [];
+  });
+  if (actions.length === 0) {
+    return [value];
+  }
+
+  const parentExecutionId = readNonEmptyString(source.id)
+    || readNonEmptyString(source.callId)
+    || readNonEmptyString(source.call_id)
+    || `command-execution-${index + 1}`;
+  const parentCommand = readCommandValue(source.command);
+  const actionOutputs = correlateCodexCommandExecutionOutputs(source, actions);
+  return actions.map((action, actionIndex) => {
+    const command = readCommandValue(action.command ?? action.cmd) || parentCommand;
+    const commandAction = normalizeCodexCommandAction(action);
+    const output = actionOutputs[actionIndex];
+    const id = actions.length > 1
+      ? `${parentExecutionId}:${actionIndex}`
+      : parentExecutionId;
+    const expandedSource = { ...source };
+    delete expandedSource.aggregatedOutput;
+    delete expandedSource.aggregated_output;
+    delete expandedSource.output;
+    return {
+      ...expandedSource,
+      id,
+      ...(actions.length > 1 ? { parentExecutionId } : {}),
+      ...(command ? { command } : {}),
+      ...(commandAction ? { commandAction } : {}),
+      ...(output ? { output } : {}),
+    };
+  });
+}
+
+function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  const hasNestedItem = readToolCallRecord(record.item) !== null;
+  const source = resolveCodexToolSourceRecord(record);
   const type = normalizeToolCallName(readNonEmptyString(source.type));
   const action = readToolCallRecord(source.action);
 
   if (type === 'local_shell_call') {
+    const workingDirectory = readNonEmptyString(action?.workingDirectory)
+      || readNonEmptyString(action?.working_directory);
     return {
       ...source,
       name: 'shell_command',
       arguments: action ?? source.action,
       command: action?.command,
+      ...(workingDirectory ? { workingDirectory } : {}),
     };
   }
   if (type === 'command_execution') {
+    const workingDirectory = readNonEmptyString(source.workingDirectory)
+      || readNonEmptyString(source.cwd);
+    const processId = readNonEmptyString(source.processId)
+      || readNonEmptyString(source.process_id);
+    const parentExecutionId = readNonEmptyString(source.parentExecutionId)
+      || readNonEmptyString(source.commandExecutionItemId);
+    const exitCode = readFiniteNumber(source.exitCode)
+      ?? readFiniteNumber(source.exit_code);
+    const commandAction = normalizeCodexCommandAction(source.commandAction);
+    const output = source.output ?? source.aggregatedOutput ?? source.aggregated_output;
     return {
       ...source,
       name: 'shell_command',
       arguments: { command: source.command },
-      output: source.aggregatedOutput ?? source.aggregated_output,
+      ...(output !== undefined ? { output } : {}),
+      ...(workingDirectory ? { workingDirectory } : {}),
+      ...(processId ? { processId } : {}),
+      ...(parentExecutionId ? { parentExecutionId } : {}),
+      ...(exitCode !== undefined ? { exitCode } : {}),
+      ...(commandAction ? { commandAction } : {}),
     };
   }
   if (type === 'file_change') {
@@ -626,7 +787,7 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
     };
   }
 
-  return item || [
+  return hasNestedItem || [
     'custom_tool_call',
     'function_call',
     'mcp_tool_call',
@@ -1216,6 +1377,9 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
       ...record,
       id: record.tool_id ?? record.id,
       name: readNonEmptyString(record.tool_name) || 'tool',
+      ...(record.arguments !== undefined || record.parameters !== undefined
+        ? { arguments: record.arguments ?? record.parameters }
+        : {}),
       ...(error !== undefined ? { error } : {}),
       output: record.output,
       status: record.status ?? (error !== undefined ? 'error' : 'completed'),
@@ -1376,6 +1540,54 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
   return null;
 }
 
+function adaptOpenAiCompatibleToolRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (readToolCallRecord(record.function)) {
+    return record;
+  }
+
+  const type = normalizeToolCallName(readNonEmptyString(record.type));
+  if (type === 'function_call') {
+    return {
+      ...record,
+      id: record.call_id ?? record.callId ?? record.id,
+      name: readNonEmptyString(record.name) || 'tool',
+      arguments: record.arguments ?? record.input,
+    };
+  }
+  if (type === 'function_call_output') {
+    return {
+      ...record,
+      id: record.call_id ?? record.callId ?? record.id,
+      name: readNonEmptyString(record.name)
+        || readNonEmptyString(record.tool_name)
+        || 'tool',
+      output: record.output ?? record.content,
+      status: record.status ?? 'completed',
+    };
+  }
+
+  const role = normalizeToolCallName(readNonEmptyString(record.role));
+  const toolCallId = readNonEmptyString(record.tool_call_id)
+    || readNonEmptyString(record.toolCallId);
+  if ((role === 'tool' || role === 'tool_result') && toolCallId) {
+    return {
+      ...record,
+      id: toolCallId,
+      name: readNonEmptyString(record.tool_name)
+        || readNonEmptyString(record.toolName)
+        || readNonEmptyString(record.name)
+        || 'tool',
+      output: record.output ?? record.content,
+      status: record.status ?? (record.isError === true ? 'failed' : 'completed'),
+      type: 'function_call_output',
+    };
+  }
+
+  return null;
+}
+
 const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS: readonly AgentSessionItemToolProtocolAdapter[] = [
   {
     id: 'opencode.part',
@@ -1395,9 +1607,7 @@ const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS: readonly AgentSessionItemToolPr
   },
   {
     id: 'openai.function',
-    adapt(record) {
-      return readToolCallRecord(record.function) ? record : null;
-    },
+    adapt: adaptOpenAiCompatibleToolRecord,
   },
   {
     id: 'canonical',
@@ -1615,6 +1825,7 @@ function parseArgumentsRecord(argumentsText: string): Record<string, unknown> | 
 function resolveMcpIdentity(
   record: Record<string, unknown>,
   name: string,
+  engineId?: string,
 ): { serverName?: string; toolName: string } {
   const serverName = readFirstString(record, [
     'server',
@@ -1628,12 +1839,16 @@ function resolveMcpIdentity(
   const mcpIdentityName = semanticName || name;
   const mcpNameMatch = /^mcp__(.+?)__(.+)$/iu.exec(mcpIdentityName)
     ?? /^mcp[.:/](.+?)[.:/](.+)$/iu.exec(mcpIdentityName);
+  const openClawBundleNameMatch = engineId?.trim().toLowerCase() === 'openclaw'
+    ? /^(.+?)__(.+)$/u.exec(mcpIdentityName)
+    : null;
+  const resolvedNameMatch = mcpNameMatch ?? openClawBundleNameMatch;
 
   return {
-    ...(serverName || mcpNameMatch?.[1]
-      ? { serverName: serverName || mcpNameMatch?.[1] }
+    ...(serverName || resolvedNameMatch?.[1]
+      ? { serverName: serverName || resolvedNameMatch?.[1] }
       : {}),
-    toolName: explicitToolName || (semanticName ? name : mcpNameMatch?.[2]) || name,
+    toolName: explicitToolName || (semanticName ? name : resolvedNameMatch?.[2]) || name,
   };
 }
 
@@ -1641,6 +1856,7 @@ function resolveToolCallKind(
   record: Record<string, unknown>,
   name: string,
   type: string,
+  engineId?: string,
 ): AgentSessionItemToolCallKind {
   const normalizedName = normalizeToolCallName(name);
   const normalizedSemanticName = normalizeToolCallName(
@@ -1648,6 +1864,8 @@ function resolveToolCallKind(
   );
   const normalizedNames = [normalizedName, normalizedSemanticName].filter(Boolean);
   const normalizedType = normalizeToolCallName(type);
+  const isOpenClawBundledMcp = engineId?.trim().toLowerCase() === 'openclaw'
+    && normalizedNames.some((candidate) => /^.+?__.+$/u.test(candidate));
   if (['approval_request', 'permission_denied', 'tool_call_confirmation'].includes(normalizedType)) {
     return 'approval';
   }
@@ -1666,6 +1884,7 @@ function resolveToolCallKind(
     || normalizedNames.some((candidate) => candidate.startsWith('mcp__'))
     || normalizedNames.some((candidate) => candidate.startsWith('mcp_'))
     || readFirstString(record, ['server', 'serverName', 'server_name', 'mcpServer'])
+    || isOpenClawBundledMcp
   ) {
     return 'mcp';
   }
@@ -1765,6 +1984,10 @@ function resolveToolCallStatus(record: Record<string, unknown>): AgentSessionIte
       record.result ?? record.output ?? stateRecord?.result ?? stateRecord?.output,
     )
     || ['error', 'failed', 'failure'].includes(status)
+    || (
+      (readFiniteNumber(record.exitCode) ?? readFiniteNumber(record.exit_code)) !== undefined
+      && (readFiniteNumber(record.exitCode) ?? readFiniteNumber(record.exit_code)) !== 0
+    )
   ) {
     return 'error';
   }
@@ -1854,9 +2077,9 @@ export function normalizeAgentSessionItemToolCall(
   }
 
   const type = resolveToolCallType(record);
-  const kind = resolveToolCallKind(record, name ?? 'tool', type);
+  const kind = resolveToolCallKind(record, name ?? 'tool', type, options.engineId);
   const mcpIdentity = kind === 'mcp'
-    ? resolveMcpIdentity(record, name ?? 'tool')
+    ? resolveMcpIdentity(record, name ?? 'tool', options.engineId)
     : null;
   const normalizedName = mcpIdentity?.toolName ?? name ?? 'tool';
   const argumentsRecord = parseArgumentsRecord(argumentsText);
@@ -1871,6 +2094,14 @@ export function normalizeAgentSessionItemToolCall(
   const protocolStatus = resolveToolCallStatus(record);
   const title = resolveToolCallTitle(record);
   const durationMs = resolveToolCallDurationMs(record);
+  const exitCode = readFiniteNumber(record.exitCode) ?? readFiniteNumber(record.exit_code);
+  const processId = readFirstString(record, ['processId', 'process_id']);
+  const workingDirectory = readFirstString(record, ['workingDirectory', 'cwd']);
+  const parentExecutionId = readFirstString(
+    record,
+    ['parentExecutionId', 'commandExecutionItemId'],
+  );
+  const commandAction = normalizeCodexCommandAction(record.commandAction);
   const presentation = readNonEmptyString(record.presentation) === 'notice'
     ? 'notice' as const
     : undefined;
@@ -1905,6 +2136,11 @@ export function normalizeAgentSessionItemToolCall(
     ...(mcpIdentity?.serverName ? { serverName: mcpIdentity.serverName } : {}),
     ...(title ? { title } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(exitCode !== undefined ? { exitCode } : {}),
+    ...(processId ? { processId } : {}),
+    ...(workingDirectory ? { workingDirectory } : {}),
+    ...(parentExecutionId ? { parentExecutionId } : {}),
+    ...(commandAction ? { commandAction } : {}),
     ...(presentation ? { presentation } : {}),
     ...(resultBlocks.length > 0 ? { resultBlocks } : {}),
     ...(interaction ? { interaction } : {}),
@@ -2043,6 +2279,12 @@ export function normalizeAgentSessionCommand(
     kind: 'command',
     toolName: call.name,
     toolCallId: call.id,
+    ...(call.durationMs !== undefined ? { durationMs: call.durationMs } : {}),
+    ...(call.exitCode !== undefined ? { exitCode: call.exitCode } : {}),
+    ...(call.processId ? { processId: call.processId } : {}),
+    ...(call.workingDirectory ? { workingDirectory: call.workingDirectory } : {}),
+    ...(call.parentExecutionId ? { parentExecutionId: call.parentExecutionId } : {}),
+    ...(call.commandAction ? { commandAction: call.commandAction } : {}),
   };
 }
 
@@ -2055,7 +2297,13 @@ export function normalizeAgentSessionItemToolCalls(
   }
 
   return toolCalls.flatMap((toolCall, index) => {
-    const normalizedToolCall = normalizeAgentSessionItemToolCall(toolCall, index, options);
-    return normalizedToolCall ? [normalizedToolCall] : [];
+    return expandCodexCommandExecutionRecords(toolCall, index).flatMap((expandedToolCall) => {
+      const normalizedToolCall = normalizeAgentSessionItemToolCall(
+        expandedToolCall,
+        index,
+        options,
+      );
+      return normalizedToolCall ? [normalizedToolCall] : [];
+    });
   });
 }

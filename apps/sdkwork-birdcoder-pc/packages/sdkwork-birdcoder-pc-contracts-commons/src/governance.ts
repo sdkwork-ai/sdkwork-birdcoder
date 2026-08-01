@@ -2,6 +2,8 @@ export const BIRDCODER_PERFORMANCE_BUDGETS = {
   webInteractiveMs: 3_000,
   webEntryJsBytes: 500 * 1024,
   webAnyJsAssetBytes: 700 * 1024,
+  webDeferredMonacoJsBytes: 4 * 1024 * 1024,
+  webMonacoWorkerJsBytes: 8 * 1024 * 1024,
   webPlatformRuntimeJsBytes: 560 * 1024,
   webMarkdownJsBytes: 500 * 1024,
   webCodeHighlightJsBytes: 200 * 1024,

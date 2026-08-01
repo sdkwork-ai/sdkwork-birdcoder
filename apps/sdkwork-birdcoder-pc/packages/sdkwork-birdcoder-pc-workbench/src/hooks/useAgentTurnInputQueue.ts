@@ -4,6 +4,7 @@ import type {
   AgentTurnInputQueueEntry,
   CreateAgentTurnInputQueueEntryRequest,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
+import { sha256Hash } from '@sdkwork/utils/crypto';
 import { uuid } from '@sdkwork/utils/id';
 
 import {
@@ -71,7 +72,7 @@ function createQueueRequestFingerprint(
   identityKey: string,
   request: QueueCreateRequest,
 ): string {
-  return JSON.stringify({
+  return sha256Hash(JSON.stringify({
     accessModeId: request.accessModeId?.trim() || null,
     attachmentNames: (request.attachmentNames ?? []).map((name) => name.trim()),
     content: request.content.trim(),
@@ -86,7 +87,7 @@ function createQueueRequestFingerprint(
     requestedModelId: request.requestedModelId?.trim() || null,
     runtimeBindingId: request.runtimeBindingId?.trim() || null,
     turnMode: request.turnMode,
-  });
+  }));
 }
 
 export function useAgentTurnInputQueue({
@@ -139,7 +140,6 @@ export function useAgentTurnInputQueue({
   errorRef.current = onError;
   processingPausedRef.current = disabled
     || !isActive
-    || isTurnBusy
     || Boolean(pausedQueueEntryId?.trim());
 
   const reportError = useCallback((

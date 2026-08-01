@@ -16,6 +16,11 @@ import type {
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
+  attachAgentSessionItemSourceWindow,
+  mergeAgentSessionItemSourceRecords,
+  readAgentSessionItemSourceRecords,
+} from '../services/agentSessionItemSourceWindow.ts';
+import {
   loadAgentSessionView,
   toAgentSessionViewFromActivitySummary,
   toAgentSessionTranscriptItemViews,
@@ -952,21 +957,54 @@ async function refreshAgentSessionItemsWithoutTimeout({
         existingAgentSession?.itemPageInfo,
         latestItemWindow.itemPageInfo,
       );
-  const agentSession = existingAgentSession
+  const refreshedSourceRecords = readAgentSessionItemSourceRecords(refreshedAgentSession);
+  const existingSourceRecords = existingAgentSession
+    ? readAgentSessionItemSourceRecords(existingAgentSession)
+    : undefined;
+  const hasUntrackedExistingAuthority = Boolean(existingAgentSession?.items.some(
+    (item) => !isTransientSessionItem(item),
+  )) && existingSourceRecords === undefined;
+  const canReprojectSourceWindow = refreshedSourceRecords !== undefined
+    && (
+      latestItemWindow.replaceLoadedAuthorityWindow
+      || !existingAgentSession
+      || existingSourceRecords !== undefined
+      || !hasUntrackedExistingAuthority
+    );
+  const combinedSourceRecords = canReprojectSourceWindow
+    ? latestItemWindow.replaceLoadedAuthorityWindow || existingSourceRecords === undefined
+      ? refreshedSourceRecords
+      : mergeAgentSessionItemSourceRecords(
+          existingSourceRecords,
+          refreshedSourceRecords,
+          normalizedSessionId,
+        )
+    : undefined;
+  const sourceWindowItems = combinedSourceRecords
+    ? mergeResetSessionItemWindow(
+        retainTransientSessionItems(existingAgentSession?.items ?? []),
+        normalizeSessionItemRecords(combinedSourceRecords, refreshedAgentSession),
+      )
+    : undefined;
+  const nextAgentSession = existingAgentSession
     ? {
         ...refreshedAgentSession,
         itemPageInfo,
-        items: latestItemWindow.replaceLoadedAuthorityWindow
-          ? mergeResetSessionItemWindow(
-              retainedExistingItems,
-              refreshedAgentSession.items,
-            )
-          : mergeLatestAgentSessionItems(
-              retainedExistingItems,
-              refreshedAgentSession.items,
-            ),
+        items: sourceWindowItems
+          ?? (latestItemWindow.replaceLoadedAuthorityWindow
+            ? mergeResetSessionItemWindow(
+                retainedExistingItems,
+                refreshedAgentSession.items,
+              )
+            : mergeLatestAgentSessionItems(
+                retainedExistingItems,
+                refreshedAgentSession.items,
+              )),
       }
     : refreshedAgentSession;
+  const agentSession = combinedSourceRecords
+    ? attachAgentSessionItemSourceWindow(nextAgentSession, combinedSourceRecords)
+    : nextAgentSession;
   return {
     agentSessionId: normalizedSessionId,
     agentSession,
@@ -1042,18 +1080,38 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
       requestedCursor,
       requestSignal,
     );
+    const existingSourceRecords = readAgentSessionItemSourceRecords(currentAgentSession);
+    const combinedSourceRecords = existingSourceRecords
+      ? mergeAgentSessionItemSourceRecords(
+          itemPage.items,
+          existingSourceRecords,
+          normalizedSessionId,
+        )
+      : undefined;
     const historicalItems = normalizeSessionItemRecords(itemPage.items, currentAgentSession);
-    const items = prependHistoricalSessionItems(currentAgentSession.items, historicalItems);
+    const items = combinedSourceRecords
+      ? mergeResetSessionItemWindow(
+          retainTransientSessionItems(currentAgentSession.items),
+          normalizeSessionItemRecords(combinedSourceRecords, currentAgentSession),
+        )
+      : prependHistoricalSessionItems(currentAgentSession.items, historicalItems);
     const addedItemCount = Math.max(0, items.length - currentAgentSession.items.length);
+    const addedSourceItemCount = combinedSourceRecords && existingSourceRecords
+      ? Math.max(0, combinedSourceRecords.length - existingSourceRecords.length)
+      : 0;
     loadedItemCount += addedItemCount;
-    currentAgentSession = {
+    const nextAgentSession = {
       ...currentAgentSession,
       itemPageInfo: itemPage.pageInfo,
       items,
     };
-    duplicateOnlyPageCount = addedItemCount > 0 ? 0 : duplicateOnlyPageCount + 1;
+    currentAgentSession = combinedSourceRecords
+      ? attachAgentSessionItemSourceWindow(nextAgentSession, combinedSourceRecords)
+      : nextAgentSession;
+    const pageMadeProgress = addedItemCount > 0 || addedSourceItemCount > 0;
+    duplicateOnlyPageCount = pageMadeProgress ? 0 : duplicateOnlyPageCount + 1;
     if (
-      addedItemCount > 0
+      pageMadeProgress
       || !itemPage.pageInfo.hasMore
       || duplicateOnlyPageCount >= AGENT_SESSION_EARLIER_DUPLICATE_PAGE_LIMIT
     ) {

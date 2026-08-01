@@ -14,8 +14,8 @@ const EMPTY_QUEUED_AGENT_TURN_INPUTS: readonly WorkbenchQueuedAgentTurnInput[] =
   Object.freeze([]);
 export const MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE = 32;
 export const MAX_QUEUED_AGENT_TURN_INPUT_SCOPES = 32;
-const MAX_QUEUED_AGENT_TURN_INPUT_STORED_CHARACTERS_PER_SCOPE = 4 * 1_048_576;
-const MAX_QUEUED_AGENT_TURN_INPUT_STORED_CHARACTERS_TOTAL = 16 * 1_048_576;
+export const MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE = 4 * 1_048_576;
+export const MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_TOTAL = 16 * 1_048_576;
 
 const agentTurnInputQueues = new Map<
   string,
@@ -25,62 +25,86 @@ const agentTurnInputQueueListeners = new Map<
   string,
   Set<AgentTurnInputQueueListener>
 >();
+const agentTurnInputQueueStoredBytes = new Map<string, number>();
+let totalAgentTurnInputQueueStoredBytes = 0;
 
 function normalizeAgentTurnInputQueueKey(key: string | null | undefined): string {
   return typeof key === 'string' ? key.trim() : '';
 }
 
-function countStoredCharacters(input: WorkbenchQueuedAgentTurnInput): number {
-  return input.content.length
-    + input.displayText.length
-    + input.contentType.length
-    + input.attachmentNames.reduce((total, name) => total + name.length, 0)
-    + input.driveRefs.reduce(
-      (total, driveRef) => total
-        + driveRef.resourceRole.length
-        + driveRef.driveSpaceId.length
-        + driveRef.driveNodeId.length,
-      0,
-    )
-    + (input.runtimeBindingId?.length ?? 0)
-    + (input.requestedModelId?.length ?? 0)
-    + (input.accessModeId?.length ?? 0)
-    + input.idempotencyKey.length
-    + input.payloadHash.length
-    + input.clientRequestId.length;
+function getUtf8ByteLength(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+  let byteLength = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const codePoint = value.codePointAt(index) ?? 0;
+    if (codePoint <= 0x7f) {
+      byteLength += 1;
+    } else if (codePoint <= 0x7ff) {
+      byteLength += 2;
+    } else if (codePoint <= 0xffff) {
+      byteLength += 3;
+    } else {
+      byteLength += 4;
+      index += 1;
+    }
+  }
+  return byteLength;
 }
 
-function normalizeProjection(
-  inputs: readonly WorkbenchQueuedAgentTurnInput[],
-): readonly WorkbenchQueuedAgentTurnInput[] {
-  if (inputs.length > MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
-    throw new RangeError(
-      `Agent Turn input queue supports at most ${MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE} entries.`,
-    );
+function countStoredBytes(input: WorkbenchQueuedAgentTurnInput): number {
+  let storedBytes = getUtf8ByteLength(input.queueEntryId)
+    + getUtf8ByteLength(input.sessionId)
+    + getUtf8ByteLength(input.agentId)
+    + getUtf8ByteLength(input.content)
+    + getUtf8ByteLength(input.displayText)
+    + getUtf8ByteLength(input.contentType)
+    + getUtf8ByteLength(input.turnMode)
+    + getUtf8ByteLength(input.runtimeBindingId)
+    + getUtf8ByteLength(input.requestedModelId)
+    + getUtf8ByteLength(input.accessModeId)
+    + getUtf8ByteLength(input.idempotencyKey)
+    + getUtf8ByteLength(input.payloadHash)
+    + getUtf8ByteLength(input.clientRequestId)
+    + getUtf8ByteLength(input.position)
+    + getUtf8ByteLength(input.status)
+    + getUtf8ByteLength(input.claimOwner)
+    + getUtf8ByteLength(input.claimExpiresAt)
+    + getUtf8ByteLength(input.fencingToken)
+    + getUtf8ByteLength(input.errorCode)
+    + getUtf8ByteLength(input.errorDetail)
+    + getUtf8ByteLength(input.version)
+    + getUtf8ByteLength(input.createdAt)
+    + getUtf8ByteLength(input.updatedAt)
+    + getUtf8ByteLength(input.claimedAt)
+    + getUtf8ByteLength(input.failedAt);
+  for (const attachmentName of input.attachmentNames) {
+    storedBytes += getUtf8ByteLength(attachmentName);
   }
+  for (const driveRef of input.driveRefs) {
+    storedBytes += getUtf8ByteLength(driveRef.resourceRole)
+      + getUtf8ByteLength(driveRef.driveSpaceId)
+      + getUtf8ByteLength(driveRef.driveNodeId);
+  }
+  return storedBytes;
+}
 
-  const queueEntryIds = new Set<string>();
-  let storedCharacters = 0;
-  const projection = inputs.map((input) => {
-    const queueEntryId = input.queueEntryId.trim();
-    if (!queueEntryId || queueEntryIds.has(queueEntryId)) {
-      throw new Error('Agent Turn input queue projection contains an invalid or duplicate entry ID.');
-    }
-    queueEntryIds.add(queueEntryId);
-    storedCharacters += countStoredCharacters(input);
-    if (storedCharacters > MAX_QUEUED_AGENT_TURN_INPUT_STORED_CHARACTERS_PER_SCOPE) {
-      throw new RangeError('Agent Turn input queue projection exceeds its Session memory budget.');
-    }
-    return Object.freeze({
-      ...input,
-      attachmentNames: Object.freeze([...input.attachmentNames]),
-      driveRefs: Object.freeze(input.driveRefs.map((driveRef) => Object.freeze({ ...driveRef }))),
-    }) as WorkbenchQueuedAgentTurnInput;
-  });
+function areStringArraysEqual(
+  first: readonly string[],
+  second: readonly string[],
+): boolean {
+  return first.length === second.length
+    && first.every((value, index) => value === second[index]);
+}
 
-  return projection.length > 0
-    ? Object.freeze(projection)
-    : EMPTY_QUEUED_AGENT_TURN_INPUTS;
+function areDriveRefsEqual(
+  first: WorkbenchAgentTurnDriveRef,
+  second: WorkbenchAgentTurnDriveRef,
+): boolean {
+  return first.resourceRole === second.resourceRole
+    && first.driveSpaceId === second.driveSpaceId
+    && first.driveNodeId === second.driveNodeId;
 }
 
 function areEntriesEqual(
@@ -88,10 +112,92 @@ function areEntriesEqual(
   second: WorkbenchQueuedAgentTurnInput,
 ): boolean {
   return first.queueEntryId === second.queueEntryId
-    && first.version === second.version
-    && first.status === second.status
+    && first.sessionId === second.sessionId
+    && first.agentId === second.agentId
+    && first.content === second.content
+    && first.displayText === second.displayText
+    && first.contentType === second.contentType
+    && areStringArraysEqual(first.attachmentNames, second.attachmentNames)
+    && first.driveRefs.length === second.driveRefs.length
+    && first.driveRefs.every((driveRef, index) => {
+      const nextDriveRef = second.driveRefs[index];
+      return Boolean(nextDriveRef && areDriveRefsEqual(driveRef, nextDriveRef));
+    })
+    && first.turnMode === second.turnMode
+    && first.runtimeBindingId === second.runtimeBindingId
+    && first.requestedModelId === second.requestedModelId
+    && first.accessModeId === second.accessModeId
+    && first.idempotencyKey === second.idempotencyKey
+    && first.payloadHash === second.payloadHash
+    && first.clientRequestId === second.clientRequestId
     && first.position === second.position
-    && first.updatedAt === second.updatedAt;
+    && first.status === second.status
+    && first.claimOwner === second.claimOwner
+    && first.claimExpiresAt === second.claimExpiresAt
+    && first.fencingToken === second.fencingToken
+    && first.errorCode === second.errorCode
+    && first.errorDetail === second.errorDetail
+    && first.version === second.version
+    && first.createdAt === second.createdAt
+    && first.updatedAt === second.updatedAt
+    && first.claimedAt === second.claimedAt
+    && first.failedAt === second.failedAt;
+}
+
+interface NormalizedProjection {
+  projection: readonly WorkbenchQueuedAgentTurnInput[];
+  storedBytes: number;
+}
+
+function normalizeProjection(
+  inputs: readonly WorkbenchQueuedAgentTurnInput[],
+  previousProjection: readonly WorkbenchQueuedAgentTurnInput[],
+): NormalizedProjection {
+  if (inputs.length > MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE) {
+    throw new RangeError(
+      `Agent Turn input queue supports at most ${MAX_QUEUED_AGENT_TURN_INPUTS_PER_SCOPE} entries.`,
+    );
+  }
+
+  const queueEntryIds = new Set<string>();
+  let storedBytes = 0;
+  let isUnchanged = inputs.length === previousProjection.length;
+  for (let index = 0; index < inputs.length; index += 1) {
+    const input = inputs[index];
+    if (!input) {
+      throw new Error('Agent Turn input queue projection contains a missing entry.');
+    }
+    const queueEntryId = input.queueEntryId.trim();
+    if (!queueEntryId || queueEntryIds.has(queueEntryId)) {
+      throw new Error('Agent Turn input queue projection contains an invalid or duplicate entry ID.');
+    }
+    queueEntryIds.add(queueEntryId);
+    storedBytes += countStoredBytes(input);
+    if (storedBytes > MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE) {
+      throw new RangeError('Agent Turn input queue projection exceeds its Session UTF-8 byte budget.');
+    }
+    isUnchanged = isUnchanged && Boolean(
+      previousProjection[index]
+      && areEntriesEqual(previousProjection[index], input),
+    );
+  }
+
+  if (isUnchanged) {
+    return { projection: previousProjection, storedBytes };
+  }
+
+  const projection = inputs.map((input) => Object.freeze({
+      ...input,
+      attachmentNames: Object.freeze([...input.attachmentNames]),
+      driveRefs: Object.freeze(input.driveRefs.map((driveRef) => Object.freeze({ ...driveRef }))),
+    }) as WorkbenchQueuedAgentTurnInput);
+
+  return {
+    projection: projection.length > 0
+      ? Object.freeze(projection)
+      : EMPTY_QUEUED_AGENT_TURN_INPUTS,
+    storedBytes,
+  };
 }
 
 function getSnapshot(key: string): readonly WorkbenchQueuedAgentTurnInput[] {
@@ -130,14 +236,9 @@ export function setWorkbenchQueuedAgentTurnInputs(
   }
 
   const previousProjection = getSnapshot(normalizedKey);
-  const nextProjection = normalizeProjection(inputs);
-  if (
-    previousProjection.length === nextProjection.length
-    && previousProjection.every((entry, index) => {
-      const nextEntry = nextProjection[index];
-      return Boolean(nextEntry && areEntriesEqual(entry, nextEntry));
-    })
-  ) {
+  const normalizedProjection = normalizeProjection(inputs, previousProjection);
+  const { projection: nextProjection, storedBytes: nextStoredBytes } = normalizedProjection;
+  if (previousProjection === nextProjection) {
     return previousProjection;
   }
 
@@ -152,31 +253,24 @@ export function setWorkbenchQueuedAgentTurnInputs(
     );
   }
 
-  const retainedCharacters = [...agentTurnInputQueues.entries()].reduce(
-    (total, [scopeKey, entries]) => scopeKey === normalizedKey
-      ? total
-      : total + entries.reduce(
-        (entryTotal, entry) => entryTotal + countStoredCharacters(entry),
-        0,
-      ),
-    0,
-  );
-  const nextCharacters = nextProjection.reduce(
-    (total, entry) => total + countStoredCharacters(entry),
-    0,
-  );
+  const previousStoredBytes = agentTurnInputQueueStoredBytes.get(normalizedKey) ?? 0;
+  const nextTotalStoredBytes = totalAgentTurnInputQueueStoredBytes
+    - previousStoredBytes
+    + nextStoredBytes;
   if (
-    retainedCharacters + nextCharacters
-    > MAX_QUEUED_AGENT_TURN_INPUT_STORED_CHARACTERS_TOTAL
+    nextTotalStoredBytes > MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_TOTAL
   ) {
-    throw new RangeError('Agent Turn input queue projections exceed their global memory budget.');
+    throw new RangeError('Agent Turn input queue projections exceed their global UTF-8 byte budget.');
   }
 
   if (nextProjection.length > 0) {
     agentTurnInputQueues.set(normalizedKey, nextProjection);
+    agentTurnInputQueueStoredBytes.set(normalizedKey, nextStoredBytes);
   } else {
     agentTurnInputQueues.delete(normalizedKey);
+    agentTurnInputQueueStoredBytes.delete(normalizedKey);
   }
+  totalAgentTurnInputQueueStoredBytes = nextTotalStoredBytes;
   emitSnapshot(normalizedKey);
   return nextProjection;
 }
@@ -224,6 +318,8 @@ export function removeWorkbenchQueuedAgentTurnInputProjection(
 export function clearWorkbenchAgentTurnInputQueueMemory(): void {
   const changedKeys = [...agentTurnInputQueues.keys()];
   agentTurnInputQueues.clear();
+  agentTurnInputQueueStoredBytes.clear();
+  totalAgentTurnInputQueueStoredBytes = 0;
   changedKeys.forEach(emitSnapshot);
 }
 

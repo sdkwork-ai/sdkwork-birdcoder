@@ -53,6 +53,13 @@ acceptance uses the claim token, expected version, and fencing token to fail the
 entry once. The next claim after completed dispatch performs reconciliation and
 continues FIFO execution.
 
+BirdCoder generates `queueEntryId` before create and reuses it when the same
+logical create action is retried after an uncertain transport failure. A
+different request receives a different ID, and a successful create retires the
+pending attempt. Queue replay and the existing Turn `idempotencyKey +
+payloadHash` replay together prevent duplicate accepted Turns even when a
+response is lost near reconciliation.
+
 Clear deletes queued and failed entries while preserving executing work.
 Executing entries reject update, reorder, retry, and delete. Deleting a Session
 removes its nested queue. Logout clears only BirdCoder's disposable projection;
@@ -60,10 +67,16 @@ durable records remain owner-scoped and reappear after authenticated startup or
 reconnect hydration.
 
 BirdCoder retains a bounded in-process projection for rendering: at most 32
-entries per Session, 32 Session scopes, 4 MiB per Session, and 16 MiB total.
+entries per Session, 32 Session scopes, 4 MiB of UTF-8 string data per Session,
+and 16 MiB total. Per-scope byte totals and one global total make an update
+linear in the changed scope instead of all retained scopes.
 Startup, focus, visibility, connectivity, and cross-window invalidation refresh
 from Agents. `BroadcastChannel` carries only Agent/Session/source identities.
-A generation fence discards late work after Session identity changes.
+A Session generation fence discards work after identity changes; a hydration
+request sequence makes same-Session refresh latest-wins, and a projection
+mutation epoch prevents an older list response from overwriting a local
+authoritative mutation or claim result. Editing any queue entry pauses this
+window before its next claim, then processing resumes when editing ends.
 
 ## Alternatives
 
@@ -112,8 +125,10 @@ aggregate rather than an infrastructure job payload.
 - BirdCoder service tests prove generated SDK usage, nested identity validation,
   and authoritative idempotency propagation.
 - Workbench Hook tests cover restart hydration, serial completion, uncertain
-  delivery, rejected dispatch, blocked heads, broadcast refresh, and Session
-  generation isolation.
+  delivery, rejected dispatch, blocked heads, broadcast refresh, Session and
+  same-Session refresh isolation, mutation fencing, edit pause/resume, and
+  stable create retry identity. Projection tests cover exact UTF-8 and
+  incremental global budgets plus complete snapshot equality.
 - PC TypeScript, architecture, local-storage, E2E restart/multi-window, lint,
   and production build gates remain required.
 

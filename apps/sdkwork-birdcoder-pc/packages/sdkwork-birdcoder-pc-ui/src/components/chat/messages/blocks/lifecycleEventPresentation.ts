@@ -46,6 +46,9 @@ export function resolveLifecycleEventLabel(
   event: AgentSessionItemLifecycleEventView,
   t?: ChatMessageTranslate,
 ): string {
+  if (event.kind === 'compacted' && event.automatic === true) {
+    return t?.('chat.lifecycleAutomaticallyCompacted') ?? 'Context automatically compacted';
+  }
   const labels = {
     blocked: t?.('chat.lifecycleBlocked') ?? 'Execution blocked',
     cancelled: t?.('chat.lifecycleCancelled') ?? 'Execution cancelled',

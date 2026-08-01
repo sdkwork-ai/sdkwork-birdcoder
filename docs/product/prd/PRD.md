@@ -200,7 +200,7 @@ Non-goals:
 | Cohesion | Every business fact has one owner with its own API, SDK, persistence, and lifecycle. |
 | Coupling | Integration uses generated owner SDKs, stable identifiers, and explicit ports. |
 | Security | Authorization fails closed; local paths, tokens, and device-state payloads do not enter server APIs or logs. |
-| Performance | Owner-side pagination is preserved; Session Item reads use keyset cursors and bounded latest/history windows; the Turn input queue and its PC projection have explicit entry and character budgets; transcript retention, provider payload traversal, and live runtime-event processing have explicit character, node, item, and frame budgets; loaded Sessions are globally filtered and sorted before render virtualization. |
+| Performance | Owner-side pagination is preserved; Session Item reads use keyset cursors and bounded latest/history windows; the Turn input queue and its PC projection have explicit entry and UTF-8 byte budgets with incremental per-scope accounting; transcript retention, provider payload traversal, and live runtime-event processing have explicit character, node, item, and frame budgets; loaded Sessions are globally filtered and sorted before render virtualization. |
 | Reliability | Missing mounts, runtime bindings, topology, unsupported composition types, and stale or unavailable activity fail closed; background refresh preserves explicit selection; queue claims are atomic, leased, fenced, and idempotent across restart, reconnect, and multiple windows. |
 | Reproducibility | API assembly and SDK generation are repeatable and generated files are not hand-edited. |
 | Operations | The gateway deploys statelessly with health, readiness, metrics, rollback, and dependency diagnostics. |

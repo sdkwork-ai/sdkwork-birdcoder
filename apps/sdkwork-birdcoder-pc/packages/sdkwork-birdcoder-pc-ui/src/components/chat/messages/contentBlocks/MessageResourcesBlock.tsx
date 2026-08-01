@@ -13,6 +13,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { ChatMessageRenderContext } from '../types.ts';
+import { InspectedImageGallery } from './InspectedImageGallery.tsx';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 
 const RESOURCE_ICON_BY_KIND = {
@@ -154,15 +155,23 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
   const openFileLabel = context.environment?.t('chat.openFileInEditor') ?? 'Open file in editor';
   const openResourceLabel = context.environment?.t('chat.openMessageResource')
     ?? 'Open message resource';
+  const inspectedImages = block.items.filter((resource) => (
+    resource.kind === 'image' && Boolean(resolveOpenableFilePath(resource))
+  ));
+  const resourceItems = block.items.filter((resource) => !inspectedImages.includes(resource));
 
   return (
-    <div
-      className="mt-2 min-w-0 divide-y divide-white/[0.06] border-y border-white/[0.06]"
-      role="list"
-      aria-label={resourcesLabel}
-      data-chat-message-resources
-    >
-      {block.items.map((resource) => {
+    <div className="mt-2 min-w-0 space-y-1" data-chat-message-resources>
+      {inspectedImages.length > 0 ? (
+        <InspectedImageGallery context={context} images={inspectedImages} />
+      ) : null}
+      {resourceItems.length > 0 ? (
+        <div
+          className="min-w-0 divide-y divide-white/[0.06] border-y border-white/[0.06]"
+          role="list"
+          aria-label={resourcesLabel}
+        >
+      {resourceItems.map((resource) => {
         const ResourceIcon = RESOURCE_ICON_BY_KIND[resource.kind];
         const kindLabel = resolveResourceKindLabel(resource, context);
         const title = resolveResourceTitle(resource, kindLabel);
@@ -279,6 +288,8 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
           </div>
         );
       })}
+        </div>
+      ) : null}
     </div>
   );
 });

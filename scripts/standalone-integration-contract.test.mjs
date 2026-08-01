@@ -118,10 +118,9 @@ assert.deepEqual(
   standaloneDesktopPlan.ownedBindings.map(({ id, value }) => ({ id, value })),
   [
     { id: 'application.public-ingress', value: '0.0.0.0:10240' },
-    { id: 'pc-web-renderer', value: '127.0.0.1:5173' },
     { id: 'pc-desktop-renderer', value: '127.0.0.1:1520' },
   ],
-  'Desktop development must register the embedded API and renderer listeners so failed or interrupted starts release both ports.',
+  'Desktop development must register only the embedded API and desktop renderer listeners so failed or interrupted starts release both ports.',
 );
 assert.deepEqual(
   standaloneServerPlan.localProcesses.map((processDefinition) => processDefinition.id),

@@ -1,8 +1,10 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { Check, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
@@ -49,8 +51,10 @@ export function ComposerAccessModeControl({
 }: ComposerAccessModeControlProps) {
   const { t } = useTranslation();
   const menuId = `composer-access-mode-${useId().replace(/:/gu, '')}`;
+  const menuRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuOffsetLeft, setMenuOffsetLeft] = useState(0);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const enabledModeIndexes = useMemo(
     () => accessModes.flatMap((mode, index) => mode.enabled ? [index] : []),
@@ -70,6 +74,36 @@ export function ComposerAccessModeControl({
     : t('chat.accessModeUnavailable');
   const SelectedIcon = selectedMode ? getAccessModeIcon(selectedMode) : ShieldQuestion;
   const isUnrestricted = selectedMode?.riskLevel === 'unrestricted';
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const updateMenuOffset = () => {
+      const menu = menuRef.current;
+      const root = rootRef.current;
+      if (!menu || !root) {
+        return;
+      }
+      const viewportGutter = 16;
+      const menuRect = menu.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const maximumLeft = Math.max(
+        viewportGutter,
+        window.innerWidth - viewportGutter - menuRect.width,
+      );
+      const viewportLeft = Math.min(
+        Math.max(rootRect.left, viewportGutter),
+        maximumLeft,
+      );
+      setMenuOffsetLeft(viewportLeft - rootRect.left);
+    };
+
+    updateMenuOffset();
+    window.addEventListener('resize', updateMenuOffset);
+    return () => window.removeEventListener('resize', updateMenuOffset);
+  }, [isOpen]);
 
   const closeAndRestoreFocus = () => {
     onOpenChange(false);
@@ -161,7 +195,10 @@ export function ComposerAccessModeControl({
   };
 
   return (
-    <div ref={rootRef} className="relative min-w-0">
+    <div
+      ref={rootRef}
+      className="relative min-w-0 max-w-[min(44vw,220px)] shrink"
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -169,7 +206,7 @@ export function ComposerAccessModeControl({
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label={t('chat.accessModeControl', { mode: selectedLabel })}
-        className={`flex h-7 max-w-[min(44vw,220px)] items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex h-7 min-w-0 max-w-full items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
           isUnrestricted
             ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 hover:text-orange-300'
             : 'text-zinc-300 hover:bg-white/10 hover:text-white'
@@ -187,11 +224,13 @@ export function ComposerAccessModeControl({
 
       {isOpen ? (
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
           aria-label={t('chat.accessModeMenu')}
-          className="absolute bottom-full left-0 z-50 mb-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-white/10 bg-[#242426] p-1.5 shadow-2xl"
+          className="absolute bottom-full z-50 mb-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-white/10 bg-[#242426] p-1.5 shadow-2xl"
           data-testid="composer-access-mode-menu"
+          style={{ left: `${menuOffsetLeft}px` }}
         >
           {accessModes.map((mode, index) => {
             const Icon = getAccessModeIcon(mode);

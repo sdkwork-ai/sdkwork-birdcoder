@@ -2,7 +2,7 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('studio/workspace', {
   studio: {
-    searchProjects: '\u641c\u7d22\u9879\u76ee...',
+    searchProjects: '\u641c\u7d22\u9879\u76ee\u6216\u4f1a\u8bdd...',
     projectSessionSwitcher: '\u9879\u76ee\u4e0e\u4f1a\u8bdd',
     closeProjectSessionSwitcher: '\u5173\u95ed\u9879\u76ee\u4e0e\u4f1a\u8bdd',
     projects: '\u9879\u76ee',

@@ -225,6 +225,7 @@ function readLifecycleKind(
 ): AgentSessionItemLifecycleEventKind | null {
   const type = normalizeProtocolType(record.type);
   const subtype = normalizeProtocolType(record.subtype);
+  const statusKind = normalizeProtocolType(record.kind);
   if (type === 'step_start' || type === 'turn_started') return 'started';
   if (type === 'step_finish' || type === 'turn_completed' || type === 'finished') return 'completed';
   if (type === 'retry' || type === 'rate_limit_event') return 'retrying';
@@ -233,6 +234,10 @@ function readLifecycleKind(
     || type === 'chat_compressed'
     || type === 'context_compaction'
     || (type === 'system' && subtype === 'compact_boundary')
+    || (
+      type === 'status_update'
+      && ['compacting', 'compressing'].includes(statusKind)
+    )
   ) return 'compacted';
   if (type === 'snapshot') return 'checkpoint';
   if (type === 'agent_execution_blocked' || type === 'context_window_will_overflow') return 'blocked';
@@ -306,7 +311,12 @@ function readLifecycleDetail(
 ): string {
   const value = readRecord(record.value);
   if (kind === 'compacted') {
-    return readCompressionDetail(record);
+    return readCompressionDetail(record)
+      || readFirstString(
+        value ?? record,
+        ['detail', 'text', 'message'],
+        MAX_LIFECYCLE_DETAIL_CHARACTERS,
+      );
   }
   if (kind === 'checkpoint') {
     return readFirstString(record, ['snapshot'], 512);
@@ -358,7 +368,18 @@ function normalizeLifecycleEvent(
   const durationMs = readDurationMs(record);
   const cost = readFirstNumber(record, ['cost', 'totalCostUsd', 'total_cost_usd']);
   const usage = readUsage(record);
-  const automatic = typeof record.auto === 'boolean' ? record.auto : undefined;
+  const recordType = normalizeProtocolType(record.type);
+  const automatic = typeof record.auto === 'boolean'
+    ? record.auto
+    : kind === 'compacted' && (
+      ['chat_compressed', 'context_compaction'].includes(recordType)
+      || (
+        recordType === 'status_update'
+        && ['compacting', 'compressing'].includes(normalizeProtocolType(record.kind))
+      )
+    )
+      ? true
+      : undefined;
   return {
     id,
     kind,

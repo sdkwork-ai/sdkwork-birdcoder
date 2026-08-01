@@ -6,6 +6,10 @@ import type {
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../src/services/interfaces/IProjectService.ts';
+import {
+  attachAgentSessionItemSourceWindow,
+  readAgentSessionItemSourceRecords,
+} from '../src/services/agentSessionItemSourceWindow.ts';
 import type {
   AgentSessionActivitySummaryRecord,
   AgentSessionItemRecord,
@@ -417,6 +421,88 @@ describe('Agent Session transcript pagination', () => {
         sort: '-sequence',
       },
     ]);
+  });
+
+  it('replays an OpenCode delta when its full part snapshot arrives on an earlier page', async () => {
+    const providerSessionId = 'opencode-provider-session-history';
+    const providerMessageId = 'opencode-message-history';
+    const providerPartId = 'opencode-part-history';
+    const eventItem = (
+      sequence: number,
+      event: Record<string, unknown>,
+    ): AgentSessionItemRecord => ({
+      ...transcriptItemRecord(sequence),
+      content: null,
+      contentType: 'application/json',
+      kind: 'tool_result',
+      providerId: 'opencode',
+      toolCallId: `opencode-event-${sequence}`,
+      toolName: 'provider_event',
+      toolResult: event,
+    });
+    const snapshot = eventItem(1, {
+      type: 'message.part.updated',
+      properties: {
+        part: {
+          id: providerPartId,
+          messageID: providerMessageId,
+          sessionID: providerSessionId,
+          text: 'Hello',
+          type: 'text',
+        },
+        sessionID: providerSessionId,
+        time: 1_785_568_800_001,
+      },
+    });
+    const delta = eventItem(2, {
+      type: 'message.part.delta',
+      properties: {
+        delta: ' world',
+        field: 'text',
+        messageID: providerMessageId,
+        partID: providerPartId,
+        sessionID: providerSessionId,
+      },
+    });
+    const selectedSession = attachAgentSessionItemSourceWindow(transcriptSession({
+      engineId: 'opencode',
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'opaque-opencode-history-cursor',
+        pageSize: 50,
+      },
+      items: [],
+      providerId: 'opencode',
+    }), [delta]);
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: [snapshot],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
+
+    const result = await loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    });
+
+    expect(result.loadedItemCount).toBe(1);
+    expect(result.agentSession.items).toHaveLength(1);
+    expect(result.agentSession.items[0]?.content).toBe('Hello world');
+    expect(readAgentSessionItemSourceRecords(result.agentSession)?.map((item) => item.sequence))
+      .toEqual(['1', '2']);
+    expect(listSessionItems).toHaveBeenCalledWith(
+      { agentId: transcriptAgentId, sessionId: transcriptSessionId },
+      {
+        cursor: 'opaque-opencode-history-cursor',
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   it('preserves the oldest loaded cursor when concurrent head items overlap the window', async () => {

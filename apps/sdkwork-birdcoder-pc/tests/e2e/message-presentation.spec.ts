@@ -88,6 +88,24 @@ async function selectSessionByTitle(page: Page, title: string): Promise<void> {
   }
 }
 
+async function selectWorkSessionById(
+  page: Page,
+  sessionId: string,
+  title: string,
+): Promise<void> {
+  const sessionRow = page.locator(
+    `[data-work-sidebar-section="tasks"] [data-agent-session-id="${sessionId}"]`,
+  ).filter({ hasText: title }).first();
+  await expect(sessionRow).toBeVisible();
+  if ((await sessionRow.getAttribute('data-session-selected')) !== 'true') {
+    const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    await sessionRow.getByRole('button', {
+      name: new RegExp(`^${escapedTitle} \\|`, 'u'),
+    }).click();
+  }
+  await expect(sessionRow).toHaveAttribute('data-session-selected', 'true');
+}
+
 async function selectStudioSessionByTitle(page: Page, title: string): Promise<void> {
   const sessionPicker = page.locator('[data-studio-chat-header="true"] button').filter({
     hasText: '/',
@@ -309,7 +327,7 @@ test('Conversation messages render rich content and expandable command evidence'
 
   const activitySummary = transcript.locator('[data-chat-activity-summary="inline"]');
   await expect(activitySummary).toHaveCount(1);
-  await expect(activitySummary).toContainText('Edited files, ran commands');
+  await expect(activitySummary).toContainText('Edited files, ran a command');
   await expect(activitySummary).toHaveAttribute('data-chat-engine', 'claude-code');
   await expect(activitySummary).toHaveAttribute('data-chat-activity-kind', 'files-and-commands');
   await expect(activitySummary).toContainText('+131');
@@ -419,9 +437,7 @@ test('Conversation messages render rich content and expandable command evidence'
   await filePreviewPage.close();
 
   expect(pageErrors).toEqual([]);
-  expect(consoleErrors.filter((entry) => (
-    /markdown|transcript|command|undefined.*map/iu.test(entry)
-  ))).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });
 
 test('Codex user input preserves text, images, and files in one message', async ({
@@ -622,9 +638,7 @@ test('Codex user input preserves text, images, and files in one message', async 
   await revealTranscriptMessage(page, transcript, earliestCodexMessage);
 
   expect(pageErrors).toEqual([]);
-  expect(consoleErrors.filter((entry) => (
-    /codex|image|attachment|undefined.*map/iu.test(entry)
-  ))).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });
 
 test('Provider lifecycle protocols share one structured expandable presentation', async ({
@@ -813,6 +827,109 @@ test('Provider lifecycle protocols share one structured expandable presentation'
     element.scrollWidth <= element.clientWidth
   ))).toBe(true);
   await captureVisualEvidenceScreenshot(page, 'message-lifecycle-gemini-900x800');
+});
+
+test('OpenClaw and Hermes durable histories render merged natural tool activity', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_200, height: 820 });
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const modeTrigger = page.locator('[data-sidebar-mode-trigger="true"]');
+  await modeTrigger.click();
+  const modeMenu = page.locator('[data-sidebar-mode-menu="true"]');
+  await expect(modeMenu).toBeVisible();
+  await modeMenu.locator('[data-sidebar-mode-option="work"]').click();
+  await expect(page.locator('[data-sidebar-brand-header="true"]')).toHaveAttribute(
+    'data-workbench-mode',
+    'work',
+  );
+
+  const transcript = page.getByRole('region', { name: 'Conversation messages' });
+  await selectWorkSessionById(
+    page,
+    'e2e-openclaw-session',
+    'OpenClaw operations plan',
+  );
+  await transcript.getByRole('button', {
+    name: /Processed.*Show execution process/u,
+  }).click();
+
+  const openClawContextGroup = transcript.locator('[data-chat-context-tool-group="true"]');
+  await expect(openClawContextGroup).toHaveCount(1);
+  await expect(openClawContextGroup).toContainText('Gathered context');
+  await expect(openClawContextGroup).toContainText('2 reads');
+  await expect(openClawContextGroup).toHaveAttribute('data-chat-context-tool-status', 'error');
+  await openClawContextGroup.locator('[data-chat-context-tool-disclosure="true"]').click();
+
+  const openClawCalls = openClawContextGroup.locator('[data-chat-tool-kind="file"]');
+  await expect(openClawCalls).toHaveCount(2);
+  const openClawSuccess = openClawCalls.filter({
+    has: page.locator('[data-chat-tool-status="success"]'),
+  });
+  const openClawFailure = openClawCalls.filter({
+    has: page.locator('[data-chat-tool-status="error"]'),
+  });
+  await expect(openClawSuccess).toHaveCount(1);
+  await expect(openClawFailure).toHaveCount(1);
+
+  await openClawSuccess.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(openClawSuccess.locator('[data-chat-tool-input-fields="true"]')).toContainText(
+    'README.md',
+  );
+  await expect(openClawSuccess.locator('[data-chat-tool-result-blocks="true"]')).toContainText(
+    'SDKWork BirdCoder provider guide',
+  );
+
+  await openClawFailure.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(openClawFailure.locator('[data-chat-tool-input-fields="true"]')).toContainText(
+    'docs/missing.md',
+  );
+  await expect(openClawFailure.locator('[data-chat-tool-result-tone="error"]')).toContainText(
+    'File not found: docs/missing.md',
+  );
+  await expect(transcript.locator(
+    '[data-chat-engine="openclaw"][data-chat-engine-protocol="openai.function"]',
+  )).not.toHaveCount(0);
+  await expect(transcript).not.toContainText('provider_history');
+  await expect(transcript).not.toContainText('toolCallId');
+  await captureVisualEvidenceScreenshot(page, 'message-tools-openclaw-1200x820');
+
+  await selectWorkSessionById(page, 'e2e-hermes-session', 'Hermes research brief');
+  await transcript.getByRole('button', {
+    name: /Processed.*Show execution process/u,
+  }).click();
+
+  const hermesMcpCall = transcript.locator('[data-chat-tool-kind="mcp"]');
+  await expect(hermesMcpCall).toHaveCount(1);
+  await expect(hermesMcpCall).toContainText('Called');
+  await expect(hermesMcpCall).toContainText('filesystem / Read file');
+  await expect(hermesMcpCall.locator('[data-chat-tool-status="success"]')).toHaveCount(1);
+  await hermesMcpCall.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(hermesMcpCall.locator('[data-chat-tool-input-fields="true"]')).toContainText(
+    'docs/providers/hermes.md',
+  );
+  await expect(hermesMcpCall.locator('[data-chat-tool-result-blocks="true"]')).toContainText(
+    'Hermes MCP provider specification',
+  );
+  await expect(transcript.locator(
+    '[data-chat-engine="hermes"][data-chat-engine-protocol="openai.function"]',
+  )).not.toHaveCount(0);
+  await expect(transcript).not.toContainText('tool_call_id');
+
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect.poll(() => transcript.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => hermesMcpCall.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await captureVisualEvidenceScreenshot(page, 'message-tools-hermes-900x800');
 });
 
 test('Studio message resources switch the reusable right-side detail surface', async ({

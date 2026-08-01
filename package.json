@@ -171,6 +171,7 @@
     "test:kernel-birdcoder-alignment-contract": "node scripts/kernel-birdcoder-alignment-contract.test.mjs",
     "check:kernel-birdcoder-alignment": "node scripts/kernel-birdcoder-alignment-contract.test.mjs",
     "check:agents-birdcoder-alignment": "node scripts/agents-birdcoder-alignment-contract.test.mjs",
+    "check:provider-protocols": "node scripts/provider-protocol-docs-contract.test.mjs && node scripts/codex-provider-live-e2e-contract.test.mjs",
     "test:iam-seed-parity-contract": "node scripts/iam-seed-parity-contract.test.mjs",
     "check:governance-regression": "node scripts/governance-regression-report.mjs",
     "check:web-bundle-budget": "node --test scripts/web-bundle-graph.test.mjs && node scripts/web-bundle-budget.test.mjs",

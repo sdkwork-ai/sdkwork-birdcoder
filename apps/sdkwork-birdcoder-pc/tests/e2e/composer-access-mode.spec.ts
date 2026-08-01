@@ -131,6 +131,32 @@ async function expectComposerActionPanelToFloat(page: Page): Promise<void> {
   await expect(addAttachmentButton).toBeFocused();
 }
 
+async function expectComposerFooterControlsNotToOverlap(page: Page): Promise<void> {
+  const controls = await page.locator(
+    '[data-testid="codex-composer-footer"]:visible',
+  ).evaluate((footer) => [...footer.querySelectorAll<HTMLElement>('button')]
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        height: rect.height,
+        left: rect.left,
+        right: rect.right,
+        width: rect.width,
+      };
+    })
+    .filter((rect) => rect.height > 0 && rect.width > 0));
+
+  expect(controls).toHaveLength(5);
+  for (let index = 1; index < controls.length; index += 1) {
+    expect(controls[index]!.left).toBeGreaterThanOrEqual(
+      controls[index - 1]!.right - 0.5,
+    );
+  }
+  expect(controls[0]!.width).toBeGreaterThanOrEqual(27.5);
+  expect(controls[controls.length - 2]!.width).toBeGreaterThanOrEqual(31.5);
+  expect(controls[controls.length - 1]!.width).toBeGreaterThanOrEqual(31.5);
+}
+
 async function installIdleCodexSessionActivity(page: Page): Promise<void> {
   await page.route(/\/app\/v3\/api\/ai\/session_activity_summaries(?:\?.*)?$/u, async (route) => {
     const response = await route.fetch();
@@ -226,14 +252,15 @@ test('composer access mode selects full access and snapshots it into the turn', 
 
   await expectComposerActionPanelToFloat(page);
 
-  await page.setViewportSize({ width: 520, height: 640 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectComposerFooterControlsNotToOverlap(page);
   await accessModeTrigger.click();
   const menuBox = await accessModeMenu.boundingBox();
   expect(menuBox).not.toBeNull();
   expect(menuBox?.x).toBeGreaterThanOrEqual(0);
-  expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(520);
+  expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(390);
   expect(menuBox?.y).toBeGreaterThanOrEqual(0);
-  expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(640);
+  expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(844);
   await page.screenshot({
     path: testInfo.outputPath('composer-access-mode-narrow.png'),
     fullPage: true,

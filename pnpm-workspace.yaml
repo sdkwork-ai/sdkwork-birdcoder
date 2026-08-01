@@ -77,6 +77,7 @@ packages:
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge"
 
 catalog:
+  "@openai/codex": 0.146.0
   "@tailwindcss/vite": ^4.1.14
   react: ^19.2.4
   react-dom: ^19.2.4

@@ -35,7 +35,14 @@ import {
   type AgentSessionUserContentProjection,
   type AgentSessionUserContentProviderIdentity,
 } from './agentSessionUserContent.ts';
+import {
+  attachAgentSessionItemSourceWindow,
+  inheritAgentSessionItemSourceWindow,
+  normalizeAgentSessionItemSourceRecords,
+  type AgentSessionItemSourceRecord,
+} from './agentSessionItemSourceWindow.ts';
 import { resolveAgentSessionProviderPayload } from './agentSessionProviderPayload.ts';
+import { replayOpenCodeSessionItemRecords } from './openCodeSessionItemReplay.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -717,6 +724,11 @@ export function toAgentSessionTranscriptItemViews(
   items: readonly AgentSessionItemRecord[],
   providerIdentity?: AgentSessionUserContentProviderIdentity,
 ): AgentSessionItemView[] {
+  const projectedItems = providerIdentity?.engineId?.trim().toLowerCase() === 'opencode'
+    ? replayOpenCodeSessionItemRecords(normalizeAgentSessionItemSourceRecords(
+        items as readonly AgentSessionItemSourceRecord[],
+      ))
+    : items;
   const transcriptItems: AgentSessionItemView[] = [];
   let consecutiveImageGroupIndex: number | null = null;
   const appendTranscriptView = (view: AgentSessionItemView): void => {
@@ -754,8 +766,8 @@ export function toAgentSessionTranscriptItemViews(
       resources: resources.length > 0 ? resources : undefined,
     };
   };
-  for (let index = 0; index < items.length;) {
-    const item = items[index]!;
+  for (let index = 0; index < projectedItems.length;) {
+    const item = projectedItems[index]!;
     if (!isCodexUserContentCarrier(item, providerIdentity)) {
       const view = toAgentSessionItemView(item, providerIdentity);
       appendTranscriptView(view);
@@ -765,14 +777,14 @@ export function toAgentSessionTranscriptItemViews(
 
     let groupEnd = index + 1;
     while (
-      groupEnd < items.length
-      && isCodexUserContentCarrier(items[groupEnd]!, providerIdentity)
-      && hasSameCodexMessageIdentity(item, items[groupEnd]!)
+      groupEnd < projectedItems.length
+      && isCodexUserContentCarrier(projectedItems[groupEnd]!, providerIdentity)
+      && hasSameCodexMessageIdentity(item, projectedItems[groupEnd]!)
     ) {
       groupEnd += 1;
     }
     const view = mergeCodexUserContentGroup(
-      items.slice(index, groupEnd),
+      projectedItems.slice(index, groupEnd),
       providerIdentity,
     );
     appendTranscriptView(view);
@@ -802,7 +814,7 @@ export function toAgentSessionView(
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
     });
   const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems, context);
-  return {
+  return attachAgentSessionItemSourceWindow({
     id: session.sessionId,
     agentId: session.agentId,
     projectId,
@@ -842,7 +854,7 @@ export function toAgentSessionView(
       && context.userState.lastReadItemSequence !== session.lastItemSequence,
     itemPageInfo: context.itemPageInfo,
     items: transcriptItems,
-  };
+  }, sessionItems);
 }
 
 function readNullableString(value: unknown): string | undefined {
@@ -1122,7 +1134,7 @@ export async function loadAgentSessionView(
     userState,
     itemPageInfo,
   }, items);
-  return {
+  return inheritAgentSessionItemSourceWindow({
     ...view,
     ...(runtimeBindingResult.failed && fallbackView
       ? {
@@ -1142,7 +1154,7 @@ export async function loadAgentSessionView(
         unread: fallbackView.unread,
       }
       : {}),
-  };
+  }, view);
 }
 
 export async function loadProjectAgentSessionPage(

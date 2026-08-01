@@ -17,6 +17,8 @@ assert.deepEqual(
     webInteractiveMs: 3_000,
     webEntryJsBytes: 500 * 1024,
     webAnyJsAssetBytes: 700 * 1024,
+    webDeferredMonacoJsBytes: 4 * 1024 * 1024,
+    webMonacoWorkerJsBytes: 8 * 1024 * 1024,
     webPlatformRuntimeJsBytes: 560 * 1024,
     webMarkdownJsBytes: 500 * 1024,
     webCodeHighlightJsBytes: 200 * 1024,
@@ -89,6 +91,16 @@ assert.equal(
   'web bundle budget gate should consume the shared largest-asset threshold.',
 );
 assert.equal(
+  webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webDeferredMonacoJsBytes'),
+  true,
+  'web bundle budget gate should consume the shared deferred Monaco chunk threshold.',
+);
+assert.equal(
+  webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webMonacoWorkerJsBytes'),
+  true,
+  'web bundle budget gate should consume the shared Monaco worker threshold.',
+);
+assert.equal(
   webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes'),
   true,
   'web bundle budget gate should consume the shared markdown-chunk threshold.',
@@ -114,6 +126,11 @@ assert.equal(
   'node scripts/governance-baseline-contract.test.ts',
   'root scripts should expose a dedicated Step 10 governance baseline gate.',
 );
+assert.equal(
+  packageJson.scripts['check:provider-protocols'],
+  'node scripts/provider-protocol-docs-contract.test.mjs && node scripts/codex-provider-live-e2e-contract.test.mjs',
+  'root scripts should expose one provider protocol and real-E2E-harness contract gate.',
+);
 
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
@@ -128,6 +145,13 @@ assert.equal(
   ),
   true,
   'root lint gate should include the canonical SDKWork IAM standard through the governed quality-fast runner.',
+);
+assert.equal(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:provider-protocols',
+  ),
+  true,
+  'root lint gate should detect provider protocol and live E2E harness drift.',
 );
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(

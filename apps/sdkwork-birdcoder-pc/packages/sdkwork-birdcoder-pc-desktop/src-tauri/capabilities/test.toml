@@ -69,6 +69,7 @@ permissions = [
   "allow-fs-list-directory",
   "allow-fs-snapshot-folder",
   "allow-fs-read-file",
+  "allow-fs-read-image-preview",
   "allow-fs-get-file-revision",
   "allow-fs-get-file-revisions",
   "allow-fs-get-directory-revisions",
