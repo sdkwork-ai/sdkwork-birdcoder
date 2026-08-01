@@ -244,9 +244,9 @@ test('Codex canonical Session claims and resolves pending interactions', async (
   const questionPrompt = page.getByRole('paragraph').filter({
     hasText: 'Which verification mode should Codex use?',
   });
-  const typedQuestionPrompt = page.getByRole('paragraph').filter({
-    hasText: 'Which typed verification strategy should Codex use?',
-  });
+  const typedQuestionPrompt = page.locator(
+    `[data-codex-interaction-id="${typedQuestionInteractionId}"]`,
+  );
   await expect(approvalPrompt).toBeVisible();
   await expect(typedApprovalPrompt).toBeVisible();
   await expect(questionPrompt).toBeVisible();
@@ -330,9 +330,7 @@ test('Codex canonical Session claims and resolves pending interactions', async (
     response.request().method() === 'POST'
     && matchesInteractionPath(response.url(), typedQuestionInteractionId, 'resolve')
   ));
-  const typedQuestionSurface = typedQuestionPrompt.locator(
-    'xpath=ancestor::*[@data-codex-composer-request-navigation][1]',
-  );
+  const typedQuestionSurface = typedQuestionPrompt;
   await expect(typedQuestionSurface.getByRole('button', { name: 'Submit' })).toHaveCount(0);
   await typedQuestionSurface.getByRole('radio', { name: /Complete/u }).click();
 

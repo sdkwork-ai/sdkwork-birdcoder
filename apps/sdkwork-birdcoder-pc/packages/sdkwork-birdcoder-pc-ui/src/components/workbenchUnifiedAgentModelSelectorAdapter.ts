@@ -1,4 +1,7 @@
-import type { UnifiedAgentModelOption } from '@sdkwork/models-pc-picker';
+import {
+  SDKWORK_MAINSTREAM_AGENT_MODEL_CATALOG,
+  type UnifiedAgentModelOption,
+} from '@sdkwork/models-pc-picker';
 import type {
   WorkbenchCodeEngineDefinition,
   WorkbenchUnifiedCustomAgentModelDefinition,
@@ -32,6 +35,35 @@ export function createWorkbenchUnifiedAgentModelSelectorCatalog(
   const optionsById = new Map<string, UnifiedAgentModelOption>();
   const optionIdByProviderModel = new Map<string, string>();
 
+  for (const model of SDKWORK_MAINSTREAM_AGENT_MODEL_CATALOG) {
+    const optionId = builtInOptionId(model.modelId);
+    optionsById.set(optionId, {
+      id: optionId,
+      catalogKey: model.catalogKey,
+      catalogVersion: model.catalogVersion,
+      modelId: model.modelId,
+      label: model.displayName,
+      description: model.description,
+      iconKey: model.supportedProviderIds[0] ?? model.vendorCode,
+      kind: 'built-in',
+      metadataLabel: model.vendorName,
+      vendorCode: model.vendorCode,
+      vendorName: model.vendorName,
+      releaseStage: model.releaseStage,
+      sourceObservedAt: model.sourceObservedAt,
+      searchTerms: model.searchTerms,
+      sortOrder: model.sortOrder,
+      rankScore: model.rankScore,
+      supportedProviderIds: [...model.supportedProviderIds],
+    });
+    for (const providerId of model.supportedProviderIds) {
+      optionIdByProviderModel.set(
+        providerModelIdentity(providerId, model.modelId),
+        optionId,
+      );
+    }
+  }
+
   for (const engine of engines) {
     for (const model of engine.models.filter((entry) => entry.source === 'agents-catalog')) {
       const optionId = builtInOptionId(model.id);
@@ -42,14 +74,22 @@ export function createWorkbenchUnifiedAgentModelSelectorCatalog(
       if (!supportedProviderIds.includes(engine.id)) {
         supportedProviderIds.push(engine.id);
       }
+      supportedProviderIds.sort();
       optionsById.set(optionId, {
+        ...existing,
         id: optionId,
         modelId: model.id,
-        label: existing?.label ?? model.label,
+        label: existing?.label || model.label,
         description: existing?.description || model.description,
         iconKey: existing?.iconKey ?? engine.id,
         kind: 'built-in',
-        metadataLabel: supportedProviderIds.length === 1 ? engine.label : undefined,
+        metadataLabel: existing?.metadataLabel ?? (
+          supportedProviderIds.length === 1 ? engine.label : undefined
+        ),
+        vendorCode: existing?.vendorCode ?? model.modelVendor,
+        vendorName: existing?.vendorName,
+        sortOrder: existing?.sortOrder
+          ?? SDKWORK_MAINSTREAM_AGENT_MODEL_CATALOG.length + 1_000,
         supportedProviderIds,
       });
       optionIdByProviderModel.set(

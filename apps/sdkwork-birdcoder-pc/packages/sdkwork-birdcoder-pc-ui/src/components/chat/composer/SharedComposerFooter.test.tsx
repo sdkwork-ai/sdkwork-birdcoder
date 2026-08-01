@@ -141,6 +141,72 @@ describe('SharedComposerFooter turn cancellation', () => {
 });
 
 describe('SharedComposerFooter unified Agent model selector', () => {
+  it('sorts models deterministically and filters them from the top search field', () => {
+    render(
+      <ControlledUnifiedAgentModelSelectorFooter
+        props={createProps({
+          unifiedAgentModelOptions: [
+            {
+              id: 'built-in:gemini-3.6-flash',
+              modelId: 'gemini-3.6-flash',
+              label: 'Gemini 3.6 Flash',
+              kind: 'built-in',
+              sortOrder: 30,
+              vendorCode: 'google',
+              vendorName: 'Google',
+            },
+            {
+              id: 'built-in:gpt-5.6-sol',
+              modelId: 'gpt-5.6-sol',
+              label: 'GPT-5.6 Sol',
+              kind: 'built-in',
+              sortOrder: 10,
+              vendorCode: 'openai',
+              vendorName: 'OpenAI',
+            },
+            {
+              id: 'built-in:claude-opus-5',
+              modelId: 'claude-opus-5',
+              label: 'Claude Opus 5',
+              kind: 'built-in',
+              searchTerms: ['reasoning'],
+              sortOrder: 20,
+              vendorCode: 'anthropic',
+              vendorName: 'Anthropic',
+            },
+          ],
+          selectedModelLabel: 'GPT-5.6 Sol',
+          selectedUnifiedAgentModelOptionId: 'built-in:gpt-5.6-sol',
+          showUnifiedAgentModelSelector: true,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'GPT-5.6 Sol' }));
+    expect(screen.getAllByRole('option').map((option) => option.getAttribute('data-model-id')))
+      .toEqual([
+        'built-in:gpt-5.6-sol',
+        'built-in:claude-opus-5',
+        'built-in:gemini-3.6-flash',
+      ]);
+
+    fireEvent.change(screen.getByRole('searchbox', {
+      name: 'chat.unifiedAgentModelSelector.searchPlaceholder',
+    }), {
+      target: { value: 'anthropic reasoning' },
+    });
+
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: /Claude Opus 5/u })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /GPT-5.6 Sol/u })).toBeNull();
+
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: 'not-a-real-model' },
+    });
+    expect(screen.getByRole('status').textContent)
+      .toBe('chat.unifiedAgentModelSelector.noSearchResults');
+  });
+
   it('selects a built-in model from the independent unified selector', () => {
     const onSelectUnifiedAgentModel = vi.fn();
     render(

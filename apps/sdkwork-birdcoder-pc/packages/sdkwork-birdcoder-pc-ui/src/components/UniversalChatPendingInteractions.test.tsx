@@ -277,7 +277,7 @@ describe('UniversalChatPendingInteractions', () => {
         message: 'Run tests?',
       },
     });
-    render(
+    const { container } = render(
       <UniversalChatPendingInteractions
         engineId="codex"
         pendingApprovals={[command]}
@@ -425,7 +425,7 @@ describe('UniversalChatPendingInteractions', () => {
       },
       { id: 'notes', header: 'Notes', question: 'Add notes', allowOther: true },
     ]);
-    render(
+    const { container } = render(
       <UniversalChatPendingInteractions
         engineId="codex"
         pendingUserQuestions={[multiQuestion]}
@@ -436,7 +436,7 @@ describe('UniversalChatPendingInteractions', () => {
     expect(screen.getByText('Use React.')).toBeTruthy();
     expect(screen.getByText('1 of 2')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(true);
-    const surface = screen.getByText('Choose a framework').closest('[tabindex="0"]');
+    const surface = container.querySelector('[data-codex-interaction-id="questions-1"]');
     fireEvent.keyDown(surface!, { key: 'ArrowRight' });
     expect(screen.getByText('2 of 2')).toBeTruthy();
     fireEvent.keyDown(surface!, { key: 'ArrowLeft' });
@@ -553,7 +553,7 @@ describe('UniversalChatPendingInteractions', () => {
     });
   });
 
-  it('submits the Codex inline Other response without the default option', async () => {
+  it('clears the default option for Codex inline Other skip and custom responses', async () => {
     const onSubmitUserQuestionAnswer = vi.fn().mockResolvedValue(undefined);
     const question = typedQuestion('question-other-1', {
       schemaVersion: 1,
@@ -585,8 +585,17 @@ describe('UniversalChatPendingInteractions', () => {
       />,
     );
 
-    const otherInput = screen.getByRole('textbox', { name: 'Other' });
+    const otherInput = screen.getByRole('textbox', { name: /tell ChatGPT what to do differently/u });
     expect(container.querySelector('[data-request-input-other-row] .lucide-pencil')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await waitFor(() => {
+      expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('question-other-1', {
+        action: 'submit',
+        answers: {},
+        rejected: false,
+      });
+    });
+    onSubmitUserQuestionAnswer.mockClear();
     fireEvent.focus(otherInput);
     fireEvent.change(otherInput, { target: { value: 'Only changed files' } });
     expect(screen.getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')).toBe('false');

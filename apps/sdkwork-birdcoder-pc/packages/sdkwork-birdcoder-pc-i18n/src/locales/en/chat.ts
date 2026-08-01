@@ -268,7 +268,7 @@ export default defineLocaleModule('chat', {
     interactionAllowSession: 'Allow for this Session',
     interactionContinue: 'Continue',
     interactionNext: 'Next',
-    interactionOther: 'Other',
+    interactionOther: 'No, and tell ChatGPT what to do differently',
     interactionPrevious: 'Previous',
     interactionOf: 'of',
     interactionDismiss: 'Dismiss',

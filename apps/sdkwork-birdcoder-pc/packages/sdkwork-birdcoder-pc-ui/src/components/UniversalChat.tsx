@@ -1550,7 +1550,7 @@ export const UniversalChat = memo(function UniversalChat({
       disabled:
         option.disabled
         || Boolean(
-          option.supportedProviderIds?.length
+          option.supportedProviderIds
           && !option.supportedProviderIds.includes(resolvedSelectedEngineId),
         ),
     })),
@@ -1659,7 +1659,7 @@ export const UniversalChat = memo(function UniversalChat({
     option: UnifiedAgentModelOption,
   ) => {
     if (
-      option.supportedProviderIds?.length
+      option.supportedProviderIds
       && !option.supportedProviderIds.includes(resolvedSelectedEngineId)
     ) {
       throw new Error('The selected model does not support the active Agent provider.');
@@ -1681,7 +1681,7 @@ export const UniversalChat = memo(function UniversalChat({
     applyComposerSelection(
       resolvedSelectedEngineId,
       option.modelId,
-      option.kind === 'custom',
+      option.kind === 'custom' || Boolean(option.catalogKey),
     );
   }, [
     agentModelConfigurationService,

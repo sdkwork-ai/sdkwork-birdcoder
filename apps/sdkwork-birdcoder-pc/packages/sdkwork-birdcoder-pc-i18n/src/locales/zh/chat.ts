@@ -269,7 +269,7 @@ export default defineLocaleModule('chat', {
     interactionAllowSession: '\u5728\u6b64 Session \u4e2d\u5141\u8bb8',
     interactionContinue: '\u7ee7\u7eed',
     interactionNext: '\u4e0b\u4e00\u6b65',
-    interactionOther: '\u5176\u4ed6',
+    interactionOther: '\u4e0d\uff0c\u5e76\u544a\u8bc9 ChatGPT \u5e94\u8be5\u5982\u4f55\u8c03\u6574',
     interactionPrevious: '\u4e0a\u4e00\u6b65',
     interactionOf: '/',
     interactionDismiss: '\u5173\u95ed',

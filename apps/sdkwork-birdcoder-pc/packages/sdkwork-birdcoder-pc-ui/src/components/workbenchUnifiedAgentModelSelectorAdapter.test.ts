@@ -50,6 +50,33 @@ const customConfiguration: WorkbenchUnifiedCustomAgentModelDefinition = {
 };
 
 describe('workbench unified Agent model selector adapter', () => {
+  it('uses the current sdkwork-models catalog as the built-in model authority', () => {
+    const catalog = createWorkbenchUnifiedAgentModelSelectorCatalog([engine], []);
+
+    const builtInOptions = catalog.options.filter((option) => option.kind === 'built-in');
+    expect(builtInOptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        catalogKey: 'openai/gpt-5.6-sol',
+        catalogVersion: '2026.07.26.1',
+        modelId: 'gpt-5.6-sol',
+        supportedProviderIds: expect.arrayContaining(['codex']),
+        vendorCode: 'openai',
+      }),
+      expect.objectContaining({
+        catalogKey: 'anthropic/claude-opus-5',
+        modelId: 'claude-opus-5',
+        vendorCode: 'anthropic',
+      }),
+      expect.objectContaining({
+        catalogKey: 'alibaba/qwen3.8-max-preview',
+        modelId: 'qwen3.8-max-preview',
+        releaseStage: 'preview',
+      }),
+    ]));
+    expect(builtInOptions.some((option) => option.modelId === 'claude-mythos-5')).toBe(false);
+    expect(builtInOptions.some((option) => option.modelId === catalogModel.id)).toBe(true);
+  });
+
   it('projects every supported model from one configuration as a selectable option', () => {
     const catalog = createWorkbenchUnifiedAgentModelSelectorCatalog(
       [engine],

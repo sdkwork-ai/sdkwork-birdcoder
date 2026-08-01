@@ -16,6 +16,7 @@ import {
   FilePenLine,
   FolderOpen,
   Globe2,
+  Info,
   Loader2,
   Pencil,
   PlugZap,
@@ -822,6 +823,7 @@ function TypedQuestionCard({
   const [freeformDrafts, setFreeformDrafts] = useState<Record<string, string>>({});
   const [questionIndex, setQuestionIndex] = useState(0);
   const [advancingOptionValue, setAdvancingOptionValue] = useState<string | null>(null);
+  const [inlineFreeformFocused, setInlineFreeformFocused] = useState(false);
   const surfaceRef = useRef<HTMLElement>(null);
   const freeformTextareaRef = useRef<HTMLTextAreaElement>(null);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -923,6 +925,7 @@ function TypedQuestionCard({
     if (controlsDisabled || !primaryAction) return;
     if (showNextQuestion) {
       setQuestionIndex((current) => Math.min(current + 1, question.questions.length - 1));
+      setInlineFreeformFocused(false);
       return;
     }
     void submitAction(primaryAction, nextAnswers, nextFreeformDrafts);
@@ -978,6 +981,7 @@ function TypedQuestionCard({
         Math.max(current + (event.key === 'ArrowRight' ? 1 : -1), 0),
         question.questions.length - 1,
       ));
+      setInlineFreeformFocused(false);
       return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -1048,6 +1052,7 @@ function TypedQuestionCard({
       ref={surfaceRef}
       className="@container/request-card flex flex-col overflow-hidden rounded-3xl bg-[#242426] text-gray-100 shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
       data-codex-composer-request-navigation="true"
+      data-codex-interaction-id={question.interactionId}
       data-codex-interaction-kind={request.kind}
       data-codex-question-index={questionIndex + 1}
       data-user-input-auto-resolution={autoResolutionMs ? 'true' : undefined}
@@ -1055,9 +1060,8 @@ function TypedQuestionCard({
       onKeyDown={handleQuestionNavigationKeyDown}
     >
       <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4">
-        <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-gray-300">
-          {interactionIcon(request.kind)}
-          <span>{request.data.submitLabel || t('chat.pendingQuestion')}</span>
+        <div className="min-w-0 flex-1 break-words text-sm font-medium text-gray-100">
+          {currentPrompt?.question || question.prompt}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 text-xs text-gray-400">
           {isMultiQuestion ? (
@@ -1105,21 +1109,15 @@ function TypedQuestionCard({
           ) : null}
         </div>
       </div>
-      <p className="px-4 pb-3 whitespace-pre-wrap break-words text-sm leading-5 text-gray-100">
-        {question.prompt}
-      </p>
 
-      <div className="space-y-4 px-4 pb-3">
+      <div className="space-y-4 px-2 pb-3">
         {currentPrompt ? (
           <fieldset
             className="space-y-1"
             key={currentPromptKey}
             role={allowMultiple ? 'group' : 'radiogroup'}
           >
-            <legend className="px-1 text-sm font-medium text-gray-100">
-              {currentPrompt.header ? <span className="mr-2 text-xs text-gray-400">{currentPrompt.header}</span> : null}
-              {currentPrompt.question}
-            </legend>
+            <legend className="sr-only">{currentPrompt.question}</legend>
             {currentPrompt.options?.map((option, optionIndex) => {
               const isSelected = currentSelected.includes(option.value);
               return (
@@ -1149,10 +1147,29 @@ function TypedQuestionCard({
                   }`}>
                     {allowMultiple && isSelected ? <Check size={11} /> : optionIndex + 1}
                   </span>
-                  <span className="min-w-0">
-                    <span className="block break-words">{option.label}</span>
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2 @max-md/request-card:items-center">
+                    <span className={`flex min-w-0 items-center gap-1.5 ${
+                      option.description
+                        ? 'max-w-1/2 shrink-0 @max-md/request-card:max-w-none @max-md/request-card:shrink'
+                        : 'flex-1'
+                    }`}>
+                      <span className={`min-w-0 font-medium ${
+                        option.description ? 'truncate' : 'break-words'
+                      }`}>{option.label}</span>
+                    </span>
                     {option.description ? (
-                      <span className="block break-words text-xs leading-4 text-gray-400">{option.description}</span>
+                      <>
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-400 @max-md/request-card:hidden">
+                          {option.description}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="hidden shrink-0 text-gray-400 @max-md/request-card:inline-flex"
+                          title={option.description}
+                        >
+                          <Info size={13} />
+                        </span>
+                      </>
                     ) : null}
                   </span>
                 </button>
@@ -1163,6 +1180,10 @@ function TypedQuestionCard({
                 className="mt-1 flex min-h-8 w-full cursor-text items-start gap-2 rounded-xl px-2 py-1.5 text-sm text-gray-200 hover:bg-white/[0.05] focus-within:ring-1 focus-within:ring-white/25"
                 data-request-input-other-row="true"
                 onMouseDown={(event) => {
+                  if (
+                    event.target instanceof Element
+                    && event.target.closest('[data-request-input-skip]')
+                  ) return;
                   if (event.target !== freeformTextareaRef.current) event.preventDefault();
                   freeformTextareaRef.current?.focus();
                 }}
@@ -1170,7 +1191,8 @@ function TypedQuestionCard({
                 <span
                   aria-hidden="true"
                   className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
-                    currentSelected.length === 0 && currentFreeform.length > 0
+                    currentSelected.length === 0
+                    && (currentFreeform.length > 0 || inlineFreeformFocused)
                       ? 'border-white bg-white text-[#18181b]'
                       : 'border-white/20 bg-white/[0.05] text-gray-400'
                   }`}
@@ -1187,8 +1209,10 @@ function TypedQuestionCard({
                   placeholder={t('chat.interactionOther')}
                   className="block h-5 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm leading-5 text-gray-100 outline-none placeholder:text-gray-500"
                   onFocus={() => {
+                    setInlineFreeformFocused(true);
                     setAnswers((current) => ({ ...current, [currentPromptKey]: [] }));
                   }}
+                  onBlur={() => setInlineFreeformFocused(false)}
                   onChange={(event) => {
                     const value = event.currentTarget.value;
                     event.currentTarget.style.height = value.trim().length > 0
@@ -1232,12 +1256,21 @@ function TypedQuestionCard({
                     size="sm"
                     variant={currentFreeform.trim() ? 'default' : 'outline'}
                     className="shrink-0"
+                    data-request-input-skip="true"
                     data-request-input-navigation-control="true"
                     disabled={controlsDisabled}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') event.stopPropagation();
                     }}
-                    onClick={() => handlePrimaryAction()}
+                    onClick={() => {
+                      if (currentFreeform.trim()) {
+                        handlePrimaryAction();
+                        return;
+                      }
+                      const nextAnswers = { ...answers, [currentPromptKey]: [] };
+                      setAnswers(nextAnswers);
+                      handlePrimaryAction(nextAnswers);
+                    }}
                   >
                     {currentFreeform.trim()
                       ? t('chat.interactionNext')
