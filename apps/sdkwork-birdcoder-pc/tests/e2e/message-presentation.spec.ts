@@ -79,9 +79,22 @@ async function selectClaudeSession(page: Page): Promise<void> {
 }
 
 async function selectSessionByTitle(page: Page, title: string): Promise<void> {
-  const sessionRow = page.locator('.birdcoder-session-list .birdcoder-session-row')
+  const sessionList = page.locator('.birdcoder-session-list');
+  const sessionRows = sessionList.locator('.birdcoder-session-row');
+  const sessionRow = sessionRows
     .filter({ hasText: title })
     .first();
+  for (let attempt = 0; attempt < 8 && await sessionRow.count() === 0; attempt += 1) {
+    const showMore = sessionList.getByRole('button', { name: 'Show more' }).first();
+    if (await showMore.count() === 0 || !(await showMore.isVisible())) {
+      break;
+    }
+    const visibleRowCount = await sessionRows.count();
+    await showMore.click();
+    await expect.poll(async () => (
+      await sessionRow.count() > 0 || await sessionRows.count() > visibleRowCount
+    ), { timeout: 30_000 }).toBe(true);
+  }
   await expect(sessionRow).toBeVisible();
   if (!(await sessionRow.getAttribute('class'))?.includes('birdcoder-session-selected')) {
     await sessionRow.click();

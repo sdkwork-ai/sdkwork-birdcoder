@@ -17,8 +17,12 @@ function builtInOptionId(modelId: string): string {
   return `built-in:${encodeURIComponent(modelId.trim().toLowerCase())}`;
 }
 
-function customOptionId(configurationId: string): string {
-  return `custom:${encodeURIComponent(configurationId.trim().toLowerCase())}`;
+function customOptionId(configurationId: string, modelId: string): string {
+  return [
+    'custom',
+    encodeURIComponent(configurationId.trim().toLowerCase()),
+    encodeURIComponent(modelId.trim().toLowerCase()),
+  ].join(':');
 }
 
 export function createWorkbenchUnifiedAgentModelSelectorCatalog(
@@ -55,31 +59,33 @@ export function createWorkbenchUnifiedAgentModelSelectorCatalog(
     }
   }
 
-  for (const model of customModels) {
-    const optionId = customOptionId(model.configurationId);
-    optionsById.set(optionId, {
-      id: optionId,
-      configurationId: model.configurationId,
-      modelId: model.modelId,
-      label: model.label,
-      description: model.description,
-      iconKey: model.supportedProviderIds[0],
-      kind: 'custom',
-      vendorCode: model.vendorCode,
-      baseUrl: model.baseUrl,
-      supportedModelIds: model.supportedModelIds,
-      supportedProviderIds: model.supportedProviderIds,
-      inputContextTokens: model.inputContextTokens,
-      outputContextTokens: model.outputContextTokens,
-      toolCallRounds: model.toolCallRounds,
-      supportsMultimodal: model.supportsMultimodal,
-      apiKeyConfigured: model.apiKeyConfigured,
-    });
-    for (const providerId of model.supportedProviderIds) {
-      optionIdByProviderModel.set(
-        providerModelIdentity(providerId, model.modelId),
-        optionId,
-      );
+  for (const configuration of customModels) {
+    for (const modelId of configuration.supportedModelIds) {
+      const optionId = customOptionId(configuration.configurationId, modelId);
+      optionsById.set(optionId, {
+        id: optionId,
+        configurationId: configuration.configurationId,
+        modelId,
+        label: modelId === configuration.modelId ? configuration.label : modelId,
+        description: configuration.description,
+        iconKey: configuration.supportedProviderIds[0],
+        kind: 'custom',
+        vendorCode: configuration.vendorCode,
+        baseUrl: configuration.baseUrl,
+        supportedModelIds: configuration.supportedModelIds,
+        supportedProviderIds: configuration.supportedProviderIds,
+        inputContextTokens: configuration.inputContextTokens,
+        outputContextTokens: configuration.outputContextTokens,
+        toolCallRounds: configuration.toolCallRounds,
+        supportsMultimodal: configuration.supportsMultimodal,
+        apiKeyConfigured: configuration.apiKeyConfigured,
+      });
+      for (const providerId of configuration.supportedProviderIds) {
+        optionIdByProviderModel.set(
+          providerModelIdentity(providerId, modelId),
+          optionId,
+        );
+      }
     }
   }
 

@@ -28,7 +28,10 @@ time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 async-trait = "0.1"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
-rusqlite = { version = "0.32.1", features = ["bundled"] }
+# 0.39.0 is the newest rusqlite release using libsqlite3-sys 0.37, which is
+# required by the pinned Codex source dependency. Newer rusqlite releases use a
+# different `links = "sqlite3"` provider and cannot coexist in one Cargo graph.
+rusqlite = { version = "0.39.0", features = ["bundled"] }
 keyring = "4.1.5"
 
 sdkwork-api-birdcoder-assembly = { path = "crates/sdkwork-api-birdcoder-assembly" }
@@ -61,3 +64,9 @@ sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/apps/sdkwork-termin
 sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-protocol" }
 sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }
+
+[patch.crates-io]
+# Keep the embedded Codex graph aligned with the upstream workspace patches.
+# The forked websocket crates provide the `proxy` support required by Codex.
+tokio-tungstenite = { git = "https://github.com/openai-oss-forks/tokio-tungstenite", rev = "0e5b2d73aa18dd9f0a50ee9ff199d5aef7594186" }
+tungstenite = { git = "https://github.com/openai-oss-forks/tungstenite-rs", rev = "4fffad30fe373adbdcffab9545e9e9bf4f2fc19f" }

@@ -46,6 +46,14 @@ export interface ApplyAgentModelSelectionInput {
   configurationId?: string;
   engineId: AgentModelProviderId;
   modelId: string;
+  /**
+   * Unified model metadata supplied when a custom model is first selected.
+   * The service binds it to the active provider only at selection time.
+   */
+  configuration?: Omit<
+    ApplyAgentModelConfigurationInput,
+    'configurationId' | 'engineId'
+  >;
 }
 
 export interface AppliedAgentModelSelection {
@@ -55,6 +63,7 @@ export interface AppliedAgentModelSelection {
   agentId: string;
   providerScope: string;
   modelId: string;
+  configurationApplied?: AppliedAgentModelConfiguration;
 }
 
 export interface IAgentModelConfigurationService {

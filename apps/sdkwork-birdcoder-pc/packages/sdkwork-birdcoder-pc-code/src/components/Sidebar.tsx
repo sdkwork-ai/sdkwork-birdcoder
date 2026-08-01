@@ -842,7 +842,11 @@ export const Sidebar = React.memo(function Sidebar({
       }));
 
       try {
-        const result = await onLoadMoreProjectSessions(normalizedProjectId, nextCount, direction);
+        const result = await onLoadMoreProjectSessions(
+          normalizedProjectId,
+          nextCount,
+          direction,
+        );
         const loadedCount =
           result && typeof result.loadedCount === 'number' && Number.isFinite(result.loadedCount)
             ? Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(result.loadedCount))

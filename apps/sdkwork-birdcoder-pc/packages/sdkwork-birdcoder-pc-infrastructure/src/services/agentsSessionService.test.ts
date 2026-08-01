@@ -83,3 +83,69 @@ describe('BirdCoderAgentSessionService Turn input queue hydration', () => {
     );
   });
 });
+
+describe('BirdCoderAgentSessionService item feedback', () => {
+  it.each([
+    ['undefined payload', undefined],
+    ['null payload', null],
+    ['payload without items', { ok: true }],
+  ])('treats %s as an empty feedback snapshot', async (_label, response) => {
+    const list = vi.fn().mockResolvedValue(response);
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { itemFeedback: { list } } },
+      } as unknown as AgentsAppSdkClient,
+    });
+
+    await expect(service.listSessionItemFeedback(identity)).resolves.toEqual([]);
+  });
+
+  it('maps canonical feedback records', async () => {
+    const list = vi.fn().mockResolvedValue({
+      items: [{ itemId: 'assistant-item-1', rating: 'up' }],
+    });
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { itemFeedback: { list } } },
+      } as unknown as AgentsAppSdkClient,
+    });
+
+    await expect(service.listSessionItemFeedback(identity)).resolves.toEqual([
+      { itemId: 'assistant-item-1', rating: 'up' },
+    ]);
+  });
+
+  it.each([
+    ['thumbs up', 'up', { rating: 'up' }],
+    ['thumbs down', 'down', { rating: 'down' }],
+    ['cleared', null, { clearFeedback: true }],
+  ] as const)('uses the canonical Agents SDK for %s feedback', async (_label, rating, request) => {
+    const update = vi.fn().mockResolvedValue({ itemId: 'assistant-item-1', rating });
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { itemFeedback: { update } } },
+      } as unknown as AgentsAppSdkClient,
+    });
+
+    await service.updateSessionItemFeedback(identity, 'assistant-item-1', rating);
+
+    expect(update).toHaveBeenCalledWith(
+      identity.agentId,
+      identity.sessionId,
+      'assistant-item-1',
+      request,
+    );
+  });
+
+  it('rejects feedback without a canonical Session item id', async () => {
+    const service = new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { itemFeedback: { update: vi.fn() } } },
+      } as unknown as AgentsAppSdkClient,
+    });
+
+    await expect(service.updateSessionItemFeedback(identity, ' ', 'up')).rejects.toThrow(
+      'Agent session item feedback requires an item id.',
+    );
+  });
+});

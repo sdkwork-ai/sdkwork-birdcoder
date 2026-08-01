@@ -62,14 +62,14 @@ export function ChatTranscriptSurface({
   return (
     <div
       {...sharedProps}
-      className={`group flex w-full min-w-0 px-6 ${
+      className={`group flex w-full min-w-0 px-5 ${
         isUser
           ? `${turn.isStart ? 'pt-6' : 'pt-3'} pb-0`
           : `${turn.isStart ? 'pt-6' : 'pt-3'} ${turn.isEnd ? 'pb-3' : 'pb-0'}`
       }`}
     >
       <div
-        className={`mx-auto flex w-full min-w-0 max-w-[40rem] flex-col ${
+        className={`mx-auto flex w-full min-w-0 max-w-[48rem] flex-col ${
           isUser ? 'items-end' : 'items-start'
         }`}
         data-chat-transcript-track="true"

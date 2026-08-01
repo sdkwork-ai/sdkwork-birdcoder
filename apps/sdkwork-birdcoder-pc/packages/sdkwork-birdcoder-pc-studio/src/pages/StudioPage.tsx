@@ -106,6 +106,7 @@ function StudioPageComponent({
     createAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
+    forkAgentSession,
     loadMoreProjects,
     loadMoreProjectSessions,
     refreshProjects,
@@ -1332,6 +1333,36 @@ function StudioPageComponent({
       void handleRegenerateMessage(sessionId);
     }
   }, [handleRegenerateMessage, sessionId]);
+  const handleStudioRateMessage = useCallback(async (
+    messageId: string,
+    rating: 'thumbs_up' | 'thumbs_down' | null,
+  ) => {
+    if (!selectedSession?.agentId || !selectedSession.id) {
+      return;
+    }
+    await agentSessionService.updateSessionItemFeedback(
+      { agentId: selectedSession.agentId, sessionId: selectedSession.id },
+      messageId,
+      rating === null ? null : rating === 'thumbs_up' ? 'up' : 'down',
+    );
+  }, [agentSessionService, selectedSession]);
+  const handleStudioForkMessage = useCallback(async (messageId: string) => {
+    if (!selectedSession || !currentProjectId) return;
+    const sourceItem = selectedSession.items.find((item) => item.id === messageId);
+    try {
+      const forked = await forkAgentSession(
+        currentProjectId,
+        selectedSession.id,
+        `${selectedSession.title} (continued)`,
+        sourceItem?.turnId,
+      );
+      handleSelectAgentSession(currentProjectId, forked.id);
+      addToast(t('chat.messageForked'), 'success');
+    } catch (error) {
+      console.error('Failed to continue assistant message in a new chat', error);
+      addToast(t('chat.messageForkFailed'), 'error');
+    }
+  }, [addToast, currentProjectId, forkAgentSession, handleSelectAgentSession, selectedSession, t]);
   const handleStudioRestoreMessage = useCallback((
     messageId: string,
     fileChanges?: readonly FileChange[],
@@ -1443,6 +1474,8 @@ function StudioPageComponent({
         onEditMessage={handleStudioEditMessage}
         onDeleteMessage={handleStudioDeleteMessage}
         onRegenerateMessage={handleStudioRegenerateMessage}
+        onRateMessage={handleStudioRateMessage}
+        onForkMessage={handleStudioForkMessage}
         onRestoreMessage={handleStudioRestoreMessage}
       />
 

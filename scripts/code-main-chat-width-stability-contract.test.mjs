@@ -28,20 +28,20 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /mx-auto w-full \$\{layout === 'main' \? 'max-w-\[40rem\]' : ''\}/u,
-  'Main-layout composer must keep the Codex-aligned 40rem centered content track.',
+  /mx-auto w-full \$\{layout === 'main' \? 'max-w-\[48rem\]' : ''\}/u,
+  'Main-layout composer must keep the Codex 48rem centered content track.',
 );
 
 assert.match(
   transcriptSurfaceSource,
-  /className=\{`group flex w-full min-w-0 px-6 \$\{[\s\S]*?turn\.isStart \? 'pt-6' : 'pt-3'[\s\S]*?\}`\}/u,
-  'Main transcript rows must use the same 24px responsive horizontal inset as the composer.',
+  /className=\{`group flex w-full min-w-0 px-5 \$\{[\s\S]*?turn\.isStart \? 'pt-6' : 'pt-3'[\s\S]*?\}`\}/u,
+  'Main transcript rows must use the same Codex 20px panel inset as the composer.',
 );
 
 assert.match(
   transcriptSurfaceSource,
-  /className=\{`[^`]*mx-auto[^`]*max-w-\[40rem\][^`]*`\}/u,
-  'Main transcript content must use the same 40rem centered width as the composer.',
+  /className=\{`[^`]*mx-auto[^`]*max-w-\[48rem\][^`]*`\}/u,
+  'Main transcript content must use the same Codex 48rem centered width as the composer.',
 );
 
 assert.doesNotMatch(

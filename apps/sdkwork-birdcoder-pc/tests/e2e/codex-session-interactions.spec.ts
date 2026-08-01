@@ -5,6 +5,7 @@ const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 const codexAgentId = 'agent.intelligence.codex';
 const codexSessionId = 'e2e-codex-session';
 const approvalInteractionId = 'interaction.e2e-codex-approval';
+const typedApprovalInteractionId = 'interaction.e2e-codex-typed-approval';
 const questionInteractionId = 'interaction.e2e-codex-question';
 
 interface SessionActivitySummaryFixture {
@@ -113,7 +114,7 @@ async function expandProjectSessions(page: Page): Promise<void> {
 function matchesInteractionPath(
   responseUrl: string,
   interactionId: string,
-  action: 'claim' | 'approve' | 'answer',
+  action: 'claim' | 'approve' | 'answer' | 'resolve',
 ): boolean {
   return decodeURIComponent(new URL(responseUrl).pathname).endsWith(
     `/sessions/${codexSessionId}/interactions/${interactionId}/${action}`,
@@ -145,6 +146,33 @@ test('Codex canonical Session claims and resolves pending interactions', async (
       prompt: 'Which verification mode should Codex use?',
       providerInteractionId: 'provider-interaction.codex-question-e2e',
       requestedAt: '2026-01-01T00:21:01.000Z',
+      runtimeBindingId: `runtime-binding.${codexSessionId}`,
+      turnId: 'turn.e2e-codex-interactions',
+    }),
+    createPendingInteraction(request, authenticatedSession.accessToken, {
+      interactionId: typedApprovalInteractionId,
+      kind: 'approval',
+      prompt: 'Allow Codex to run the typed verification command?',
+      providerInteractionId: 'provider-interaction.codex-typed-approval-e2e',
+      requestedAt: '2026-01-01T00:21:02.000Z',
+      request: {
+        schemaVersion: 1,
+        category: 'approval',
+        kind: 'command_execution',
+        allowedActions: [
+          'accept',
+          'accept_with_exec_policy_amendment',
+          'decline',
+        ],
+        data: {
+          command: 'pnpm test',
+          cwd: 'E:\\sdkwork-space\\sdkwork-birdcoder',
+          message: 'Allow Codex to run the typed verification command?',
+          proposedExecPolicyAmendment: {
+            commandPrefix: ['pnpm', 'test'],
+          },
+        },
+      },
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
       turnId: 'turn.e2e-codex-interactions',
     }),
@@ -180,11 +208,43 @@ test('Codex canonical Session claims and resolves pending interactions', async (
     'Allow Codex to run the focused verification command?',
     { exact: true },
   );
+  const typedApprovalPrompt = page.getByText(
+    'Allow Codex to run the typed verification command?',
+    { exact: true },
+  );
   const questionPrompt = page.getByRole('paragraph').filter({
     hasText: 'Which verification mode should Codex use?',
   });
   await expect(approvalPrompt).toBeVisible();
+  await expect(typedApprovalPrompt).toBeVisible();
   await expect(questionPrompt).toBeVisible();
+
+  const typedApprovalClaimResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && matchesInteractionPath(response.url(), typedApprovalInteractionId, 'claim')
+  ));
+  const typedApprovalResolveResponse = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && matchesInteractionPath(response.url(), typedApprovalInteractionId, 'resolve')
+  ));
+  const typedApprovalSurface = typedApprovalPrompt.locator(
+    'xpath=ancestor::*[@data-codex-approval-surface][1]',
+  );
+  await typedApprovalSurface.getByRole('button', { name: 'Approval options' }).click();
+  await page.getByRole('menuitem', { name: 'Allow similar commands' }).click();
+
+  expect((await typedApprovalClaimResponse).ok()).toBe(true);
+  const resolvedTypedApproval = await typedApprovalResolveResponse;
+  expect(resolvedTypedApproval.ok()).toBe(true);
+  expect(resolvedTypedApproval.request().postDataJSON()).toMatchObject({
+    resolution: {
+      action: 'accept_with_exec_policy_amendment',
+      execPolicyAmendment: {
+        commandPrefix: ['pnpm', 'test'],
+      },
+    },
+  });
+  await expect(typedApprovalPrompt).toHaveCount(0);
 
   const approvalClaimResponse = page.waitForResponse((response) => (
     response.request().method() === 'POST'
@@ -194,9 +254,20 @@ test('Codex canonical Session claims and resolves pending interactions', async (
     response.request().method() === 'POST'
     && matchesInteractionPath(response.url(), approvalInteractionId, 'approve')
   ));
-  const approveButton = page.getByRole('button', { name: 'Approve', exact: true });
+  const approvalSurface = approvalPrompt.locator(
+    'xpath=ancestor::*[@data-codex-approval-surface][1]',
+  );
+  const approveButton = approvalSurface.getByRole('button', {
+    name: 'Allow once',
+    exact: true,
+  });
   await expect(approveButton).toHaveCount(1);
-  await approveButton.click();
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+  await page.keyboard.press('Enter');
 
   const claimedApproval = await approvalClaimResponse;
   expect(claimedApproval.ok()).toBe(true);

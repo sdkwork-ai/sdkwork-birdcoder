@@ -191,6 +191,8 @@ interface UseCodePageSurfacePropsOptions {
     NonNullable<ProjectExplorerProps['onRefreshAgentSessionItems']>;
   onRefreshProjectSessions: NonNullable<ProjectExplorerProps['onRefreshProjectSessions']>;
   onRegenerateMessage: NonNullable<UniversalChatComponentProps['onRegenerateMessage']>;
+  onRateMessage: NonNullable<UniversalChatComponentProps['onRateMessage']>;
+  onForkMessage: NonNullable<UniversalChatComponentProps['onForkMessage']>;
   resolveLocalImagePreviewUrl:
     NonNullable<UniversalChatComponentProps['resolveLocalImagePreviewUrl']>;
   onCloseDiff: CodeEditorWorkspacePanelProps['onCloseDiff'];
@@ -348,6 +350,8 @@ export function useCodePageSurfaceProps({
   onRefreshAgentSessionItems,
   onRefreshProjectSessions,
   onRegenerateMessage,
+  onRateMessage,
+  onForkMessage,
   resolveLocalImagePreviewUrl,
   onCloseDiff,
   onReimportProjectFolder,
@@ -667,6 +671,8 @@ export function useCodePageSurfaceProps({
     resolveLocalImagePreviewUrl,
     onViewChanges: onViewChangesAndOpenEditor,
     onRestore: onRestoreMessage,
+    onRateMessage,
+    onForkMessage,
     emptyState: mainChatEmptyState,
     newSessionContext: createElement(CodeNewSessionContext, {
       cloudExecutionAvailable: cloudTaskExecutionAvailable,
@@ -707,6 +713,8 @@ export function useCodePageSurfaceProps({
     onNewProject,
     onNewSessionProjectSelect,
     onRestoreMessage,
+    onRateMessage,
+    onForkMessage,
     resolveLocalImagePreviewUrl,
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
@@ -791,6 +799,8 @@ export function useCodePageSurfaceProps({
     onEditMessage,
     onDeleteMessage,
     onRegenerateMessage,
+    onRateMessage,
+    onForkMessage,
     resolveLocalImagePreviewUrl,
     onCreateRootFile,
     getLanguageFromPath,
@@ -826,6 +836,8 @@ export function useCodePageSurfaceProps({
     onExplorerResize,
     onFileDraftChange,
     onRegenerateMessage,
+    onRateMessage,
+    onForkMessage,
     resolveLocalImagePreviewUrl,
     onCloseDiff,
     onRenameNode,

@@ -106,4 +106,128 @@ describe('AgentsSdkModelConfigurationService', () => {
       providerScope: 'codex',
     });
   });
+
+  it('configures a custom model once for the active provider before selecting it', async () => {
+    const applyConfiguration = vi.fn().mockResolvedValue({
+      configurationId: 'model.custom.example.chat',
+      profileId: 'profile-1',
+      engineId: 'claude-code',
+      agentId: 'agent.code-engine.claude-code',
+      providerScope: 'claude-code',
+      vendorCode: 'openai-compatible',
+      baseUrl: 'https://models.example.test/v1',
+      defaultModelId: 'example-chat',
+      supportedModelIds: ['example-chat'],
+      supportedProviderIds: ['codex', 'claude-code'],
+      supportsMultimodal: false,
+      apiKeyConfigured: true,
+    });
+    const applySelection = vi.fn().mockResolvedValue({
+      configurationId: 'model.custom.example.chat',
+      profileId: 'profile-1',
+      engineId: 'claude-code',
+      agentId: 'agent.code-engine.claude-code',
+      providerScope: 'claude-code',
+      modelId: 'example-chat',
+    });
+    const client = {
+      ai: {
+        agents: {
+          modelConfigurations: { apply: applyConfiguration },
+          modelSelections: { apply: applySelection },
+        },
+      },
+    } as unknown as AgentsClient;
+    const service = new AgentsSdkModelConfigurationService(client);
+
+    const result = await service.applySelection({
+      configurationId: 'model.custom.example.chat',
+      engineId: 'claude-code',
+      modelId: 'example-chat',
+      configuration: {
+        vendorCode: 'openai-compatible',
+        baseUrl: 'https://models.example.test/v1',
+        apiKey: 'write-only-secret',
+        defaultModelId: 'example-chat',
+        supportedModelIds: ['example-chat'],
+        supportedProviderIds: ['codex', 'claude-code'],
+        supportsMultimodal: false,
+      },
+    });
+
+    expect(applyConfiguration).toHaveBeenCalledOnce();
+    expect(applyConfiguration).toHaveBeenCalledWith(expect.objectContaining({
+      configurationId: 'model.custom.example.chat',
+      engineId: 'claude-code',
+    }));
+    expect(applySelection).toHaveBeenCalledOnce();
+    expect(applySelection).toHaveBeenCalledWith({
+      configurationId: 'model.custom.example.chat',
+      engineId: 'claude-code',
+      modelId: 'example-chat',
+    });
+    expect(result.configurationApplied?.engineId).toBe('claude-code');
+  });
+
+  it('reuses the unified session configuration when a custom model moves providers', async () => {
+    const applyConfiguration = vi.fn().mockImplementation(async (input) => ({
+      configurationId: input.configurationId,
+      profileId: `profile-${input.engineId}`,
+      engineId: input.engineId,
+      agentId: `agent.code-engine.${input.engineId}`,
+      providerScope: input.engineId,
+      vendorCode: input.vendorCode,
+      baseUrl: input.baseUrl,
+      defaultModelId: input.defaultModelId,
+      supportedModelIds: input.supportedModelIds,
+      supportedProviderIds: input.supportedProviderIds,
+      supportsMultimodal: input.supportsMultimodal,
+      apiKeyConfigured: true,
+    }));
+    const applySelection = vi.fn().mockImplementation(async (input) => ({
+      configurationId: input.configurationId,
+      profileId: `profile-${input.engineId}`,
+      engineId: input.engineId,
+      agentId: `agent.code-engine.${input.engineId}`,
+      providerScope: input.engineId,
+      modelId: input.modelId,
+    }));
+    const client = {
+      ai: {
+        agents: {
+          modelConfigurations: { apply: applyConfiguration },
+          modelSelections: { apply: applySelection },
+        },
+      },
+    } as unknown as AgentsClient;
+    const service = new AgentsSdkModelConfigurationService(client);
+    const configuration = {
+      vendorCode: 'openai-compatible',
+      baseUrl: 'https://models.example.test/v1',
+      apiKey: 'write-only-secret',
+      defaultModelId: 'example-chat',
+      supportedModelIds: ['example-chat'],
+      supportedProviderIds: ['codex', 'claude-code'] as ('codex' | 'claude-code')[],
+      supportsMultimodal: false,
+    };
+
+    await service.applySelection({
+      configurationId: 'model.custom.example.chat',
+      engineId: 'codex',
+      modelId: 'example-chat',
+      configuration,
+    });
+    const moved = await service.applySelection({
+      configurationId: 'model.custom.example.chat',
+      engineId: 'claude-code',
+      modelId: 'example-chat',
+    });
+
+    expect(applyConfiguration).toHaveBeenCalledTimes(2);
+    expect(applyConfiguration).toHaveBeenLastCalledWith(expect.objectContaining({
+      engineId: 'claude-code',
+      apiKey: 'write-only-secret',
+    }));
+    expect(moved.configurationApplied?.engineId).toBe('claude-code');
+  });
 });

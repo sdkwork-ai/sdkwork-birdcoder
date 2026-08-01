@@ -34,6 +34,13 @@ function toOptionalInt64(value: number | undefined): string | undefined {
 
 export class AgentsSdkModelConfigurationService
 implements IAgentModelConfigurationService {
+  // Keep the write-only credential in the service lifetime only; preferences never persist it.
+  private readonly configurationInputs = new Map<
+    string,
+    ApplyAgentModelConfigurationInput
+  >();
+  private readonly configuredProviderIds = new Map<string, Set<AgentModelProviderId>>();
+
   constructor(private readonly client: AgentsAppSdkClient) {}
 
   async apply(
@@ -53,6 +60,10 @@ implements IAgentModelConfigurationService {
       toolCallRounds: toOptionalInt64(input.toolCallRounds),
       supportsMultimodal: input.supportsMultimodal,
     });
+    this.configurationInputs.set(input.configurationId, { ...input });
+    const providers = this.configuredProviderIds.get(input.configurationId) ?? new Set();
+    providers.add(input.engineId);
+    this.configuredProviderIds.set(input.configurationId, providers);
 
     return {
       configurationId: result.configurationId,
@@ -76,6 +87,28 @@ implements IAgentModelConfigurationService {
   async applySelection(
     input: ApplyAgentModelSelectionInput,
   ): Promise<AppliedAgentModelSelection> {
+    let configurationApplied: AppliedAgentModelConfiguration | undefined;
+    if (input.configuration) {
+      if (!input.configurationId) {
+        throw new Error('A custom model configuration requires configurationId.');
+      }
+      const cachedInput = this.configurationInputs.get(input.configurationId);
+      configurationApplied = await this.apply({
+        ...(cachedInput ?? {}),
+        ...input.configuration,
+        configurationId: input.configurationId,
+        engineId: input.engineId,
+      });
+    } else if (input.configurationId) {
+      const cachedInput = this.configurationInputs.get(input.configurationId);
+      const configuredProviders = this.configuredProviderIds.get(input.configurationId);
+      if (cachedInput && !configuredProviders?.has(input.engineId)) {
+        configurationApplied = await this.apply({
+          ...cachedInput,
+          engineId: input.engineId,
+        });
+      }
+    }
     const result = await this.client.ai.agents.modelSelections.apply({
       configurationId: input.configurationId,
       engineId: input.engineId as SdkAgentModelProviderId,
@@ -88,6 +121,7 @@ implements IAgentModelConfigurationService {
       agentId: result.agentId,
       providerScope: result.providerScope,
       modelId: result.modelId,
+      configurationApplied,
     };
   }
 }

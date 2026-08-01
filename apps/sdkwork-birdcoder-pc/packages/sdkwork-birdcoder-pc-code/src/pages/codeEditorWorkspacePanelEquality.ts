@@ -62,6 +62,8 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onEditMessage === right.onEditMessage &&
     left.onDeleteMessage === right.onDeleteMessage &&
     left.onRegenerateMessage === right.onRegenerateMessage &&
+    left.onRateMessage === right.onRateMessage &&
+    left.onForkMessage === right.onForkMessage &&
     left.resolveLocalImagePreviewUrl === right.resolveLocalImagePreviewUrl &&
     left.onCreateRootFile === right.onCreateRootFile &&
     left.getLanguageFromPath === right.getLanguageFromPath

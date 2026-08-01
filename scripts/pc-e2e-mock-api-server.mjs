@@ -2898,6 +2898,7 @@ function handleRoute(method, url, request, body) {
     const prompt = String(body.prompt ?? '').trim();
     const requestedAt = String(body.requestedAt ?? '').trim();
     const rawOptions = body.options ?? [];
+    const typedRequest = body.request ?? null;
     if (
       (kind !== 'approval' && kind !== 'user_question')
       || !prompt
@@ -2909,6 +2910,18 @@ function handleRoute(method, url, request, body) {
         || !String(option.value ?? '').trim()
         || !String(option.label ?? '').trim()
       ))
+      || (
+        typedRequest !== null
+        && (
+          typeof typedRequest !== 'object'
+          || Array.isArray(typedRequest)
+          || typedRequest.schemaVersion !== 1
+          || !Array.isArray(typedRequest.allowedActions)
+          || typeof typedRequest.data !== 'object'
+          || typedRequest.data === null
+          || Array.isArray(typedRequest.data)
+        )
+      )
     ) {
       return {
         statusCode: 400,
@@ -2945,6 +2958,7 @@ function handleRoute(method, url, request, body) {
         value: String(option.value).trim(),
         label: String(option.label).trim(),
       })),
+      request: typedRequest,
       resolution: null,
       claimOwner: null,
       claimExpiresAt: null,
@@ -2966,7 +2980,7 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  const sessionInteractionResourceMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/interactions\/(?<interactionId>[^/]+)(?:\/(?<action>claim|approve|answer))?$/u.exec(pathname);
+  const sessionInteractionResourceMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/interactions\/(?<interactionId>[^/]+)(?:\/(?<action>claim|approve|answer|resolve))?$/u.exec(pathname);
   if (
     sessionInteractionResourceMatch
     && (method === 'GET' || method === 'POST')
@@ -3094,7 +3108,28 @@ function handleRoute(method, url, request, body) {
 
     let status;
     let resolution;
-    if (action === 'approve') {
+    if (action === 'resolve') {
+      const typedResolution = body.resolution;
+      const selectedAction = typeof typedResolution === 'object'
+        && typedResolution !== null
+        && !Array.isArray(typedResolution)
+        ? String(typedResolution.action ?? '').trim()
+        : '';
+      if (
+        !entry.interaction.request
+        || !selectedAction
+        || !entry.interaction.request.allowedActions.includes(selectedAction)
+      ) {
+        return {
+          statusCode: 400,
+          payload: createAppbaseFailure('Typed agent interaction resolution is invalid.', '400'),
+        };
+      }
+      status = ['cancel', 'decline', 'dismiss', 'skip'].includes(selectedAction)
+        ? 'rejected'
+        : 'resolved';
+      resolution = typedResolution;
+    } else if (action === 'approve') {
       if (entry.interaction.kind !== 'approval' || typeof body.approved !== 'boolean') {
         return {
           statusCode: 400,

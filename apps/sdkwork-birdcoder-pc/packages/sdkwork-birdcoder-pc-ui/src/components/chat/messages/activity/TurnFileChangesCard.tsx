@@ -1,5 +1,5 @@
 import React, { memo, useId, useMemo } from 'react';
-import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Files, RotateCcw } from 'lucide-react';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import type { ChatMessageEnvironment } from '../types.ts';
 import {
@@ -55,32 +55,36 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
   return (
     <section
       aria-label={editedFilesLabel}
-      className={`mt-4 w-full min-w-0 border-t border-white/[0.07] bg-transparent ${
+      className={`mb-2 flex w-full min-w-0 flex-col overflow-hidden rounded-lg bg-[#2a2a2d]/50 text-gray-100 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] ${
         compact ? 'text-xs' : 'text-sm'
       }`}
       data-chat-turn-file-changes="true"
       data-chat-turn-file-count={fileChanges.length}
       data-chat-turn-file-show-all={isExpanded ? 'true' : undefined}
     >
-      <div className="flex min-h-11 min-w-0 items-center gap-2 border-b border-white/[0.055] py-2">
-        <span className="min-w-0 truncate text-[13px] font-medium text-gray-200 tabular-nums">
-          {editedFilesLabel}
+      <div className="flex min-h-16 min-w-0 items-center gap-2.5 px-3 py-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-gray-400">
+          <Files size={22} aria-hidden="true" />
         </span>
-        <span
-          className="flex shrink-0 items-center gap-1.5 font-mono text-[12px] tabular-nums"
-          data-chat-turn-file-impact="true"
-          title={hasCompleteLineImpact ? undefined : changedLinesUnknownLabel}
-        >
-          {hasCompleteLineImpact ? (
-            <>
-              <span className="text-emerald-300">+{additions}</span>
-              <span className="text-red-300">-{deletions}</span>
-            </>
-          ) : (
-            <span className="font-sans text-[11px] text-gray-500">{changedLinesUnknownLabel}</span>
-          )}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="min-w-0 truncate text-[13px] font-medium text-gray-100 tabular-nums">
+            {editedFilesLabel}
+          </span>
+          <span
+            className="flex shrink-0 items-center gap-1.5 font-mono text-[12px] tabular-nums"
+            data-chat-turn-file-impact="true"
+            title={hasCompleteLineImpact ? undefined : changedLinesUnknownLabel}
+          >
+            {hasCompleteLineImpact ? (
+              <>
+                <span className="text-emerald-300">+{additions}</span>
+                <span className="text-red-300">-{deletions}</span>
+              </>
+            ) : (
+              <span className="font-sans text-[11px] text-gray-500">{changedLinesUnknownLabel}</span>
+            )}
+          </span>
         </span>
-        <span className="min-w-0 flex-1" aria-hidden="true" />
         {hiddenFileCount > 0 ? (
           <button
             type="button"
@@ -110,7 +114,7 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
         ) : null}
       </div>
 
-      <div id={detailsId} data-chat-turn-file-list="true">
+      <div id={detailsId} className="border-t border-white/[0.06]" data-chat-turn-file-list="true">
         {visibleFileChanges.map((fileChange, fileIndex) => {
           const fileKey = resolveActivityFileChangeKey(fileChange, fileIndex);
           const fileDisclosureKey = `${presentation.scopeKey}\u0001turn-file\u0001${fileKey}`;

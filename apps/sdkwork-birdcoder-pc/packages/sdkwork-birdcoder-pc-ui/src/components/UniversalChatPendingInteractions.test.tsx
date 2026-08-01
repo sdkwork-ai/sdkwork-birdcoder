@@ -55,6 +55,14 @@ function typedQuestion(
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('UniversalChatPendingInteractions', () => {
   it('matches the representable Codex approval surface and keyboard decisions', async () => {
     const onSubmitApprovalDecision = vi.fn().mockResolvedValue(undefined);
@@ -77,8 +85,7 @@ describe('UniversalChatPendingInteractions', () => {
     expect(allowOnceButton.querySelector('svg')).toBeNull();
     expect(allowOnceButton).toBe(document.activeElement);
 
-    surface?.focus();
-    fireEvent.keyDown(surface!, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: 'Enter' });
     await waitFor(() => {
       expect(onSubmitApprovalDecision).toHaveBeenCalledWith('approval-1', {
         decision: 'approved',
@@ -144,7 +151,6 @@ describe('UniversalChatPendingInteractions', () => {
         'accept',
         'accept_for_session',
         'accept_with_exec_policy_amendment',
-        'apply_network_policy_amendment',
         'decline',
       ],
       data: {
@@ -152,7 +158,6 @@ describe('UniversalChatPendingInteractions', () => {
         cwd: 'E:\\repo',
         message: 'Run tests?',
         proposedExecPolicyAmendment: { commandPrefix: ['pnpm', 'test'] },
-        proposedNetworkPolicyAmendment: { hosts: ['registry.npmjs.org'] },
       },
     });
     const { rerender } = render(
@@ -165,7 +170,10 @@ describe('UniversalChatPendingInteractions', () => {
 
     expect(screen.getByText('pnpm test')).toBeTruthy();
     expect(screen.getByTitle('E:\\repo')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Allow similar commands' }));
+    expect(screen.queryByRole('button', { name: 'Allow similar commands' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Approval options' }));
+    expect(screen.getByRole('menu', { name: 'Approval options' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Allow similar commands' }));
     await waitFor(() => {
       expect(onSubmitApprovalDecision).toHaveBeenCalledWith('command-1', {
         action: 'accept_with_exec_policy_amendment',
@@ -199,11 +207,147 @@ describe('UniversalChatPendingInteractions', () => {
     );
     expect(screen.getByText('src/app.ts')).toBeTruthy();
     expect(screen.getByText(/export const ready/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Allow all edits for this Session' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approval options' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Allow all edits' }));
     await waitFor(() => {
       expect(onSubmitApprovalDecision).toHaveBeenCalledWith(
         'file-1',
         expect.objectContaining({ action: 'accept_for_session', decision: 'approved' }),
+      );
+    });
+  });
+
+  it('maps typed Codex command approval hotkeys and prevents duplicate submission', async () => {
+    const submission = createDeferred<void>();
+    const onSubmitApprovalDecision = vi.fn(() => submission.promise);
+    const command = typedApproval('command-hotkey-1', {
+      schemaVersion: 1,
+      category: 'approval',
+      kind: 'command_execution',
+      allowedActions: ['accept', 'decline'],
+      data: {
+        command: 'pnpm test',
+        message: 'Run tests?',
+      },
+    });
+    const { container } = render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingApprovals={[command]}
+        onSubmitApprovalDecision={onSubmitApprovalDecision}
+      />,
+    );
+
+    const surface = container.querySelector<HTMLElement>('[data-codex-approval-surface="true"]');
+    const allowOnceButton = screen.getByRole('button', { name: 'Allow once' });
+    expect(surface).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(onSubmitApprovalDecision).toHaveBeenCalledTimes(1);
+    expect(onSubmitApprovalDecision).toHaveBeenCalledWith('command-hotkey-1', {
+      action: 'accept',
+      content: undefined,
+      decision: 'approved',
+      execPolicyAmendment: undefined,
+      networkPolicyAmendment: undefined,
+      permissions: undefined,
+      scope: undefined,
+    });
+    expect((allowOnceButton as HTMLButtonElement).disabled).toBe(true);
+    expect(allowOnceButton.querySelector('svg.animate-spin')).toBeTruthy();
+
+    submission.resolve();
+    await waitFor(() => {
+      expect((allowOnceButton as HTMLButtonElement).disabled).toBe(false);
+      expect(allowOnceButton.querySelector('svg.animate-spin')).toBeNull();
+    });
+  });
+
+  it('maps Escape to a typed Codex command denial', async () => {
+    const onSubmitApprovalDecision = vi.fn().mockResolvedValue(undefined);
+    const command = typedApproval('command-hotkey-2', {
+      schemaVersion: 1,
+      category: 'approval',
+      kind: 'command_execution',
+      allowedActions: ['accept', 'decline'],
+      data: {
+        command: 'pnpm test',
+        message: 'Run tests?',
+      },
+    });
+    render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingApprovals={[command]}
+        onSubmitApprovalDecision={onSubmitApprovalDecision}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(onSubmitApprovalDecision).toHaveBeenCalledWith('command-hotkey-2', {
+        action: 'decline',
+        content: undefined,
+        decision: 'denied',
+        execPolicyAmendment: undefined,
+        networkPolicyAmendment: undefined,
+        permissions: undefined,
+        scope: undefined,
+      });
+    });
+  });
+
+  it('matches Codex network approval leading and conversation-scoped actions', async () => {
+    const onSubmitApprovalDecision = vi.fn().mockResolvedValue(undefined);
+    const network = typedApproval('network-1', {
+      schemaVersion: 1,
+      category: 'approval',
+      kind: 'command_execution',
+      allowedActions: [
+        'accept',
+        'accept_for_session',
+        'apply_network_policy_amendment',
+        'decline',
+      ],
+      data: {
+        command: 'pnpm install',
+        message: 'Allow registry access?',
+        proposedNetworkPolicyAmendment: { hosts: ['registry.npmjs.org'] },
+      },
+    });
+    render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingApprovals={[network]}
+        onSubmitApprovalDecision={onSubmitApprovalDecision}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Always allow' }));
+    await waitFor(() => {
+      expect(onSubmitApprovalDecision).toHaveBeenCalledWith(
+        'network-1',
+        expect.objectContaining({
+          action: 'apply_network_policy_amendment',
+          decision: 'approved',
+          networkPolicyAmendment: { hosts: ['registry.npmjs.org'] },
+        }),
+      );
+    });
+
+    onSubmitApprovalDecision.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Approval options' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Allow this conversation' }));
+    await waitFor(() => {
+      expect(onSubmitApprovalDecision).toHaveBeenCalledWith(
+        'network-1',
+        expect.objectContaining({
+          action: 'accept_for_session',
+          decision: 'approved',
+        }),
       );
     });
   });
@@ -290,11 +434,21 @@ describe('UniversalChatPendingInteractions', () => {
     );
 
     expect(screen.getByText('Use React.')).toBeTruthy();
+    expect(screen.getByText('1 of 2')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(true);
+    const surface = screen.getByText('Choose a framework').closest('[tabindex="0"]');
+    fireEvent.keyDown(surface!, { key: 'ArrowRight' });
+    expect(screen.getByText('2 of 2')).toBeTruthy();
+    fireEvent.keyDown(surface!, { key: 'ArrowLeft' });
+    expect(screen.getByText('1 of 2')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: /React/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Next' }).at(-1)!);
+    expect(screen.getByText('2 of 2')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.change(screen.getByPlaceholderText('Type an answer for this question...'), {
       target: { value: 'Keep strict mode' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Next' }).at(-1)!);
     await waitFor(() => {
       expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('questions-1', {
         action: 'submit',
@@ -302,6 +456,146 @@ describe('UniversalChatPendingInteractions', () => {
           framework: ['React'],
           notes: ['Keep strict mode'],
         },
+        rejected: false,
+      });
+    });
+  });
+
+  it('supports Codex numeric selection and Enter submission shortcuts', async () => {
+    const onSubmitUserQuestionAnswer = vi.fn().mockResolvedValue(undefined);
+    const picker = typedQuestion('picker-1', {
+      schemaVersion: 1,
+      category: 'user_input',
+      kind: 'option_picker',
+      allowedActions: ['continue', 'dismiss'],
+      data: { question: 'Choose an action' },
+    }, [{
+      question: 'Choose an action',
+      options: [
+        { label: 'Continue', value: 'continue' },
+        { label: 'Wait', value: 'wait' },
+      ],
+    }]);
+    render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingUserQuestions={[picker]}
+        onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+      />,
+    );
+
+    const surface = screen.getAllByText('Choose an action')[0]!.closest('[tabindex="0"]');
+    fireEvent.keyDown(surface!, { key: '2' });
+    expect(screen.getByRole('radio', { name: 'Wait' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(surface!, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('picker-1', {
+        action: 'continue',
+        freeformAnswer: null,
+        rejected: false,
+        selectedOptions: ['wait'],
+      });
+    });
+  });
+
+  it('uses Codex app-scope numeric shortcuts for immediate question responses', async () => {
+    const onSubmitUserQuestionAnswer = vi.fn().mockResolvedValue(undefined);
+    const question = typedQuestion('question-shortcut-1', {
+      schemaVersion: 1,
+      category: 'user_input',
+      kind: 'question_set',
+      allowedActions: ['submit', 'dismiss'],
+      data: {
+        questions: [{
+          id: 'strategy',
+          header: 'Strategy',
+          prompt: 'Choose a strategy',
+          allowOther: false,
+          secret: false,
+          options: [{ label: 'Careful' }, { label: 'Fast' }],
+        }],
+      },
+    }, [{
+      id: 'strategy',
+      header: 'Strategy',
+      question: 'Choose a strategy',
+      options: [
+        { label: 'Careful', value: 'Careful' },
+        { label: 'Fast', value: 'Fast' },
+      ],
+    }]);
+    render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingUserQuestions={[question]}
+        onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('data-state', 'open');
+    document.body.append(dialog);
+    fireEvent.keyDown(window, { key: '2' });
+    expect(screen.getByRole('radio', { name: 'Careful' }).getAttribute('aria-checked')).toBe('true');
+    dialog.remove();
+
+    fireEvent.keyDown(window, { key: '2' });
+    expect(screen.getByRole('radio', { name: 'Fast' }).getAttribute('aria-checked')).toBe('true');
+    await waitFor(() => {
+      expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('question-shortcut-1', {
+        action: 'submit',
+        answers: { strategy: ['Fast'] },
+        rejected: false,
+      });
+    });
+  });
+
+  it('submits the Codex inline Other response without the default option', async () => {
+    const onSubmitUserQuestionAnswer = vi.fn().mockResolvedValue(undefined);
+    const question = typedQuestion('question-other-1', {
+      schemaVersion: 1,
+      category: 'user_input',
+      kind: 'question_set',
+      allowedActions: ['submit', 'dismiss'],
+      data: {
+        questions: [{
+          id: 'target',
+          header: 'Target',
+          prompt: 'Choose a target',
+          allowOther: true,
+          secret: false,
+          options: [{ label: 'Workspace' }],
+        }],
+      },
+    }, [{
+      id: 'target',
+      header: 'Target',
+      question: 'Choose a target',
+      allowOther: true,
+      options: [{ label: 'Workspace', value: 'Workspace' }],
+    }]);
+    const { container } = render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingUserQuestions={[question]}
+        onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
+      />,
+    );
+
+    const otherInput = screen.getByRole('textbox', { name: 'Other' });
+    expect(container.querySelector('[data-request-input-other-row] .lucide-pencil')).toBeTruthy();
+    fireEvent.focus(otherInput);
+    fireEvent.change(otherInput, { target: { value: 'Only changed files' } });
+    expect(screen.getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('question-other-1', {
+        action: 'submit',
+        answers: { target: ['Only changed files'] },
         rejected: false,
       });
     });
@@ -333,7 +627,7 @@ describe('UniversalChatPendingInteractions', () => {
 
     expect(container.querySelector('[data-user-input-auto-resolution="30000"]')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: /Workspace/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
     await waitFor(() => {
       expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('context-1', {
         action: 'continue',
@@ -373,11 +667,14 @@ describe('UniversalChatPendingInteractions', () => {
     );
 
     const continueButton = screen.getByRole('button', { name: 'Continue' });
+    const environmentInput = screen.getByLabelText('Environment');
     expect((continueButton as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText('Replicas') as HTMLInputElement).value).toBe('2');
-    fireEvent.change(screen.getByLabelText('Environment'), { target: { value: 'staging' } });
+    fireEvent.keyDown(environmentInput, { key: 'Enter' });
+    expect(onSubmitApprovalDecision).not.toHaveBeenCalled();
+    fireEvent.change(environmentInput, { target: { value: 'staging' } });
     expect((continueButton as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(continueButton);
+    fireEvent.keyDown(environmentInput, { key: 'Enter' });
     await waitFor(() => {
       expect(onSubmitApprovalDecision).toHaveBeenCalledWith(
         'mcp-1',

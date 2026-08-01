@@ -2121,6 +2121,36 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     assertSessionUserStateIdentity(response, normalizedIdentity.sessionId);
     return response;
   }
+
+  async updateSessionItemFeedback(
+    identity: AgentSessionIdentity,
+    itemId: string,
+    rating: 'up' | 'down' | null,
+  ) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const normalizedItemId = itemId.trim();
+    if (!normalizedItemId) {
+      throw new Error('Agent session item feedback requires an item id.');
+    }
+    return this.client.ai.agents.itemFeedback.update(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      normalizedItemId,
+      rating === null ? { clearFeedback: true } : { rating },
+    );
+  }
+
+  async listSessionItemFeedback(identity: AgentSessionIdentity) {
+    const normalizedIdentity = normalizeAgentSessionIdentity(identity);
+    const response = await this.client.ai.agents.itemFeedback.list(
+      normalizedIdentity.agentId,
+      normalizedIdentity.sessionId,
+      { page: 1, pageSize: 200 },
+    );
+    const items = Array.isArray(response?.items) ? response.items : [];
+    return (items as Array<{ itemId: string; rating: 'up' | 'down' }>)
+      .map((item) => ({ itemId: item.itemId, rating: item.rating }));
+  }
 }
 
 function resolveAgentId(value?: string): string {

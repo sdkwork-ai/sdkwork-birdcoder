@@ -237,6 +237,31 @@ export function UniversalChatPendingInteractions({
     );
   }, [controlsDisabled, isCodexInteractionSurface, submitApprovalDecision]);
 
+  useEffect(() => {
+    const activeLegacyApproval = typedApprovals.length === 0 ? legacyApprovals[0] : undefined;
+    if (!isCodexInteractionSurface || !activeLegacyApproval) return undefined;
+    const handleGlobalApprovalHotkey = (event: KeyboardEvent) => {
+      if (controlsDisabled || event.defaultPrevented) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[role="dialog"],[role="menu"]')) return;
+      if (event.key === 'Enter' && !target?.closest('button,a')) {
+        event.preventDefault();
+        void submitApprovalDecision(activeLegacyApproval.interactionId, 'approved');
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        void submitApprovalDecision(activeLegacyApproval.interactionId, 'denied');
+      }
+    };
+    window.addEventListener('keydown', handleGlobalApprovalHotkey);
+    return () => window.removeEventListener('keydown', handleGlobalApprovalHotkey);
+  }, [
+    controlsDisabled,
+    isCodexInteractionSurface,
+    legacyApprovals,
+    submitApprovalDecision,
+    typedApprovals.length,
+  ]);
+
   if (!hasPendingInteractions && !hasLoadError) {
     return null;
   }
@@ -273,10 +298,15 @@ export function UniversalChatPendingInteractions({
         </div>
       ) : null}
 
-      {typedQuestions.map((pendingQuestion) => (
+      {typedQuestions.map((pendingQuestion, questionIndex) => (
         <UniversalChatTypedInteraction
           key={pendingQuestion.interactionId}
           disabled={disabled}
+          enableGlobalQuestionHotkeys={
+            isCodexInteractionSurface
+            && questionIndex === 0
+            && pendingApprovals.length === 0
+          }
           isCodex={isCodexInteractionSurface}
           isSubmitting={isSubmitting}
           question={pendingQuestion}
@@ -284,11 +314,12 @@ export function UniversalChatPendingInteractions({
         />
       ))}
 
-      {typedApprovals.map((pendingApproval) => (
+      {typedApprovals.map((pendingApproval, approvalIndex) => (
         <UniversalChatTypedInteraction
           key={pendingApproval.interactionId}
           approval={pendingApproval}
           disabled={disabled}
+          enableGlobalApprovalHotkeys={isCodexInteractionSurface && approvalIndex === 0}
           isCodex={isCodexInteractionSurface}
           isSubmitting={isSubmitting}
           onSubmitApprovalDecision={onSubmitApprovalDecision}

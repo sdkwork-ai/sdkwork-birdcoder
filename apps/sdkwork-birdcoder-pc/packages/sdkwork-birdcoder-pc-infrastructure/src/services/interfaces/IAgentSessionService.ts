@@ -339,4 +339,12 @@ export interface IAgentSessionService {
     identity: AgentSessionIdentity,
     request: UpdateAgentSessionUserStateRequest,
   ): Promise<AgentResourceUserStateRecord>;
+  updateSessionItemFeedback(
+    identity: AgentSessionIdentity,
+    itemId: string,
+    rating: 'up' | 'down' | null,
+  ): Promise<unknown>;
+  listSessionItemFeedback(
+    identity: AgentSessionIdentity,
+  ): Promise<ReadonlyArray<{ itemId: string; rating: 'up' | 'down' }>>;
 }

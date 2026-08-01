@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
 import type { ChatMessageRenderContext } from '../types.ts';
 import type { ChatTurnProcessPresentation } from './turnProcessPresentation.ts';
@@ -58,14 +58,14 @@ export const TurnProcessDisclosure = memo(function TurnProcessDisclosure({
 
   return (
     <section
-      className={`w-full min-w-0 border-b border-white/[0.07] ${context.layout === 'sidebar' ? 'mb-1' : 'mb-2'}`}
+      className={`flex w-full min-w-0 flex-col ${context.layout === 'sidebar' ? 'mb-1' : 'mb-4'}`}
       data-chat-turn-process="true"
       data-chat-turn-process-state={presentation.isActive ? 'active' : 'completed'}
       data-chat-turn-process-expanded={isExpanded ? 'true' : 'false'}
     >
       <button
         type="button"
-        className="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-2 text-left text-gray-400 transition-colors hover:bg-white/[0.035] hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+        className="group/activity-header inline-flex min-w-0 max-w-full self-start items-center gap-1 p-0 text-left text-[13px] text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         aria-expanded={isExpanded}
         aria-label={`${title}${duration ? `, ${duration}` : ''}. ${actionLabel}`}
         title={actionLabel}
@@ -77,24 +77,25 @@ export const TurnProcessDisclosure = memo(function TurnProcessDisclosure({
           context.toggleDisclosure(expandedDisclosureKey);
         }}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-gray-500">
-          {presentation.isActive
-            ? <Loader2 size={14} className="animate-spin text-blue-300/80" aria-hidden="true" />
-            : <CheckCircle2 size={14} className="text-emerald-300/70" aria-hidden="true" />}
-        </span>
-        <span className="min-w-0 truncate text-[13px] font-medium text-gray-300">{title}</span>
+        <span className="min-w-0 truncate text-gray-400 group-hover/activity-header:text-gray-200">{title}</span>
         {duration ? (
-          <span className="shrink-0 font-mono text-[12px] tabular-nums text-gray-500">{duration}</span>
+          <span className="shrink-0 text-gray-500">{duration}</span>
         ) : null}
-        <span className="min-w-0 flex-1" aria-hidden="true" />
-        <span className="shrink-0 text-[10px] text-gray-600 max-[680px]:hidden">{stepsLabel}</span>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-gray-600">
-          {isExpanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+        <span className="shrink-0 text-gray-500">{stepsLabel}</span>
+        <span className="flex size-4 shrink-0 items-center justify-center text-gray-500 opacity-0 transition-opacity group-hover/activity-header:opacity-100 group-focus-visible/activity-header:opacity-100">
+          <ChevronRight
+            size={12}
+            aria-hidden="true"
+            className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          />
         </span>
       </button>
 
       {isExpanded ? (
-        <div className="space-y-2 pb-3 pl-1.5 pr-1.5 pt-1" data-chat-turn-process-details="true">
+        <div
+          className="mt-2 flex max-h-56 flex-col gap-1 overflow-x-hidden overflow-y-auto"
+          data-chat-turn-process-details="true"
+        >
           {presentation.items.map((item) => (
             <div
               key={`${item.sourceIndex}:${item.view.sessionItemId}`}

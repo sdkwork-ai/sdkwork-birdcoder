@@ -82,6 +82,8 @@ export interface CodeEditorWorkspacePanelProps {
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
+  onRateMessage: NonNullable<UniversalChatProps['onRateMessage']>;
+  onForkMessage: NonNullable<UniversalChatProps['onForkMessage']>;
   resolveLocalImagePreviewUrl:
     NonNullable<UniversalChatProps['resolveLocalImagePreviewUrl']>;
   onCreateRootFile: () => void;
@@ -112,6 +114,8 @@ export interface EditorChatProps {
   onDeleteMessage: (messageIds: string[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
+  onRateMessage: NonNullable<UniversalChatProps['onRateMessage']>;
+  onForkMessage: NonNullable<UniversalChatProps['onForkMessage']>;
   resolveLocalImagePreviewUrl:
     NonNullable<UniversalChatProps['resolveLocalImagePreviewUrl']>;
   onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;

@@ -401,8 +401,8 @@ assert.match(
 
 assert.match(
   toolCallCardSource,
-  /\[call\.arguments, call\.command, call\.target, call\.title, taskTitle\]/,
-  'Tool-call summaries and primary task titles must refresh when a streaming provider updates only the semantic title.',
+  /const actionPresentation = resolveToolCallActionPresentation\(call, t\);/,
+  'Tool-call summaries and semantic titles must be resolved from the latest streaming call on every render.',
 );
 
 assert.doesNotMatch(

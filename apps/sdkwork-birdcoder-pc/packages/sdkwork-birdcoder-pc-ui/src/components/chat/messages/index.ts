@@ -1,4 +1,6 @@
 export type {
+  ChatAssistantMessageRating,
+  ChatAssistantMessageRatingSelection,
   ChatMessageActionTarget,
   ChatMessageEnvironment,
   ChatMessageLayout,

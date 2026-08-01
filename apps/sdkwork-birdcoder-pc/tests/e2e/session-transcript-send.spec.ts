@@ -63,18 +63,31 @@ async function expandProjectSessions(page: Page): Promise<void> {
 }
 
 async function waitForTranscriptSettlement(page: Page): Promise<void> {
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    let remainingFrames = 12;
-    const waitForNextFrame = () => {
-      remainingFrames -= 1;
-      if (remainingFrames <= 0) {
-        resolve();
-        return;
+  // A rapid session switch can replace the document while the frame barrier is
+  // pending; retry against the new execution context instead of failing the UI
+  // interaction test on a transient navigation race.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.evaluate(() => new Promise<void>((resolve) => {
+        let remainingFrames = 12;
+        const waitForNextFrame = () => {
+          remainingFrames -= 1;
+          if (remainingFrames <= 0) {
+            resolve();
+            return;
+          }
+          window.requestAnimationFrame(waitForNextFrame);
+        };
+        window.requestAnimationFrame(waitForNextFrame);
+      }));
+      return;
+    } catch (error) {
+      if (!(error instanceof Error) || !/Execution context was destroyed/iu.test(error.message)) {
+        throw error;
       }
-      window.requestAnimationFrame(waitForNextFrame);
-    };
-    window.requestAnimationFrame(waitForNextFrame);
-  }));
+      await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    }
+  }
 }
 
 test('Session transcript survives rapid reselection and completes a sent turn', async ({
@@ -147,6 +160,27 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
     .locator(':scope > button[aria-label]');
   await codexSession.click();
   await expect.poll(() => codexItemRequestCount).toBe(1);
+  // Provider sorting places OpenCode after the larger Codex history block.
+  // Expand the bounded session window until the target row is actually visible.
+  for (let expansion = 0; expansion < 8 && await openCodeSession.count() === 0; expansion += 1) {
+    const loadMoreSessions = sessionList.getByRole('button', {
+      name: 'Show more',
+      exact: true,
+    });
+    const loadOlderSessions = sessionList.getByRole('button', {
+      name: 'Show older',
+      exact: true,
+    });
+    if (await loadMoreSessions.count() > 0) {
+      await loadMoreSessions.click();
+    } else if (await loadOlderSessions.count() > 0) {
+      await loadOlderSessions.click();
+    } else {
+      break;
+    }
+    await page.waitForTimeout(100);
+  }
+  await expect(openCodeSession).toHaveCount(1);
   await openCodeSession.click();
   const reselectedInitialPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());

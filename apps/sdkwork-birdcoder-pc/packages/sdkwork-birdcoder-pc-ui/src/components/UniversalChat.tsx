@@ -288,6 +288,11 @@ export interface UniversalChatProps {
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
+  onRateMessage?: (
+    messageId: string,
+    rating: 'thumbs_up' | 'thumbs_down' | null,
+  ) => void | Promise<void>;
+  onForkMessage?: (messageId: string) => void | Promise<void>;
   onViewChanges?: (file: FileChange) => void;
   onRestore?: (msgId: string, fileChanges?: readonly FileChange[]) => void;
   className?: string;
@@ -422,6 +427,11 @@ interface UniversalChatTranscriptEnvironment {
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
+  onRateMessage?: (
+    messageId: string,
+    rating: 'thumbs_up' | 'thumbs_down' | null,
+  ) => void | Promise<void>;
+  onForkMessage?: (messageId: string) => void | Promise<void>;
   onRestore?: (msgId: string, fileChanges?: readonly FileChange[]) => void;
   onViewChanges?: (file: FileChange) => void;
   skills: ChatSkill[];
@@ -866,6 +876,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       onRegenerateMessage: snapshot.onRegenerateMessage
         ? () => environmentRef.current?.onRegenerateMessage?.()
         : undefined,
+      onRateMessage: snapshot.onRateMessage
+        ? (...args) => environmentRef.current?.onRateMessage?.(...args)
+        : undefined,
+      onForkMessage: snapshot.onForkMessage
+        ? (...args) => environmentRef.current?.onForkMessage?.(...args)
+        : undefined,
       onRestore: snapshot.onRestore
         ? (...args) => environmentRef.current?.onRestore?.(...args)
         : undefined,
@@ -901,18 +917,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     );
   }, [messageEnvironment]);
 
-  const copyMessageToClipboard = useCallback((content: string) => {
+  const copyMessageToClipboard = useCallback(async (content: string): Promise<boolean> => {
     const environment = environmentRef.current;
-    void copyTextToClipboard(content).then((didCopy) => {
-      if (!environment) {
-        return;
-      }
-      if (didCopy) {
-        environment.addToast(environment.t('chat.messageCopied'), 'success');
-      } else {
-        environment.addToast(environment.t('chat.copyFailed'), 'error');
-      }
-    });
+    const didCopy = await copyTextToClipboard(content);
+    if (environment) {
+      environment.addToast(
+        environment.t(didCopy ? 'chat.messageCopied' : 'chat.copyFailed'),
+        didCopy ? 'success' : 'error',
+      );
+    }
+    return didCopy;
   }, [environmentRef]);
 
   const messageRenderContext = useMemo<ChatMessageRenderContext>(() => ({
@@ -970,8 +984,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       ) : null}
       {messages.length === 0 ? (
         layout === 'main' ? (
-          <div className="flex min-h-full w-full px-6">
-            <div className="mx-auto flex w-full max-w-[40rem] flex-1 items-center justify-center">
+          <div className="flex min-h-full w-full px-5">
+            <div className="mx-auto flex w-full max-w-[48rem] flex-1 items-center justify-center">
               {emptyState ? (
                 <div className="w-full">{emptyState}</div>
               ) : (
@@ -1144,6 +1158,8 @@ export const UniversalChat = memo(function UniversalChat({
   onOpenFile,
   onOpenUrl,
   onRegenerateMessage,
+  onRateMessage,
+  onForkMessage,
   onViewChanges,
   onRestore,
   className = '',
@@ -1195,6 +1211,8 @@ export const UniversalChat = memo(function UniversalChat({
       canDelete: !disabled && Boolean(onDeleteMessage),
       canEdit: !disabled && Boolean(onEditMessage),
       canRegenerate: !disabled && Boolean(onRegenerateMessage),
+      canRate: !disabled && Boolean(onRateMessage),
+      canFork: !disabled && Boolean(onForkMessage),
       canRestore: !disabled && Boolean(onRestore),
       canViewChanges: Boolean(onViewChanges),
       canOpenFile: Boolean(onOpenFile),
@@ -1209,6 +1227,8 @@ export const UniversalChat = memo(function UniversalChat({
       onOpenFile,
       onOpenUrl,
       onRegenerateMessage,
+      onRateMessage,
+      onForkMessage,
       onRestore,
       onViewChanges,
       resolveLocalImagePreviewUrl,
@@ -1682,31 +1702,27 @@ export const UniversalChat = memo(function UniversalChat({
       throw new Error('The model configuration contains an unsupported Agent provider.');
     }
 
-    type ApplyInput = Parameters<typeof agentModelConfigurationService.apply>[0];
-    const appliedConfigurations = await Promise.all(
-      supportedProviderIds.map((providerId) => agentModelConfigurationService.apply({
-        configurationId: draft.configurationId,
-        engineId: providerId as ApplyInput['engineId'],
+    type SelectionInput = Parameters<
+      typeof agentModelConfigurationService.applySelection
+    >[0];
+    const appliedSelection = await agentModelConfigurationService.applySelection({
+      configurationId: draft.configurationId,
+      engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
+      modelId: draft.defaultModelId,
+      configuration: {
         vendorCode: draft.vendorCode,
         baseUrl: draft.baseUrl,
         apiKey: draft.apiKey,
         defaultModelId: draft.defaultModelId,
         supportedModelIds: draft.supportedModelIds,
-        supportedProviderIds: supportedProviderIds as ApplyInput['supportedProviderIds'],
+        supportedProviderIds: supportedProviderIds as NonNullable<
+          SelectionInput['configuration']
+        >['supportedProviderIds'],
         inputContextTokens: draft.inputContextTokens,
         outputContextTokens: draft.outputContextTokens,
         toolCallRounds: draft.toolCallRounds,
         supportsMultimodal: draft.supportsMultimodal,
-      })),
-    );
-
-    type SelectionInput = Parameters<
-      typeof agentModelConfigurationService.applySelection
-    >[0];
-    await agentModelConfigurationService.applySelection({
-      configurationId: draft.configurationId,
-      engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
-      modelId: draft.defaultModelId,
+      },
     });
 
     updatePreferences((previousPreferences) => saveWorkbenchUnifiedCustomAgentModel(
@@ -1723,9 +1739,7 @@ export const UniversalChat = memo(function UniversalChat({
         outputContextTokens: draft.outputContextTokens,
         toolCallRounds: draft.toolCallRounds,
         supportsMultimodal: draft.supportsMultimodal,
-        apiKeyConfigured: appliedConfigurations.every((configuration) => (
-          configuration.apiKeyConfigured
-        )),
+        apiKeyConfigured: appliedSelection.configurationApplied?.apiKeyConfigured ?? false,
       },
     ));
     applyComposerSelection(resolvedSelectedEngineId, draft.defaultModelId, true);
@@ -1929,6 +1943,8 @@ export const UniversalChat = memo(function UniversalChat({
     onOpenFile,
     onOpenUrl,
     onRegenerateMessage: disabled ? undefined : onRegenerateMessage,
+    onRateMessage: disabled ? undefined : onRateMessage,
+    onForkMessage: disabled ? undefined : onForkMessage,
     onRestore: disabled ? undefined : onRestore,
     onViewChanges,
     skills,
@@ -3588,12 +3604,12 @@ export const UniversalChat = memo(function UniversalChat({
         className={
           shouldPresentNewSessionComposer
             ? 'flex min-h-0 flex-1 items-center bg-transparent px-5 py-8 sm:px-8'
-            : `shrink-0 ${layout === 'sidebar' ? 'px-4 pb-2 pt-3' : 'px-6 pb-2.5 pt-4'} bg-transparent`
+            : `shrink-0 ${layout === 'sidebar' ? 'px-4 pb-2 pt-3' : 'px-5 pb-2.5 pt-4'} bg-transparent`
         }
         data-new-session-composer={shouldPresentNewSessionComposer ? 'true' : undefined}
       >
         <div
-          className={`mx-auto w-full ${layout === 'main' ? 'max-w-[40rem]' : ''} ${
+          className={`mx-auto w-full ${layout === 'main' ? 'max-w-[48rem]' : ''} ${
             shouldPresentNewSessionComposer
               ? '-translate-y-[clamp(0rem,4vh,2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300'
               : ''

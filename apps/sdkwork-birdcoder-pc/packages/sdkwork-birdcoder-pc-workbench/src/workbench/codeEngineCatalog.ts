@@ -284,19 +284,26 @@ function includeUnifiedCustomAgentModels(
     return engine;
   }
   const knownModelIds = new Set(engine.models.map((model) => model.id));
-  const localModels = customModels
-    .filter((model) => !knownModelIds.has(model.modelId))
-    .map((model): WorkbenchCodeEngineModelDefinition => ({
-      id: model.modelId,
-      label: model.label,
-      description: model.description,
-      vendor: vendorFromProvider(model.vendorCode),
-      modelVendor: vendorFromProvider(model.vendorCode),
-      providerId: bindingModel.providerId,
-      bindingId: bindingModel.bindingId || engine.bindingId,
-      defaultForEngine: false,
-      source: 'user-local',
-    }));
+  const localModels: WorkbenchCodeEngineModelDefinition[] = [];
+  for (const configuration of customModels) {
+    for (const modelId of configuration.supportedModelIds) {
+      if (knownModelIds.has(modelId)) {
+        continue;
+      }
+      knownModelIds.add(modelId);
+      localModels.push({
+        id: modelId,
+        label: modelId === configuration.modelId ? configuration.label : modelId,
+        description: configuration.description,
+        vendor: vendorFromProvider(configuration.vendorCode),
+        modelVendor: vendorFromProvider(configuration.vendorCode),
+        providerId: bindingModel.providerId,
+        bindingId: bindingModel.bindingId || engine.bindingId,
+        defaultForEngine: false,
+        source: 'user-local',
+      });
+    }
+  }
   if (localModels.length === 0) {
     return engine;
   }

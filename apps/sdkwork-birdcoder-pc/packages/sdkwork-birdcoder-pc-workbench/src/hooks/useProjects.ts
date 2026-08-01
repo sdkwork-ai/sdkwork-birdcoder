@@ -1649,6 +1649,7 @@ export function useProjects(options?: UseProjectsOptions) {
     projectId: string,
     agentSessionId: string,
     newTitle?: string,
+    sourceTurnId?: string,
   ) => {
     try {
       const currentProjects = storeScopeKey
@@ -1696,7 +1697,7 @@ export function useProjects(options?: UseProjectsOptions) {
       }
       const createForkedSession = () => agentSessionService.createSession({
         agentId: parentSession.agentId,
-        forkedFromTurnId: lastTurn?.turnId,
+        forkedFromTurnId: sourceTurnId?.trim() || lastTurn?.turnId,
         parentSessionId: parentSession.sessionId,
         projectId: project.projectId,
         sourceContextId: project.projectId,

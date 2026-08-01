@@ -82,6 +82,7 @@ export interface AgentSessionViewContext {
   runtimeBindingUpdatedAt?: string;
   userState?: AgentSessionUserStateRecord | null;
   itemPageInfo?: AgentSessionItemPageInfoView;
+  itemFeedback?: ReadonlyMap<string, 'up' | 'down'>;
 }
 
 export interface ProjectAgentSessionPage {
@@ -698,6 +699,7 @@ function resolveSessionStatus(
 export function toAgentSessionItemView(
   item: AgentSessionItemRecord,
   providerIdentity?: AgentSessionUserContentProviderIdentity,
+  feedbackRating?: 'up' | 'down',
 ): AgentSessionItemView {
   const noticeKind = resolveItemNoticeKind(item);
   const userContent = resolveAgentSessionUserContent(item, providerIdentity);
@@ -745,6 +747,7 @@ export function toAgentSessionItemView(
       ...(providerPayload?.messageCompleted !== undefined
         ? { providerMessageCompleted: providerPayload.messageCompleted }
         : {}),
+      ...(feedbackRating ? { assistantRating: feedbackRating } : {}),
       ...transcriptMetadata,
     },
     createdAt: item.createdAt,
@@ -826,6 +829,7 @@ function mergeCodexUserContentGroup(
 export function toAgentSessionTranscriptItemViews(
   items: readonly AgentSessionItemRecord[],
   providerIdentity?: AgentSessionUserContentProviderIdentity,
+  itemFeedback?: ReadonlyMap<string, 'up' | 'down'>,
 ): AgentSessionItemView[] {
   const projectedItems = providerIdentity?.engineId?.trim().toLowerCase() === 'opencode'
     ? replayOpenCodeSessionItemRecords(normalizeAgentSessionItemSourceRecords(
@@ -872,7 +876,7 @@ export function toAgentSessionTranscriptItemViews(
   for (let index = 0; index < projectedItems.length;) {
     const item = projectedItems[index]!;
     if (!isCodexUserContentCarrier(item, providerIdentity)) {
-      const view = toAgentSessionItemView(item, providerIdentity);
+      const view = toAgentSessionItemView(item, providerIdentity, itemFeedback?.get(item.itemId));
       appendTranscriptView(view);
       index += 1;
       continue;
@@ -916,7 +920,7 @@ export function toAgentSessionView(
       const rightSequence = BigInt(right.sequence);
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
     });
-  const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems, context);
+  const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems, context, context.itemFeedback);
   const canonicalTitle = session.title?.trim();
   const providerTitle = context.providerTitle?.trim();
   const title = context.userState?.customTitle?.trim()
@@ -1207,7 +1211,7 @@ export async function loadAgentSessionView(
 ): Promise<AgentSessionView> {
   const tolerateFailure = options.tolerateAuxiliaryMetadataFailure === true;
   const fallbackView = options.fallbackView;
-  const [runtimeBindingResult, userStatesResult] = await Promise.all([
+  const [runtimeBindingResult, userStatesResult, feedbackResult] = await Promise.all([
     options.reuseFallbackRuntimeMetadata && fallbackView?.activity
       ? Promise.resolve({ failed: true, value: null })
       : loadAgentSessionAuxiliaryMetadata(
@@ -1230,7 +1234,19 @@ export async function loadAgentSessionView(
       signal,
       tolerateFailure,
     ),
+    loadAgentSessionAuxiliaryMetadata(
+      'item feedback',
+      () => agentSessionService.listSessionItemFeedback({
+        agentId: session.agentId,
+        sessionId: session.sessionId,
+      }),
+      signal,
+      tolerateFailure,
+    ),
   ]);
+  const itemFeedback = feedbackResult.value
+    ? new Map(feedbackResult.value.map((entry) => [entry.itemId, entry.rating] as const))
+    : undefined;
   const userState = userStatesResult.value?.get(session.sessionId) ?? null;
   const currentBinding = runtimeBindingResult.value?.items.find((binding) => binding.isCurrent);
   const engine = currentBinding
@@ -1293,6 +1309,7 @@ export async function loadAgentSessionView(
     runtimeBindingUpdatedAt: currentBinding?.updatedAt
       ?? (runtimeBindingResult.failed ? fallbackView?.lastRuntimeEventAt : undefined),
     userState,
+    itemFeedback,
     itemPageInfo,
   }, items);
   return inheritAgentSessionItemSourceWindow({

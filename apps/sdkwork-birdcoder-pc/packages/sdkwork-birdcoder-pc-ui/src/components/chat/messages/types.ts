@@ -26,6 +26,9 @@ export type ChatMessageTranslate = (
   options?: Record<string, unknown>,
 ) => string;
 
+export type ChatAssistantMessageRating = 'thumbs_up' | 'thumbs_down';
+export type ChatAssistantMessageRatingSelection = ChatAssistantMessageRating | null;
+
 export interface ChatMessageActionTarget {
   endIndex: number;
   startIndex: number;
@@ -41,6 +44,11 @@ export interface ChatMessageEnvironment {
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
+  onRateMessage?: (
+    messageId: string,
+    rating: ChatAssistantMessageRatingSelection,
+  ) => void | Promise<void>;
+  onForkMessage?: (messageId: string) => void | Promise<void>;
   onRestore?: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onViewChanges?: (file: FileChange) => void;
   skills: readonly ChatSkill[];
@@ -62,7 +70,7 @@ export interface ChatMessageRenderContext {
   allMessages: readonly AgentSessionItemView[];
   actionTarget: ChatMessageActionTarget | null;
   showMessageActions: boolean;
-  copyMessageToClipboard: (content: string) => void;
+  copyMessageToClipboard: (content: string) => void | Promise<boolean>;
   expandedDisclosureKeys: ReadonlySet<string>;
   toggleDisclosure: (key: string) => void;
   renderMarkdownContent: (content: string, mode?: 'basic' | 'rich') => ReactNode;

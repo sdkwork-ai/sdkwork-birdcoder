@@ -183,19 +183,12 @@ async function exposeCodexPendingInteractions(
 async function expandProjectSessions(page: Page): Promise<void> {
   const codexSession = page.getByText('Codex implementation', { exact: true });
   const expandProject = page.getByRole('button', { name: 'Expand E2E Project' });
-  const showOlderSessions = page.getByRole('button', {
-    name: /^(?:Older sessions|Show more)$/u,
-  }).first();
   await expect.poll(async () => (
     await codexSession.count() > 0
     || await expandProject.count() > 0
-    || await showOlderSessions.count() > 0
   ), { timeout: 60_000 }).toBe(true);
   if (await codexSession.count() === 0 && await expandProject.isVisible()) {
     await expandProject.click();
-  }
-  if (await codexSession.count() === 0 && await showOlderSessions.isVisible()) {
-    await showOlderSessions.click();
   }
   await expect(codexSession).toBeVisible();
 }
@@ -446,7 +439,13 @@ for (const visualCase of visualCases) {
 
     await waitForStableVisualState(page);
     await assertVisualLayout(page);
-    expect(failedRequests).toEqual([]);
+    // Vite aborts superseded module fetches during the initial HMR graph settle;
+    // keep API/resource failures visible while ignoring only those dev-server fetches.
+    expect(failedRequests.filter((entry) => {
+      if (!entry.endsWith('net::ERR_ABORTED')) return true;
+      const requestUrl = entry.slice(0, entry.lastIndexOf(' net::ERR_ABORTED'));
+      return !/^http:\/\/127\.0\.0\.1:4175\/(?:@fs\/|readyz)/u.test(requestUrl);
+    })).toEqual([]);
     expect(consoleErrors).toEqual([]);
     await expect(page).toHaveScreenshot(visualCase.snapshot, {
       animations: 'disabled',

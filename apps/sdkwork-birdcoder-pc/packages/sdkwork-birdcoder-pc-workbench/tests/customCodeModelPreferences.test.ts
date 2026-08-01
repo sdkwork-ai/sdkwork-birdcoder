@@ -110,11 +110,18 @@ describe('custom code model preferences', () => {
 
     expect(engines).toHaveLength(2);
     for (const engine of engines) {
-      expect(engine.models.at(-1)).toMatchObject({
-        id: 'gpt-5-custom',
-        label: 'GPT-5 Custom',
-        source: 'user-local',
-      });
+      expect(engine.models.slice(-2)).toMatchObject([
+        {
+          id: 'gpt-5-custom',
+          label: 'GPT-5 Custom',
+          source: 'user-local',
+        },
+        {
+          id: 'gpt-5-fast',
+          label: 'gpt-5-fast',
+          source: 'user-local',
+        },
+      ]);
     }
     expect(resolveWorkbenchRuntimeBindingIdentity(
       'codex',
@@ -126,6 +133,17 @@ describe('custom code model preferences', () => {
       modelId: 'gpt-5-custom',
       providerBindingId: 'binding.provider.codex',
       providerId: 'provider.openai',
+    });
+    expect(resolveWorkbenchRuntimeBindingIdentity(
+      'claude-code',
+      'gpt-5-fast',
+      preferences,
+    )).toEqual({
+      agentId: 'agent.code-engine.claude-code',
+      engineId: 'claude-code',
+      modelId: 'gpt-5-fast',
+      providerBindingId: 'binding.provider.claude-code',
+      providerId: 'provider.anthropic',
     });
   });
 });

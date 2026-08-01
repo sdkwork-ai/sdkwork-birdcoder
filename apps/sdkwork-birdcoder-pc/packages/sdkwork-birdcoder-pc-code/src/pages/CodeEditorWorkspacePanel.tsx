@@ -43,6 +43,8 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSubmitUserQuestionAnswer,
   onRetryPendingInteractions,
   onViewChanges,
+  onRateMessage,
+  onForkMessage,
 }: EditorChatProps) {
   return (
     <DeferredUniversalChat
@@ -76,6 +78,8 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       setSelectedModelId={onSelectedModelIdChange}
       layout="sidebar"
       onViewChanges={onViewChanges}
+      onRateMessage={onRateMessage}
+      onForkMessage={onForkMessage}
       onRestore={onRestoreMessage}
       onOpenFile={onOpenFile}
       resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
@@ -158,6 +162,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onEditMessage,
   onDeleteMessage,
   onRegenerateMessage,
+  onRateMessage,
+  onForkMessage,
   resolveLocalImagePreviewUrl,
   onCreateRootFile,
   getLanguageFromPath,
@@ -258,6 +264,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               onEditMessage={onEditMessage}
               onDeleteMessage={onDeleteMessage}
               onRegenerateMessage={onRegenerateMessage}
+              onRateMessage={onRateMessage}
+              onForkMessage={onForkMessage}
               onOpenFile={onSelectFile}
               resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
             />

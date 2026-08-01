@@ -15,6 +15,7 @@ import {
   WorkbenchNewSessionButton,
   type UniversalChatComposerSelection,
   type UniversalChatComposerSubmission,
+  type UniversalChatProps,
 } from '@sdkwork/birdcoder-pc-ui';
 import {
   ResizeHandle,
@@ -192,6 +193,8 @@ interface StudioChatSidebarProps {
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
+  onRateMessage: NonNullable<UniversalChatProps['onRateMessage']>;
+  onForkMessage: NonNullable<UniversalChatProps['onForkMessage']>;
   onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
 }
 
@@ -291,6 +294,8 @@ function areStudioChatSidebarPropsEqual(
     left.onEditMessage === right.onEditMessage &&
     left.onDeleteMessage === right.onDeleteMessage &&
     left.onRegenerateMessage === right.onRegenerateMessage &&
+    left.onRateMessage === right.onRateMessage &&
+    left.onForkMessage === right.onForkMessage &&
     left.onRestoreMessage === right.onRestoreMessage
   );
 }
@@ -345,6 +350,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onOpenFile,
   onOpenUrl,
   onViewChanges,
+  onRateMessage,
+  onForkMessage,
   onRestoreMessage,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
@@ -1183,6 +1190,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             onOpenFile={onOpenFile}
             onOpenUrl={onOpenUrl}
             onViewChanges={onViewChanges}
+            onRateMessage={onRateMessage}
+            onForkMessage={onForkMessage}
             onRestore={onRestoreMessage}
             disabled={disabled}
             emptyState={

@@ -84,7 +84,7 @@ export const FileChangeDisclosureRow = memo(function FileChangeDisclosureRow({
     >
       <div
         data-chat-file-change-row={rowKind}
-        className={`flex min-h-10 w-full min-w-0 items-center gap-1 transition-colors hover:bg-white/[0.035] ${
+        className={`flex h-9 w-full min-w-0 items-center gap-1 transition-colors hover:bg-white/[0.035] ${
           rowKind === 'turn-card' ? 'px-0.5' : 'rounded-md px-1.5'
         }`}
       >

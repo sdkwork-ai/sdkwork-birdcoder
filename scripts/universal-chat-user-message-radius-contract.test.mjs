@@ -8,14 +8,14 @@ const replyMessageRenderersSource = fs.readFileSync(
 
 assert.match(
   replyMessageRenderersSource,
-  /className="[^"]*max-w-\[min\(82%,64ch\)\][^"]*rounded-\[10px\][^"]*px-3 py-2[^"]*"\s*data-chat-user-text="true"/,
-  'UniversalChat main sent-message bubble must use the OpenCode-aligned readable width, radius, and compact padding.',
+  /className="[^"]*max-w-\[77%\][^"]*rounded-2xl[^"]*bg-white\/\[0\.05\][^"]*px-3 py-2[^"]*"\s*data-chat-user-text="true"\s*data-user-message-bubble="true"/,
+  'UniversalChat sent-message bubbles must use the installed Codex width, radius, foreground tint, padding, and DOM marker.',
 );
 
 assert.match(
   replyMessageRenderersSource,
-  /className="[^"]*max-w-\[min\(82%,64ch\)\][^"]*rounded-\[10px\][^"]*px-3 py-2[^"]*"\s*data-chat-user-text="true"/,
-  'UniversalChat sidebar sent-message bubble must use the same provider-neutral OpenCode-aligned geometry.',
+  /if \(isSidebar\) \{[\s\S]*?max-w-\[77%\][\s\S]*?data-user-message-bubble="true"/,
+  'UniversalChat sidebar sent-message bubble must use the same installed Codex geometry and DOM marker.',
 );
 
 assert.match(
@@ -30,10 +30,16 @@ assert.match(
   'User attachments must render before the standalone text bubble.',
 );
 
-assert.doesNotMatch(
+assert.match(
   replyMessageRenderersSource,
-  /(?:rounded-2xl|rounded-3xl)[^'"]*(?:whitespace-pre-wrap|rounded-tr-sm)/,
-  'UniversalChat sent-message bubbles must not use large 2xl/3xl radii that make short messages look circular.',
+  /<div className="flex w-full items-center justify-end gap-1">[\s\S]*?<ChatMessageActionBar[\s\S]*?data-user-message-bubble="true"/,
+  'UniversalChat main sent-message compact actions and bubble must share the installed Codex horizontal row.',
+);
+
+assert.match(
+  replyMessageRenderersSource,
+  /<h4 className="sr-only select-none">\{userRoleHeading\}<\/h4>/,
+  'UniversalChat user messages must expose the same screen-reader-only role heading as Codex.',
 );
 
 console.log('universal chat user message radius contract passed.');

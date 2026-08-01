@@ -1359,6 +1359,41 @@ function CodePageComponent({
       void handleRegenerateMessage(session.id, currentProjectId);
     }
   }, [currentProjectId, handleRegenerateMessage, session]);
+  const handleRateSelectedAgentSessionItem = useCallback(async (
+    messageId: string,
+    rating: 'thumbs_up' | 'thumbs_down' | null,
+  ) => {
+    if (!session?.agentId || !session.id) {
+      return;
+    }
+    try {
+      await agentSessionService.updateSessionItemFeedback(
+        { agentId: session.agentId, sessionId: session.id },
+        messageId,
+        rating === null ? null : rating === 'thumbs_up' ? 'up' : 'down',
+      );
+    } catch (error) {
+      console.error('Failed to update assistant message feedback', error);
+      addToast(t('chat.copyFailed'), 'error');
+    }
+  }, [addToast, agentSessionService, session, t]);
+  const handleForkSelectedAgentSessionMessage = useCallback(async (messageId: string) => {
+    if (!session || !currentProjectId) return;
+    const sourceItem = session.items.find((item) => item.id === messageId);
+    try {
+      const forked = await forkAgentSession(
+        currentProjectId,
+        session.id,
+        `${session.title} (continued)`,
+        sourceItem?.turnId,
+      );
+      selectSession(forked.id, { projectId: currentProjectId });
+      addToast(t('chat.messageForked'), 'success');
+    } catch (error) {
+      console.error('Failed to continue assistant message in a new chat', error);
+      addToast(t('chat.messageForkFailed'), 'error');
+    }
+  }, [addToast, currentProjectId, forkAgentSession, selectSession, session, t]);
   const handleRestoreSelectedAgentSessionItem = useCallback((
     messageId: string,
     fileChanges?: readonly FileChange[],
@@ -1531,6 +1566,8 @@ function CodePageComponent({
     onRefreshAgentSessionItems: handleRefreshAgentSessionItems,
     onRefreshProjectSessions: handleRefreshProjectSessions,
     onRegenerateMessage: handleRegenerateSelectedAgentSessionItem,
+    onRateMessage: handleRateSelectedAgentSessionItem,
+    onForkMessage: handleForkSelectedAgentSessionMessage,
     resolveLocalImagePreviewUrl,
     onCloseDiff: handleCloseViewingDiff,
     onReimportProjectFolder: handleReimportProjectFolderAction,
