@@ -11,5 +11,6 @@ acceptance and verification evidence.
 - [REQ-2026-0005: PC Appearance Settings](REQ-2026-0005-pc-appearance-settings.md)
 - [REQ-2026-0006: Hybrid local and cloud Agent execution](REQ-2026-0006-hybrid-local-cloud-agent-execution.md)
 - [REQ-2026-0007: Durable Turn input queue](REQ-2026-0007-durable-turn-input-queue.md)
+- [REQ-2026-0008: Codex desktop observable parity](REQ-2026-0008-codex-desktop-observable-parity.md)
 
 Authority: REQUIREMENTS_SPEC.md.

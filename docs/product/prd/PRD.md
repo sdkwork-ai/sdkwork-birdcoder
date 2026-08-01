@@ -233,6 +233,7 @@ Item consumer and does not claim full cross-surface feature parity.
 - [REQ-2026-0005 PC Appearance Settings](../requirements/REQ-2026-0005-pc-appearance-settings.md)
 - [REQ-2026-0006 Hybrid local and cloud Agent execution](../requirements/REQ-2026-0006-hybrid-local-cloud-agent-execution.md)
 - [REQ-2026-0007 Durable Turn input queue](../requirements/REQ-2026-0007-durable-turn-input-queue.md)
+- [REQ-2026-0008 Codex desktop observable parity](../requirements/REQ-2026-0008-codex-desktop-observable-parity.md)
 - [ADR-20260722 Owner-composed stateless workbench](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../../architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
 - [ADR-20260730 Hybrid execution ownership and placement boundaries](../../architecture/decisions/ADR-20260730-hybrid-execution-boundaries.md)
