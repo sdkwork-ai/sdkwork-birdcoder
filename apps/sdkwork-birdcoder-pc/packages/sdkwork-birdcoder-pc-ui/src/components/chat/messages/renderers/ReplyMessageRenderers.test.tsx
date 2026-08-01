@@ -39,6 +39,7 @@ function createContext(
     rating: 'thumbs_up' | 'thumbs_down' | null,
   ) => void,
   onForkMessage?: (messageId: string) => void,
+  beginEditingMessage?: (messageId: string, content: string) => void,
 ): ChatMessageRenderContext {
   return {
     actionTarget: null,
@@ -49,6 +50,7 @@ function createContext(
       addToast: () => undefined,
       onRateMessage,
       onForkMessage,
+      beginEditingMessage,
       onRegenerateMessage: () => undefined,
       skills: [],
       t: (key) => ({
@@ -180,5 +182,38 @@ describe('UserTextMessageRenderer', () => {
     expect(bubble?.parentElement?.className).toContain('items-center');
     expect(bubble?.parentElement?.querySelector('[aria-label="Copy message"]')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'You said:' })).toBeTruthy();
+  });
+
+  it('matches Codex compact user actions and opens editing by double-clicking the focusable bubble', () => {
+    const message: AgentSessionItemView = {
+      id: 'user-message-1',
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      role: 'user',
+      content: 'User request',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      completedAt: '2026-08-01T00:00:00.000Z',
+    };
+    const editRequests: Array<[string, string]> = [];
+    const { container } = render(
+      <UserTextMessageRenderer
+        context={createContext(
+          message,
+          undefined,
+          undefined,
+          (messageId, content) => editRequests.push([messageId, content]),
+        )}
+        view={resolveAgentSessionItemPresentation(message, { engineId: 'codex' })}
+      />,
+    );
+
+    const bubble = container.querySelector<HTMLElement>('[data-user-message-bubble="true"]');
+    expect(bubble?.tabIndex).toBe(0);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Copy message' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit message' })).toBeNull();
+
+    fireEvent.doubleClick(bubble!);
+    expect(editRequests).toEqual([['user-message-1', 'User request']]);
   });
 });

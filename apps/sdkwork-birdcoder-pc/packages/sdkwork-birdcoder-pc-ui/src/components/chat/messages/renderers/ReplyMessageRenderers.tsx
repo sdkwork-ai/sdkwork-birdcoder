@@ -195,6 +195,10 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
     ? { ...view, blocks: display.supplementaryBlocks }
     : null;
   const userRoleHeading = context.environment?.t('chat.conversationRoleHeadingUser') ?? 'You said:';
+  const canEditMessage = Boolean(context.environment?.beginEditingMessage);
+  const beginEditingMessage = () => {
+    context.environment?.beginEditingMessage?.(message.id, message.content);
+  };
 
   if (isSidebar) {
     return (
@@ -247,14 +251,17 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
             copyContent={message.content}
             iconSize={12}
             className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
-            showEdit
           />
         ) : null}
         {textView ? (
           <div
-            className="max-w-[77%] min-w-0 overflow-hidden break-words rounded-2xl bg-white/[0.05] px-3 py-2 text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-100 whitespace-pre-wrap [overflow-wrap:anywhere]"
+            className={`max-w-[77%] min-w-0 overflow-hidden break-words rounded-2xl bg-white/[0.05] px-3 py-2 text-start text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-100 whitespace-pre-wrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 [overflow-wrap:anywhere] ${
+              canEditMessage ? 'cursor-pointer' : ''
+            }`}
             data-chat-user-text="true"
             data-user-message-bubble="true"
+            onDoubleClick={canEditMessage ? beginEditingMessage : undefined}
+            tabIndex={0}
           >
             <ContentBlockList view={textView} context={context} />
           </div>
