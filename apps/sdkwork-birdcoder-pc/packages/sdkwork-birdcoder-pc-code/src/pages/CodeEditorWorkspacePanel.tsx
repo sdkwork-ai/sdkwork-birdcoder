@@ -43,6 +43,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSubmitUserQuestionAnswer,
   onRetryPendingInteractions,
   onViewChanges,
+  onEditMessage,
   onRateMessage,
   onForkMessage,
 }: EditorChatProps) {
@@ -78,6 +79,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       setSelectedModelId={onSelectedModelIdChange}
       layout="sidebar"
       onViewChanges={onViewChanges}
+      onEditMessage={onEditMessage}
       onRateMessage={onRateMessage}
       onForkMessage={onForkMessage}
       onRestore={onRestoreMessage}

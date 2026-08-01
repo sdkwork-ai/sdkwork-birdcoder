@@ -210,26 +210,31 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
           files={display.fileAttachments}
           images={display.imageAttachments}
         />
-        {textView ? (
-          <div
-            className="max-w-[77%] min-w-0 overflow-hidden break-words rounded-2xl bg-white/[0.05] px-3 py-2 text-gray-200 [overflow-wrap:anywhere]"
-            data-chat-user-text="true"
-            data-user-message-bubble="true"
-          >
-            <ContentBlockList view={textView} context={context} />
-          </div>
-        ) : null}
+        <div className="flex w-full items-center justify-end gap-1">
+          {context.showMessageActions ? (
+            <ChatMessageActionBar
+              message={message}
+              context={context}
+              copyContent={message.content}
+              iconSize={12}
+              className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
+            />
+          ) : null}
+          {textView ? (
+            <div
+              className={`max-w-[77%] min-w-0 overflow-hidden break-words rounded-2xl bg-white/[0.05] px-3 py-2 text-start text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 [overflow-wrap:anywhere] ${
+                canEditMessage ? 'cursor-pointer' : ''
+              }`}
+              data-chat-user-text="true"
+              data-user-message-bubble="true"
+              onDoubleClick={canEditMessage ? beginEditingMessage : undefined}
+              tabIndex={0}
+            >
+              <ContentBlockList view={textView} context={context} />
+            </div>
+          ) : null}
+        </div>
         {supplementaryView ? <ContentBlockList view={supplementaryView} context={context} /> : null}
-        {context.showMessageActions ? (
-          <ChatMessageActionBar
-            message={message}
-            context={context}
-            copyContent={message.content}
-            iconSize={10}
-            className="mt-1.5 flex items-center justify-end gap-1 pr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
-          showEdit
-          />
-        ) : null}
       </div>
     );
   }

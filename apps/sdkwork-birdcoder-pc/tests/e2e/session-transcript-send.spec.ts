@@ -314,6 +314,21 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   })).toHaveCount(1);
   await expect(loadEarlierMessages).toHaveCount(0);
   await expect(composer).toHaveValue('');
+
+  const sentUserBubble = transcript
+    .locator('[data-user-message-bubble="true"]')
+    .filter({ hasText: message });
+  await expect(sentUserBubble).toHaveCount(1);
+  await expect(sentUserBubble).toHaveAttribute('tabindex', '0');
+  await expect(sentUserBubble).toHaveClass(/cursor-pointer/u);
+  await sentUserBubble.dblclick();
+  await expect(composer).toHaveValue(message);
+  const cancelEdit = page.getByTitle('Cancel edit');
+  await expect(cancelEdit).toBeVisible();
+  await cancelEdit.click();
+  await expect(composer).toHaveValue('');
+  await expect(cancelEdit).toHaveCount(0);
+
   await expect(page.getByText(/Cannot read properties of undefined/iu)).toHaveCount(0);
   expect(pageErrors).toEqual([]);
   expect(consoleErrors.filter((entry) => (
