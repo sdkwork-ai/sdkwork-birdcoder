@@ -3593,8 +3593,6 @@ export const UniversalChat = memo(function UniversalChat({
     if (disabled) {
       return;
     }
-
-    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
     if (editingMessage) {
       if (!currentInput) {
         return;

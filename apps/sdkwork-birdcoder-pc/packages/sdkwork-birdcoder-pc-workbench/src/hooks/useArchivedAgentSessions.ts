@@ -15,6 +15,10 @@ import {
 
 const ARCHIVED_INVENTORY_PAGE_SIZE = 200;
 const ARCHIVED_SESSION_HYDRATION_CONCURRENCY = 6;
+// Bound the archived inventory traversal so a large workspace cannot issue an
+// unbounded request storm or load every archived transcript into memory (H2).
+// Mirrors the 10k ceiling used by the session activity refresh path.
+const ARCHIVED_INVENTORY_MAX_ITEMS = 10_000;
 
 interface ArchivedAgentSessionInventory {
   availableProjects: AgentProjectView[];
@@ -89,6 +93,11 @@ export function useArchivedAgentSessions({
           workspaceProjects.push(...projectPage.items.filter(
             (project) => project.workspaceId === workspaceId && project.status !== 'deleted',
           ));
+          if (workspaceProjects.length > ARCHIVED_INVENTORY_MAX_ITEMS) {
+            throw new Error(
+              `Archived project inventory exceeds ${ARCHIVED_INVENTORY_MAX_ITEMS} items; aborting traversal`,
+            );
+          }
           hasMore = projectPage.pageInfo.hasMore === true;
           if (hasMore) {
             const returnedPage = projectPage.pageInfo.page ?? page;
@@ -118,6 +127,11 @@ export function useArchivedAgentSessions({
           sessionRecords.push(...sessionPage.items.filter(
             (session) => session.projectId === project.projectId,
           ));
+          if (sessionRecords.length > ARCHIVED_INVENTORY_MAX_ITEMS) {
+            throw new Error(
+              `Archived Session inventory exceeds ${ARCHIVED_INVENTORY_MAX_ITEMS} items; aborting traversal`,
+            );
+          }
           hasMore = sessionPage.pageInfo.hasMore === true;
           if (hasMore) {
             const returnedPage = sessionPage.pageInfo.page ?? page;
@@ -150,15 +164,19 @@ export function useArchivedAgentSessions({
             { tolerateAuxiliaryMetadataFailure: true },
           )
         ));
-        archivedSessions.forEach((session) => {
-          upsertAgentSessionIntoProjectsStore(
-            project.projectId,
-            session,
-            project.workspaceId,
-            userScope,
-            { projectMetadata: project },
-          );
-        });
+        // Guard the global store write with the request generation so an
+        // unmounted page cannot keep mutating the projects store (H2).
+        if (requestGenerationRef.current === requestGeneration) {
+          archivedSessions.forEach((session) => {
+            upsertAgentSessionIntoProjectsStore(
+              project.projectId,
+              session,
+              project.workspaceId,
+              userScope,
+              { projectMetadata: project },
+            );
+          });
+        }
         return { ...project, agentSessions: archivedSessions };
       });
 
