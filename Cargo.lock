@@ -12143,6 +12143,7 @@ dependencies = [
  "sdkwork-agent-provider-transport-python",
  "serde",
  "serde_json",
+ "serde_yaml",
 ]
 
 [[package]]
@@ -12269,7 +12270,6 @@ dependencies = [
  "sdkwork-agent-provider-opencode",
  "sdkwork-agent-provider-rig",
  "sdkwork-agent-session",
- "sdkwork-agent-streaming",
  "sdkwork-code-kernel",
  "sdkwork-database-config",
  "sdkwork-utils-rust",
@@ -12300,15 +12300,6 @@ dependencies = [
  "sdkwork-agent-kernel",
  "sdkwork-agent-provider-core",
  "sdkwork-utils-rust",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "sdkwork-agent-streaming"
-version = "0.1.0"
-dependencies = [
- "sdkwork-agent-kernel",
  "serde",
  "serde_json",
 ]
