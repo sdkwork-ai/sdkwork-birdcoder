@@ -202,6 +202,17 @@ Automatic approval review, errors, task progress, and steering user content
 remain conditional on their renderer filters; the other listed synthetic items
 are visible presentation entries.
 
+Marker copy is aligned with the pinned renderer: `modelChanged` renders
+"Model changed from {fromModel} to {toModel}." and `personalityChanged`
+renders "Personality changed to {personality}." as information notices, and
+`forkedFromConversation`/`remoteTaskCreated` render as lifecycle markers. The
+desktop renderer additionally renders `remoteTaskCreated` and
+`forkedFromConversation` as navigation affordances (`/remote/{taskId}` and
+`/local/{sourceThreadId}`, plus a "Parent chat" label for forked subagent
+tasks). BirdCoder keeps the same information as static Session markers until
+Remote Connections (CDB-004) and cross-Session navigation land; the marker
+text never fabricates navigation the host cannot honor.
+
 `item/completed` is authoritative for the final item even if `item/started` contained partial fields. Deltas for agent text, plan text, reasoning, command output, file changes, and terminal interaction update their correlated identity only.
 
 ## Notification Classification
