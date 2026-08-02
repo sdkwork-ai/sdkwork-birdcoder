@@ -3593,6 +3593,8 @@ export const UniversalChat = memo(function UniversalChat({
     if (disabled) {
       return;
     }
+
+    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
     if (editingMessage) {
       if (!currentInput) {
         return;
@@ -3722,6 +3724,12 @@ export const UniversalChat = memo(function UniversalChat({
       clearComposerAttachments();
     }
   };
+
+  // Latest send handler for deferred auto-send paths: the 50ms prompt-history
+  // timer must resolve against the current session/engine, not the closure
+  // captured at click time (M4).
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
 
   useEffect(() => {
     if (!isActive) {
@@ -4642,7 +4650,7 @@ export const UniversalChat = memo(function UniversalChat({
                         setInputValue(p.text);
                         setShowPromptModal(false);
                         setTimeout(() => {
-                          void handleSend(p.text);
+                          void handleSendRef.current(p.text);
                         }, 50);
                       } else {
                         setInputValue(p.text);
@@ -4677,7 +4685,7 @@ export const UniversalChat = memo(function UniversalChat({
                         setInputValue(p.text);
                         setShowPromptModal(false);
                         setTimeout(() => {
-                          void handleSend(p.text);
+                          void handleSendRef.current(p.text);
                         }, 50);
                       } else {
                         setInputValue(p.text);
