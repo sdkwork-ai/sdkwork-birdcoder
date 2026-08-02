@@ -539,6 +539,30 @@ async function loadSessionView(
   );
 }
 
+async function loadLatestSessionItemWindowPage(
+  service: IAgentSessionService,
+  identity: AgentSessionIdentity,
+  pageRequest: {
+    cursor: string | undefined;
+    pageSize: number;
+    sort: string;
+  },
+  signal: AbortSignal,
+): Promise<Awaited<ReturnType<IAgentSessionService['synchronizeSessionItems']>>> {
+  try {
+    return await service.synchronizeSessionItems(identity, pageRequest, { signal });
+  } catch (error) {
+    if (isSessionItemSynchronizationConflictError(error)) {
+      // Provider Session history items are immutable once terminal; the
+      // provider transcript synchronization is then rejected with a conflict.
+      // The transcript read must still succeed, so fall back to the persisted
+      // item window instead of failing the message list.
+      return service.listSessionItems(identity, pageRequest, { signal });
+    }
+    throw error;
+  }
+}
+
 async function loadSessionItemPage(
   service: IAgentSessionService,
   identity: AgentSessionIdentity,
@@ -554,7 +578,7 @@ async function loadSessionItemPage(
     sort: '-sequence',
   } as const;
   const page = requestedCursor === undefined
-    ? await service.synchronizeSessionItems(identity, pageRequest, { signal })
+    ? await loadLatestSessionItemWindowPage(service, identity, pageRequest, signal)
     : await service.listSessionItems(identity, pageRequest, { signal });
   const pageInfo = normalizeSessionItemCursorPageInfo(
     page.pageInfo,
@@ -889,6 +913,28 @@ export function isAgentSessionNotFoundError(error: unknown): boolean {
     typeof candidate.message === 'string' &&
     /(?:agent\s+)?session\s+not\s+found/iu.test(candidate.message)
   );
+}
+
+export function isSessionItemSynchronizationConflictError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as {
+    code?: unknown;
+    httpStatus?: unknown;
+    problem?: { code?: unknown; status?: unknown };
+    response?: { status?: unknown };
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  const status = candidate.httpStatus
+    ?? candidate.status
+    ?? candidate.statusCode
+    ?? candidate.response?.status
+    ?? candidate.problem?.status;
+  return status === 409
+    || candidate.code === 40901
+    || candidate.code === '40901';
 }
 
 async function refreshAgentSessionItemsWithoutTimeout({
