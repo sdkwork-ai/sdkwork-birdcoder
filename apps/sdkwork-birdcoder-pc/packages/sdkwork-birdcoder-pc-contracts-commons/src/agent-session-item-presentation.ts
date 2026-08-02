@@ -531,15 +531,11 @@ function buildAgentSessionItemPresentationBlocks(
     });
   }
 
-  const commandToolCallIds = new Set(normalizedCommands.map((command) => command.toolCallId));
   const toolCalls = allNormalizedToolCalls.filter((call) => {
     if (call.interaction) {
       return false;
     }
     if (call.presentation === 'notice') {
-      return false;
-    }
-    if (commandToolCallIds.has(call.id)) {
       return false;
     }
     if (fileChanges.length > 0 && isAgentSessionItemFileMutationToolCall(call)) {

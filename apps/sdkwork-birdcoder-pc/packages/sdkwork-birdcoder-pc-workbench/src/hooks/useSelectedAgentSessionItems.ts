@@ -13,6 +13,7 @@ import {
   toAgentSessionView,
   type AgentSessionRecord,
 } from '../services/agentSessionViewModels.ts';
+import { schedulePollingTick } from '../workbench/pollingScheduler.ts';
 import {
   buildProjectsStoreScopeKey,
   peekProjectsStore,
@@ -183,7 +184,9 @@ export function useSelectedAgentSessionItems({
     if (!isActive || !normalizedSessionId) {
       return undefined;
     }
-    const interval = window.setInterval(
+    // Shared-tick polling with phase jitter so this surface does not align
+    // with the inbox/interactions polls on the same wall-clock boundary (M1).
+    const subscription = schedulePollingTick(
       () => {
         if (
           activeRequestKeyRef.current === null
@@ -193,8 +196,12 @@ export function useSelectedAgentSessionItems({
         }
       },
       isExecuting ? EXECUTING_REFRESH_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS,
+      Math.min(
+        isExecuting ? EXECUTING_REFRESH_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS,
+        5_000,
+      ),
     );
-    return () => window.clearInterval(interval);
+    return () => subscription.dispose();
   }, [isActive, isExecuting, normalizedSessionId]);
 
   useEffect(() => {

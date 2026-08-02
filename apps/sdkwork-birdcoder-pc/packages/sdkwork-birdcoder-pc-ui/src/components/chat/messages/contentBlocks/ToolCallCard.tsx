@@ -242,9 +242,12 @@ export const ToolCallCard = memo(function ToolCallCard({
     || call.status === 'running'
     || call.status === 'waiting';
   const actionPresentation = resolveToolCallActionPresentation(call, t);
+  const isCommandCall = call.kind === 'command';
   const toolLabel = contextCategory
     ? resolveContextToolCallLabel(contextCategory, t)
-    : actionPresentation.label;
+    : isCommandCall
+      ? t?.('chat.toolCommandPrompt') ?? '$'
+      : actionPresentation.label;
   const statusLabel = resolveToolCallStatusLabel(call, t);
   const durationLabel = formatToolCallDuration(call.durationMs);
   const rowDisplayName = truncateToolCallArgumentSummary(
@@ -261,7 +264,7 @@ export const ToolCallCard = memo(function ToolCallCard({
   const inputLabel = t?.('chat.toolInput') ?? 'Input';
   const outputLabel = t?.('chat.toolOutput') ?? 'Output';
   const noInputLabel = t?.('chat.toolNoInput') ?? 'No input';
-  const noOutputLabel = t?.('chat.toolNoOutput') ?? 'No output returned.';
+  const noOutputLabel = t?.('chat.toolNoOutput') ?? 'No output';
   const pendingOutputLabel = t?.('chat.toolOutputPending') ?? 'Waiting for output.';
   const copyInputLabel = t?.('chat.toolCopyInput') ?? 'Copy tool input';
   const copyOutputLabel = t?.('chat.toolCopyOutput') ?? 'Copy tool output';
@@ -285,7 +288,9 @@ export const ToolCallCard = memo(function ToolCallCard({
         </span>
         <span className="shrink-0 text-[13px] font-medium text-gray-300">{toolLabel}</span>
         {rowDisplayName ? (
-          <span className="min-w-0 shrink truncate text-[13px] text-gray-500">
+          <span
+            className={`min-w-0 shrink truncate text-[13px] ${isCommandCall ? 'font-mono text-gray-400' : 'text-gray-500'}`}
+          >
             {rowDisplayName}
           </span>
         ) : null}
@@ -363,7 +368,7 @@ export const ToolCallCard = memo(function ToolCallCard({
                 />
               ) : (
                 <pre
-                  className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap custom-scrollbar ${compact ? 'max-h-40' : 'max-h-64'}`}
+                  className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap custom-scrollbar ${compact ? 'max-h-28' : 'max-h-36'}`}
                   role="region"
                   aria-label={outputLabel}
                   tabIndex={0}

@@ -335,7 +335,9 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
   const expandLabel = environment?.t('chat.activityExpand') ?? 'Show activity details';
   const collapseLabel = environment?.t('chat.activityCollapse') ?? 'Hide activity details';
   const commandSectionLabel = environment?.t('chat.commandsRunSection') ?? 'Commands';
-  const fileSectionLabel = environment?.t('chat.filesChangedSection') ?? 'Files changed';
+  const fileSectionLabel = environment?.t('chat.editedFilesSummary', {
+    count: fileChanges.length,
+  }) ?? `Edited ${fileChanges.length} file${fileChanges.length === 1 ? '' : 's'}`;
   const commandSummary = resolveCommandActivitySummaryState(commands, environment?.t);
   const activityKind = fileChanges.length > 0 && commands.length > 0
     ? 'files-and-commands'
@@ -401,6 +403,22 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
         </span>
       </button>
 
+      {fileChanges.length > 0 ? (
+        <div className="px-1.5 pb-1 pt-0.5">
+          <ChatFileActivityList
+            compact={compact}
+            detailsIdPrefix={summaryDetailsId}
+            disclosureScopeKey={disclosureScopeKey}
+            environment={environment}
+            expandedDisclosureKeys={expandedDisclosureKeys}
+            fileChanges={fileChanges}
+            messageId={messageId}
+            sectionLabel={fileSectionLabel}
+            toggleDisclosure={toggleDisclosure}
+          />
+        </div>
+      ) : null}
+
       {isExpanded ? (
         <div
           id={summaryDetailsId}
@@ -418,19 +436,6 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
               sectionLabel={commandSectionLabel}
               successIconSize={successIconSize}
               t={environment?.t}
-              toggleDisclosure={toggleDisclosure}
-            />
-          ) : null}
-          {fileChanges.length > 0 ? (
-            <ChatFileActivityList
-              compact={compact}
-              detailsIdPrefix={summaryDetailsId}
-              disclosureScopeKey={disclosureScopeKey}
-              environment={environment}
-              expandedDisclosureKeys={expandedDisclosureKeys}
-              fileChanges={fileChanges}
-              messageId={messageId}
-              sectionLabel={fileSectionLabel}
               toggleDisclosure={toggleDisclosure}
             />
           ) : null}
