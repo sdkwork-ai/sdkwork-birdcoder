@@ -290,17 +290,14 @@ function buildAuthoritySessionItemIds(
   );
 }
 
-function retainTransientSessionItems(
-  items: readonly AgentSessionItemView[],
-): AgentSessionItemView[] {
-  return items.filter(isTransientSessionItem);
-}
-
 function mergeResetSessionItemWindow(
-  transientItems: readonly AgentSessionItemView[],
+  existingItems: readonly AgentSessionItemView[],
   authorityItems: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
-  const mergedItems = mergeLatestAgentSessionItems(transientItems, authorityItems);
+  // `existingItems` carries the already-loaded window (deep history included)
+  // plus any local optimistic items; the authority window deduplicates against
+  // it by item id so a refresh can never discard paged-in history (H1).
+  const mergedItems = mergeLatestAgentSessionItems(existingItems, authorityItems);
   return [
     ...mergedItems.filter((item) => !isTransientSessionItem(item)),
     ...mergedItems.filter(isTransientSessionItem),
@@ -408,7 +405,7 @@ export function mergeRefreshedAgentSessionIntoCurrent(
         ),
     items: options.replaceLoadedAuthorityWindow
       ? mergeResetSessionItemWindow(
-          retainTransientSessionItems(current.items),
+          current.items,
           refreshed.items,
         )
       : mergeLatestAgentSessionItems(current.items, refreshed.items),
@@ -1027,11 +1024,12 @@ async function refreshAgentSessionItemsWithoutTimeout({
     signal,
     existingAgentSession,
   );
-  const retainedExistingItems = existingAgentSession
-    ? latestItemWindow.replaceLoadedAuthorityWindow
-      ? retainTransientSessionItems(existingAgentSession.items)
-      : existingAgentSession.items
-    : [];
+  // When the latest authority window cannot overlap the loaded window (the
+  // user paged into deep history beyond the refresh budget), keep the loaded
+  // items and merge them with the refreshed window by item id instead of
+  // discarding them — dropping the loaded history made long-session
+  // transcripts visibly shrink on every refresh (H1).
+  const retainedExistingItems = existingAgentSession?.items ?? [];
   const itemPageInfo = latestItemWindow.replaceLoadedAuthorityWindow
     ? latestItemWindow.itemPageInfo
     : mergeLoadedSessionItemPageInfo(
@@ -1063,7 +1061,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
     : undefined;
   const sourceWindowItems = combinedSourceRecords
     ? mergeResetSessionItemWindow(
-        retainTransientSessionItems(existingAgentSession?.items ?? []),
+        existingAgentSession?.items ?? [],
         normalizeSessionItemRecords(combinedSourceRecords, refreshedAgentSession),
       )
     : undefined;
@@ -1172,7 +1170,7 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
     const historicalItems = normalizeSessionItemRecords(itemPage.items, currentAgentSession);
     const items = combinedSourceRecords
       ? mergeResetSessionItemWindow(
-          retainTransientSessionItems(currentAgentSession.items),
+          currentAgentSession.items,
           normalizeSessionItemRecords(combinedSourceRecords, currentAgentSession),
         )
       : prependHistoricalSessionItems(currentAgentSession.items, historicalItems);

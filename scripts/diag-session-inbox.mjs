@@ -135,6 +135,61 @@ async function run() {
     await page.goto(`${baseURL}/#/app/code`);
     await page.waitForTimeout(20_000);
 
+    // Open the Claude session so the transcript renders.
+    const opened = await page.evaluate(() => {
+      const row = document.querySelector('[data-agent-session-id="e2e-claude-session"]');
+      if (!row) return false;
+      row.click();
+      return true;
+    });
+    if (!opened) {
+      console.log('claude session row not found; dumping rows instead');
+    }
+    await page.waitForTimeout(12_000);
+
+    const transcript = await page.evaluate(() => {
+      const blocks = Array.from(
+        document.querySelectorAll('[class*="transcript"], [class*="message-row"], [class*="chat-message"], [data-item-id], [class*="tool-call"], [class*="activity-summary"], [class*="worked"]'),
+      );
+      const seen = new Set();
+      const items = [];
+      for (const block of blocks) {
+        const text = (block.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (!text || text.length > 400) continue;
+        if (seen.has(text)) continue;
+        seen.add(text);
+        items.push({
+          cls: (typeof block.className === 'string' ? block.className : '').split(' ').slice(0, 3).join(' '),
+          id: block.getAttribute('data-item-id') ?? null,
+          text: text.slice(0, 220),
+        });
+      }
+      return items.slice(0, 60);
+    });
+    console.log('=== TRANSCRIPT BLOCKS (claude session) ===');
+    for (const item of transcript) console.log(JSON.stringify(item));
+    console.log('=== SESSION ITEM API ===');
+    const itemResponses = sessionApiBodies.filter((entry) => (
+      /\/items/u.test(entry.url) || /\/item_pages/u.test(entry.url)
+    )).slice(0, 2);
+    for (const entry of itemResponses) {
+      const data = entry.body?.data ?? entry.body;
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      console.log(entry.url, 'count=', items.length);
+      for (const item of items.slice(0, 25)) {
+        console.log(
+          ' ',
+          JSON.stringify({
+            kind: item.kind,
+            toolName: item.toolName ?? null,
+            itemId: item.itemId,
+            hasFileChanges: Boolean(item.toolResult?.fileChanges),
+            stdout: item.toolResult?.stdout?.slice(0, 40) ?? null,
+          }),
+        );
+      }
+    }
+
     const structure = await page.evaluate(() => {
       const dump = [];
       const walk = (node, depth) => {

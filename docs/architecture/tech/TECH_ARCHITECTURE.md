@@ -454,17 +454,29 @@ an explicit user rename wins over later inventory. The read endpoint is
 side-effect free, and client paths, directory names, and fingerprints never
 cross the owner SDK boundary.
 
+Session lifecycle reliability hardening is in place: session soft-delete and
+turn-input-queue purge execute in one database transaction (no partial
+delete), audit persistence is best-effort with structured failure logging so
+an unavailable audit sink cannot corrupt the client-visible business outcome,
+and offset list pagination rejects pages beyond 10,000 (previously an
+unbounded page parameter could overflow offset arithmetic). The session
+activity head query now has composite lateral indexes
+(`ai_agent_turn/interaction/resource_user_state` × `(tenant, organization,
+session, updated_at, id)`, plus the interaction kind variant) shipped in both
+the baseline and migration `0004`.
+
 This consumer architecture is not commercial-production complete until Agents
 and Kernel maintainers approve executable evidence for: a bounded indexed
-PostgreSQL P1 head projection; live PostgreSQL migration and query-plan evidence
-for its activity and identity constraints; Project deletion tombstone and
-pagination semantics; durable distributed runtime routing and synchronization-job
-ownership; and a persisted server-monotonic aggregate activity revision only if
-that revision becomes a product contract. The current inventory is bounded but
-executes synchronously on the selected runtime host. Until those items close,
-provider-only activity cannot be described as complete head discovery, and
-clients use returned owner fact versions without claiming monotonic aggregate
-order.
+PostgreSQL P1 head projection (the lateral indexes above bound per-row lookups
+but a materialized head projection is still open); live PostgreSQL migration
+and query-plan evidence for its activity and identity constraints; Project
+deletion tombstone and pagination semantics; durable distributed runtime
+routing and synchronization-job ownership; and a persisted server-monotonic
+aggregate activity revision only if that revision becomes a product contract.
+The current inventory is bounded but executes synchronously on the selected
+runtime host. Until those items close, provider-only activity cannot be
+described as complete head discovery, and clients use returned owner fact
+versions without claiming monotonic aggregate order.
 
 The repository technical-debt quality gate currently also rejects retired
 Workspace/IDE service types. That independent cleanup must pass before release;

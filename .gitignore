@@ -118,3 +118,7 @@ Thumbs.db
 
 # ZCode local session metadata (plans, hooks, workspace state)
 .zcode/
+
+# Diagnostic output artifacts (runtime-generated, not source)
+diag-out.txt
+**/diag-out.txt
