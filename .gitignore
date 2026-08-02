@@ -115,3 +115,6 @@ Thumbs.db
 *.log
 .DS_Store
 Thumbs.db
+
+# ZCode local session metadata (plans, hooks, workspace state)
+.zcode/

@@ -84,7 +84,24 @@ impl ProviderSessionProjectCwdResolver for TauriProviderSessionProjectCwdResolve
 
         let legacy = mounts
             .iter()
-            .filter(|mount| mount.project_id.is_none() || mount.owner_key.is_none())
+            .filter(|mount| {
+                // Everything else bound for the current subject: pre-identity
+                // mounts (missing owner key) or mounts bound to an earlier
+                // project record after the project was re-imported (stale
+                // project id). The mount is keyed by project path, so a
+                // same-basename mount remains the authoritative desktop root
+                // for the project directory. Never match another subject's
+                // mount: a mount whose owner key is present but differs is
+                // excluded even when its project id is stale.
+                let owner_matches = mount
+                    .owner_key
+                    .as_deref()
+                    .is_none_or(|key| key == expected_owner_key.as_str());
+                let exact_identity = mount.project_id.as_deref()
+                    == Some(selector.project_id.as_str())
+                    && mount.owner_key.as_deref() == Some(expected_owner_key.as_str());
+                owner_matches && !exact_identity
+            })
             .filter(|mount| {
                 Path::new(&mount.path)
                     .file_name()
@@ -224,15 +241,17 @@ mod tests {
     }
 
     #[test]
-    fn rejects_other_subject_and_other_project_mounts() {
+    fn rejects_other_subject_mounts_and_other_basename_project_mounts() {
         let (root, database) = create_resolver_fixture("scope");
         let project_root = root.join("sdkwork-birdcoder");
+        let other_root = root.join("unrelated-app");
         std::fs::create_dir_all(&project_root).expect("scoped project root");
+        std::fs::create_dir_all(&other_root).expect("other basename project root");
         let selector = selector("project.expected");
         insert_mount(
             &database,
             &"2".repeat(64),
-            &project_root,
+            &other_root,
             "project.other",
             &provider_session_mount_owner_key(&selector),
         );
@@ -249,6 +268,54 @@ mod tests {
             .expect("scoped project cwd")
             .is_none());
         std::fs::remove_dir_all(root).expect("scoped resolver fixture cleanup");
+    }
+
+    #[test]
+    fn resolves_a_stale_project_id_mount_for_the_same_subject() {
+        let (root, database) = create_resolver_fixture("stale");
+        let project_root = root.join("sdkwork-birdcoder");
+        std::fs::create_dir_all(&project_root).expect("stale project root");
+        let selector = selector("project.340096569736957952");
+        insert_mount(
+            &database,
+            &"7".repeat(64),
+            &project_root,
+            // The project was soft-deleted and re-imported: the mount still
+            // points at the retired project record while the active project
+            // shares the same directory (and name).
+            "project.339967887101923328",
+            &provider_session_mount_owner_key(&selector),
+        );
+
+        let resolved = TauriProviderSessionProjectCwdResolver::new(database)
+            .resolve_project_cwd(&selector)
+            .expect("stale project cwd");
+        assert_eq!(
+            resolved.as_deref(),
+            Some(project_root.to_string_lossy().as_ref())
+        );
+        std::fs::remove_dir_all(root).expect("stale resolver fixture cleanup");
+    }
+
+    #[test]
+    fn rejects_a_stale_project_id_mount_of_another_subject() {
+        let (root, database) = create_resolver_fixture("stale-other");
+        let project_root = root.join("sdkwork-birdcoder");
+        std::fs::create_dir_all(&project_root).expect("stale other project root");
+        let selector = selector("project.expected");
+        insert_mount(
+            &database,
+            &"8".repeat(64),
+            &project_root,
+            "project.retired",
+            &"f".repeat(64),
+        );
+
+        assert!(TauriProviderSessionProjectCwdResolver::new(database)
+            .resolve_project_cwd(&selector)
+            .expect("stale other subject cwd")
+            .is_none());
+        std::fs::remove_dir_all(root).expect("stale other resolver fixture cleanup");
     }
 
     #[test]

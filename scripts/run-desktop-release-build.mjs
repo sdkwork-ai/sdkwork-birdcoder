@@ -250,10 +250,10 @@ export function buildDesktopReleaseBuildPreflightPlan({
 } = {}) {
   const normalizedPhase = String(phase ?? 'all').trim().toLowerCase() || 'all';
   if (normalizedPhase !== 'bundle' && normalizedPhase !== 'all') {
-    return null;
+    return [];
   }
 
-  const args = [
+  const providerHostArgs = [
     'scripts/stage-desktop-provider-host.mjs',
     '--platform',
     String(platform ?? process.platform).trim() || process.platform,
@@ -261,15 +261,24 @@ export function buildDesktopReleaseBuildPreflightPlan({
     String(hostArch ?? process.arch).trim() || process.arch,
   ];
   if (String(targetTriple ?? '').trim()) {
-    args.push('--target', String(targetTriple).trim());
+    providerHostArgs.push('--target', String(targetTriple).trim());
   }
-  return {
-    command: process.execPath,
-    args,
-    cwd: rootDir,
-    env: { ...env },
-    shell: false,
-  };
+  return [
+    {
+      command: process.execPath,
+      args: providerHostArgs,
+      cwd: rootDir,
+      env: { ...env },
+      shell: false,
+    },
+    {
+      command: process.execPath,
+      args: ['scripts/stage-models-catalog.mjs'],
+      cwd: rootDir,
+      env: { ...env },
+      shell: false,
+    },
+  ];
 }
 
 function runPlan(plan) {
@@ -290,8 +299,8 @@ function runPlan(plan) {
 
 function runCli() {
   const options = parseArgs(process.argv.slice(2));
-  const preflightPlan = buildDesktopReleaseBuildPreflightPlan(options);
-  if (preflightPlan) {
+  const preflightPlans = buildDesktopReleaseBuildPreflightPlan(options);
+  for (const preflightPlan of preflightPlans) {
     runPlan(preflightPlan);
   }
 

@@ -18,9 +18,13 @@ rusqlite = { workspace = true, features = ["hooks"] }
 keyring = { workspace = true }
 tokio = { workspace = true }
 axum = { workspace = true }
+tracing = "0.1"
 notify = "8"
 rfd = "0.16"
 sdkwork-api-birdcoder-standalone-gateway = { workspace = true }
+sdkwork-models-database-host = { workspace = true }
+sdkwork-models-user-config-repository-sqlx = { workspace = true }
+sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio"] }
 sdkwork-agents-runtime-facade = { workspace = true }
 sdkwork-birdcoder-git = { workspace = true }
 sdkwork-terminal-control-plane = { workspace = true }

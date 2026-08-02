@@ -69,6 +69,9 @@ pub(crate) async fn assemble_standalone_profile(
     let skills = sdkwork_api_skills_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Skills owner App API failed: {error:#}"))?;
+    let models = sdkwork_api_models_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Models owner App API failed: {error}"))?;
 
     compose_owner_contributions(vec![
         OwnerApiContribution {
@@ -151,6 +154,15 @@ pub(crate) async fn assemble_standalone_profile(
             permission_catalog: skills.permission_catalog,
             domain_context_injectors: skills.domain_context_injectors,
             readiness_check: skills.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-models",
+            router: models.router,
+            route_manifest: models.route_manifest,
+            openapi: models.openapi,
+            permission_catalog: models.permission_catalog,
+            domain_context_injectors: models.domain_context_injectors,
+            readiness_check: models.readiness_check,
         },
     ])
 }

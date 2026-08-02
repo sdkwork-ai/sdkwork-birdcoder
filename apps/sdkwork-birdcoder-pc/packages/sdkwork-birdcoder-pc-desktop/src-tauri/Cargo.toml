@@ -10,6 +10,7 @@ tauri-build = { version = "2", features = [] }
 rfd = "0.16"
 sdkwork-api-birdcoder-standalone-gateway = { workspace = true }
 sdkwork-birdcoder-tauri-host = { workspace = true }
+sdkwork-models-user-config-repository-sqlx = { workspace = true }
 serde_json = { workspace = true }
 tauri = { version = "~2.11.0", features = [] }
 

@@ -226,8 +226,8 @@ describe('AgentsSdkModelConfigurationService', () => {
     expect(applyConfiguration).toHaveBeenCalledTimes(2);
     expect(applyConfiguration).toHaveBeenLastCalledWith(expect.objectContaining({
       engineId: 'claude-code',
-      apiKey: 'write-only-secret',
     }));
+    expect(applyConfiguration.mock.calls[1]?.[0]).not.toHaveProperty('apiKey');
     expect(moved.configurationApplied?.engineId).toBe('claude-code');
   });
 });

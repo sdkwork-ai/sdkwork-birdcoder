@@ -18,6 +18,7 @@ families are:
 | Membership and benefits | `sdkwork-membership-app-sdk` |
 | External delivery and notifications | `sdkwork-messaging-app-sdk` |
 | Connector and MCP server catalog | `sdkwork-mcp-app-sdk` |
+| Model catalog and access offerings | `sdkwork-models-app-sdk` |
 | Orders | `sdkwork-order-app-sdk` |
 | Saved prompts | `sdkwork-prompts-app-sdk` |
 | Skills | `sdkwork-skills-app-sdk` |

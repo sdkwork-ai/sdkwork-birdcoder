@@ -3,6 +3,8 @@ import type {
   IAuthService,
   IAgentAutomationService,
   IAgentModelConfigurationService,
+  IModelAccessCatalogService,
+  IUserModelConfigService,
   IAgentSessionService,
   IApplicationPublishService,
   ICatalogService,
@@ -20,6 +22,8 @@ import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefault
 export interface IIDEContext {
   agentAutomationService: IAgentAutomationService;
   agentModelConfigurationService: IAgentModelConfigurationService;
+  userModelConfigService: IUserModelConfigService;
+  modelAccessCatalogService: IModelAccessCatalogService;
   agentSessionService: IAgentSessionService;
   applicationPublishService: IApplicationPublishService;
   catalogService: ICatalogService;
@@ -39,6 +43,8 @@ export function createDefaultIdeContextValue(): IIDEContext {
   return {
     agentAutomationService: defaultIdeServices.agentAutomationService,
     agentModelConfigurationService: defaultIdeServices.agentModelConfigurationService,
+    userModelConfigService: defaultIdeServices.userModelConfigService,
+    modelAccessCatalogService: defaultIdeServices.modelAccessCatalogService,
     agentSessionService: defaultIdeServices.agentSessionService,
     applicationPublishService: defaultIdeServices.applicationPublishService,
     catalogService: defaultIdeServices.catalogService,

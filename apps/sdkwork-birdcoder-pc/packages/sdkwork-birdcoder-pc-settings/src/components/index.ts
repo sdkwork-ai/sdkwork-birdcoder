@@ -4,6 +4,7 @@ export * from './AppearanceSettings';
 export * from './VoiceSettings';
 export * from './KeyboardShortcutsSettings';
 export * from './CodeEngineSettings';
+export * from './ModelManagementSettings';
 export * from './ConfigSettings';
 export * from './PersonalizationSettings';
 export * from './PluginSettings';

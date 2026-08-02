@@ -56,7 +56,6 @@ for (const forbiddenDependency of [
   'sdkwork_database_spi',
   'sdkwork_database_sqlx',
   'sdkwork_database_id',
-  'sqlx =',
 ]) {
   assert.equal(
     rootCargo.includes(forbiddenDependency),
@@ -64,6 +63,19 @@ for (const forbiddenDependency of [
     `BirdCoder must not retain server persistence dependency ${forbiddenDependency}`,
   );
 }
+// The server persistence cutover forbids the sqlx library itself as a root
+// workspace dependency. Client-local stores (for example the Tauri host
+// user-model-config sqlite backed by the models domain repository crate) are
+// device configuration, not server business persistence, so the check must
+// match the dependency key `sqlx` exactly instead of any `-sqlx`-suffixed
+// owner crate.
+assert.equal(
+  rootCargo
+    .split('\n')
+    .some((line) => /^\s*sqlx\s*=/u.test(line)),
+  false,
+  'BirdCoder must not retain the sqlx server persistence dependency',
+);
 
 for (const retiredComponent of [
   'crates/sdkwork-birdcoder-database-host',

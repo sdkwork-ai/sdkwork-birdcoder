@@ -78,6 +78,44 @@ pub async fn wrap_with_web_framework(
     Ok(with_web_request_context(router, layer))
 }
 
+/// Request headers attached by the SDKWork app SDK base client on every call
+/// (`X-Platform`, identity headers, ...). The shared web framework's default
+/// CORS allowlist predates these headers, so browser preflights from the
+/// desktop/webview surfaces would be rejected without this extension.
+const BIRDOODER_SDK_CORS_REQUEST_HEADERS: &[&str] = &[
+    "x-platform",
+    "x-tenant-id",
+    "x-organization-id",
+    "x-user-id",
+    "x-sdkwork-client-kind",
+];
+
+fn with_birdcoder_sdk_cors_headers(policy: CorsPolicy) -> CorsPolicy {
+    let mut policy = policy;
+    for header in BIRDOODER_SDK_CORS_REQUEST_HEADERS {
+        if !policy
+            .allowed_headers
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(header))
+        {
+            policy.allowed_headers.push((*header).to_owned());
+        }
+    }
+    policy
+}
+
+/// Local development must never produce CORS friction: loopback-bound
+/// standalone gateways allow any preflight request header so desktop/webview
+/// browser surfaces are not broken whenever the SDK grows a new request
+/// header. Production policies are rejected by
+/// `CorsPolicy::validate_for_production`.
+fn with_birdcoder_local_dev_header_relaxation(mut policy: CorsPolicy) -> CorsPolicy {
+    if !policy.allowed_headers.iter().any(|allowed| allowed == "*") {
+        policy.allowed_headers.push("*".to_owned());
+    }
+    policy
+}
+
 pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
     let uses_wildcard = config.allowed_origins.iter().any(|origin| origin == "*");
     let mut explicit_origins: Vec<String> = config
@@ -105,7 +143,7 @@ pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
                 "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using the development private-network policy and explicit origins only."
             );
         }
-        return policy;
+        return with_birdcoder_local_dev_header_relaxation(with_birdcoder_sdk_cors_headers(policy));
     }
 
     let is_local_standalone =
@@ -119,7 +157,7 @@ pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
         }
     }
 
-    if uses_wildcard {
+    let mut policy = if uses_wildcard {
         tracing::warn!(
             "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using explicit origins only."
         );
@@ -142,7 +180,12 @@ pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
             allowed_origins: explicit_origins,
             ..CorsPolicy::default()
         }
+    };
+    policy = with_birdcoder_sdk_cors_headers(policy);
+    if is_local_standalone {
+        policy = with_birdcoder_local_dev_header_relaxation(policy);
     }
+    policy
 }
 
 fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
@@ -201,6 +244,73 @@ mod tests {
             .expect("build private-network origin request");
 
         assert!(policy.validate_origin(&request).is_ok());
+    }
+
+    #[test]
+    fn standalone_production_cors_allows_desktop_renderer_origin_preflight() {
+        // Regression: the desktop webview (vite dev on 1520) fetches the
+        // gateway cross-origin even when the standalone gateway runs under a
+        // production topology profile. Outside the development private-network
+        // policy the loopback allowlist must still include the desktop
+        // renderer dev port, otherwise the browser preflight receives a 403.
+        // Loopback-bound standalone gateways also relax the preflight header
+        // gate, so arbitrary SDK headers never surface as CORS failures.
+        let config = BirdServerConfig {
+            environment: BirdEnvironment::Production,
+            ..test_config(BirdDeploymentProfile::Standalone)
+        };
+        let policy = build_cors_policy(&config);
+        let request = Request::builder()
+            .header("origin", "http://127.0.0.1:1520")
+            .header("access-control-request-method", "GET")
+            .header(
+                "access-control-request-headers",
+                "authorization, access-token, x-platform, x-tenant-id, \
+                 x-organization-id, x-user-id, x-sdkwork-client-kind, \
+                 x-request-id, x-sdkwork-agent-token",
+            )
+            .body(axum::body::Body::empty())
+            .expect("build desktop renderer preflight request");
+
+        assert!(
+            policy.validate_origin(&request).is_ok(),
+            "desktop renderer origin must be allowed under standalone production"
+        );
+        assert!(
+            policy.validate_preflight(&request).is_ok(),
+            "desktop renderer preflight must be allowed under standalone production"
+        );
+        assert!(
+            policy.allowed_headers.iter().any(|allowed| allowed == "*"),
+            "loopback-bound standalone policy must relax preflight headers"
+        );
+    }
+
+    #[test]
+    fn birdcoder_sdk_preflight_allows_platform_identity_headers() {
+        // The desktop webview (vite dev on 1520) fetches the embedded gateway
+        // cross-origin; the SDK base client attaches X-Platform/X-User-Id and
+        // friends, so the preflight must be able to request those headers.
+        let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Standalone));
+        let request = Request::builder()
+            .header("origin", "http://127.0.0.1:1520")
+            .header("access-control-request-method", "GET")
+            .header(
+                "access-control-request-headers",
+                "authorization, access-token, x-platform, x-tenant-id, \
+                 x-organization-id, x-user-id, x-sdkwork-client-kind",
+            )
+            .body(axum::body::Body::empty())
+            .expect("build birdcoder sdk preflight request");
+
+        assert!(
+            policy.validate_preflight(&request).is_ok(),
+            "birdcoder SDK preflight headers must be allowed"
+        );
+        assert!(
+            policy.validate_origin(&request).is_ok(),
+            "desktop webview origin must be allowed"
+        );
     }
 
     #[test]

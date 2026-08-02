@@ -55,6 +55,19 @@ permissions = [
   "allow-project-device-mount-provider-session-directory-identity",
   "allow-local-store-list",
 
+  # Client-local user model configuration commands (local sqlite, decoupled from the sdkwork-models server)
+  "allow-user-model-config-list-channels",
+  "allow-user-model-config-get-channel",
+  "allow-user-model-config-upsert-channel",
+  "allow-user-model-config-delete-channel",
+  "allow-user-model-config-get-api-key",
+  "allow-user-model-config-upsert-api-key",
+  "allow-user-model-config-list-engine-configs",
+  "allow-user-model-config-upsert-engine-config",
+  "allow-user-model-config-list-engine-selections",
+  "allow-user-model-config-get-engine-selection",
+  "allow-user-model-config-upsert-engine-selection",
+
   # OS credential-store backed IAM application session commands
   "allow-secure-app-session-read",
   "allow-secure-app-session-write",

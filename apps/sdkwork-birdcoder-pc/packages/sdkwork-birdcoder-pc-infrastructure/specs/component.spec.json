@@ -108,10 +108,13 @@
       "./services/runtimeTopology",
       "./services/agentsSessionService",
       "./services/agentsModelConfigurationService",
+      "./services/modelsAppSdkClient",
+      "./services/impl/ModelsSdkModelAccessCatalogService",
       "./services/agentsCatalogService",
       "./services/birdCoderSdkClient",
       "./services/interfaces/IAgentSessionService",
       "./services/interfaces/IAgentModelConfigurationService",
+      "./services/interfaces/IModelAccessCatalogService",
       "./services/birdcoderDriveUpload",
       "./services/driveSandboxExplorerRuntime",
       "./services/lazyDefaultIdeServices",
@@ -130,6 +133,10 @@
       {
         "name": "agentsSessionAdapter",
         "export": "./services/agentsSessionService"
+      },
+      {
+        "name": "modelAccessCatalogService",
+        "export": "./services/impl/ModelsSdkModelAccessCatalogService"
       },
       {
         "name": "skillsCatalogAdapter",
@@ -202,6 +209,7 @@
       "@sdkwork/iam-app-sdk",
       "@sdkwork/membership-app-sdk",
       "@sdkwork/messaging-app-sdk",
+      "@sdkwork/models-app-sdk",
       "@sdkwork/order-app-sdk",
       "@sdkwork/prompts-app-sdk",
       "@sdkwork/skills-app-sdk",
@@ -257,6 +265,13 @@
         "required": true
       },
       {
+        "workspace": "sdkwork-models-app-sdk",
+        "permissionModuleId": "ai",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
         "workspace": "sdkwork-order-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
@@ -295,6 +310,7 @@
       "VITE_SDKWORK_IAM_APP_API_BASE_URL",
       "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
       "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
+      "VITE_SDKWORK_MODELS_APP_API_BASE_URL",
       "VITE_SDKWORK_ORDER_APP_API_BASE_URL",
       "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL",
       "VITE_SDKWORK_MCP_APP_API_BASE_URL"

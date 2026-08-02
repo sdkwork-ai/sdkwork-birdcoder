@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.codex-desktop-parity",
-  "updatedAt": "2026-08-01",
+  "updatedAt": "2026-08-02",
   "goalStatus": "active",
   "summary": "BirdCoder incrementally aligns the current Codex desktop coding workbench while preserving SDKWork canonical Session semantics and generated SDK ownership.",
   "completionPolicy": {
@@ -15,9 +15,9 @@
   "reference": {
     "application": "OpenAI Codex",
     "packageFamilyName": "OpenAI.Codex",
-    "build": "26.727.4816.0",
-    "rendererPackageVersion": "26.727.40816",
-    "packageBuildNumber": "6067",
+    "build": "26.727.6591.0",
+    "rendererPackageVersion": "26.727.51351",
+    "packageBuildNumber": "6119",
     "platform": "windows-x64",
     "runtime": "electron",
     "providerHost": {
@@ -29,10 +29,10 @@
       "nodeVersion": "24.14.0",
       "cuaManifestPath": "app/resources/cua_node/manifest.json",
       "cuaManifestSha256": "bd6604bc1a1360dac2226fe49bb85a76edf1774d639f5c934238f8d17e904f14",
-      "pluginVersion": "26.727.40816",
+      "pluginVersion": "26.727.51351",
       "runtimeArchiveVersion": "0.0.6/20260723162306-088049353ddc",
       "pluginManifestPath": "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
-      "pluginManifestSha256": "ea8cba3a0e82f1aaedca11bcd075a878f666c09b4c8b5c23fc77be0b514870b9"
+      "pluginManifestSha256": "a74d09c7cddc2148633ec880867264357781ea1896e9de9ed5555faed7518a4f"
     },
     "runtimeArchiveSha256": "fae9088c09bd2bb4cedbdb44e749fe5313dbc19d20f677fa6a7b25b3aec27d1f",
     "protocolSource": {
@@ -43,22 +43,22 @@
     "artifacts": [
       {
         "path": "app/resources/app.asar",
-        "sha256": "45dc514dff2cfc6fcf573e75ee37438e24c42dea7785480e064649650d42334a",
-        "sizeBytes": 221843894
+        "sha256": "670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298",
+        "sizeBytes": 221851751
       },
       {
         "path": "AppxManifest.xml",
-        "sha256": "4172c931739acb085181386b976074c0898cfa5234ea63e1c2c5b1f6d449f7b5",
+        "sha256": "4ad5cb93c9dbef972af353c7e323e4126830f6cb218924d85e8dbdc2a3554a80",
         "sizeBytes": 3758
       },
       {
         "path": "app/resources/app.asar::package.json",
-        "sha256": "970ddc04c0995062f66234c740710753d854f7fb1426291e156b74d1f4ff2687",
+        "sha256": "12386690a2fcd7ce82eb5d838a83dea70b58ba2164d3e243e38e8d56648ef4c2",
         "sizeBytes": 5631
       },
       {
-        "path": "app/resources/app.asar::.vite/build/main-DyB6ps5P.js",
-        "sha256": "378601c9bc5c9d94ad91dc3c6859bd68a4c287c22f4b8bb34ea101be1e0dec1a",
+        "path": "app/resources/app.asar::.vite/build/main-C1YkadXg.js",
+        "sha256": "dc98f53ff4745ae3ba790395d855c8bbda4a550c1744cb90262dbcde4d970075",
         "sizeBytes": 2468887
       },
       {
@@ -82,7 +82,7 @@
       },
       {
         "path": "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
-        "sha256": "ea8cba3a0e82f1aaedca11bcd075a878f666c09b4c8b5c23fc77be0b514870b9",
+        "sha256": "a74d09c7cddc2148633ec880867264357781ea1896e9de9ed5555faed7518a4f",
         "sizeBytes": 2193
       },
       {
@@ -97,18 +97,18 @@
       },
       {
         "path": "app/resources/plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
-        "sha256": "8785b5437d98636c3002d3d7e64b98db79c3b66870b1bd3d18dea953a99b1562",
+        "sha256": "f204d340535055781952b10ed396de20b842f00a19e430852f7e121ad1ce91f6",
         "sizeBytes": 1016127
       },
       {
-        "path": "app/resources/app.asar::webview/assets/automations-page-lXqSNtrk.js",
-        "sha256": "c8d2d8364a7c19a269c33bfa3de9d707456d2ea7f430d3b8d412aca0aae03bf6",
+        "path": "app/resources/app.asar::webview/assets/automations-page-22dsgVr1.js",
+        "sha256": "44992383bcf0692770b7d2ee227655fad733c6fd2b991865840d68a256bfbc25",
         "sizeBytes": 97027
       },
       {
-        "path": "app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js",
-        "sha256": "de47053203014c67be903ffe47a10781f3553a06b8fd03d9a29b6d29e55c66bf",
-        "sizeBytes": 14878520
+        "path": "app/resources/app.asar::webview/assets/app-initial-cpPdPura.js",
+        "sha256": "69fc795132856b60ba2201695ebb4ac922790a9c341630f9f4f9461bf38ff6d6",
+        "sizeBytes": 14878551
       },
       {
         "path": "app/resources/app.asar::webview/assets/app-initial-D7RtMALq.css",
@@ -116,57 +116,116 @@
         "sizeBytes": 99712
       },
       {
-        "path": "app/resources/app.asar::webview/assets/app-Dc4lgaPL.css",
-        "sha256": "7d0d49209819430155bfc25b4c99ff79d553134fc46c41a9eea50747acdf082c",
-        "sizeBytes": 627861
+        "path": "app/resources/app.asar::webview/assets/app-CVDUBv1W.css",
+        "sha256": "d795a9195e39b5539447a5e0f85f698df873ba5d13d5b86e254bfb9eecb2394d",
+        "sizeBytes": 635519
       },
       {
-        "path": "app/resources/app.asar::webview/assets/browser-B15L647J.js",
-        "sha256": "e89f0e197c1972026198d73236da130a627140303f123c27aa77258ddb969520",
+        "path": "app/resources/app.asar::webview/assets/browser-CVV9l2Fo.js",
+        "sha256": "c77316df7185c71893591e34d1c612511564deefe692693ad8d51a2359a9c5e6",
         "sizeBytes": 651833
       },
       {
-        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js",
-        "sha256": "40680142ed453342b6e311e69d20c0e13e148b0606754aeb007c2a09383b3d62",
+        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-Dupcquxn.js",
+        "sha256": "bfcfea4dc43104f216250d972948fa79e4d10a81f2cb54dd9ab1c75eae491806",
         "sizeBytes": 2547
       },
       {
-        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js",
-        "sha256": "1e804c87b9640f32aab2521695660a931fa0286808fb37784d496f68c6e92870",
+        "path": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-B3sa6LzG.js",
+        "sha256": "5ac79b8b45d4f73c42cc05c8456835f92dbffa575a2754840b2023f453cc1619",
         "sizeBytes": 2284
       },
       {
-        "path": "app/resources/app.asar::webview/assets/browser-use-settings-DRBJgEB-.js",
-        "sha256": "091c80b92363798ff92b9052897b6fa0116015ca07390cd7b5f7935fbec09dc1",
+        "path": "app/resources/app.asar::webview/assets/browser-use-settings-DdtMx6KN.js",
+        "sha256": "eb119a073ed43d163c039f70ad3f3f2abc843cd30bc356b5f9a32fe6b5b4b9ac",
         "sizeBytes": 120575
       },
       {
-        "path": "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-U_daiCbC.js",
-        "sha256": "2f815cd96961a51b3f2fee07d75ffd39c037c0bd614a64705f87f705a2f8ff46",
+        "path": "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-DQqWTshl.js",
+        "sha256": "8598e1ef973c7ec41f4a2f15a62bb1fa5931157ed05ed86b2601b2350ecd29af",
         "sizeBytes": 152
       },
       {
-        "path": "app/resources/app.asar::webview/assets/remote-connections-settings-AmSwHDun.js",
-        "sha256": "54e67d91de8cddc06a1bc6e3dd58d3be1735f4e7d9fca76252e7931c64a0324a",
+        "path": "app/resources/app.asar::webview/assets/remote-connections-settings-BzFUQtdl.js",
+        "sha256": "ebb9a7e374842d5cdd637d4acb3014bd1948590d7bb5b1b8fb9f86fb72ccc69b",
         "sizeBytes": 159364
       },
       {
-        "path": "app/resources/app.asar::webview/assets/remote-conversation-page-BN4E1Cv4.js",
-        "sha256": "258632f7b4f93b58d2a34b75e9635df9cd3b9c130b7a5d19ae7e3bca8550f712",
-        "sizeBytes": 66773
+        "path": "app/resources/app.asar::webview/assets/remote-conversation-page-D988P5nY.js",
+        "sha256": "839c9da2dba55ac6d4b65ee782977942d8687f10fba9ef561f0d277436eb58eb",
+        "sizeBytes": 66758
       }
     ],
     "installationVerification": {
       "status": "verified",
       "verifiedAt": "2026-08-01",
-      "packageFullName": "OpenAI.Codex_26.727.4816.0_x64__2p2nqsd0c76g0",
-      "packageVersion": "26.727.4816.0",
+      "packageFullName": "OpenAI.Codex_26.727.6591.0_x64__2p2nqsd0c76g0",
+      "packageVersion": "26.727.6591.0",
       "artifactPath": "app/resources/app.asar",
-      "artifactSha256": "45dc514dff2cfc6fcf573e75ee37438e24c42dea7785480e064649650d42334a",
-      "artifactSizeBytes": 221843894
+      "artifactSha256": "670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298",
+      "artifactSizeBytes": 221851751
     },
     "semanticEvidence": {
-      "mediaQueryWidths": [1536, 1280, 1024, 900, 768, 760, 720, 680, 641, 640, 540, 480, 440, 420, 400, 320, 280, 260, 240, 220],
+      "automationMarkers": {
+        "actions": {
+          "automation-create": true,
+          "automation-update": true,
+          "automation-delete": true,
+          "automation-run-now": true,
+          "Run now": true,
+          "Pause scheduled task": true,
+          "Resume scheduled task": true,
+          "Delete scheduled task": true
+        },
+        "discovery": {
+          "list-automations": true,
+          "Search scheduled tasks": true,
+          "Scheduled task status": true,
+          "Create with Codex": true,
+          "Set up manually": true
+        },
+        "history": {
+          "Previous runs": true,
+          "automation_history": true,
+          "Archive all": true,
+          "Mark all as read": true,
+          "Open chat": true
+        },
+        "scheduling": {
+          "nextRunAt": true,
+          "notificationPolicy": true,
+          "customRrule": true,
+          "rrule": true,
+          "timeZone": true
+        },
+        "states": {
+          "IN_PROGRESS": true,
+          "PAUSED": true,
+          "ARCHIVED": true
+        }
+      },
+      "mediaQueryWidths": [
+        1536,
+        1280,
+        1024,
+        900,
+        768,
+        760,
+        720,
+        680,
+        641,
+        640,
+        540,
+        480,
+        440,
+        420,
+        400,
+        320,
+        280,
+        260,
+        240,
+        220
+      ],
       "providerItems": {
         "userMessage": true,
         "hookPrompt": true,
@@ -258,52 +317,69 @@
       "boundary": "The raw Codex type name is evidence at the provider boundary only; every fixture must assert canonical Session output."
     },
     "desktopRenderer": {
-      "referenceBuild": "26.727.4816.0",
-      "archiveEntry": "webview/assets/app-initial-BZcC-pud.js",
+      "referenceBuild": "26.727.6591.0",
+      "archiveEntry": "webview/assets/app-initial-cpPdPura.js",
+      "archiveEntryByteOffset": 25195948,
       "archiveEntryRawLineCount": 9720,
+      "formatter": {
+        "package": "prettier",
+        "version": "3.9.5",
+        "parser": "babel",
+        "printWidth": 256
+      },
       "itemMappingLines": {
-        "symbol": "Mw",
-        "start": 142888,
-        "end": 143531,
+        "symbol": "Nw",
+        "start": 142699,
+        "end": 143064,
         "rawLine": 873,
-        "entryByteOffset": 3459331,
-        "archiveByteOffset": 28647621,
+        "entryCodeUnitOffset": 3422179,
+        "entryByteOffset": 3459330,
+        "archiveByteOffset": 28655278,
         "coordinateSystem": "formatter-output"
       },
       "visibilityPredicate": {
-        "symbol": "C1n",
-        "start": 143627,
-        "end": 143697,
+        "symbol": "x1n",
+        "start": 143107,
+        "end": 143133,
         "coordinateSystem": "formatter-output",
         "rawLine": 874,
-        "entryByteOffset": 3473339,
-        "archiveByteOffset": 28661629
+        "entryCodeUnitOffset": 3435097,
+        "entryByteOffset": 3472248,
+        "archiveByteOffset": 28668196
       },
       "rawArchiveEvidence": {
         "composerSurface": {
           "marker": "composer-surface-chrome",
           "rawLine": 8475,
-          "entryByteOffset": 7887798
+          "entryCodeUnitOffset": 7845443,
+          "entryByteOffset": 7887807,
+          "archiveByteOffset": 33083755
         },
         "approvalSurface": {
           "marker": "data-codex-approval-surface",
           "rawLine": 9006,
-          "entryByteOffset": 10603389
+          "entryCodeUnitOffset": 10560544,
+          "entryByteOffset": 10603407,
+          "archiveByteOffset": 35799355
         },
         "userInputAutoResolution": {
           "marker": "data-user-input-auto-resolution",
           "rawLine": 9007,
-          "entryByteOffset": 10684306
+          "entryCodeUnitOffset": 10641455,
+          "entryByteOffset": 10684324,
+          "archiveByteOffset": 35880272
         },
         "composerRequestNavigation": {
           "marker": "data-codex-composer-request-navigation",
           "rawLine": 9007,
-          "entryByteOffset": 10738441
+          "entryCodeUnitOffset": 10695582,
+          "entryByteOffset": 10738459,
+          "archiveByteOffset": 35934407
         }
       },
       "responsiveStylesheet": {
         "archiveEntries": [
-          "webview/assets/app-Dc4lgaPL.css",
+          "webview/assets/app-CVDUBv1W.css",
           "webview/assets/app-initial-D7RtMALq.css"
         ],
         "observedMediaQueryWidths": [
@@ -812,10 +888,10 @@
             },
             "platform": "win32",
             "browserProject": "chromium",
-            "referenceBuild": "26.727.4816.0",
-            "referenceArtifactSha256": "45dc514dff2cfc6fcf573e75ee37438e24c42dea7785480e064649650d42334a",
+            "referenceBuild": "26.727.6591.0",
+            "referenceArtifactSha256": "670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298",
             "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-desktop-1440x900-chromium-win32.png",
-            "snapshotSha256": "194124a691b4b33f91cdded122e13cc91ee2b37650f7875e26f57685e18863b7",
+            "snapshotSha256": "a6070ead4751ffeee0f156a2ddb73e144aa80d6133a3d3b8d0f03efe9d473503",
             "status": "passed"
           },
           {
@@ -826,10 +902,10 @@
             },
             "platform": "win32",
             "browserProject": "chromium",
-            "referenceBuild": "26.727.4816.0",
-            "referenceArtifactSha256": "45dc514dff2cfc6fcf573e75ee37438e24c42dea7785480e064649650d42334a",
+            "referenceBuild": "26.727.6591.0",
+            "referenceArtifactSha256": "670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298",
             "snapshotPath": "apps/sdkwork-birdcoder-pc/tests/e2e/codex-desktop-visual-parity.spec.ts-snapshots/codex-session-narrow-900x800-chromium-win32.png",
-            "snapshotSha256": "1b8049357c6fbfdec5177df408754d26084daeeddc65ec206a8fe680c91adb80",
+            "snapshotSha256": "59e10797b65981bc0b56c9e9c0c46f9985d54ec13ca6dc90d72cd32e7b035348",
             "status": "passed"
           }
         ]
@@ -978,7 +1054,7 @@
           "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/create-agent-task-request.ts"
         ],
         "referenceArtifacts": [
-          "app/resources/app.asar::webview/assets/automations-page-lXqSNtrk.js"
+          "app/resources/app.asar::webview/assets/automations-page-22dsgVr1.js"
         ]
       }
     },
@@ -998,12 +1074,12 @@
           "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs"
         ],
         "referenceArtifacts": [
-          "app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js",
-          "app/resources/app.asar::webview/assets/browser-B15L647J.js",
-          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js",
-          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js",
-          "app/resources/app.asar::webview/assets/browser-use-settings-DRBJgEB-.js",
-          "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-U_daiCbC.js",
+          "app/resources/app.asar::webview/assets/app-initial-cpPdPura.js",
+          "app/resources/app.asar::webview/assets/browser-CVV9l2Fo.js",
+          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-Dupcquxn.js",
+          "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-B3sa6LzG.js",
+          "app/resources/app.asar::webview/assets/browser-use-settings-DdtMx6KN.js",
+          "app/resources/app.asar::webview/assets/thread-browser-panel-tabs-DQqWTshl.js",
           "app/resources/cua_node/manifest.json",
           "app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
           "app/resources/plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md",
@@ -1023,8 +1099,8 @@
           "apps/sdkwork-birdcoder-pc/src/bootstrap/routes.ts"
         ],
         "referenceArtifacts": [
-          "app/resources/app.asar::webview/assets/remote-connections-settings-AmSwHDun.js",
-          "app/resources/app.asar::webview/assets/remote-conversation-page-BN4E1Cv4.js"
+          "app/resources/app.asar::webview/assets/remote-connections-settings-BzFUQtdl.js",
+          "app/resources/app.asar::webview/assets/remote-conversation-page-D988P5nY.js"
         ]
       }
     },
@@ -1068,9 +1144,31 @@
           "CDB-005"
         ],
         "referenceArtifacts": [
-          "app/resources/app.asar::.vite/build/main-DyB6ps5P.js",
+          "app/resources/app.asar::.vite/build/main-C1YkadXg.js",
           "app/resources/app.asar::.vite/build/src-CLstCQVF.js",
-          "app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js"
+          "app/resources/app.asar::webview/assets/app-initial-cpPdPura.js"
+        ]
+      }
+    },
+    {
+      "id": "CDP-016",
+      "area": "session-inbox",
+      "title": "Per-project provider Session list and Session message list parity with the Codex desktop application",
+      "status": "aligned-and-verified",
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/persistence.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/provider_session_sync.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+          "crates/sdkwork-birdcoder-tauri-host/src/host/provider_session_cwd.rs",
+          "crates/sdkwork-birdcoder-tauri-host/src/commands/local_store_commands.rs",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/ProjectDeviceMountRegistry.ts",
+          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.test.mjs"
+        ],
+        "commands": [
+          "cargo test -p sdkwork-intelligence-agents-service --lib",
+          "cargo test -p sdkwork-birdcoder-tauri-host --lib",
+          "node ../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.test.mjs"
         ]
       }
     }
@@ -1484,7 +1582,7 @@
         "generatedEvidence": {
           "createRequestSha256": "c827f4eab5e33713d271dd9ec6885dec4a3e50c0ee7ca79bd6abc09fa5765aee",
           "taskRecordSha256": "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
-          "aiApiSha256": "d80a5dfb26d5eaf25fad5f3c4815257ff3c5697e3e2196873c77d70e3f5a0626"
+          "aiApiSha256": "9c9606a5e3068344738456ece78248c3268bcb734058faca8e09aa9a6648a91b"
         }
       },
       "requiredContractExtensions": [
@@ -1518,14 +1616,14 @@
         ],
         "rendererContract": {
           "lifecycleArtifact": {
-            "path": "app/resources/app.asar::webview/assets/app-initial-BZcC-pud.js",
-              "sha256": "de47053203014c67be903ffe47a10781f3553a06b8fd03d9a29b6d29e55c66bf",
-              "sizeBytes": 14878520
+            "path": "app/resources/app.asar::webview/assets/app-initial-cpPdPura.js",
+            "sha256": "69fc795132856b60ba2201695ebb4ac922790a9c341630f9f4f9461bf38ff6d6",
+            "sizeBytes": 14878551
           },
           "negativeDotLottieEvidence": {
-            "path": "app/resources/app.asar::webview/assets/browser-B15L647J.js",
-              "sha256": "e89f0e197c1972026198d73236da130a627140303f123c27aa77258ddb969520",
-              "sizeBytes": 651833,
+            "path": "app/resources/app.asar::webview/assets/browser-CVV9l2Fo.js",
+            "sha256": "c77316df7185c71893591e34d1c612511564deefe692693ad8d51a2359a9c5e6",
+            "sizeBytes": 651833,
             "classification": "DotLottie rendering dependency; it is not Browser lifecycle, command, permission, or persistence evidence.",
             "dotLottieEntryByteOffsets": [
               26410,
@@ -1537,7 +1635,7 @@
             ]
           },
           "initialTabState": {
-            "entryByteOffset": 8744281,
+            "entryByteOffset": 9134147,
             "fields": [
               "annotationFlow",
               "tabType",
@@ -1563,7 +1661,7 @@
             ]
           },
           "commandUnion": {
-            "entryByteOffset": 8727214,
+            "entryByteOffset": 9117282,
             "commands": [
               "open-find",
               "find-next",
@@ -1603,7 +1701,7 @@
           "hiddenHostContracts": [
             {
               "kind": "adopted-background-web-contents",
-              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-CKlGQ96D.js",
+              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-background-webview-host-Dupcquxn.js",
               "fields": [
                 "sessionId",
                 "providerBrowserTabId",
@@ -1618,7 +1716,7 @@
             },
             {
               "kind": "hidden-browser-use",
-              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-4rjK7W_y.js",
+              "artifact": "app/resources/app.asar::webview/assets/browser-sidebar-hidden-browser-use-webview-host-B3sa6LzG.js",
               "fields": [
                 "sessionId",
                 "providerBrowserTabId",
@@ -1944,7 +2042,7 @@
         "generated SDK plus real desktop and narrow-screen E2E surfaces"
       ],
       "prohibitedWorkarounds": [
-        "using the DotLottie browser-B15L647J.js chunk as Browser lifecycle evidence",
+        "using the DotLottie browser-CVV9l2Fo.js chunk as Browser lifecycle evidence",
         "treating a sandbox iframe as provider Browser parity",
         "treating a local allowedSites array or trusted-sites policy as the reference permission contract",
         "mapping Browser plugin codexSessionId directly to canonical sessionId",
@@ -1998,7 +2096,7 @@
         "observedRuntimeFacts": [
           "Streaming HTTP requests attach a bounded TurnExecutionStreamSink, wait only for the first signal, and then forward ordered chunks through Body::from_stream while execution continues",
           "RuntimeFacadeTurnExecutor forwards provider-neutral model chunks and Kernel events into the HTTP sink while retaining a bounded terminal copy for persistence",
-          "Each Turn bootstraps a local CodeEngineSlot and the active Codex TypeScript SDK path spawns codex exec --experimental-json rather than retaining an app-server connection",
+          "Turn execution reuses a process-wide AgentsCodeEngineHost; the Codex runtime prefers one resident app-server transport while retaining explicitly governed SDK or CLI compatibility fallbacks",
           "AgentTurnRecord persists no model request id or transport execution handle",
           "Live stream items are persisted only from the terminal collected stream_events after provider execution returns, so restart-safe event replay and active execution recovery remain unavailable",
           "cancel_turn marks the repository record cancelled and writes audit events without invoking Kernel cancellation",
@@ -2112,9 +2210,10 @@
             "orderedContains": [
               "fn complete_with_stream_sink(",
               "execute_runtime_facade_turn(input, true, Some(sink))",
-              "bootstrap_code_engine(engine_key)",
+              "shared_code_engine_host()",
+              "host.slot(engine_key)",
               "if prefer_stream {",
-              "execute_code_engine_turn_with_stream_sink(&slot, &turn_input, &mut facade_sink)",
+              "execute_code_engine_turn_with_stream_sink(slot, &turn_input, &mut facade_sink)",
               "stream_deltas: output.stream_deltas"
             ]
           },
@@ -2195,7 +2294,7 @@
             "path": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
             "scope": {
               "startMarker": "pub fn answer_interaction(",
-              "endMarker": "fn emit_interaction_audit_event("
+              "endMarker": "pub fn resolve_interaction("
             },
             "orderedContains": [
               "record.resolve(",
@@ -2251,10 +2350,10 @@
           }
         ]
       },
-        "requiredContractExtensions": [
-          "server-owned long-lived runtime registry that survives HTTP request boundaries",
-          "persistent execution handle mapping canonical Session and Turn identities to modelRequestId, providerSessionId, providerTurnId, and transport lease",
-          "durable ordered live-event persistence and replay cursors bound to the fenced execution generation before terminal completion",
+      "requiredContractExtensions": [
+        "server-owned long-lived runtime registry that survives HTTP request boundaries",
+        "persistent execution handle mapping canonical Session and Turn identities to modelRequestId, providerSessionId, providerTurnId, and transport lease",
+        "durable ordered live-event persistence and replay cursors bound to the fenced execution generation before terminal completion",
         "Kernel long-lived Codex app-server JSON-RPC transport with server-request continuation",
         "provider cancellation and execution timeout routed from canonical Session and Turn identities before terminal persistence",
         "turn/interrupt routed with provider continuation and Turn identities and confirmed by turn/completed interrupted",
@@ -2635,40 +2734,40 @@
         "desktopAppServerTransport": {
           "archiveResource": "app/resources/app.asar",
           "entryOffsetUnit": "uncompressed entry bytes",
-          "mainArchiveEntry": ".vite/build/main-DyB6ps5P.js",
-          "mainArchiveEntrySizeBytes": 2362317,
-          "mainArchiveEntrySha256": "6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be",
+          "mainArchiveEntry": ".vite/build/main-C1YkadXg.js",
+          "mainArchiveEntrySizeBytes": 2468887,
+          "mainArchiveEntrySha256": "dc98f53ff4745ae3ba790395d855c8bbda4a550c1744cb90262dbcde4d970075",
           "sharedArchiveEntry": ".vite/build/src-CLstCQVF.js",
-          "sharedArchiveEntrySizeBytes": 1443629,
-          "sharedArchiveEntrySha256": "efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38",
+          "sharedArchiveEntrySizeBytes": 1466039,
+          "sharedArchiveEntrySha256": "d662544e3580a37ae09b619a3e16a2bce68656abfa23f9f1060858a7dd637851",
           "mainIpcEntryByteOffsets": {
-            "rendererReady": 1534452,
-            "initializationSnapshot": 1534704,
-            "autoResolutionSnapshot": 1534736,
-            "restart": 1548020,
-            "clientRequest": 1550521,
-            "abandonClientRequest": 1552021,
-            "clientNotification": 1552186,
-            "clientResponse": 1552460
+            "rendererReady": 1576874,
+            "initializationSnapshot": 1577126,
+            "autoResolutionSnapshot": 1577158,
+            "restart": 1590396,
+            "clientRequest": 1592915,
+            "abandonClientRequest": 1594637,
+            "clientNotification": 1594802,
+            "clientResponse": 1595076
           },
           "sharedConnectionEntryByteOffsets": {
-            "localStdioArguments": 739464,
-            "initializeRequestIdDeclaration": 803237,
-            "reconnectConstants": 812548,
-            "autoResolutionSnapshot": 843422,
-            "initializationSnapshot": 843657,
-            "handleClientRequest": 863035,
-            "abandonClientRequest": 863192,
-            "handleClientNotification": 863261,
-            "handleClientResponse": 863560,
-            "failPendingClientRequestsOnClose": 879678,
-            "rejectInternalRequestsOnClose": 879753,
-            "scheduleReconnect": 881722,
-            "startScheduledReconnect": 882680,
-            "initializeResponseRoute": 891043,
-            "serverRequestRoute": 892430,
-            "rendererRequestBroadcast": 893114,
-            "rendererNotificationBroadcast": 896848
+            "localStdioArguments": 763414,
+            "initializeRequestIdDeclaration": 828457,
+            "reconnectConstants": 839976,
+            "autoResolutionSnapshot": 871433,
+            "initializationSnapshot": 871668,
+            "handleClientRequest": 891047,
+            "abandonClientRequest": 891204,
+            "handleClientNotification": 891273,
+            "handleClientResponse": 891572,
+            "failPendingClientRequestsOnClose": 905928,
+            "rejectInternalRequestsOnClose": 906003,
+            "scheduleReconnect": 910208,
+            "startScheduledReconnect": 912489,
+            "initializeResponseRoute": 921016,
+            "serverRequestRoute": 922561,
+            "rendererRequestBroadcast": 922482,
+            "rendererNotificationBroadcast": 926018
           },
           "localStdioLaunchArguments": [
             "-c",
@@ -2755,13 +2854,13 @@
           "canonicalBoundary": "Codex provider request and notification identities stay inside the Kernel adapter; Agents and BirdCoder correlate only canonical Session, Turn, execution handle, and providerSessionId."
         },
         "desktopServerRequestProjection": {
-          "rendererArchiveEntry": "webview/assets/app-initial-BZcC-pud.js",
+          "rendererArchiveEntry": "webview/assets/app-initial-cpPdPura.js",
           "rendererArchiveResource": "resources/app.asar",
-          "rendererArchiveEntrySizeBytes": 14878520,
-          "rendererArchiveEntrySha256": "de47053203014c67be903ffe47a10781f3553a06b8fd03d9a29b6d29e55c66bf",
+          "rendererArchiveEntrySizeBytes": 14878551,
+          "rendererArchiveEntrySha256": "69fc795132856b60ba2201695ebb4ac922790a9c341630f9f4f9461bf38ff6d6",
           "entryOffsetUnit": "uncompressed entry bytes",
-          "requestGroupingEntryByteOffset": 1683149,
-          "requestDispatcherEntryByteOffset": 3214824,
+          "requestGroupingEntryByteOffset": 1877168,
+          "requestDispatcherEntryByteOffset": 3300508,
           "canonicalInteractionMethods": [
             "item/commandExecution/requestApproval",
             "item/fileChange/requestApproval",
@@ -2773,15 +2872,15 @@
             {
               "method": "item/tool/requestOptionPicker",
               "entryByteOffsets": [
-                1683879,
-                3216523
+                1880199,
+                3302207
               ]
             },
             {
               "method": "item/tool/requestSetupCodexContextPicker",
               "entryByteOffsets": [
-                1684174,
-                3216871
+                1880494,
+                3302555
               ]
             }
           ],
@@ -2794,15 +2893,15 @@
               "setup_codex_step"
             ],
             "bundleEntryByteOffsets": {
-              "successEnvelopeHelper": 1614578,
-              "toolSchemaDeclaration": 1614670,
-              "optionPickerSchema": 1614999,
-              "onboardingQuestionSchema": 1615237,
-              "setupStepSchema": 1615288,
-              "setupResponseCompiler": 2689100,
-              "failureEnvelopeHelper": 2462463,
-              "setupStepDispatcher": 3182450,
-              "argumentValidationDispatcher": 3182965
+              "successEnvelopeHelper": 1844251,
+              "toolSchemaDeclaration": 1844343,
+              "optionPickerSchema": 1844672,
+              "onboardingQuestionSchema": 1844815,
+              "setupStepSchema": 1844961,
+              "setupResponseCompiler": 3196748,
+              "failureEnvelopeHelper": 2763011,
+              "setupStepDispatcher": 3302901,
+              "argumentValidationDispatcher": 3303028
             },
             "invalidArgumentResponse": {
               "tools": [

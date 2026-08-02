@@ -512,8 +512,8 @@ const concurrentRefreshService = {
     });
     assert.equal(
       projectSynchronizationCalls,
-      0,
-      'ordinary project refresh must remain read-only',
+      1,
+      'project refresh must synchronize Provider inventory before reading the activity snapshot',
     );
     activityHeadReads += 1;
     return {
@@ -584,9 +584,13 @@ assert.equal(refreshedProject.projects?.[0]?.agentSessions.length, 60);
 assert.equal(activityHeadReads, 1, 'project refresh must read one bounded activity head page');
 assert.equal(
   projectSynchronizationCalls,
-  0,
-  'project refresh must not trigger Provider inventory synchronization',
+  1,
+  'project refresh must trigger exactly one Provider inventory synchronization',
 );
+assert.deepEqual(refreshedProject.providerSynchronization, {
+  projectId: 'project.pagination',
+  synchronizedSessionCount: '60',
+});
 assert.equal(activeBindingReads, 0, 'project refresh must not issue RuntimeBinding N+1 reads');
 assert.equal(normalizeProjectAgentSessionTargetCount(Number.NaN), 1);
 assert.equal(normalizeProjectAgentSessionTargetCount(0), 1);

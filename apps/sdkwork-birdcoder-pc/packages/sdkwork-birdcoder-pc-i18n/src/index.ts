@@ -50,4 +50,6 @@ export {
   flattenLocaleKeys,
 };
 
+export { createAgentModelAccessSelectorMessages } from './agentModelAccessSelectorMessages';
+
 export default i18n;

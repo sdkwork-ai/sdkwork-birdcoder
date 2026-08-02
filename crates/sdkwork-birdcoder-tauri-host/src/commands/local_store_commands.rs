@@ -131,6 +131,8 @@ fn read_project_device_mount_by_identity(
 
     let mut matched_entry = None;
     let mut matched_paths = BTreeSet::new();
+    let mut stale_owner_entry = None;
+    let mut stale_owner_paths = BTreeSet::new();
     for row in rows {
         let (key, value) =
             row.map_err(|error| format!("failed to decode project mount recovery row: {error}"))?;
@@ -143,7 +145,6 @@ fn read_project_device_mount_by_identity(
             .map(str::trim)
             .map(str::to_ascii_lowercase);
         if mount.version != Some(1)
-            || mount.project_id.as_deref().map(str::trim) != Some(project_id)
             || !owner_key
                 .as_ref()
                 .is_some_and(|value| owner_keys.contains(value))
@@ -154,9 +155,21 @@ fn read_project_device_mount_by_identity(
         if path.is_empty() {
             continue;
         }
-        matched_paths.insert(normalize_project_device_mount_path_identity(path));
-        if matched_entry.is_none() {
-            matched_entry = Some(ProjectDeviceMountEntry { key, value });
+        let normalized_path = normalize_project_device_mount_path_identity(path);
+        if mount.project_id.as_deref().map(str::trim) == Some(project_id) {
+            matched_paths.insert(normalized_path);
+            if matched_entry.is_none() {
+                matched_entry = Some(ProjectDeviceMountEntry { key, value });
+            }
+        } else {
+            // A mount bound to an earlier project record after the project
+            // was re-imported under a new id. The client migrates the
+            // stored projectId when the owner holds exactly one mount;
+            // several same-owner mounts are ambiguous and fail closed.
+            stale_owner_paths.insert(normalized_path);
+            if stale_owner_entry.is_none() {
+                stale_owner_entry = Some(ProjectDeviceMountEntry { key, value });
+            }
         }
     }
 
@@ -165,7 +178,13 @@ fn read_project_device_mount_by_identity(
             "multiple desktop folders are bound to project {project_id} for the active user"
         ));
     }
-    Ok(matched_entry)
+    if matched_entry.is_some() {
+        return Ok(matched_entry);
+    }
+    if stale_owner_paths.len() == 1 {
+        return Ok(stale_owner_entry);
+    }
+    Ok(None)
 }
 
 fn local_store_scope_and_key_are_allowed(scope: &str, key: &str) -> bool {
@@ -686,6 +705,78 @@ mod tests {
             &accepted_owner_keys,
         )
         .is_err());
+    }
+
+    #[test]
+    fn project_mount_recovery_returns_a_single_stale_project_id_mount_for_migration() {
+        let connection = rusqlite::Connection::open_in_memory().expect("in-memory device state");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE device_state_entry (
+                    scope TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (scope, key)
+                );
+                "#,
+            )
+            .expect("device-state test table");
+        let owner_key = "e".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "5".repeat(64),
+                    serde_json::json!({
+                        "ownerKey": owner_key,
+                        "path": "C:\\work\\birdcoder",
+                        "projectId": "project-retired",
+                        "version": 1
+                    })
+                    .to_string(),
+                    "1"
+                ],
+            )
+            .expect("stale project mount");
+
+        let accepted_owner_keys = normalize_project_device_mount_owner_keys(vec![owner_key.clone()])
+            .expect("valid owner key");
+        let recovered = read_project_device_mount_by_identity(
+            &connection,
+            "project-reimported",
+            &accepted_owner_keys,
+        )
+        .expect("stale project mount lookup")
+        .expect("single stale project mount");
+        assert_eq!(recovered.key, "5".repeat(64));
+
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "6".repeat(64),
+                    serde_json::json!({
+                        "ownerKey": owner_key.clone(),
+                        "path": "D:\\work\\birdcoder",
+                        "projectId": "project-other",
+                        "version": 1
+                    })
+                    .to_string(),
+                    "2"
+                ],
+            )
+            .expect("second same-owner mount");
+        assert!(read_project_device_mount_by_identity(
+            &connection,
+            "project-reimported",
+            &accepted_owner_keys,
+        )
+        .expect("ambiguous stale project mount lookup")
+        .is_none());
     }
 
     #[test]

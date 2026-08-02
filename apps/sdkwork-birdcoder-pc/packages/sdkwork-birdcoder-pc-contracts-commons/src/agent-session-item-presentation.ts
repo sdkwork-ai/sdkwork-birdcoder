@@ -24,6 +24,7 @@ import {
   resolveAgentTurnActivityPresentation,
   resolveAgentSessionActivityFileChangeViews,
   resolveAgentSessionItemVisibleMarkdownContent,
+  type AgentSessionActivityMcpSourceView,
   type AgentTurnActivityPresentation,
 } from './agent-session-item-activity-presentation.ts';
 import {
@@ -83,6 +84,13 @@ export interface AgentSessionItemActivityPresentationBlock {
   sessionItemId: string;
   fileChanges: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
   commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
+  /** Codex desktop collapsed-summary segments beyond files and commands. */
+  mcpSources?: readonly AgentSessionActivityMcpSourceView[];
+  unnamedMcpToolCallCount?: number;
+  loadedToolCount?: number;
+  explorationCount?: number;
+  webSearchCount?: number;
+  runningWebSearchCount?: number;
 }
 
 export interface AgentSessionItemFileChangesPresentationBlock {
@@ -475,6 +483,22 @@ function buildAgentSessionItemPresentationBlocks(
       sessionItemId: item.id,
       fileChanges,
       commands,
+      ...(activitySummary?.mcpSources?.length ? { mcpSources: activitySummary.mcpSources } : {}),
+      ...(activitySummary?.unnamedMcpToolCallCount
+        ? { unnamedMcpToolCallCount: activitySummary.unnamedMcpToolCallCount }
+        : {}),
+      ...(activitySummary?.loadedToolCount
+        ? { loadedToolCount: activitySummary.loadedToolCount }
+        : {}),
+      ...(activitySummary?.explorationCount
+        ? { explorationCount: activitySummary.explorationCount }
+        : {}),
+      ...(activitySummary?.webSearchCount
+        ? {
+            webSearchCount: activitySummary.webSearchCount,
+            runningWebSearchCount: activitySummary.runningWebSearchCount ?? 0,
+          }
+        : {}),
     });
   }
 

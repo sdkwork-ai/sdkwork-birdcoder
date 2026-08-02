@@ -6,6 +6,8 @@ import type {
 const APP_IDE_SERVICE_KEYS = [
   'agentAutomationService',
   'agentModelConfigurationService',
+  'userModelConfigService',
+  'modelAccessCatalogService',
   'agentSessionService',
   'applicationPublishService',
   'authService',
@@ -146,6 +148,12 @@ export function createLazyDefaultIdeServices(): AppIdeServices {
     ),
     agentModelConfigurationService: createLazyServiceProxy(
       async () => loadDefaultIdeService('agentModelConfigurationService'),
+    ),
+    userModelConfigService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('userModelConfigService'),
+    ),
+    modelAccessCatalogService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('modelAccessCatalogService'),
     ),
     agentSessionService: createLazyServiceProxy(
       async () => loadDefaultIdeService('agentSessionService'),

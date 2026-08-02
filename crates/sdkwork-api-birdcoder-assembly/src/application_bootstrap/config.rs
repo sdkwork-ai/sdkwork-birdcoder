@@ -379,8 +379,12 @@ fn normalize_bind_host(host: &str) -> String {
 
 pub fn default_loopback_browser_origins() -> Vec<String> {
     let mut origins = Vec::new();
+    // 1520 is the canonical BirdCoder desktop renderer dev port (the Tauri
+    // `devUrl` in tauri.conf.json); the desktop webview calls the embedded or
+    // standalone gateway cross-origin, so every standalone profile must accept
+    // it in the CORS allowlist, not just the development private-network policy.
     let vite_ports = (3000..=3019).chain(4173..=4192).chain(5173..=5192);
-    for port in vite_ports.chain(std::iter::once(10240)) {
+    for port in vite_ports.chain([1520, 10240]) {
         origins.push(format!("http://127.0.0.1:{port}"));
         origins.push(format!("http://localhost:{port}"));
     }
@@ -392,9 +396,9 @@ pub fn default_loopback_browser_origins() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        default_allowed_origins_for_host, is_loopback_bind_host, is_wildcard_bind_host,
-        parse_bind_address, BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget,
-        BirdServerConfigError,
+        default_allowed_origins_for_host, default_loopback_browser_origins, is_loopback_bind_host,
+        is_wildcard_bind_host, parse_bind_address, BirdDeploymentProfile, BirdEnvironment,
+        BirdRuntimeTarget, BirdServerConfigError,
     };
 
     #[test]
@@ -481,6 +485,20 @@ mod tests {
             .any(|origin| origin == "http://localhost:3019"));
         assert!(!default_allowed_origins_for_host("0.0.0.0").is_empty());
         assert!(default_allowed_origins_for_host("192.168.1.1").is_empty());
+    }
+
+    #[test]
+    fn default_loopback_origins_include_desktop_renderer_dev_port() {
+        // The desktop webview (Tauri devUrl http://127.0.0.1:1520) calls the
+        // gateway cross-origin even outside the development private-network
+        // policy, so the canonical loopback allowlist must include port 1520.
+        let origins = default_loopback_browser_origins();
+        assert!(origins
+            .iter()
+            .any(|origin| origin == "http://127.0.0.1:1520"));
+        assert!(origins
+            .iter()
+            .any(|origin| origin == "http://localhost:1520"));
     }
 
     #[test]

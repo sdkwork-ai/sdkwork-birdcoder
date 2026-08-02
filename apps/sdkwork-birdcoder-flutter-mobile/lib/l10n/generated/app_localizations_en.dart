@@ -88,6 +88,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agent_session_loading_items => 'Loading session items...';
 
   @override
+  String get agent_session_load_earlier => 'Load earlier messages';
+
+  @override
+  String get agent_session_load_earlier_failed =>
+      'Failed to load earlier messages.';
+
+  @override
   String get agent_session_send_failed =>
       'Failed to submit the assistant turn.';
 

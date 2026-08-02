@@ -28,6 +28,8 @@
   "agent_session_input_placeholder": "输入助手指令...",
   "agent_session_empty": "暂无会话项，请在下方开始助手任务。",
   "agent_session_loading_items": "正在加载会话项...",
+  "agent_session_load_earlier": "加载更早的消息",
+  "agent_session_load_earlier_failed": "加载更早的消息失败。",
   "agent_session_send_failed": "提交助手任务失败。",
   "auth_login": "登录",
   "auth_logout": "退出登录",

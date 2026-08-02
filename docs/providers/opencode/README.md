@@ -3,8 +3,7 @@
 ## Baseline And Authority
 
 - Repository: [anomalyco/opencode](https://github.com/anomalyco/opencode)
-- Version: `1.18.9`
-- Commit: `a6f7fe739c691e8b086c50390cf3205f0b5d431e`
+- Version: `1.18.11`
 - Message authority: `external/opencode/packages/opencode/src/session/message-v2.ts`
 - Durable schema: `external/opencode/packages/schema/src/v1/session.ts`
 - HTTP schema: `external/opencode/packages/sdk/openapi.json`

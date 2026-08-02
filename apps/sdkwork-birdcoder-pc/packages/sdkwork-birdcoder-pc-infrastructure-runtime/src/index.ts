@@ -119,12 +119,37 @@ export type {
 export {
   AGENT_MODEL_PROVIDER_IDS,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentModelConfigurationService';
+export {
+  AgentModelConfigurationCredentialRequiredError,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/agentsModelConfigurationService';
 export type {
   AgentModelProviderId,
   AppliedAgentModelConfiguration,
   ApplyAgentModelConfigurationInput,
   IAgentModelConfigurationService,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentModelConfigurationService';
+export type {
+  IUserModelConfigService,
+  UserModelChannel,
+  UserModelChannelKind,
+  UserModelChannelModel,
+  UserModelChannelOffering,
+  UserModelEngineConfig,
+  UserModelEngineSelection,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IUserModelConfigService';
+export type {
+  IModelAccessCatalogService,
+  LoadModelAccessCatalogOptions,
+  ModelAccessCatalogChannel,
+  ModelAccessCatalogModel,
+  ModelAccessCatalogOffering,
+  ModelAccessCatalogOfferingModel,
+  ModelAccessCatalogSnapshot,
+  ModelAccessCatalogSource,
+  ModelAccessChannelKind,
+  UpsertModelAccessCatalogChannelInput,
+  UpsertModelAccessCatalogChannelOptions,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IModelAccessCatalogService';
 export type {
   AgentCatalogListOptions,
   CatalogPage,

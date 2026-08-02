@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
+  useWorkbenchCodeEngineCatalog,
   type WorkbenchCodeEngineId,
 } from '../workbench/codeEngineCatalog.ts';
 
@@ -51,6 +52,10 @@ function areWorkbenchCodeEngineSettingsEqual(
       return false;
     }
 
+    if ((leftEntry.modelAccessChannelId ?? '') !== (rightEntry.modelAccessChannelId ?? '')) {
+      return false;
+    }
+
   }
 
   return true;
@@ -80,6 +85,19 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
         && model.toolCallRounds === other.toolCallRounds
         && model.supportsMultimodal === other.supportsMultimodal
         && model.apiKeyConfigured === other.apiKeyConfigured
+        && model.accessChannelKind === other.accessChannelKind
+        && model.accessChannelName === other.accessChannelName
+        && model.defaultVendorCode === other.defaultVendorCode
+        && model.vendorOfferings.length === other.vendorOfferings.length
+        && model.vendorOfferings.every((offering, offeringIndex) => {
+          const otherOffering = other.vendorOfferings[offeringIndex];
+          return Boolean(
+            otherOffering
+            && offering.vendorCode === otherOffering.vendorCode
+            && offering.vendorName === otherOffering.vendorName
+            && offering.modelIds.join('\u0000') === otherOffering.modelIds.join('\u0000')
+          );
+        })
       );
     }) &&
     left.disabledComposerCapabilityIds.length === right.disabledComposerCapabilityIds.length &&
@@ -122,6 +140,7 @@ function publishWorkbenchPreferences(preferences: WorkbenchPreferences): void {
 }
 
 export function useWorkbenchPreferences() {
+  const codeEngineCatalog = useWorkbenchCodeEngineCatalog();
   const [storedPreferences, setStoredPreferences] = useState<WorkbenchPreferences>(
     () => liveWorkbenchPreferences ?? DEFAULT_WORKBENCH_PREFERENCES,
   );
@@ -183,20 +202,22 @@ export function useWorkbenchPreferences() {
     };
   }, []);
 
-  const normalizedStoredPreferences = normalizeWorkbenchPreferences(storedPreferences);
-  const normalizedActiveEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    normalizedStoredPreferences.codeEngineId,
-    normalizedStoredPreferences,
-  );
-  const preferences = normalizeWorkbenchPreferences({
-    ...normalizedStoredPreferences,
-    codeEngineId: normalizedActiveEngineId,
-    codeModelId: normalizeWorkbenchCodeModelId(
-      normalizedActiveEngineId,
-      normalizedStoredPreferences.codeModelId,
+  const preferences = useMemo(() => {
+    const normalizedStoredPreferences = normalizeWorkbenchPreferences(storedPreferences);
+    const normalizedActiveEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+      normalizedStoredPreferences.codeEngineId,
       normalizedStoredPreferences,
-    ),
-  });
+    );
+    return normalizeWorkbenchPreferences({
+      ...normalizedStoredPreferences,
+      codeEngineId: normalizedActiveEngineId,
+      codeModelId: normalizeWorkbenchCodeModelId(
+        normalizedActiveEngineId,
+        normalizedStoredPreferences.codeModelId,
+        normalizedStoredPreferences,
+      ),
+    });
+  }, [codeEngineCatalog, storedPreferences]);
   const preferencesRef = useRef(preferences);
   preferencesRef.current = preferences;
 
@@ -253,6 +274,14 @@ export function useWorkbenchPreferences() {
         ...normalizedPreviousState,
         ...partialValue,
       });
+      // Preserve the previous identity when nothing actually changed. An
+      // unconditional write would re-create `preferences` on every call and
+      // re-trigger every effect that derives state from it — the UniversalChat
+      // channel-migration effect re-issues user_model_config_list_channels per
+      // cycle (the observed IPC loop).
+      if (preferencesEqual(preferencesRef.current, nextPreferences)) {
+        return;
+      }
       preferencesRef.current = nextPreferences;
       publishWorkbenchPreferences(nextPreferences);
       setStoredPreferences(nextPreferences);

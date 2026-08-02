@@ -255,6 +255,18 @@ abstract class AppLocalizations {
   /// **'Loading session items...'**
   String get agent_session_loading_items;
 
+  /// No description provided for @agent_session_load_earlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Load earlier messages'**
+  String get agent_session_load_earlier;
+
+  /// No description provided for @agent_session_load_earlier_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load earlier messages.'**
+  String get agent_session_load_earlier_failed;
+
   /// No description provided for @agent_session_send_failed.
   ///
   /// In en, this message translates to:

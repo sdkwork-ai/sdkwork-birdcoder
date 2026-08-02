@@ -10,6 +10,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./agentModelAccessSelectorMessages": {
+      "import": "./src/agentModelAccessSelectorMessages.ts",
+      "types": "./src/agentModelAccessSelectorMessages.ts"
     }
   },
   "dependencies": {
@@ -19,7 +23,8 @@
     "html-parse-stringify": "catalog:",
     "i18next": "catalog:",
     "react-i18next": "catalog:",
-    "use-sync-external-store": "catalog:"
+    "use-sync-external-store": "catalog:",
+    "@sdkwork/models-pc-picker": "workspace:*"
   },
   "peerDependencies": {
     "react": "catalog:",

@@ -87,6 +87,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agent_session_loading_items => '正在加载会话项...';
 
   @override
+  String get agent_session_load_earlier => '加载更早的消息';
+
+  @override
+  String get agent_session_load_earlier_failed => '加载更早的消息失败。';
+
+  @override
   String get agent_session_send_failed => '提交助手任务失败。';
 
   @override
@@ -327,6 +333,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get agent_session_loading_items => '正在載入工作階段項目...';
+
+  @override
+  String get agent_session_load_earlier => '載入較早的訊息';
+
+  @override
+  String get agent_session_load_earlier_failed => '載入較早的訊息失敗。';
 
   @override
   String get agent_session_send_failed => '提交助手任務失敗。';

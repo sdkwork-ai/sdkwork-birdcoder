@@ -34,6 +34,8 @@
   "agent_session_input_placeholder": "Send an instruction...",
   "agent_session_empty": "No session items yet. Start an assistant turn below.",
   "agent_session_loading_items": "Loading session items...",
+  "agent_session_load_earlier": "Load earlier messages",
+  "agent_session_load_earlier_failed": "Failed to load earlier messages.",
   "agent_session_send_failed": "Failed to submit the assistant turn.",
   "auth_login": "Log in",
   "auth_logout": "Log out",

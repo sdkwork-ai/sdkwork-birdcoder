@@ -143,6 +143,14 @@
       "import": "./src/services/agentsModelConfigurationService.ts",
       "types": "./src/services/agentsModelConfigurationService.ts"
     },
+    "./services/modelsAppSdkClient": {
+      "import": "./src/services/modelsAppSdkClient.ts",
+      "types": "./src/services/modelsAppSdkClient.ts"
+    },
+    "./services/impl/ModelsSdkModelAccessCatalogService": {
+      "import": "./src/services/impl/ModelsSdkModelAccessCatalogService.ts",
+      "types": "./src/services/impl/ModelsSdkModelAccessCatalogService.ts"
+    },
     "./services/agentsCatalogService": {
       "import": "./src/services/agentsCatalogService.ts",
       "types": "./src/services/agentsCatalogService.ts"
@@ -158,6 +166,14 @@
     "./services/interfaces/IAgentModelConfigurationService": {
       "import": "./src/services/interfaces/IAgentModelConfigurationService.ts",
       "types": "./src/services/interfaces/IAgentModelConfigurationService.ts"
+    },
+    "./services/interfaces/IModelAccessCatalogService": {
+      "import": "./src/services/interfaces/IModelAccessCatalogService.ts",
+      "types": "./src/services/interfaces/IModelAccessCatalogService.ts"
+    },
+    "./services/interfaces/IUserModelConfigService": {
+      "import": "./src/services/interfaces/IUserModelConfigService.ts",
+      "types": "./src/services/interfaces/IUserModelConfigService.ts"
     },
     "./services/interfaces/IAgentAutomationService": {
       "import": "./src/services/interfaces/IAgentAutomationService.ts",
@@ -209,6 +225,6 @@
     "vitest": "catalog:"
   },
   "scripts": {
-    "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts"
+    "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts src/services/impl/ModelsSdkModelAccessCatalogService.test.ts"
   }
 }

@@ -669,6 +669,21 @@ async function recoverTauriStoredProjectMount(
   const directMount = await readTauriStoredProjectMount(key);
   if (directMount) {
     if (!mountMatchesProjectIdentity(directMount, projectId, ownerKeys, true)) {
+      // The mount is keyed by project path. When the same path is bound to a
+      // different (re-imported) project record, migrate the stored projectId
+      // instead of dropping the mount: a stale mount would otherwise make the
+      // desktop provider Session sync fall back to the process cwd and hide
+      // every Session from the project's list.
+      const storedProjectId = normalizeStoredProjectId(directMount.projectId);
+      const storedOwnerKey = normalizeMountOwnerKey(directMount.ownerKey);
+      if (storedProjectId && storedOwnerKey && ownerKeys.includes(storedOwnerKey)) {
+        const migratedMount = enrichTauriStoredProjectMount(directMount, projectId, subject);
+        if (await writeTauriStoredProjectMount(key, migratedMount)) {
+          return (await prepareTauriStoredProjectMount(projectId, subject))
+            ? migratedMount
+            : null;
+        }
+      }
       return null;
     }
     const currentOwnerKey = sha256Hash(subject.subjectId);
@@ -713,8 +728,34 @@ async function recoverTauriStoredProjectMount(
     return null;
   }
   const recoveredMount = parseTauriStoredProjectMount(recoveryEntry.value);
-  if (!recoveredMount || !mountMatchesProjectIdentity(recoveredMount, projectId, ownerKeys, false)) {
-    return null;
+  if (
+    !recoveredMount
+    || !mountMatchesProjectIdentity(recoveredMount, projectId, ownerKeys, false)
+  ) {
+    // The desktop host returns a single same-owner mount even when its
+    // projectId points at a retired project record (the project was deleted
+    // and re-imported under a new id). Migrate the stored projectId instead
+    // of dropping the mount: a stale mount would otherwise make the desktop
+    // provider Session sync fall back to the process cwd and hide every
+    // Session from the project's list.
+    if (!recoveredMount) {
+      return null;
+    }
+    const storedProjectId = normalizeStoredProjectId(recoveredMount.projectId);
+    const storedOwnerKey = normalizeMountOwnerKey(recoveredMount.ownerKey);
+    if (!storedProjectId || !storedOwnerKey || !ownerKeys.includes(storedOwnerKey)) {
+      return null;
+    }
+    const migratedMount = enrichTauriStoredProjectMount(recoveredMount, projectId, subject);
+    if (!(await writeTauriStoredProjectMount(key, migratedMount))) {
+      return null;
+    }
+    if (recoveryEntry.key.toLowerCase() !== key.toLowerCase()) {
+      await deleteTauriStoredProjectMount(recoveryEntry.key);
+    }
+    return (await prepareTauriStoredProjectMount(projectId, subject))
+      ? migratedMount
+      : null;
   }
 
   const canonicalMount = enrichTauriStoredProjectMount(recoveredMount, projectId, subject);

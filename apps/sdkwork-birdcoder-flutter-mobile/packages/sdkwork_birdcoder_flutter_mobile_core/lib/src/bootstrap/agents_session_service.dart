@@ -41,6 +41,39 @@ class BirdCoderAgentSessionItemView {
   final DateTime createdAt;
 }
 
+class BirdCoderAssistantSessionItemPage {
+  const BirdCoderAssistantSessionItemPage({
+    required this.items,
+    required this.hasMore,
+    required this.nextCursor,
+    required this.pageSize,
+  });
+
+  final List<BirdCoderAgentSessionItemView> items;
+  final bool hasMore;
+  final String? nextCursor;
+  final int pageSize;
+}
+
+/// Provider-neutral updates emitted while one Agents turn is executing.
+///
+/// The generated SDK remains the transport boundary; callers receive the
+/// normalized delta/event shape without depending on its HTTP implementation.
+class BirdCoderAssistantTurnStreamUpdate {
+  const BirdCoderAssistantTurnStreamUpdate({
+    required this.eventType,
+    this.delta,
+    this.event,
+  });
+
+  final String eventType;
+  final String? delta;
+  final AgentTurnRuntimeEvent? event;
+}
+
+typedef BirdCoderAssistantTurnStreamListener = void Function(
+    BirdCoderAssistantTurnStreamUpdate update);
+
 Map<String, dynamic>? _asMap(dynamic value) {
   if (value is Map<String, dynamic>) {
     return value;
@@ -101,20 +134,19 @@ AgentSessionRecord _readSession(AgentSessionResponse? response) {
   return AgentSessionRecord.fromJson(item);
 }
 
-List<AgentSessionItemRecord> _readSessionItems(
+SdkWorkPageData _readSessionItemPage(
   AgentSessionItemListResponse? response,
 ) {
   if (response == null) {
     throw StateError('Agents SessionItem list response is empty.');
   }
-  final page = SdkWorkPageData.fromJson(
+  return SdkWorkPageData.fromJson(
     _readEnvelopeData(
       response.code,
       response.data,
       'List Agents SessionItems',
     ),
   );
-  return _readRecords(page.items, AgentSessionItemRecord.fromJson);
 }
 
 List<AgentSessionItemRecord> _readCompletedTurnItems(
@@ -218,13 +250,24 @@ String _requireNonBlank(String value, String name) {
   return normalized;
 }
 
-void _validatePage(int page, int pageSize) {
-  if (page < 1) {
-    throw RangeError.range(page, 1, null, 'page');
-  }
+void _validatePageSize(int pageSize) {
   if (pageSize < 1 || pageSize > 200) {
     throw RangeError.range(pageSize, 1, 200, 'pageSize');
   }
+}
+
+String? _normalizeCursor(String? cursor) {
+  if (cursor == null) {
+    return null;
+  }
+  if (cursor.isEmpty || cursor.length > 2048 || cursor.trim() != cursor) {
+    throw ArgumentError.value(
+      cursor,
+      'cursor',
+      'must contain between 1 and 2048 unpadded characters',
+    );
+  }
+  return cursor;
 }
 
 Future<BirdCoderAssistantSessionView> ensureBirdCoderAssistantSession(
@@ -264,23 +307,62 @@ Future<BirdCoderAssistantSessionView> ensureBirdCoderAssistantSession(
   return _toSessionView(_readSession(created));
 }
 
-Future<List<BirdCoderAgentSessionItemView>> listBirdCoderAssistantSessionItems(
+Future<BirdCoderAssistantSessionItemPage> listBirdCoderAssistantSessionItems(
   BirdCoderFlutterSdkClients clients,
   String sessionId, {
-  int page = 1,
+  String? cursor,
   int pageSize = birdCoderAssistantSessionPageSize,
   String agentId = birdCoderAssistantAgentId,
 }) async {
   final normalizedAgentId = _requireNonBlank(agentId, 'agentId');
   final normalizedSessionId = _requireNonBlank(sessionId, 'sessionId');
-  _validatePage(page, pageSize);
+  final normalizedCursor = _normalizeCursor(cursor);
+  _validatePageSize(pageSize);
   final listed = await clients.agentsSdk.ai.agentsSessionItemsList(
     normalizedAgentId,
     normalizedSessionId,
-    page,
+    normalizedCursor,
     pageSize,
+    null,
+    null,
+    '-sequence',
   );
-  return _toVisibleSessionItems(_readSessionItems(listed));
+  final page = _readSessionItemPage(listed);
+  final pageInfo = page.pageInfo;
+  if (pageInfo.mode != 'cursor') {
+    throw StateError('Agents SessionItem list must use cursor pagination.');
+  }
+  if (pageInfo.pageSize != pageSize) {
+    throw StateError(
+        'Agents SessionItem list returned an unexpected page size.');
+  }
+  final hasMore = pageInfo.hasMore;
+  if (hasMore == null) {
+    throw StateError('Agents SessionItem list omitted its continuation state.');
+  }
+  final nextCursor = pageInfo.nextCursor;
+  if (hasMore &&
+      (nextCursor == null ||
+          nextCursor.isEmpty ||
+          nextCursor.length > 2048 ||
+          nextCursor.trim() != nextCursor ||
+          nextCursor == normalizedCursor)) {
+    throw StateError(
+        'Agents SessionItem list returned a non-progressing cursor.');
+  }
+  if (!hasMore && nextCursor != null) {
+    throw StateError(
+        'Agents SessionItem terminal page must return a null cursor.');
+  }
+  final items = _toVisibleSessionItems(
+    _readRecords(page.items, AgentSessionItemRecord.fromJson),
+  )..sort((left, right) => left.sequence.compareTo(right.sequence));
+  return BirdCoderAssistantSessionItemPage(
+    items: items,
+    hasMore: hasMore,
+    nextCursor: nextCursor,
+    pageSize: pageSize,
+  );
 }
 
 Future<List<BirdCoderAgentSessionItemView>> submitBirdCoderAssistantTurn(
@@ -288,6 +370,7 @@ Future<List<BirdCoderAgentSessionItemView>> submitBirdCoderAssistantTurn(
   String sessionId,
   String content, {
   String agentId = birdCoderAssistantAgentId,
+  BirdCoderAssistantTurnStreamListener? onStreamUpdate,
 }) async {
   final normalizedAgentId = _requireNonBlank(agentId, 'agentId');
   final normalizedSessionId = _requireNonBlank(sessionId, 'sessionId');
@@ -313,6 +396,13 @@ Future<List<BirdCoderAgentSessionItemView>> submitBirdCoderAssistantTurn(
     false,
   );
   await for (final event in events) {
+    onStreamUpdate?.call(
+      BirdCoderAssistantTurnStreamUpdate(
+        eventType: event.eventType,
+        delta: event.delta,
+        event: event.event,
+      ),
+    );
     if (event.eventType == 'completion' && event.response != null) {
       completion = event.response;
     }

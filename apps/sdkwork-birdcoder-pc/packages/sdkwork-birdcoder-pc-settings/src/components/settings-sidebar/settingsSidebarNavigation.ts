@@ -2,6 +2,7 @@ import {
   AppWindow,
   Archive,
   Blocks,
+  Boxes,
   Cpu,
   FolderGit2,
   GitBranch,
@@ -21,6 +22,7 @@ import {
 export type SettingsTab =
   | 'general'
   | 'codeEngines'
+  | 'modelManagement'
   | 'appearance'
   | 'voice'
   | 'shortcuts'
@@ -85,6 +87,7 @@ export const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
     labelKey: 'settings.sidebar.groups.coding',
     items: [
       { id: 'codeEngines', icon: Cpu, labelKey: 'settings.sidebar.codeEngines' },
+      { id: 'modelManagement', icon: Boxes, labelKey: 'settings.sidebar.modelManagement' },
       { id: 'git', icon: GitBranch, labelKey: 'settings.sidebar.git' },
       { id: 'environment', icon: TerminalSquare, labelKey: 'settings.sidebar.environment' },
       { id: 'worktree', icon: FolderGit2, labelKey: 'settings.sidebar.worktree' },

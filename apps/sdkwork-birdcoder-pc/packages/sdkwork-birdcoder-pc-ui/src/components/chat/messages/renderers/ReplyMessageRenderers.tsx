@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { Check, Copy, Edit2, LoaderCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Check, Clock3, Copy, CornerUpLeft, Edit2, LoaderCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -15,6 +15,65 @@ import type {
   ChatMessageRendererProps,
 } from '../types.ts';
 import { RoleHeader } from './RoleHeader.tsx';
+
+interface UserMessageSourceView {
+  kind: 'codex-delegation' | 'automation-heartbeat';
+  sourceSessionId?: string;
+  automationId?: string;
+}
+
+function resolveUserMessageSource(
+  message: AgentSessionItemViewSource,
+): UserMessageSourceView | null {
+  const raw = (message.metadata as Record<string, unknown> | undefined)
+    ?.providerUserMessageSource;
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  const kind = record.kind;
+  if (kind !== 'codex-delegation' && kind !== 'automation-heartbeat') {
+    return null;
+  }
+  const sourceSessionId = typeof record.sourceSessionId === 'string'
+    ? record.sourceSessionId
+    : undefined;
+  const automationId = typeof record.automationId === 'string'
+    ? record.automationId
+    : undefined;
+  return {
+    kind,
+    ...(sourceSessionId ? { sourceSessionId } : {}),
+    ...(automationId ? { automationId } : {}),
+  };
+}
+
+function UserMessageSourceLabel({
+  message,
+  t,
+}: {
+  message: AgentSessionItemViewSource;
+  t?: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  const source = resolveUserMessageSource(message);
+  if (!source) {
+    return null;
+  }
+  if (source.kind === 'automation-heartbeat') {
+    return (
+      <div className="mb-1 flex items-center gap-1 text-[12px] text-gray-500">
+        <Clock3 size={12} aria-hidden="true" />
+        <span>{t?.('chat.userMessageSentByScheduledTask') ?? 'Sent by scheduled task'}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-1 flex items-center gap-1 text-[12px] text-gray-500">
+      <CornerUpLeft size={12} aria-hidden="true" />
+      <span>{t?.('chat.userMessageDelegatedFromCodex') ?? 'Sent by Codex from another chat'}</span>
+    </div>
+  );
+}
 
 function resolveViewMarkdownCopyFallback(view: AgentSessionItemPresentation): string {
   return view.blocks
@@ -204,6 +263,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
     return (
       <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
         <h4 className="sr-only select-none">{userRoleHeading}</h4>
+        <UserMessageSourceLabel message={message} t={context.environment?.t} />
         <UserMessageAttachments
           audios={display.audioAttachments}
           context={context}
@@ -242,6 +302,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
   return (
     <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
       <h4 className="sr-only select-none">{userRoleHeading}</h4>
+      <UserMessageSourceLabel message={message} t={context.environment?.t} />
       <UserMessageAttachments
         audios={display.audioAttachments}
         context={context}

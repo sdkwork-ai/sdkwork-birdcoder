@@ -447,7 +447,7 @@ export function CodeEditor({
           },
           hover: {
             delay: 300,
-            enabled: true,
+            enabled: 'on',
           },
           inlayHints: {
             enabled: 'on',

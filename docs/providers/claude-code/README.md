@@ -4,7 +4,7 @@
 
 - Product SDK: [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk)
 - Published SDK baseline checked for this document: `0.3.220`
-- Local adapter authority: `../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-claude-code/src/provider_sessions.rs`
+- Local adapter authority: `../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-claude-code/src/sdk_integration.rs`; shared runtime protocol authority: `../sdkwork-kernel/sdkwork-agent-provider-spi/src/runtime.rs`
 
 Claude Code is not vendored in `external/` for this repository. The local kernel adapter and the published Agent SDK are the compatibility authorities.
 

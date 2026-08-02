@@ -21,6 +21,7 @@ packages:
   - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react"
   - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react"
   - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-iam-react"
+  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-center-core-pc-react"
   - "../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript"
   - "../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript"
   - "../sdkwork-iam/sdks/sdkwork-iam-open-sdk/sdkwork-iam-open-sdk-typescript"
@@ -53,6 +54,8 @@ packages:
   - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript"
   - "../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript"
   - "../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker"
+  - "../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-model-management"
+  - "../sdkwork-models/sdks/sdkwork-models-app-sdk/sdkwork-models-app-sdk-typescript"
   - "../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript"
   - "../sdkwork-sdk-generator"
   - "../sdkwork-app-topology"
@@ -203,7 +206,7 @@ catalog:
   html-parse-stringify: ^3.0.1
   html-url-attributes: ^3.0.1
   immer: ^11.1.4
-  inline-style-parser: ^0.2.7
+  inline-style-parser: ^0.2.9
   is-alphabetical: ^2.0.1
   is-alphanumerical: ^2.0.1
   is-decimal: ^2.0.1

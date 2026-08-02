@@ -65,6 +65,7 @@ export async function refreshImportedProjectFromAuthority(
       projectId,
     ),
     project: refreshedProject,
+    providerImport: refreshed.providerSynchronization,
   };
 }
 
@@ -75,12 +76,7 @@ export async function importProjectProviderSessions(
   if (!projectId) {
     return null;
   }
-  const providerImport = await options.agentSessionService.synchronizeProjectSessions(projectId, {
-    signal: options.signal,
-  });
-  options.signal?.throwIfAborted();
-  const refreshed = await refreshImportedProjectFromAuthority(options);
-  return refreshed ? { ...refreshed, providerImport } : null;
+  return refreshImportedProjectFromAuthority(options);
 }
 
 export function getProviderSessionImportFailureCount(

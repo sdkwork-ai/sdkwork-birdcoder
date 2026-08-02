@@ -19,6 +19,7 @@ import {
   type WorkbenchCodeEngineId,
   type WorkbenchCodeEngineSettingsMap,
   type WorkbenchUnifiedCustomAgentModelDefinition,
+  type WorkbenchModelAccessVendorOfferingDefinition,
 } from './codeEngineCatalog.ts';
 import {
   AGENT_SESSION_INBOX_FILTERS,
@@ -382,6 +383,10 @@ export interface SaveWorkbenchUnifiedCustomAgentModelInput {
   toolCallRounds?: number;
   supportsMultimodal: boolean;
   apiKeyConfigured: boolean;
+  accessChannelKind?: 'official' | 'relay' | 'custom';
+  accessChannelName?: string;
+  defaultVendorCode?: string;
+  vendorOfferings?: WorkbenchModelAccessVendorOfferingDefinition[];
 }
 
 export function saveWorkbenchUnifiedCustomAgentModel(
@@ -416,6 +421,10 @@ export function saveWorkbenchUnifiedCustomAgentModel(
       toolCallRounds: input.toolCallRounds,
       supportsMultimodal: input.supportsMultimodal,
       apiKeyConfigured: input.apiKeyConfigured,
+      accessChannelKind: input.accessChannelKind,
+      accessChannelName: input.accessChannelName,
+      defaultVendorCode: input.defaultVendorCode,
+      vendorOfferings: input.vendorOfferings,
     },
   ]);
   return normalizeWorkbenchPreferences({
@@ -462,6 +471,36 @@ export function setWorkbenchCodeEngineAccessMode(
           ?? findWorkbenchCodeEngineDefinition(normalizedEngineId)?.defaultModelId
           ?? '',
         accessModeId: resolvedAccessModeId,
+      },
+    },
+  });
+}
+
+export function setWorkbenchCodeEngineModelAccessChannel(
+  preferences: WorkbenchPreferences,
+  engineId: string | null | undefined,
+  channelId: string | null | undefined,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(
+    engineId,
+    normalizedPreferences,
+  );
+  const modelAccessChannelId = channelId?.trim().slice(0, 160) ?? '';
+  if (!normalizedEngineId || !modelAccessChannelId) {
+    return normalizedPreferences;
+  }
+  const currentSettings = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineSettings: {
+      ...normalizedPreferences.codeEngineSettings,
+      [normalizedEngineId]: {
+        ...currentSettings,
+        defaultModelId: currentSettings?.defaultModelId
+          ?? findWorkbenchCodeEngineDefinition(normalizedEngineId)?.defaultModelId
+          ?? '',
+        modelAccessChannelId,
       },
     },
   });

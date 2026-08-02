@@ -181,7 +181,7 @@ describe('imported Project Session inventory', () => {
       pageSize: 200,
       projectId,
     }, { signal: expect.any(AbortSignal) });
-    expect(agentSessionService.synchronizeProjectSessions).not.toHaveBeenCalled();
+    expect(agentSessionService.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
     expect(refreshed?.project.agentSessions.map((session) => session.providerId).sort()).toEqual([
       'provider.anthropic',
       'provider.google',
@@ -246,7 +246,7 @@ describe('imported Project Session inventory', () => {
     expect(agentSessionService.listSessionActivitySummaries).not.toHaveBeenCalled();
   });
 
-  it('runs Provider discovery only for an explicit import before reading the canonical head', async () => {
+  it('runs Provider discovery once for an explicit import before reading the canonical head', async () => {
     const agentSessionService = service([summary('codex', 'provider.openai')]);
 
     const imported = await importProjectProviderSessions({
@@ -260,13 +260,14 @@ describe('imported Project Session inventory', () => {
 
     expect(agentSessionService.synchronizeProjectSessions).toHaveBeenCalledWith(
       projectId,
-      { signal: undefined },
+      { signal: expect.any(AbortSignal) },
     );
     expect(
       agentSessionService.synchronizeProjectSessions.mock.invocationCallOrder[0],
     ).toBeLessThan(
       agentSessionService.listSessionActivitySummaries.mock.invocationCallOrder[0],
     );
+    expect(agentSessionService.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
     expect(imported?.project.agentSessions).toHaveLength(1);
   });
 });

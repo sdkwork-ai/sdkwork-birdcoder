@@ -19,6 +19,8 @@
   "dependencies": {
     "@sdkwork/ui-pc-react": "workspace:*",
     "lucide-react": "catalog:",
+    "@sdkwork/models-pc-model-management": "workspace:*",
+    "@sdkwork/models-pc-picker": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",

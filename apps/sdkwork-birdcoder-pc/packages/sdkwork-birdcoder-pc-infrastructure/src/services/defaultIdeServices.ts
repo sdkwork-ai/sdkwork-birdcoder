@@ -8,6 +8,12 @@ import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { AgentsSdkAutomationService } from './impl/AgentsSdkAutomationService.ts';
 import { AgentsSdkModelConfigurationService } from './agentsModelConfigurationService.ts';
+import { ModelsSdkModelAccessCatalogService } from './impl/ModelsSdkModelAccessCatalogService.ts';
+import { isBirdCoderTauriRuntime } from '../platform/tauriRuntime.ts';
+import {
+  InMemoryUserModelConfigService,
+  TauriUserModelConfigService,
+} from './userModelConfigService.ts';
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
 
 export {
@@ -23,6 +29,12 @@ export function createDefaultBirdCoderIdeServices(
   return {
     agentAutomationService: new AgentsSdkAutomationService(runtime.agentsClient),
     agentModelConfigurationService: new AgentsSdkModelConfigurationService(runtime.agentsClient),
+    // The sqlite store is only reachable from the Tauri host; browser and
+    // test-runner surfaces use the in-memory fallback instead of failing invokes.
+    userModelConfigService: isBirdCoderTauriRuntime()
+      ? new TauriUserModelConfigService()
+      : new InMemoryUserModelConfigService(),
+    modelAccessCatalogService: new ModelsSdkModelAccessCatalogService(runtime.modelsClient),
     agentSessionService: new BirdCoderAgentSessionService({
       client: runtime.agentsClient,
     }),

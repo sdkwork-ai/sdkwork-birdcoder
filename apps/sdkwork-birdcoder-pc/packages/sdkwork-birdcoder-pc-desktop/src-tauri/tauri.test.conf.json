@@ -27,7 +27,8 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../../../../../artifacts/desktop-provider-host/provider-host/": "provider-host/"
+      "../../../../../artifacts/desktop-provider-host/provider-host/": "provider-host/",
+      "../../../../../artifacts/models-catalog/": "models-catalog/"
     },
     "icon": [
       "icons/32x32.png",

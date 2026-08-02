@@ -803,6 +803,7 @@ function TypedQuestionCard({
   const { t } = useTranslation();
   const request = question.request!;
   const allowMultiple = request.data.allowMultiple === true;
+  const isOptionPicker = request.kind === 'option_picker';
   const isImmediateResponse = Boolean(
     isCodex
     && (request.kind === 'question_set' || request.kind === 'onboarding_question_set'),
@@ -812,7 +813,7 @@ function TypedQuestionCard({
     disabled || isSubmitting || isSubmittingLocally || !onSubmitUserQuestionAnswer,
   );
   const [answers, setAnswers] = useState<Record<string, string[]>>(() => (
-    allowMultiple
+    allowMultiple || isOptionPicker
       ? {}
       : Object.fromEntries(question.questions.flatMap((prompt, index) => (
           prompt.options?.[0]
@@ -847,11 +848,13 @@ function TypedQuestionCard({
         ? selected.includes(value)
           ? selected.filter((entry) => entry !== value)
           : [...selected, value]
-        : [value],
+        : isOptionPicker && selected.includes(value)
+          ? []
+          : [value],
     };
     setAnswers(nextAnswers);
     return nextAnswers;
-  }, [answers]);
+  }, [answers, isOptionPicker]);
 
   const submitAction = useCallback(async (
     action: AgentInteractionAction,
@@ -875,8 +878,9 @@ function TypedQuestionCard({
       }),
     );
     const pickerKey = promptKey(question.questions[0] ?? { question: '' }, 0);
-    const pickerValues = answerState[pickerKey] ?? [];
-    const pickerFreeform = pickerValues.length > 0
+    const clearsOptionPickerResponse = request.kind === 'option_picker' && action === 'dismiss';
+    const pickerValues = clearsOptionPickerResponse ? [] : answerState[pickerKey] ?? [];
+    const pickerFreeform = clearsOptionPickerResponse
       ? null
       : freeformState[pickerKey]?.trim() || null;
     const input: AgentQuestionAnswerInput = { action };
@@ -918,18 +922,29 @@ function TypedQuestionCard({
   const currentOptions = currentPrompt?.options ?? [];
   const currentFreeform = freeformDrafts[currentPromptKey] ?? '';
   const hasInlineOther = Boolean(currentPrompt?.allowOther && currentOptions.length > 0);
+  const hasOptionPickerResponse = currentSelected.length > 0 || currentFreeform.trim().length > 0;
   const handlePrimaryAction = useCallback((
     nextAnswers: Record<string, string[]> = answers,
     nextFreeformDrafts: Record<string, string> = freeformDrafts,
   ) => {
-    if (controlsDisabled || !primaryAction) return;
+    if (controlsDisabled || !primaryAction || (isOptionPicker && !hasOptionPickerResponse)) return;
     if (showNextQuestion) {
       setQuestionIndex((current) => Math.min(current + 1, question.questions.length - 1));
       setInlineFreeformFocused(false);
       return;
     }
     void submitAction(primaryAction, nextAnswers, nextFreeformDrafts);
-  }, [answers, controlsDisabled, freeformDrafts, primaryAction, question.questions.length, showNextQuestion, submitAction]);
+  }, [
+    answers,
+    controlsDisabled,
+    freeformDrafts,
+    hasOptionPickerResponse,
+    isOptionPicker,
+    primaryAction,
+    question.questions.length,
+    showNextQuestion,
+    submitAction,
+  ]);
 
   const selectOption = useCallback((value: string, shouldAdvance: boolean) => {
     if (controlsDisabled || advanceTimerRef.current !== null) return;
@@ -1107,13 +1122,28 @@ function TypedQuestionCard({
               onElapsed={handleAutoResolution}
             />
           ) : null}
+          {isOptionPicker && dismissAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-6 rounded-md"
+              data-request-input-navigation-control="true"
+              aria-label={t('chat.interactionDismiss')}
+              title={t('chat.interactionDismiss')}
+              disabled={controlsDisabled}
+              onClick={() => void submitAction(dismissAction)}
+            >
+              <X size={13} aria-hidden="true" />
+            </Button>
+          ) : null}
         </div>
       </div>
 
       <div className="space-y-4 px-2 pb-3">
         {currentPrompt ? (
           <fieldset
-            className="space-y-1"
+            className={isOptionPicker ? 'flex flex-wrap gap-2 px-1' : 'space-y-1'}
             key={currentPromptKey}
             role={allowMultiple ? 'group' : 'radiogroup'}
           >
@@ -1132,52 +1162,64 @@ function TypedQuestionCard({
                     option.value,
                     isImmediateResponse && !allowMultiple,
                   )}
-                  className={`flex min-h-9 w-full items-start gap-2 rounded-xl px-2 py-1.5 text-left text-sm text-gray-200 hover:bg-white/[0.05] disabled:opacity-50 ${
-                    isSelected || advancingOptionValue === option.value ? 'bg-white/[0.04]' : ''
-                  }`}
+                  className={isOptionPicker
+                    ? `min-h-8 rounded-full border px-3 py-1.5 text-sm leading-5 text-gray-200 outline-none hover:bg-white/[0.05] focus:border-white/30 disabled:opacity-50 ${
+                        isSelected
+                          ? 'border-white/25 bg-white/[0.1]'
+                          : 'border-white/10 bg-transparent'
+                      }`
+                    : `flex min-h-9 w-full items-start gap-2 rounded-xl px-2 py-1.5 text-left text-sm text-gray-200 hover:bg-white/[0.05] disabled:opacity-50 ${
+                        isSelected || advancingOptionValue === option.value ? 'bg-white/[0.04]' : ''
+                      }`}
                 >
-                  <span aria-hidden="true" className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs font-medium leading-none ${
-                    allowMultiple
-                      ? isSelected
-                        ? 'border-blue-400 bg-blue-500 text-white'
-                        : 'border-white/20 text-gray-400'
-                      : isSelected
-                        ? 'border-white bg-white text-[#18181b]'
-                        : 'border-white/20 bg-white/[0.05] text-gray-400'
-                  }`}>
-                    {allowMultiple && isSelected ? <Check size={11} /> : optionIndex + 1}
-                  </span>
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2 @max-md/request-card:items-center">
-                    <span className={`flex min-w-0 items-center gap-1.5 ${
-                      option.description
-                        ? 'max-w-1/2 shrink-0 @max-md/request-card:max-w-none @max-md/request-card:shrink'
-                        : 'flex-1'
-                    }`}>
-                      <span className={`min-w-0 font-medium ${
-                        option.description ? 'truncate' : 'break-words'
-                      }`}>{option.label}</span>
-                    </span>
-                    {option.description ? (
-                      <>
-                        <span className="min-w-0 flex-1 truncate text-sm text-gray-400 @max-md/request-card:hidden">
-                          {option.description}
+                  {isOptionPicker ? option.label : (
+                    <>
+                      <span aria-hidden="true" className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs font-medium leading-none ${
+                        allowMultiple
+                          ? isSelected
+                            ? 'border-blue-400 bg-blue-500 text-white'
+                            : 'border-white/20 text-gray-400'
+                          : isSelected
+                            ? 'border-white bg-white text-[#18181b]'
+                            : 'border-white/20 bg-white/[0.05] text-gray-400'
+                      }`}>
+                        {allowMultiple && isSelected ? <Check size={11} /> : optionIndex + 1}
+                      </span>
+                      <span className="flex min-w-0 flex-1 items-baseline gap-2 @max-md/request-card:items-center">
+                        <span className={`flex min-w-0 items-center gap-1.5 ${
+                          option.description
+                            ? 'max-w-1/2 shrink-0 @max-md/request-card:max-w-none @max-md/request-card:shrink'
+                            : 'flex-1'
+                        }`}>
+                          <span className={`min-w-0 font-medium ${
+                            option.description ? 'truncate' : 'break-words'
+                          }`}>{option.label}</span>
                         </span>
-                        <span
-                          aria-hidden="true"
-                          className="hidden shrink-0 text-gray-400 @max-md/request-card:inline-flex"
-                          title={option.description}
-                        >
-                          <Info size={13} />
-                        </span>
-                      </>
-                    ) : null}
-                  </span>
+                        {option.description ? (
+                          <>
+                            <span className="min-w-0 flex-1 truncate text-sm text-gray-400 @max-md/request-card:hidden">
+                              {option.description}
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className="hidden shrink-0 text-gray-400 @max-md/request-card:inline-flex"
+                              title={option.description}
+                            >
+                              <Info size={13} />
+                            </span>
+                          </>
+                        ) : null}
+                      </span>
+                    </>
+                  )}
                 </button>
               );
             })}
             {hasInlineOther ? (
               <div
-                className="mt-1 flex min-h-8 w-full cursor-text items-start gap-2 rounded-xl px-2 py-1.5 text-sm text-gray-200 hover:bg-white/[0.05] focus-within:ring-1 focus-within:ring-white/25"
+                className={isOptionPicker
+                  ? 'flex min-h-8 min-w-[120px] flex-1 cursor-text items-center rounded-full border border-white/10 px-3 py-1.5 text-sm text-gray-200 focus-within:border-white/30'
+                  : 'mt-1 flex min-h-8 w-full cursor-text items-start gap-2 rounded-xl px-2 py-1.5 text-sm text-gray-200 hover:bg-white/[0.05] focus-within:ring-1 focus-within:ring-white/25'}
                 data-request-input-other-row="true"
                 onMouseDown={(event) => {
                   if (
@@ -1188,29 +1230,37 @@ function TypedQuestionCard({
                   freeformTextareaRef.current?.focus();
                 }}
               >
-                <span
-                  aria-hidden="true"
-                  className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
-                    currentSelected.length === 0
-                    && (currentFreeform.length > 0 || inlineFreeformFocused)
-                      ? 'border-white bg-white text-[#18181b]'
-                      : 'border-white/20 bg-white/[0.05] text-gray-400'
-                  }`}
-                >
-                  <Pencil size={11} />
-                </span>
+                {!isOptionPicker ? (
+                  <span
+                    aria-hidden="true"
+                    className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
+                      currentSelected.length === 0
+                      && (currentFreeform.length > 0 || inlineFreeformFocused)
+                        ? 'border-white bg-white text-[#18181b]'
+                        : 'border-white/20 bg-white/[0.05] text-gray-400'
+                    }`}
+                  >
+                    <Pencil size={11} />
+                  </span>
+                ) : null}
                 <textarea
                   ref={freeformTextareaRef}
                   rows={1}
                   value={currentFreeform}
                   disabled={controlsDisabled}
                   data-autoresize="true"
-                  aria-label={t('chat.interactionOther')}
-                  placeholder={t('chat.interactionOther')}
+                  aria-label={t(isOptionPicker
+                    ? 'chat.interactionSomethingElse'
+                    : 'chat.interactionOther')}
+                  placeholder={t(isOptionPicker
+                    ? 'chat.interactionSomethingElse'
+                    : 'chat.interactionOther')}
                   className="block h-5 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm leading-5 text-gray-100 outline-none placeholder:text-gray-500"
                   onFocus={() => {
                     setInlineFreeformFocused(true);
-                    setAnswers((current) => ({ ...current, [currentPromptKey]: [] }));
+                    if (!isOptionPicker) {
+                      setAnswers((current) => ({ ...current, [currentPromptKey]: [] }));
+                    }
                   }}
                   onBlur={() => setInlineFreeformFocused(false)}
                   onChange={(event) => {
@@ -1223,10 +1273,12 @@ function TypedQuestionCard({
                       [currentPromptKey]: value,
                     };
                     setFreeformDrafts(nextFreeformDrafts);
-                    setAnswers((current) => ({ ...current, [currentPromptKey]: [] }));
+                    if (!isOptionPicker) {
+                      setAnswers((current) => ({ ...current, [currentPromptKey]: [] }));
+                    }
                   }}
                   onKeyDown={(event) => {
-                    if (event.key === 'ArrowUp' && currentOptions.length > 0) {
+                    if (!isOptionPicker && event.key === 'ArrowUp' && currentOptions.length > 0) {
                       const lineHeight = Number.parseFloat(window.getComputedStyle(event.currentTarget).lineHeight);
                       if (
                         Number.isFinite(lineHeight)
@@ -1354,7 +1406,7 @@ function TypedQuestionCard({
 
       {!isImmediateResponse ? (
       <div className="flex flex-wrap justify-end gap-2 px-4 pb-4 pt-2">
-        {actionAllowed(request, 'dismiss') ? (
+        {!isOptionPicker && actionAllowed(request, 'dismiss') ? (
           <Button type="button" variant="ghost" size="sm" disabled={controlsDisabled} onClick={() => void submitAction('dismiss')}>
             {t('chat.interactionDismiss')}
           </Button>
@@ -1374,7 +1426,7 @@ function TypedQuestionCard({
             type="button"
             size="sm"
             data-request-input-navigation-control="true"
-            disabled={controlsDisabled}
+            disabled={controlsDisabled || (isOptionPicker && !hasOptionPickerResponse)}
             onClick={() => handlePrimaryAction()}
           >
             {request.data.submitLabel || (showNextQuestion

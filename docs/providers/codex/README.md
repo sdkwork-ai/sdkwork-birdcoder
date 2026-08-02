@@ -10,25 +10,25 @@
 - Notification union: `external/codex/codex-rs/app-server-protocol/schema/typescript/ServerNotification.ts`
 - Rust authority: `external/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs`
 - Raw rollout authority: `external/codex/codex-rs/protocol/src/protocol.rs` and `models.rs`
-- Desktop reference build: Windows x64 `26.721.11231.0`
+- Desktop reference build: Windows x64 `26.727.6591.0`
 - Desktop renderer archive: `app/resources/app.asar`, SHA-256
-  `23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5`
+  `670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298`
 - Executable parity matrix: `specs/codex-desktop-parity.spec.json`
 
 ### Verified Windows Installation
 
-The installed reference was inspected on 2026-07-31. These values are the
+The installed reference was inspected on 2026-08-02. These values are the
 immutable installation baseline; hashes from a user plugin cache are not used
 as installation evidence.
 
 | Layer | Verified value |
 | --- | --- |
-| Package | `OpenAI.Codex_26.721.11231.0_x64__2p2nqsd0c76g0` (`26.721.11231.0`), status `verified` |
-| Desktop artifact | `app/resources/app.asar`, 209,375,503 bytes, SHA-256 `23a8f5d1645247bd942304dc586c44b8ce63c2e3fc408198f815657731070db5` |
-| Renderer/plugin package | `26.721.81911` |
-| Codex provider | `app/resources/codex.exe`, `0.146.0-alpha.3.1`, SHA-256 `39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3` |
-| CUA runtime | `app/resources/cua_node/manifest.json`, Node `24.14.0`, SHA-256 `e8f2e647ccf0f5627ee2f9beda1f7ab5daac9dd716470132e167bb0c414e63e0` |
-| Browser plugin | `app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json`, `26.721.81911`, SHA-256 `7066eec3cfc42e9990b471509ab3c1c7d1eaedcec550491e71a1d3962151acca` |
+| Package | `OpenAI.Codex_26.727.6591.0_x64__2p2nqsd0c76g0` (`26.727.6591.0`), status `verified` |
+| Desktop artifact | `app/resources/app.asar`, 221,851,751 bytes, SHA-256 `670a43ea0dcf6d2583f77272354cf076d1a2d5d9949873c4923c9534d86ea298` |
+| Renderer/plugin package | `26.727.51351` |
+| Codex provider | `app/resources/codex.exe`, `0.146.0-alpha.9.2`, SHA-256 `ecd7a3eaff5e42723dbba03b5c91514b3986b5db5cbca8f34619620b5356f31f` |
+| CUA runtime | `app/resources/cua_node/manifest.json`, Node `24.14.0`, SHA-256 `bd6604bc1a1360dac2226fe49bb85a76edf1774d639f5c934238f8d17e904f14` |
+| Browser plugin | `app/resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json`, `26.727.51351`, SHA-256 `a74d09c7cddc2148633ec880867264357781ea1896e9de9ed5555faed7518a4f` |
 | Protocol source | commit `a05bcda3dbd68729caa2f11027b7f43974fda298`; `ThreadItem.ts` SHA-256 `57190566ac2ec5a64a595ecfb80fb8fe6900f29136d77944097e7b6a6f3acd38` |
 
 The package identity, artifact path, size, and hashes are machine-checked by
@@ -40,27 +40,27 @@ Main-process app-server evidence in the same archive is pinned separately:
 
 | Transport evidence | Archive entry | SHA-256 | Bytes |
 | --- | --- | --- | ---: |
-| Electron main IPC bridge | `.vite/build/main-Dnwk9I3e.js` | `6c4b94a1a6b7f42f84d55f65b837d300ffc1d9f8567fa8353fb57b6c41bf04be` | 2,362,317 |
-| Shared app-server connection | `.vite/build/src-BPbHdvxe.js` | `efcbdf277ce7c7b78db991bef1b05fd2fa78635f2c69c0d204cb3dcbd8e49a38` | 1,443,629 |
+| Electron main IPC bridge | `.vite/build/main-C1YkadXg.js` | `dc98f53ff4745ae3ba790395d855c8bbda4a550c1744cb90262dbcde4d970075` | 2,468,887 |
+| Shared app-server connection | `.vite/build/src-CLstCQVF.js` | `d662544e3580a37ae09b619a3e16a2bce68656abfa23f9f1060858a7dd637851` | 1,466,039 |
 
 Feature-specific renderer evidence in the same archive is pinned separately:
 
 | Capability evidence | Archive entry | SHA-256 | Bytes |
 | --- | --- | --- | ---: |
-| Automations | `webview/assets/automations-page-CNlcT7yo.js` | `3bdf115c9fc72298d04510177a343ba8c6b3436a3f77f71abe5baf6c443affe7` | 84,851 |
-| Browser renderer and lifecycle | `webview/assets/app-initial-CHAIly1j.js` | `5e8de7531fc9e44d1851380c2a5844079e7abdf7df5e2b37bc799450cfe15254` | 14,023,273 |
-| Hidden adopted web contents host | `webview/assets/browser-sidebar-hidden-background-webview-host-D_rN2j7z.js` | `7b830a4e028636ca323a98b438192ceff0dfc6ffbf33d1eb0b142a94cc353bc1` | 2,553 |
-| Hidden Browser-use host | `webview/assets/browser-sidebar-hidden-browser-use-webview-host-lBn0j35v.js` | `758040f4e7796968e0fa3c797dca61d6cf22045c6ba81bcd59331dc76ace0efb` | 2,375 |
-| Browser settings | `webview/assets/browser-use-settings-52aGrZMW.js` | `c3b75cff167c750a2e22f531996fdb3e3ca7db593ec0a209903d5307c12d63e8` | 92,415 |
-| Browser tab transfer export | `webview/assets/thread-browser-panel-tabs-BrIOEvhE.js` | `bb587f7b72359676801b428415630dbe3de66340f3b93c1cdeaee02052c240f5` | 152 |
-| DotLottie dependency, negative Browser evidence | `webview/assets/browser-Be3Y5Oyc.js` | `dd35124bd1dc1d64f9206b5a5946175f2795ca88c7c9237c03b390bf11020839` | 651,835 |
-| Remote settings | `webview/assets/remote-connections-settings-DwcGEEux.js` | `30780436d7f6f0238b709a2fb85503a9ed4ea453dd6a83846412f82e7bcab2b7` | 158,510 |
-| Remote continuation | `webview/assets/remote-conversation-page-DebkGSyJ.js` | `f3028786d1acead0b2622b97f8499b10044e639fa59fd79f5b560881d3e2658b` | 66,842 |
+| Automations | `webview/assets/automations-page-22dsgVr1.js` | `44992383bcf0692770b7d2ee227655fad733c6fd2b991865840d68a256bfbc25` | 97,027 |
+| Browser renderer and lifecycle | `webview/assets/app-initial-cpPdPura.js` | `69fc795132856b60ba2201695ebb4ac922790a9c341630f9f4f9461bf38ff6d6` | 14,878,551 |
+| Hidden adopted web contents host | `webview/assets/browser-sidebar-hidden-background-webview-host-Dupcquxn.js` | `bfcfea4dc43104f216250d972948fa79e4d10a81f2cb54dd9ab1c75eae491806` | 2,547 |
+| Hidden Browser-use host | `webview/assets/browser-sidebar-hidden-browser-use-webview-host-B3sa6LzG.js` | `5ac79b8b45d4f73c42cc05c8456835f92dbffa575a2754840b2023f453cc1619` | 2,284 |
+| Browser settings | `webview/assets/browser-use-settings-DdtMx6KN.js` | `eb119a073ed43d163c039f70ad3f3f2abc843cd30bc356b5f9a32fe6b5b4b9ac` | 120,575 |
+| Browser tab transfer export | `webview/assets/thread-browser-panel-tabs-DQqWTshl.js` | `8598e1ef973c7ec41f4a2f15a62bb1fa5931157ed05ed86b2601b2350ecd29af` | 152 |
+| DotLottie dependency, negative Browser evidence | `webview/assets/browser-CVV9l2Fo.js` | `c77316df7185c71893591e34d1c612511564deefe692693ad8d51a2359a9c5e6` | 651,833 |
+| Remote settings | `webview/assets/remote-connections-settings-BzFUQtdl.js` | `ebb9a7e374842d5cdd637d4acb3014bd1948590d7bb5b1b8fb9f86fb72ccc69b` | 159,364 |
+| Remote continuation | `webview/assets/remote-conversation-page-D988P5nY.js` | `839c9da2dba55ac6d4b65ee782977942d8687f10fba9ef561f0d277436eb58eb` | 66,758 |
 
-The similarly named `browser-Be3Y5Oyc.js` entry is DotLottie rendering code.
+The similarly named `browser-CVV9l2Fo.js` entry is DotLottie rendering code.
 It contains no Browser tab persistence or capture command markers and is not
 accepted as lifecycle, command, permission, or host evidence. Browser product
-logic is pinned from `app-initial-CHAIly1j.js`, the settings chunk, the two
+logic is pinned from `app-initial-cpPdPura.js`, the settings chunk, the two
 hidden-host chunks, and the installed Browser plugin resources.
 
 The source commit identifies the provider protocol baseline. The desktop build
@@ -141,15 +141,49 @@ Exact durable variants at the pinned baseline:
 | `enteredReviewMode`, `exitedReviewMode` | `id`, review text | Hidden; no Session transcript row |
 | `contextCompaction` | `id` | Visible compaction lifecycle marker without encrypted compaction content |
 
-The pinned renderer evidence is the item mapper at
-`webview/assets/app-initial-CHAIly1j.js:185739` and visibility predicate `Jqn`
-at line `186424` inside the hashed desktop archive. Those coordinates are from
-the recorded formatter output; the raw archive entry has 9,558 lines. The same
-`Jqn` predicate is at raw line 772, entry byte offset 3,348,317, and archive byte
-offset 27,457,094. Raw entry offsets also pin composer stop/send at 9,544,717
-and 9,544,942, approval actions at 10,126,264, 10,126,520, and 10,127,683, and
-the sidebar toggle at 4,044,424. Recording both coordinate systems prevents a
-formatter change from appearing as renderer drift. The executable inventory in
+The renderer also maps the non-union `error` item into two transcript rows:
+`willRetry: true` becomes a reconnect row rendered as
+`Reconnecting {attempt}/{maxAttempts}` (parsed from the error message), and a
+terminal error becomes a sanitized system-error row unless it is
+`usageLimitExceeded`, which keeps its typed error identity. The current Kernel
+Codex adapter does not yet retain `willRetry`/attempt metadata on the canonical
+`error_notice` Session item, so BirdCoder presents provider failures as static
+`failed` notices until that cross-repository gap is closed.
+
+User-message-style prompts may carry source envelopes that must be unwrapped
+at the adapter boundary instead of leaking XML into the transcript:
+
+| Envelope | Content rule | Session projection |
+| --- | --- | --- |
+| `<codex_delegation>` with `<source_thread_id>` and `<input>` | Render only `<input>` | `providerUserMessageSource` = `codex-delegation` with canonical `sourceSessionId`; label "Sent by Codex from another chat" |
+| `<heartbeat>` with `<instructions>` and optional `<automation_id>` | Render only `<instructions>` | `providerUserMessageSource` = `automation-heartbeat` with optional `automationId`; label "Sent by scheduled task" |
+| Inline `<heartbeat>...</heartbeat>` blocks inside a prompt | Strip the blocks; keep surrounding text | `providerUserMessageSource` = `automation-heartbeat` |
+
+Both envelope parsers decode the XML entities `&lt;` `&gt;` `&amp;` exactly as
+the pinned renderer does (`Vo`/`Ho`/`Uo` and `bxt`/`Cxt`).
+
+The pinned renderer evidence is the item mapper `Nw` at
+`webview/assets/app-initial-cpPdPura.js` formatter lines 142,699-143,064 and
+the visibility predicate `x1n` at formatter lines 143,107-143,133 inside the
+hashed desktop archive. Those coordinates are from the recorded formatter
+output; the raw archive entry has 9,720 lines. The mapper `Nw` is at raw line
+873, entry byte offset 3,459,330, and archive byte offset 28,655,278; the same
+`x1n` predicate is at raw line 874, entry byte offset 3,472,248, and archive
+byte offset 28,668,196. Raw entry offsets also pin the turn/item dispatcher
+switch at raw line 851 (delta handler 3,324,703, `turn/started` 3,327,047,
+`turn/completed` 3,329,357, `item/started` 3,332,593, `item/completed`
+3,333,753, `serverRequest/resolved` 3,335,971), the composer chrome marker
+`composer-surface-chrome` at raw line 8,475 and entry byte offset 7,887,807,
+composer stop/send (`chatgptConversations.composer.stop.ariaLabel` /
+`chatgptConversations.composer.send.ariaLabel`) at raw line 8,965 and entry
+byte offsets 10,007,671 and 10,007,896, the approval surface
+`data-codex-approval-surface` at raw line 9,006 and entry byte offset
+10,603,407, user-input auto-resolution `data-user-input-auto-resolution` at
+raw line 9,007 and 10,684,324, composer request navigation
+`data-codex-composer-request-navigation` at raw line 9,007 and 10,738,459, and
+the sidebar toggle (`windows.sidebar.toggle`) at raw line 1,031 and entry byte
+offset 4,065,927. Recording both coordinate systems prevents a formatter
+change from appearing as renderer drift. The executable inventory in
 `specs/codex-desktop-parity.spec.json` requires an independently authored raw
 fixture, canonical Session presentation assertion, and desktop visibility
 assertion for every variant. Protocol variants that are intentionally hidden
@@ -232,9 +266,9 @@ database `cancelled` write, timeout return, or composer reset before that proof
 is not provider interruption.
 
 The pinned desktop renderer makes the transition order explicit. Raw bundle
-line 749 contains the `turn/started`, `item/started`, item-delta,
+line 851 contains the `turn/started`, `item/started`, item-delta,
 `item/completed`, and `turn/completed` dispatchers at entry byte offsets
-3,204,170, 3,209,764, 3,213,000, 3,210,924, and 3,206,481. Starts mark the
+3,327,047, 3,332,593, 3,324,703, 3,333,753, and 3,329,357. Starts mark the
 Session streaming and may synthesize or rebind a missing in-progress Turn;
 item-specific deltas update one provider item identity; buffered text is
 drained before item and Turn completion; and `item/completed` replaces or
@@ -255,8 +289,8 @@ when that owner is unavailable. A provider `no active turn to interrupt`
 response is a recovery signal, not a fresh acknowledgement; BirdCoder must
 reconcile provider history before recording the canonical interrupted state.
 
-Raw bundle line 8804 at entry byte offset 9,553,000 confirms the composer rule:
-while streaming, the primary control is an enabled `Stop` button with
+Raw bundle line 8965 at entry byte offset 10,007,671 confirms the composer
+rule: while streaming, the primary control is an enabled `Stop` button with
 `type="button"`; only after terminal reconciliation does it become `Send` and
 resume the normal submit disabled/loading conditions.
 
@@ -648,15 +682,15 @@ Regression authorities are `scripts/agent-session-item-view-contract.test.ts`, `
 
 The installed Browser implementation is a host-backed product surface, not an
 iframe with an address bar. Its lifecycle and renderer state live in
-`app-initial-CHAIly1j.js`; `browser-Be3Y5Oyc.js` is a DotLottie dependency and
+`app-initial-cpPdPura.js`; `browser-CVV9l2Fo.js` is a DotLottie dependency and
 must not be used as Browser parity evidence. The Browser plugin contract is
 pinned independently by these installed resources:
 
 | Resource | SHA-256 | Bytes |
 | --- | --- | ---: |
-| `skills/control-in-app-browser/SKILL.md` | `b5adddc633a50b6434a06b0387c2f7985cb243a0af3021e9abcdad4fc4b61451` | 4,462 |
+| `skills/control-in-app-browser/SKILL.md` | `056e790e807d00d8f48308093c81caa75f2563bb1dde0e51a72a237a9a5bd1b2` | 13,223 |
 | `docs/api.json` | `33e761f616e8f7057bb43841edcadfc64f0747202b08355099473c18f3ebb4c3` | 53,368 |
-| `scripts/browser-client.mjs` | `14e425736668bf21b5b39f2cc022ee8684728617fb5c49f35533c2e349f47193` | 1,002,051 |
+| `scripts/browser-client.mjs` | `f204d340535055781952b10ed396de20b842f00a19e430852f7e121ad1ce91f6` | 1,016,127 |
 
 ### Canonical Session Boundary
 

@@ -8,6 +8,7 @@ import 'package:sdkwork_birdcoder_flutter_mobile_host/sdkwork_birdcoder_flutter_
 const String _timestamp = '2026-07-23T00:00:00Z';
 
 Map<String, dynamic> _sessionRecord() => <String, dynamic>{
+      'id': '1',
       'sessionId': 'session-1',
       'tenantId': '100001',
       'organizationId': '0',
@@ -15,6 +16,7 @@ Map<String, dynamic> _sessionRecord() => <String, dynamic>{
       'ownerUserId': '42',
       'sessionKind': 'assistant',
       'entrySurface': 'flutter',
+      'titleSource': 'system',
       'status': 'active',
       'itemCount': '1',
       'lastItemSequence': '1',
@@ -52,7 +54,7 @@ Map<String, dynamic> _sessionItem({
       'updatedAt': _timestamp,
     };
 
-Map<String, dynamic> _pageData(List<Map<String, dynamic>> items) =>
+Map<String, dynamic> _offsetPageData(List<Map<String, dynamic>> items) =>
     <String, dynamic>{
       'items': items,
       'pageInfo': <String, dynamic>{
@@ -65,11 +67,27 @@ Map<String, dynamic> _pageData(List<Map<String, dynamic>> items) =>
       },
     };
 
+Map<String, dynamic> _cursorPageData(
+  List<Map<String, dynamic>> items, {
+  required bool hasMore,
+  required String? nextCursor,
+}) =>
+    <String, dynamic>{
+      'items': items,
+      'pageInfo': <String, dynamic>{
+        'mode': 'cursor',
+        'pageSize': birdCoderAssistantSessionPageSize,
+        'nextCursor': nextCursor,
+        'hasMore': hasMore,
+      },
+    };
+
 void main() {
   test('uses Agents Session, SessionItem, and Turn contracts end to end',
       () async {
     final requests = <HttpRequest>[];
     Map<String, dynamic>? turnBody;
+    final streamUpdates = <BirdCoderAssistantTurnStreamUpdate>[];
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final subscription = server.listen((request) async {
       requests.add(request);
@@ -78,21 +96,39 @@ void main() {
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode(<String, dynamic>{
           'code': 0,
-          'data': _pageData(<Map<String, dynamic>>[_sessionRecord()]),
+          'data': _offsetPageData(<Map<String, dynamic>>[_sessionRecord()]),
           'traceId': 'trace-sessions',
         }));
       } else if (request.method == 'GET' && path.endsWith('/items')) {
+        final cursor = request.uri.queryParameters['cursor'];
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode(<String, dynamic>{
           'code': 0,
-          'data': _pageData(<Map<String, dynamic>>[
-            _sessionItem(
-              itemId: 'item-1',
-              kind: 'user_input',
-              content: 'existing input',
-              sequence: '1',
-            ),
-          ]),
+          'data': cursor == null
+              ? _cursorPageData(
+                  <Map<String, dynamic>>[
+                    _sessionItem(
+                      itemId: 'item-2',
+                      kind: 'assistant_output',
+                      content: 'latest output',
+                      sequence: '2',
+                    ),
+                  ],
+                  hasMore: true,
+                  nextCursor: 'cursor.earlier',
+                )
+              : _cursorPageData(
+                  <Map<String, dynamic>>[
+                    _sessionItem(
+                      itemId: 'item-1',
+                      kind: 'user_input',
+                      content: 'existing input',
+                      sequence: '1',
+                    ),
+                  ],
+                  hasMore: false,
+                  nextCursor: null,
+                ),
           'traceId': 'trace-items',
         }));
       } else if (request.method == 'POST' && path.endsWith('/turns')) {
@@ -100,6 +136,11 @@ void main() {
             as Map<String, dynamic>;
         request.response.headers.contentType =
             ContentType('text', 'event-stream', charset: 'utf-8');
+        request.response.write('data: ${jsonEncode(<String, dynamic>{
+              'eventType': 'delta',
+              'index': 0,
+              'delta': 'assistant ',
+            })}\n\n');
         request.response.write('data: ${jsonEncode(<String, dynamic>{
               'eventType': 'completion',
               'response': <String, dynamic>{
@@ -153,23 +194,47 @@ void main() {
       clients,
       session.sessionId,
     );
+    final earlierItems = await listBirdCoderAssistantSessionItems(
+      clients,
+      session.sessionId,
+      cursor: existingItems.nextCursor,
+    );
     final completedItems = await submitBirdCoderAssistantTurn(
       clients,
       session.sessionId,
       'new input',
+      onStreamUpdate: streamUpdates.add,
     );
 
     expect(session.sessionId, 'session-1');
     expect(session.itemCount, 1);
-    expect(existingItems.single.role, 'user');
+    expect(existingItems.items.single.role, 'assistant');
+    expect(existingItems.hasMore, isTrue);
+    expect(existingItems.nextCursor, 'cursor.earlier');
+    expect(earlierItems.items.single.role, 'user');
+    expect(earlierItems.hasMore, isFalse);
+    expect(earlierItems.nextCursor, isNull);
     expect(completedItems.map((item) => item.role), <String>[
       'user',
       'assistant',
     ]);
+    expect(streamUpdates.map((update) => update.eventType), <String>[
+      'delta',
+      'completion',
+    ]);
+    expect(streamUpdates.first.delta, 'assistant ');
     expect(
       requests.map((request) => request.uri.path),
       everyElement(startsWith('/app/v3/api/ai/agents/')),
     );
+    final itemRequests = requests
+        .where((request) => request.uri.path.endsWith('/items'))
+        .toList(growable: false);
+    expect(itemRequests, hasLength(2));
+    expect(itemRequests[0].uri.queryParameters['cursor'], isNull);
+    expect(itemRequests[0].uri.queryParameters['sort'], '-sequence');
+    expect(itemRequests[1].uri.queryParameters['cursor'], 'cursor.earlier');
+    expect(itemRequests[1].uri.queryParameters['sort'], '-sequence');
     expect(
       requests.map(
         (request) => request.headers.value(HttpHeaders.authorizationHeader),

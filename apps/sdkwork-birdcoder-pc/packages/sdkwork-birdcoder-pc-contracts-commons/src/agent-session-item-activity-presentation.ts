@@ -18,9 +18,30 @@ export interface AgentSessionActivityFileChangeView extends FileChange {
   updateStatus?: string;
 }
 
+/**
+ * One named MCP integration source in the collapsed activity summary,
+ * matching the Codex desktop "Used X integration" segment semantics.
+ */
+export interface AgentSessionActivityMcpSourceView {
+  key: string;
+  name: string;
+  count: number;
+  runningCount: number;
+}
+
 export interface AgentTurnActivityPresentation {
   commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
   fileChanges: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
+  /** Named MCP sources (server names) with call counts, ordered by insertion. */
+  mcpSources?: readonly AgentSessionActivityMcpSourceView[];
+  /** MCP calls without a resolvable named source (Codex "Called a tool" segment). */
+  unnamedMcpToolCallCount?: number;
+  /** File reads presented as loaded tools (Codex "Loaded a tool" segment). */
+  loadedToolCount?: number;
+  /** Searches and directory listings (Codex "Read files" exploration segment). */
+  explorationCount?: number;
+  webSearchCount?: number;
+  runningWebSearchCount?: number;
 }
 
 export interface ComposeAgentSessionTranscriptActivityOptions {
@@ -825,6 +846,123 @@ const agentTurnActivitySummaryCache = new WeakMap<
   Map<string, AgentTurnActivitySummaryIndex>
 >();
 
+const NODE_REPL_MCP_SERVER = 'node_repl';
+
+interface AgentTurnActivitySegmentCounts {
+  mcpSources: Map<string, AgentSessionActivityMcpSourceView>;
+  unnamedMcpToolCallCount: number;
+  webSearchCount: number;
+  runningWebSearchCount: number;
+}
+
+function isAgentTurnActivityInProgress(status: AgentSessionItemToolCallView['status']): boolean {
+  return status === 'running' || status === 'pending' || status === 'waiting';
+}
+
+function collectAgentTurnActivitySegmentCounts(
+  toolCalls: readonly AgentSessionItemToolCallView[],
+): AgentTurnActivitySegmentCounts {
+  const mcpSources = new Map<string, AgentSessionActivityMcpSourceView>();
+  let unnamedMcpToolCallCount = 0;
+  let webSearchCount = 0;
+  let runningWebSearchCount = 0;
+  for (const call of toolCalls) {
+    if (call.kind === 'web') {
+      webSearchCount += 1;
+      if (isAgentTurnActivityInProgress(call.status)) {
+        runningWebSearchCount += 1;
+      }
+      continue;
+    }
+    if (call.kind !== 'mcp') {
+      continue;
+    }
+    const serverName = call.serverName?.trim();
+    if (!serverName || serverName === NODE_REPL_MCP_SERVER) {
+      unnamedMcpToolCallCount += 1;
+      continue;
+    }
+    const previous = mcpSources.get(serverName);
+    const source: AgentSessionActivityMcpSourceView = previous ?? {
+      key: serverName,
+      name: serverName,
+      count: 0,
+      runningCount: 0,
+    };
+    source.count += 1;
+    if (isAgentTurnActivityInProgress(call.status)) {
+      source.runningCount += 1;
+    }
+    mcpSources.set(serverName, source);
+  }
+  return {
+    mcpSources,
+    unnamedMcpToolCallCount,
+    webSearchCount,
+    runningWebSearchCount,
+  };
+}
+
+function collectAgentTurnCommandSegmentCounts(
+  commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][],
+): { loadedToolCount: number; explorationCount: number } {
+  let loadedToolCount = 0;
+  let explorationCount = 0;
+  for (const command of commands) {
+    const action = command.commandAction;
+    if (action?.kind === 'read') {
+      loadedToolCount += 1;
+    } else if (action?.kind === 'search' || action?.kind === 'list_files') {
+      explorationCount += 1;
+    }
+  }
+  return { loadedToolCount, explorationCount };
+}
+
+function buildAgentTurnActivityPresentation({
+  commands,
+  fileChanges,
+  toolCalls,
+}: {
+  commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
+  fileChanges: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
+  toolCalls: readonly AgentSessionItemToolCallView[];
+}): AgentTurnActivityPresentation | null {
+  const segmentCounts = collectAgentTurnActivitySegmentCounts(toolCalls);
+  const commandSegments = collectAgentTurnCommandSegmentCounts(commands);
+  const mcpSources = [...segmentCounts.mcpSources.values()];
+  const hasSegment = commands.length > 0
+    || fileChanges.length > 0
+    || mcpSources.length > 0
+    || segmentCounts.unnamedMcpToolCallCount > 0
+    || commandSegments.loadedToolCount > 0
+    || commandSegments.explorationCount > 0
+    || segmentCounts.webSearchCount > 0;
+  if (!hasSegment) {
+    return null;
+  }
+  return {
+    commands,
+    fileChanges,
+    ...(mcpSources.length > 0 ? { mcpSources } : {}),
+    ...(segmentCounts.unnamedMcpToolCallCount > 0
+      ? { unnamedMcpToolCallCount: segmentCounts.unnamedMcpToolCallCount }
+      : {}),
+    ...(commandSegments.loadedToolCount > 0
+      ? { loadedToolCount: commandSegments.loadedToolCount }
+      : {}),
+    ...(commandSegments.explorationCount > 0
+      ? { explorationCount: commandSegments.explorationCount }
+      : {}),
+    ...(segmentCounts.webSearchCount > 0
+      ? {
+          webSearchCount: segmentCounts.webSearchCount,
+          runningWebSearchCount: segmentCounts.runningWebSearchCount,
+        }
+      : {}),
+  };
+}
+
 function buildAgentTurnActivitySummaryIndex(
   items: readonly AgentSessionItemViewSource[],
   options: ComposeAgentSessionTranscriptActivityOptions,
@@ -901,12 +1039,11 @@ function buildAgentTurnActivitySummaryIndex(
 
       summaryIndex.set(
         candidate,
-        fileChangesByPath.size === 0 && commandsByKey.size === 0
-        ? null
-        : {
-            commands: [...commandsByKey.values()],
-            fileChanges: [...fileChangesByPath.values()],
-          },
+        buildAgentTurnActivityPresentation({
+          commands: [...commandsByKey.values()],
+          fileChanges: [...fileChangesByPath.values()],
+          toolCalls: [...toolCallsById.values()],
+        }),
       );
     }
   }
@@ -945,12 +1082,11 @@ function buildAgentTurnActivitySummaryIndex(
     }
     summaryIndex.set(
       item,
-      commandsByKey.size === 0 && fileChangesByPath.size === 0
-        ? null
-        : {
-            commands: [...commandsByKey.values()],
-            fileChanges: [...fileChangesByPath.values()],
-          },
+      buildAgentTurnActivityPresentation({
+        commands: [...commandsByKey.values()],
+        fileChanges: [...fileChangesByPath.values()],
+        toolCalls: calls,
+      }),
     );
   }
 

@@ -12,6 +12,8 @@ import type {
   IProjectRuntimeLocationService,
   IProjectService,
   IAgentWorkspaceService,
+  IModelAccessCatalogService,
+  IUserModelConfigService,
   IPromptService,
   IVipMembershipService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -26,6 +28,8 @@ export interface IDEProviderProps {
   children: ReactNode;
   agentAutomationService?: IAgentAutomationService;
   agentModelConfigurationService?: IAgentModelConfigurationService;
+  userModelConfigService?: IUserModelConfigService;
+  modelAccessCatalogService?: IModelAccessCatalogService;
   agentSessionService?: IAgentSessionService;
   applicationPublishService?: IApplicationPublishService;
   catalogService?: ICatalogService;
@@ -44,6 +48,8 @@ export const IDEProvider = ({
   children,
   agentAutomationService,
   agentModelConfigurationService,
+  userModelConfigService,
+  modelAccessCatalogService,
   agentSessionService,
   applicationPublishService,
   catalogService,
@@ -69,6 +75,10 @@ export const IDEProvider = ({
           agentAutomationService ?? defaultContext.agentAutomationService,
         agentModelConfigurationService:
           agentModelConfigurationService ?? defaultContext.agentModelConfigurationService,
+        userModelConfigService:
+          userModelConfigService ?? defaultContext.userModelConfigService,
+        modelAccessCatalogService:
+          modelAccessCatalogService ?? defaultContext.modelAccessCatalogService,
         agentSessionService: agentSessionService ?? defaultContext.agentSessionService,
         applicationPublishService:
           applicationPublishService ?? defaultContext.applicationPublishService,

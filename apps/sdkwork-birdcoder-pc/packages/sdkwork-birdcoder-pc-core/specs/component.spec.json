@@ -142,6 +142,7 @@
       "./sdk/agents-app",
       "./sdk/iam-app",
       "./sdk/mcp-app",
+      "./sdk/models-app",
       "./sdk/birdcoder-app",
       "./sdk/documents-app",
       "./sdk/drive-app",
@@ -189,6 +190,12 @@
       {
         "workspace": "sdkwork-mcp-app-sdk",
         "permissionModuleId": "mcp",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-models-app-sdk",
+        "permissionModuleId": "ai",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },

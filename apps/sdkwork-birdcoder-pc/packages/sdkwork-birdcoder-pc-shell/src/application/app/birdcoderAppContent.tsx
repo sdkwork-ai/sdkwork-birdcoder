@@ -196,7 +196,13 @@ export function AppContent() {
       disposed = true;
       resetWorkbenchCodeEngineCatalog();
     };
-  }, [currentWorkbenchSessionScope, isAuthLoading, isAuthenticated]);
+    // Key the catalog lifecycle on the authenticated user identity, not the
+    // token-pair revision: every token refresh bumps `sessionRevision` and
+    // would otherwise reset+reload the global catalog, flipping its snapshot
+    // identity and re-triggering every consumer effect that derives data from
+    // it (the UniversalChat model-catalog load included) — the request-loop
+    // source observed in the desktop session.
+  }, [user?.id, isAuthLoading, isAuthenticated]);
   const normalizedStoredRecoverySnapshot = useMemo(
     () => normalizeWorkbenchRecoverySnapshot(recoverySnapshot),
     [recoverySnapshot],

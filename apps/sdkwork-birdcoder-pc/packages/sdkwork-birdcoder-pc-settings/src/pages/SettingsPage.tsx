@@ -10,6 +10,7 @@ import {
   SettingsSidebar,
   GeneralSettings,
   CodeEngineSettings,
+  ModelManagementSettings,
   AppearanceSettings,
   VoiceSettings,
   KeyboardShortcutsSettings,
@@ -93,6 +94,8 @@ export function SettingsPage({
         return <GeneralSettings {...props} />;
       case 'codeEngines':
         return <CodeEngineSettings {...props} />;
+      case 'modelManagement':
+        return <ModelManagementSettings />;
       case 'appearance':
         return <AppearanceSettings {...props} />;
       case 'voice':

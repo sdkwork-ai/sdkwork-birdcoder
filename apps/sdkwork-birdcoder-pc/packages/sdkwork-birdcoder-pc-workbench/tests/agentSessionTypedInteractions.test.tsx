@@ -185,8 +185,11 @@ describe('typed Agent Session interactions', () => {
     expect(mapped.questions).toHaveLength(5);
     const projected = [...mapped.approvals, ...mapped.questions];
     for (const record of typedInteractions) {
-      expect(projected.find(({ interactionId }) => interactionId === record.interactionId)?.request)
-        .toEqual(record.request);
+      const pendingInteraction = projected.find(
+        ({ interactionId }) => interactionId === record.interactionId,
+      );
+      expect(pendingInteraction?.request).toEqual(record.request);
+      expect(pendingInteraction?.createdAt).toBe(record.createdAt);
     }
     expect(mapped.questions.find(({ interactionId }) => interactionId === 'typed-04')?.questions)
       .toEqual([{

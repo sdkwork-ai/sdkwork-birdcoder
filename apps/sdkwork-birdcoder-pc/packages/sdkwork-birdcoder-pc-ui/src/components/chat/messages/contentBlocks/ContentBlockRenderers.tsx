@@ -72,6 +72,16 @@ function ActivitySummaryBlock({
   const disclosureScopeKey = `${context.sessionId}\u0001${
     sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || sessionItemId
   }\u0001activity`;
+  const activitySegments = block.type === 'activity'
+    ? {
+        mcpSources: block.mcpSources,
+        unnamedMcpToolCallCount: block.unnamedMcpToolCallCount,
+        loadedToolCount: block.loadedToolCount,
+        explorationCount: block.explorationCount,
+        webSearchCount: block.webSearchCount,
+        runningWebSearchCount: block.runningWebSearchCount,
+      }
+    : {};
 
   return (
     <div className={`w-full min-w-0 max-w-full ${compact ? 'mt-1' : 'mt-1.5'}`}>
@@ -88,6 +98,7 @@ function ActivitySummaryBlock({
         engineId={context.engineId}
         successIconSize={compact ? 13 : 14}
         toggleDisclosure={context.toggleDisclosure}
+        {...activitySegments}
       />
     </div>
   );

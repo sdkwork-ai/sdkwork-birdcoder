@@ -74,6 +74,87 @@ function shouldRenderQuestionPrompt(
     || prompt.question.trim() !== pendingQuestion.prompt.trim();
 }
 
+interface PendingInteractionCandidate {
+  createdAt?: string;
+  interactionId: string;
+  priority: number;
+  sequence: number;
+  turnId?: string;
+}
+
+function pendingQuestionPriority(question: AgentSessionPendingQuestion): number {
+  switch (question.request?.kind) {
+    case 'question_set':
+      return 0;
+    case 'onboarding_question_set':
+      return 1;
+    case 'option_picker':
+      return 2;
+    case 'context_source_picker':
+    case 'setup_step':
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function pendingApprovalPriority(approval: AgentSessionPendingApproval): number {
+  switch (approval.request?.kind) {
+    case 'permission_profile':
+      return 5;
+    case 'mcp_elicitation':
+      return 6;
+    default:
+      return 4;
+  }
+}
+
+function interactionCreatedAt(candidate: PendingInteractionCandidate): number {
+  const timestamp = Date.parse(candidate.createdAt ?? '');
+  return Number.isFinite(timestamp) ? timestamp : candidate.sequence;
+}
+
+function selectActivePendingInteractionId(
+  pendingQuestions: readonly AgentSessionPendingQuestion[],
+  pendingApprovals: readonly AgentSessionPendingApproval[],
+): string | null {
+  const candidates: PendingInteractionCandidate[] = [
+    ...pendingQuestions.map((question, sequence) => ({
+      createdAt: question.createdAt,
+      interactionId: question.interactionId,
+      priority: pendingQuestionPriority(question),
+      sequence,
+      turnId: question.turnId?.trim() || undefined,
+    })),
+    ...pendingApprovals.map((approval, index) => ({
+      createdAt: approval.createdAt,
+      interactionId: approval.interactionId,
+      priority: pendingApprovalPriority(approval),
+      sequence: pendingQuestions.length + index,
+      turnId: approval.turnId?.trim() || undefined,
+    })),
+  ];
+  if (candidates.length === 0) return null;
+
+  const latestTurnCandidate = candidates
+    .filter((candidate) => candidate.turnId)
+    .reduce<PendingInteractionCandidate | null>((latest, candidate) => (
+      !latest || interactionCreatedAt(candidate) >= interactionCreatedAt(latest)
+        ? candidate
+        : latest
+    ), null);
+  const activeTurnId = latestTurnCandidate?.turnId;
+  const activeTurnCandidates = activeTurnId
+    ? candidates.filter((candidate) => candidate.turnId === activeTurnId)
+    : candidates.filter((candidate) => !candidate.turnId);
+
+  return [...activeTurnCandidates].sort((left, right) => (
+    left.priority - right.priority
+    || interactionCreatedAt(right) - interactionCreatedAt(left)
+    || right.sequence - left.sequence
+  ))[0]?.interactionId ?? null;
+}
+
 export function UniversalChatPendingInteractions({
   disabled = false,
   engineId,
@@ -93,21 +174,39 @@ export function UniversalChatPendingInteractions({
   const controlsDisabled = disabled || isSubmitting;
   const isCodexInteractionSurface =
     resolveChatProviderPresentationProfile(engineId)?.engineId === 'codex';
+  const activeInteractionId = useMemo(
+    () => isCodexInteractionSurface
+      ? selectActivePendingInteractionId(pendingUserQuestions, pendingApprovals)
+      : null,
+    [isCodexInteractionSurface, pendingApprovals, pendingUserQuestions],
+  );
   const typedApprovals = useMemo(
-    () => pendingApprovals.filter((approval) => approval.request !== undefined),
-    [pendingApprovals],
+    () => pendingApprovals.filter((approval) => (
+      approval.request !== undefined
+      && (!isCodexInteractionSurface || approval.interactionId === activeInteractionId)
+    )),
+    [activeInteractionId, isCodexInteractionSurface, pendingApprovals],
   );
   const legacyApprovals = useMemo(
-    () => pendingApprovals.filter((approval) => approval.request === undefined),
-    [pendingApprovals],
+    () => pendingApprovals.filter((approval) => (
+      approval.request === undefined
+      && (!isCodexInteractionSurface || approval.interactionId === activeInteractionId)
+    )),
+    [activeInteractionId, isCodexInteractionSurface, pendingApprovals],
   );
   const typedQuestions = useMemo(
-    () => pendingUserQuestions.filter((question) => question.request !== undefined),
-    [pendingUserQuestions],
+    () => pendingUserQuestions.filter((question) => (
+      question.request !== undefined
+      && (!isCodexInteractionSurface || question.interactionId === activeInteractionId)
+    )),
+    [activeInteractionId, isCodexInteractionSurface, pendingUserQuestions],
   );
   const legacyQuestions = useMemo(
-    () => pendingUserQuestions.filter((question) => question.request === undefined),
-    [pendingUserQuestions],
+    () => pendingUserQuestions.filter((question) => (
+      question.request === undefined
+      && (!isCodexInteractionSurface || question.interactionId === activeInteractionId)
+    )),
+    [activeInteractionId, isCodexInteractionSurface, pendingUserQuestions],
   );
   const activeQuestionIds = useMemo(
     () => new Set(pendingUserQuestions.map((question) => question.interactionId)),
@@ -305,7 +404,8 @@ export function UniversalChatPendingInteractions({
           enableGlobalQuestionHotkeys={
             isCodexInteractionSurface
             && questionIndex === 0
-            && pendingApprovals.length === 0
+            && typedApprovals.length === 0
+            && legacyApprovals.length === 0
           }
           isCodex={isCodexInteractionSurface}
           isSubmitting={isSubmitting}

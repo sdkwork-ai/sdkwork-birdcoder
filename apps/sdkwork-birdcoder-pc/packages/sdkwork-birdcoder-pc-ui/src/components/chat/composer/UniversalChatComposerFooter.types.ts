@@ -1,8 +1,12 @@
 import type { ChangeEvent, RefObject } from 'react';
 import type {
-  AgentModelConfigurationDraft,
-  UnifiedAgentModelOption,
-  UnifiedAgentProviderOption,
+  AgentModelAccessSelection,
+  AgentModelAccessSelectionOutcome,
+  AgentModelCatalogOption,
+  AgentProviderOption,
+  ModelAccessApiKeyRequestContext,
+  ModelAccessChannel,
+  ModelAccessChannelConfigurationDraft,
 } from '@sdkwork/models-pc-picker';
 import type { WorkbenchCodeEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 
@@ -26,29 +30,41 @@ export interface UniversalChatComposerFooterCommonProps {
   isStopTurnConfirmationVisible: boolean;
   isStoppingTurn: boolean;
   isUploadingAttachments: boolean;
-  unifiedAgentModelOptions: UnifiedAgentModelOption[];
-  unifiedAgentProviderOptions: UnifiedAgentProviderOption[];
+  agentModelOptions: AgentModelCatalogOption[];
+  agentProviderOptions: AgentProviderOption[];
+  modelAccessChannels: ModelAccessChannel[];
   onAttachmentMenuOpenChange: (open: boolean) => void;
   onAccessModeMenuOpenChange: (open: boolean) => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onFolderUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   onImageUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
-  onSelectUnifiedAgentModel: (option: UnifiedAgentModelOption) => void | Promise<void>;
-  onCreateUnifiedAgentModelConfiguration: (
-    draft: AgentModelConfigurationDraft,
+  onSelectAgentModelAccess: (
+    selection: AgentModelAccessSelection,
+  ) => AgentModelAccessSelectionOutcome | Promise<AgentModelAccessSelectionOutcome>;
+  onCreateModelAccessChannel: (
+    draft: ModelAccessChannelConfigurationDraft,
   ) => void | Promise<void>;
-  onGetUnifiedAgentModelApiKey?: (vendorCode: string) => void;
+  onUpdateModelAccessChannel: (
+    draft: ModelAccessChannelConfigurationDraft,
+  ) => void | Promise<void>;
+  onDeleteModelAccessChannel?: (
+    channel: ModelAccessChannel,
+  ) => void | Promise<void>;
+  onGetModelAccessApiKey?: (context: ModelAccessApiKeyRequestContext) => void;
+  onModelAccessSearchQueryChange?: (query: string) => void;
+  isModelAccessSearchLoading?: boolean;
   onSelectAccessMode: (accessModeId: string) => void;
   onSend: () => void | Promise<void>;
   onStopTurn: () => void | Promise<void>;
   onToggleVoiceInput: () => void;
   selectedModelLabel: string;
   selectedAccessModeId: string;
-  selectedUnifiedAgentModelOptionId: string;
+  selectedAgentModelOptionId: string;
+  selectedModelAccessChannelId?: string;
   selectedModelSummary: string;
-  onUnifiedAgentModelSelectorOpenChange: (open: boolean) => void;
-  isUnifiedAgentModelSelectorOpen: boolean;
-  showUnifiedAgentModelSelector: boolean;
+  onAgentModelAccessSelectorOpenChange: (open: boolean) => void;
+  isAgentModelAccessSelectorOpen: boolean;
+  showAgentModelAccessSelector: boolean;
 }
 
 export interface UniversalChatComposerFooterProps

@@ -7,6 +7,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 const BIRDCODER_DEVICE_STATE_FILE_NAME: &str = "birdcoder-device-state.sqlite3";
+const BIRDCODER_MODELS_DATABASE_FILE_NAME: &str = "birdcoder-models.sqlite3";
 const DEFAULT_EMBEDDED_API_HOST: &str = "127.0.0.1";
 const DEFAULT_EMBEDDED_API_PORT: u16 = 10240;
 
@@ -153,6 +154,22 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
         rate_limit_max_requests: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
+    apply_client_local_sqlite_database_url(app)?;
+    apply_client_local_models_catalog_root(app)?;
+    // The models module manifest disables auto-migrate (production lifecycle
+    // contract), so the desktop runtime performs the documented explicit
+    // lifecycle migrate on the client-local SQLite database before serving.
+    tauri::async_runtime::block_on(
+        sdkwork_models_database_host::migrate_client_local_models_database(
+            "sdkwork-birdcoder-desktop",
+        ),
+    )
+    .map_err(|error| format!("models database migration failed: {error}"))?;
+    // The user model configuration store lives in its own client-local file,
+    // decoupled from the models server database.
+    super::apply_client_local_user_model_config_database_url(app)?;
+    tauri::async_runtime::block_on(super::initialize_user_model_config_store())
+        .map_err(|error| format!("user model config store initialization failed: {error}"))?;
     drop(open_device_state(app)?);
     let provider_session_cwd_resolver = Arc::new(
         super::TauriProviderSessionProjectCwdResolver::new(device_state_path(app)?),
@@ -226,6 +243,53 @@ pub fn request_embedded_api_shutdown() {
     if let Some(shutdown_tx) = EMBEDDED_API_SHUTDOWN.get() {
         let _ = shutdown_tx.send(true);
     }
+}
+
+/// Resolves the bundled Models catalog root for the embedded gateway. The
+/// catalog root ships as the tauri `models-catalog/` resource (owning the
+/// `sdkwork-models.json` manifest); an explicit `SDKWORK_MODELS_CATALOG_ROOT`
+/// environment value always wins, and the default compile-time path still
+/// applies for development builds.
+fn apply_client_local_models_catalog_root(app: &AppHandle) -> Result<(), String> {
+    if std::env::var_os("SDKWORK_MODELS_CATALOG_ROOT")
+        .is_some_and(|value| !value.is_empty())
+    {
+        return Ok(());
+    }
+    let resource_models = app
+        .path()
+        .resource_dir()
+        .map_err(|error| format!("failed to resolve resource directory: {error}"))?
+        .join("models-catalog");
+    if resource_models.join("sdkwork-models.json").is_file() {
+        std::env::set_var("SDKWORK_MODELS_CATALOG_ROOT", &resource_models);
+        tracing::info!(
+            catalog_root = %resource_models.display(),
+            "resolved bundled models catalog root",
+        );
+    }
+    Ok(())
+}
+
+/// Resolves the client-local SQLite database URL for the Models catalog and
+/// access channels. The URL is owned by `SDKWORK_DATABASE_SQLITE_URL`
+/// (ENVIRONMENT_SPEC section 7.2); an explicit environment value always wins,
+/// otherwise the file is created under the user-private app data directory.
+fn apply_client_local_sqlite_database_url(app: &AppHandle) -> Result<(), String> {
+    if std::env::var_os("SDKWORK_DATABASE_SQLITE_URL")
+        .is_some_and(|value| !value.is_empty())
+    {
+        return Ok(());
+    }
+    let mut models_db_path = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
+    models_db_path.push(BIRDCODER_MODELS_DATABASE_FILE_NAME);
+    let database_url = format!("sqlite:{}", models_db_path.display());
+    std::env::set_var("SDKWORK_DATABASE_SQLITE_URL", &database_url);
+    tracing::info!(%database_url, "resolved client-local SQLite database URL");
+    Ok(())
 }
 
 fn print_embedded_api_startup_summary(api_base_url: &str) {

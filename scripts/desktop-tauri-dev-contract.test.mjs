@@ -908,7 +908,7 @@ assert.match(
 );
 assert.match(
   workspaceProjectPopoverSource,
-  /<section\r?\n\s+data-no-drag="true"\r?\n\s+role="dialog"/u,
+  /<section[^>]*data-no-drag="true"[^>]*role="dialog"[^>]*>/u,
   'The Workspace and Project Popover must stay data-no-drag so all controls inside remain fully interactive.',
 );
 assert.doesNotMatch(

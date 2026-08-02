@@ -141,11 +141,12 @@ fn should_show_window_for_tray_event(event: &TrayIconEvent) -> bool {
 
 fn normalize_menu_text(value: &str, max_characters: usize, fallback: &str) -> String {
     let normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
-    let source = if normalized.is_empty() {
-        fallback.trim()
-    } else {
-        normalized.as_str()
-    };
+    if normalized.is_empty() {
+        // The fallback is a bounded developer-authored default and must not be
+        // truncated by the menu width budget.
+        return fallback.trim().to_string();
+    }
+    let source = normalized.as_str();
     let characters = source.chars().collect::<Vec<_>>();
     if characters.len() <= max_characters {
         return source.to_string();

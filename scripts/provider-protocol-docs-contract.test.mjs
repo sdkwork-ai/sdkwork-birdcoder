@@ -63,7 +63,7 @@ const providers = [
     matrixLabel: 'Claude Code',
     baseline: '0.3.220',
     sources: [
-      '../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-claude-code/src/provider_sessions.rs',
+      '../sdkwork-kernel/sdkwork-agent-provider-spi/src/runtime.rs',
     ],
     evidence: [
       'scripts/agent-session-item-view-contract.test.ts',

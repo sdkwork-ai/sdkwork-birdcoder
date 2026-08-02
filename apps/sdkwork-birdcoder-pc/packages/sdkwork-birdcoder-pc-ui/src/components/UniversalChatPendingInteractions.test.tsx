@@ -461,15 +461,16 @@ describe('UniversalChatPendingInteractions', () => {
     });
   });
 
-  it('supports Codex numeric selection and Enter submission shortcuts', async () => {
+  it('matches the Codex option picker empty, submit, freeform, and dismiss semantics', async () => {
     const onSubmitUserQuestionAnswer = vi.fn().mockResolvedValue(undefined);
     const picker = typedQuestion('picker-1', {
       schemaVersion: 1,
       category: 'user_input',
       kind: 'option_picker',
-      allowedActions: ['continue', 'dismiss'],
+      allowedActions: ['submit', 'skip', 'dismiss'],
       data: { question: 'Choose an action' },
     }, [{
+      allowOther: true,
       question: 'Choose an action',
       options: [
         { label: 'Continue', value: 'continue' },
@@ -485,18 +486,92 @@ describe('UniversalChatPendingInteractions', () => {
     );
 
     const surface = screen.getAllByText('Choose an action')[0]!.closest('[tabindex="0"]');
+    const submitButton = screen.getByRole('button', { name: /Submit/ });
+    expect(screen.getByRole('radio', { name: 'Continue' }).getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByRole('radio', { name: 'Wait' }).getAttribute('aria-checked')).toBe('false');
+    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(surface!, { key: 'Enter' });
+    expect(onSubmitUserQuestionAnswer).not.toHaveBeenCalled();
+
     fireEvent.keyDown(surface!, { key: '2' });
     expect(screen.getByRole('radio', { name: 'Wait' }).getAttribute('aria-checked')).toBe('true');
-    fireEvent.keyDown(surface!, { key: 'Enter' });
+    expect((submitButton as HTMLButtonElement).disabled).toBe(false);
+    const freeformInput = screen.getByPlaceholderText('Something else');
+    fireEvent.change(freeformInput, { target: { value: 'Wait for CI' } });
+    expect(screen.getByRole('radio', { name: 'Wait' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(freeformInput, { key: 'Enter' });
 
     await waitFor(() => {
       expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('picker-1', {
-        action: 'continue',
-        freeformAnswer: null,
+        action: 'submit',
+        freeformAnswer: 'Wait for CI',
         rejected: false,
         selectedOptions: ['wait'],
       });
     });
+
+    onSubmitUserQuestionAnswer.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => {
+      expect(onSubmitUserQuestionAnswer).toHaveBeenCalledWith('picker-1', {
+        action: 'dismiss',
+        freeformAnswer: null,
+        rejected: true,
+        selectedOptions: [],
+      });
+    });
+  });
+
+  it('shows only the highest-priority request from the newest Codex Turn', () => {
+    const olderQuestion = {
+      ...typedQuestion('older-question', {
+        schemaVersion: 1,
+        category: 'user_input',
+        kind: 'question_set',
+        allowedActions: ['submit', 'dismiss'],
+        data: { questions: [] },
+      }, [{ question: 'Older question' }]),
+      createdAt: '2026-08-02T10:00:00.000Z',
+      turnId: 'turn-old',
+    };
+    const newestOptionPicker = {
+      ...typedQuestion('new-option', {
+        schemaVersion: 1,
+        category: 'user_input',
+        kind: 'option_picker',
+        allowedActions: ['submit', 'skip', 'dismiss'],
+        data: { question: 'Newest option picker' },
+      }, [{
+        allowOther: true,
+        question: 'Newest option picker',
+        options: [{ label: 'Continue', value: 'Continue' }],
+      }]),
+      createdAt: '2026-08-02T11:00:00.000Z',
+      turnId: 'turn-new',
+    };
+    const newestPermission = {
+      ...typedApproval('new-permission', {
+        schemaVersion: 1,
+        category: 'approval',
+        kind: 'permission_profile',
+        allowedActions: ['grant', 'decline'],
+        data: { message: 'Newest permission' },
+      }),
+      createdAt: '2026-08-02T11:01:00.000Z',
+      turnId: 'turn-new',
+    };
+    const { container } = render(
+      <UniversalChatPendingInteractions
+        engineId="codex"
+        pendingApprovals={[newestPermission]}
+        pendingUserQuestions={[olderQuestion, newestOptionPicker]}
+      />,
+    );
+
+    expect(screen.getAllByText('Newest option picker').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Older question')).toBeNull();
+    expect(screen.queryByText('Newest permission')).toBeNull();
+    expect(container.querySelectorAll('[data-codex-interaction-id]')).toHaveLength(1);
   });
 
   it('uses Codex app-scope numeric shortcuts for immediate question responses', async () => {

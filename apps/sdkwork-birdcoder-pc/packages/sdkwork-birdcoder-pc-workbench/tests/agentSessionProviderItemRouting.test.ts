@@ -93,6 +93,78 @@ describe('Codex provider Session item routing', () => {
       .toEqual([]);
   });
 
+  it('codex-provider-item-user-message: unwraps the delegation envelope into a source label', () => {
+    const delegatedItem = createProviderUserSessionItem('codex-user-message-delegated', {
+      id: 'codex-user-message-delegated',
+      type: 'userMessage',
+      content: [{
+        type: 'text',
+        text: '<codex_delegation>\n'
+          + '<source_thread_id>provider-session-source-1</source_thread_id>\n'
+          + '<input>Finish the protocol notes.</input>\n'
+          + '</codex_delegation>',
+      }],
+    });
+    const delegatedView = toAgentSessionItemView(delegatedItem, { engineId: 'codex' });
+
+    expect(delegatedView.role).toBe('user');
+    expect(delegatedView.content).toBe('Finish the protocol notes.');
+    expect(delegatedView.metadata?.providerUserMessageSource).toEqual({
+      kind: 'codex-delegation',
+      sourceSessionId: 'provider-session-source-1',
+    });
+    expect(delegatedView.content).not.toMatch(/codex_delegation|source_thread_id/iu);
+
+    const plainItem = createProviderUserSessionItem('codex-user-message-plain', {
+      id: 'codex-user-message-plain',
+      type: 'userMessage',
+      content: [{ type: 'text', text: 'A regular prompt.' }],
+    });
+    const plainView = toAgentSessionItemView(plainItem, { engineId: 'codex' });
+    expect(plainView.metadata?.providerUserMessageSource).toBeUndefined();
+  });
+
+  it('codex-provider-item-user-message: unwraps the scheduled-task heartbeat envelope', () => {
+    const heartbeatItem = createProviderUserSessionItem('codex-user-message-heartbeat', {
+      id: 'codex-user-message-heartbeat',
+      type: 'userMessage',
+      content: [{
+        type: 'text',
+        text: '<heartbeat>\n'
+          + '<automation_id>automation.e2e-1</automation_id>\n'
+          + '<current_time_iso>2026-08-03T00:00:00Z</current_time_iso>\n'
+          + '<instructions>Run the nightly Session audit.</instructions>\n'
+          + '</heartbeat>',
+      }],
+    });
+    const heartbeatView = toAgentSessionItemView(heartbeatItem, { engineId: 'codex' });
+
+    expect(heartbeatView.role).toBe('user');
+    expect(heartbeatView.content).toBe('Run the nightly Session audit.');
+    expect(heartbeatView.metadata?.providerUserMessageSource).toEqual({
+      kind: 'automation-heartbeat',
+      automationId: 'automation.e2e-1',
+    });
+    expect(heartbeatView.content).not.toMatch(/heartbeat|automation_id/iu);
+
+    const inlineItem = createProviderUserSessionItem('codex-user-message-inline-heartbeat', {
+      id: 'codex-user-message-inline-heartbeat',
+      type: 'userMessage',
+      content: [{
+        type: 'text',
+        text: 'Morning check.\n<heartbeat><automation_id>a-2</automation_id>'
+          + '<current_time_iso>2026-08-03T00:00:00Z</current_time_iso>'
+          + '<instructions>hidden</instructions></heartbeat>\nStill here.',
+      }],
+    });
+    const inlineView = toAgentSessionItemView(inlineItem, { engineId: 'codex' });
+
+    expect(inlineView.content).toBe('Morning check.\n\nStill here.');
+    expect(inlineView.metadata?.providerUserMessageSource).toEqual({
+      kind: 'automation-heartbeat',
+    });
+  });
+
   it('codex-provider-item-hook-prompt: projects non-empty fragments as hook feedback', () => {
     const visibleItem = createProviderSessionItem('codex-hook-prompt-1', {
       id: 'codex-hook-prompt-1',

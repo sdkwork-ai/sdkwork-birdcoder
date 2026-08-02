@@ -219,6 +219,13 @@
         "required": true
       },
       {
+        "workspace": "sdkwork-models-app-sdk",
+        "permissionModuleId": "ai",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
         "workspace": "sdkwork-order-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
@@ -257,7 +264,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       },
       {
@@ -268,7 +277,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
@@ -282,7 +293,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       },
       {
@@ -293,7 +306,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
@@ -307,7 +322,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
@@ -322,7 +339,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
@@ -336,7 +355,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
@@ -350,10 +371,28 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_MCP_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-models-app-sdk",
+        "sdkFamily": "sdkwork-models-app-sdk",
+        "apiAuthority": "sdkwork-models-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "profileCoverage": [
+          "cloud"
+        ],
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_MODELS_APP_API_BASE_URL"
         ]
       },
       {
@@ -364,7 +403,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
@@ -378,7 +419,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
@@ -392,7 +435,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
-        "profileCoverage": ["cloud"],
+        "profileCoverage": [
+          "cloud"
+        ],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       }
     ],
@@ -407,6 +452,7 @@
       "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
       "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
       "VITE_SDKWORK_MCP_APP_API_BASE_URL",
+      "VITE_SDKWORK_MODELS_APP_API_BASE_URL",
       "VITE_SDKWORK_ORDER_APP_API_BASE_URL",
       "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
     ],

@@ -48,6 +48,7 @@ export interface AgentQuestionAnswerInput {
 }
 
 export interface AgentSessionPendingApproval {
+  createdAt?: string;
   interactionId: string;
   prompt: string;
   request?: AgentSessionPendingTypedRequest;
@@ -72,6 +73,7 @@ export interface AgentSessionPendingQuestionPrompt {
 }
 
 export interface AgentSessionPendingQuestion {
+  createdAt?: string;
   interactionId: string;
   prompt: string;
   questions: AgentSessionPendingQuestionPrompt[];
@@ -149,6 +151,7 @@ export function mapAgentSessionPendingInteractions(
       continue;
     }
     const common = {
+      createdAt: interaction.createdAt,
       interactionId: interaction.interactionId,
       prompt: interaction.prompt,
       request: interaction.request ?? undefined,

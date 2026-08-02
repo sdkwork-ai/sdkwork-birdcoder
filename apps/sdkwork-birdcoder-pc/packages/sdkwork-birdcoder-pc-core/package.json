@@ -17,6 +17,7 @@
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/agents-app-sdk": "workspace:*",
     "@sdkwork/mcp-app-sdk": "workspace:*",
+    "@sdkwork/models-app-sdk": "workspace:*",
     "@sdkwork/messaging-app-sdk": "workspace:*",
     "@sdkwork/prompts-app-sdk": "workspace:*",
     "@sdkwork/skills-app-sdk": "workspace:*",
@@ -66,6 +67,11 @@
       "types": "./src/sdk/mcp-app-sdk.ts",
       "import": "./src/sdk/mcp-app-sdk.ts",
       "default": "./src/sdk/mcp-app-sdk.ts"
+    },
+    "./sdk/models-app": {
+      "types": "./src/sdk/models-app-sdk.ts",
+      "import": "./src/sdk/models-app-sdk.ts",
+      "default": "./src/sdk/models-app-sdk.ts"
     },
     "./sdk/documents-app": {
       "types": "./src/sdk/documents-app-sdk.ts",

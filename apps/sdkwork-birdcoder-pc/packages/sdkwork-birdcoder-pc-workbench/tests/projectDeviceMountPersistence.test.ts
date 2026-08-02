@@ -195,4 +195,102 @@ describe('desktop project device mount persistence', () => {
       status: 'unavailable',
     });
   });
+
+  it('migrates a stale projectId under the same path and owner when the project is re-imported', async () => {
+    const ownerKey = sha256Hash(subject.subjectId);
+    const retiredProjectId = 'project.retired';
+    const valuesByKey = new Map<string, string>();
+    const staleValue = JSON.stringify({
+      client: {
+        application: 'sdkwork-birdcoder-pc',
+        runtime: 'tauri',
+        version: 1,
+      },
+      createdSurface: 'desktop',
+      ownerKey,
+      path: absolutePath,
+      projectId: retiredProjectId,
+      version: 1,
+    });
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      switch (command) {
+        case 'local_store_get':
+          return valuesByKey.get(String(args?.key)) ?? null;
+        case 'local_store_set':
+          valuesByKey.set(String(args?.key), String(args?.value));
+          return undefined;
+        case 'project_device_mount_find':
+          return (args?.ownerKeys as string[]).includes(ownerKey)
+            && args?.projectId === projectId
+            ? { key: legacyKey, value: staleValue }
+            : null;
+        case 'project_device_mount_provider_session_directory_identity':
+          return (args?.ownerKeys as string[]).includes(ownerKey)
+            && args?.projectId === projectId
+            ? {
+                directoryFingerprint,
+                directoryName: 'sdkwork-birdcoder',
+              }
+            : null;
+        default:
+          throw new Error(`Unexpected Tauri command: ${command}`);
+      }
+    });
+    vi.stubGlobal('window', { __TAURI_INTERNALS__: { invoke } });
+
+    const registry = new ProjectDeviceMountRegistry({
+      subjectProvider: async () => subject,
+    });
+    const fileSystemService = new RuntimeFileSystemService({
+      mountRegistry: registry,
+      tauriRuntime: createTauriFileSystemRuntime(),
+    });
+    const service = new RuntimeProjectRuntimeLocationService({ fileSystemService });
+
+    const resolution = await service.resolveProjectRuntimeLocation(projectId, {
+      allowFolderSelection: false,
+      capability: 'terminal',
+    });
+    expect(resolution).toMatchObject({
+      location: {
+        localWorkingDirectory: absolutePath,
+        projectId,
+        source: 'recovered_mount',
+      },
+      status: 'resolved',
+    });
+
+    // The stored mount is rewritten against the active project record so the
+    // next restart resolves without the legacy migration path.
+    const migratedEntry = [...valuesByKey.entries()][0];
+    expect(migratedEntry).toBeDefined();
+    expect(JSON.parse(migratedEntry?.[1] ?? '{}')).toMatchObject({
+      ownerKey,
+      path: absolutePath,
+      projectId,
+      version: 1,
+    });
+
+    invoke.mockClear();
+    const restartedRegistry = new ProjectDeviceMountRegistry({
+      subjectProvider: async () => subject,
+    });
+    const restartedService = new RuntimeProjectRuntimeLocationService({
+      fileSystemService: new RuntimeFileSystemService({
+        mountRegistry: restartedRegistry,
+        tauriRuntime: createTauriFileSystemRuntime(),
+      }),
+    });
+    await expect(restartedService.resolveProjectRuntimeLocation(projectId, {
+      allowFolderSelection: false,
+      capability: 'terminal',
+    })).resolves.toMatchObject({
+      location: { localWorkingDirectory: absolutePath },
+      status: 'resolved',
+    });
+    expect(invoke).not.toHaveBeenCalledWith(
+      'project_device_mount_find',
+      expect.anything(),
+    );
+  });
 });

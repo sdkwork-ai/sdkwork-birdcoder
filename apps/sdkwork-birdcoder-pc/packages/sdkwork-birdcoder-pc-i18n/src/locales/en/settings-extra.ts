@@ -6,6 +6,8 @@ export default defineLocaleModule('settings/extra', {
       navigationLabel: 'Settings navigation',
       searchPlaceholder: 'Search settings...',
       clearSearch: 'Clear settings search',
+      collapseNavigation: 'Collapse settings navigation',
+      expandNavigation: 'Expand settings navigation',
       noResults: 'No matching settings',
       groups: {
         personal: 'Personal',
@@ -14,6 +16,7 @@ export default defineLocaleModule('settings/extra', {
         archive: 'Archived',
       },
       codeEngines: 'Code Engines & Models',
+      modelManagement: 'Model Management',
       appearance: 'Appearance',
       voice: 'Voice',
       shortcuts: 'Keyboard Shortcuts',

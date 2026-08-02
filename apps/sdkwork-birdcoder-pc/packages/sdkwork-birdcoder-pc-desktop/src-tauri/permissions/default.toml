@@ -66,6 +66,17 @@ permissions = [
   "allow-desktop-session-attachment-acknowledge",
   "allow-desktop-session-resize",
   "allow-desktop-session-terminate",
+  "allow-user-model-config-list-channels",
+  "allow-user-model-config-get-channel",
+  "allow-user-model-config-upsert-channel",
+  "allow-user-model-config-delete-channel",
+  "allow-user-model-config-get-api-key",
+  "allow-user-model-config-upsert-api-key",
+  "allow-user-model-config-list-engine-configs",
+  "allow-user-model-config-upsert-engine-config",
+  "allow-user-model-config-list-engine-selections",
+  "allow-user-model-config-get-engine-selection",
+  "allow-user-model-config-upsert-engine-selection",
 ]
 
 [[set]]
@@ -460,3 +471,60 @@ commands.allow = ["desktop_session_resize"]
 identifier = "allow-desktop-session-terminate"
 description = "Enables the desktop_session_terminate command."
 commands.allow = ["desktop_session_terminate"]
+
+
+# Client-local user model configuration commands
+[[permission]]
+identifier = "allow-user-model-config-list-channels"
+description = "Enables the user_model_config_list_channels command."
+commands.allow = ["user_model_config_list_channels"]
+
+[[permission]]
+identifier = "allow-user-model-config-get-channel"
+description = "Enables the user_model_config_get_channel command."
+commands.allow = ["user_model_config_get_channel"]
+
+[[permission]]
+identifier = "allow-user-model-config-upsert-channel"
+description = "Enables the user_model_config_upsert_channel command."
+commands.allow = ["user_model_config_upsert_channel"]
+
+[[permission]]
+identifier = "allow-user-model-config-delete-channel"
+description = "Enables the user_model_config_delete_channel command."
+commands.allow = ["user_model_config_delete_channel"]
+
+[[permission]]
+identifier = "allow-user-model-config-get-api-key"
+description = "Enables the user_model_config_get_api_key command."
+commands.allow = ["user_model_config_get_api_key"]
+
+[[permission]]
+identifier = "allow-user-model-config-upsert-api-key"
+description = "Enables the user_model_config_upsert_api_key command."
+commands.allow = ["user_model_config_upsert_api_key"]
+
+[[permission]]
+identifier = "allow-user-model-config-list-engine-configs"
+description = "Enables the user_model_config_list_engine_configs command."
+commands.allow = ["user_model_config_list_engine_configs"]
+
+[[permission]]
+identifier = "allow-user-model-config-upsert-engine-config"
+description = "Enables the user_model_config_upsert_engine_config command."
+commands.allow = ["user_model_config_upsert_engine_config"]
+
+[[permission]]
+identifier = "allow-user-model-config-list-engine-selections"
+description = "Enables the user_model_config_list_engine_selections command."
+commands.allow = ["user_model_config_list_engine_selections"]
+
+[[permission]]
+identifier = "allow-user-model-config-get-engine-selection"
+description = "Enables the user_model_config_get_engine_selection command."
+commands.allow = ["user_model_config_get_engine_selection"]
+
+[[permission]]
+identifier = "allow-user-model-config-upsert-engine-selection"
+description = "Enables the user_model_config_upsert_engine_selection command."
+commands.allow = ["user_model_config_upsert_engine_selection"]

@@ -17,6 +17,7 @@ import {
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchCodeEngineSelectedAccessModeId,
+  resolveWorkbenchCodeEngineSelectedModelAccessChannelId,
   resolveWorkbenchCodeEngineSelectedModelId,
   useModelCatalogLoaded,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
@@ -59,14 +60,20 @@ import {
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import {
-  saveWorkbenchUnifiedCustomAgentModel,
   setWorkbenchCodeEngineAccessMode,
+  setWorkbenchCodeEngineModelAccessChannel,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/preferences';
 import type {
-  AgentModelConfigurationDraft,
-  UnifiedAgentModelOption,
-  UnifiedAgentProviderOption,
+  AgentModelAccessSelection,
+  AgentModelAccessSelectionOutcome,
+  AgentProviderOption,
+  ModelAccessChannel,
+  ModelAccessChannelConfigurationDraft,
 } from '@sdkwork/models-pc-picker';
+import {
+  AgentModelConfigurationCredentialRequiredError,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
+import type { ModelAccessCatalogSnapshot } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,
@@ -126,9 +133,16 @@ import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
 import { ChatActivityLiveAnnouncer } from './chat/messages/activity/ChatActivityLiveAnnouncer.tsx';
 import { resolveTurnFileChangesMessagePresentations } from './chat/messages/activity/turnFileChanges.ts';
 import {
-  createWorkbenchUnifiedAgentModelSelectorCatalog,
-  resolveWorkbenchUnifiedAgentModelOptionId,
-} from './workbenchUnifiedAgentModelSelectorAdapter';
+  createWorkbenchAgentModelAccessSelectorCatalog,
+  createWorkbenchModelAccessFallbackModels,
+  mergeWorkbenchModelAccessCatalogSnapshot,
+  resolveWorkbenchAgentModelConfigurationMetadata,
+  resolveWorkbenchAgentModelOptionId,
+  resolveWorkbenchModelAccessChannelId,
+  toModelAccessCatalogChannel,
+  toWorkbenchUnifiedCustomAgentModelDefinition,
+} from './workbenchAgentModelAccessSelectorAdapter';
+import type { UserModelChannel } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import {
   buildVisibleMessageActionTargets,
   ChatTranscriptMessage,
@@ -1170,11 +1184,20 @@ export const UniversalChat = memo(function UniversalChat({
 }: UniversalChatProps) {
   const { t, i18n } = useTranslation();
   const { addToast } = useToast();
-  const { agentModelConfigurationService } = useIDEServices();
+  const { agentModelConfigurationService, modelAccessCatalogService, userModelConfigService } = useIDEServices();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerCompositionRef = useRef(false);
-  const [isUnifiedAgentModelSelectorOpen, setUnifiedAgentModelSelectorOpen] = useState(false);
+  const [isAgentModelAccessSelectorOpen, setAgentModelAccessSelectorOpen] = useState(false);
+  const [modelAccessCatalogSnapshot, setModelAccessCatalogSnapshot] =
+    useState<ModelAccessCatalogSnapshot | null>(null);
+  const [modelAccessSearchQuery, setModelAccessSearchQuery] = useState('');
+
+  const [localUserModelChannels, setLocalUserModelChannels] = useState<UserModelChannel[]>([]);
+  const [localUserModelChannelsLoaded, setLocalUserModelChannelsLoaded] = useState(false);
+  const [modelAccessSearchSnapshot, setModelAccessSearchSnapshot] =
+    useState<ModelAccessCatalogSnapshot | null>(null);
+  const [isModelAccessSearchLoading, setIsModelAccessSearchLoading] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showAccessModeMenu, setShowAccessModeMenu] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
@@ -1474,19 +1497,281 @@ export const UniversalChat = memo(function UniversalChat({
     () => listWorkbenchServerImplementedCodeEngines(preferences),
     [preferences, catalogLoaded],
   );
-  const unifiedAgentModelSelectorCatalog = useMemo(
-    () => createWorkbenchUnifiedAgentModelSelectorCatalog(
-      availableEngines,
-      preferences.unifiedCustomAgentModels,
-    ),
-    [availableEngines, preferences.unifiedCustomAgentModels],
+  const modelAccessFallbackModels = useMemo(
+    () => createWorkbenchModelAccessFallbackModels(availableEngines),
+    [availableEngines],
   );
-  const unifiedAgentProviderOptions = useMemo<UnifiedAgentProviderOption[]>(
+  // Fallback models derive from the global code-engine catalog, whose snapshot
+  // identity flips whenever the AppContent catalog effect resets or reloads it
+  // (token refreshes included). They only shape the result of a failed or
+  // short catalog load, so fetch effects must read the latest value through a
+  // ref instead of re-running when the identity changes — otherwise every
+  // catalog cycle re-issues the models/access-channel requests.
+  const modelAccessFallbackModelsRef = useRef(modelAccessFallbackModels);
+  modelAccessFallbackModelsRef.current = modelAccessFallbackModels;
+  // The client-local sqlite store is the single source of truth for the
+  // user's model configurations. Legacy preferences records are migrated once
+  // on first boot; preferences.unifiedCustomAgentModels is retired afterwards
+  // so a later "remove every channel" cannot resurrect deleted rows.
+  useEffect(() => {
+    let active = true;
+    const retireLegacyPreferences = () => {
+      updatePreferences((previousPreferences) => (
+        previousPreferences.unifiedCustomAgentModels.length === 0
+          ? previousPreferences
+          : { ...previousPreferences, unifiedCustomAgentModels: [] }
+      ));
+    };
+    void userModelConfigService.listChannels().then(async (channels) => {
+      if (channels.length > 0) {
+        // Retire legacy preference records only when they actually exist.
+        // Calling updatePreferences unconditionally would re-create the
+        // preferences identity and re-trigger this effect (the
+        // user_model_config_list_channels IPC loop) even when nothing
+        // changed.
+        if (preferences.unifiedCustomAgentModels.length > 0) {
+          retireLegacyPreferences();
+        }
+        if (active) {
+          setLocalUserModelChannels(channels);
+          setLocalUserModelChannelsLoaded(true);
+        }
+        return;
+      }
+      const legacy = preferences.unifiedCustomAgentModels;
+      if (legacy.length === 0) {
+        if (active) {
+          setLocalUserModelChannels([]);
+          setLocalUserModelChannelsLoaded(true);
+        }
+        return;
+      }
+      for (const configuration of legacy) {
+        await userModelConfigService.upsertChannel({
+          code: configuration.configurationId,
+          name: configuration.accessChannelName,
+          kind: configuration.accessChannelKind,
+          baseUrl: configuration.baseUrl,
+          description: configuration.description,
+          defaultVendorCode: configuration.defaultVendorCode,
+          defaultModelId: configuration.modelId,
+          apiKeyConfigured: configuration.apiKeyConfigured,
+          sortOrder: null,
+          offerings: configuration.vendorOfferings.map((offering) => ({
+            vendorCode: offering.vendorCode,
+            vendorName: offering.vendorName,
+            models: offering.modelIds.map((modelId) => ({
+              modelId,
+              displayName: modelId,
+              supportsMultimodal: false,
+            })),
+          })),
+        });
+      }
+      retireLegacyPreferences();
+      if (active) {
+        setLocalUserModelChannels(await userModelConfigService.listChannels());
+        setLocalUserModelChannelsLoaded(true);
+      }
+    }).catch((error: unknown) => {
+      console.error('Failed to load local user model configurations.', error);
+      if (active) {
+        setLocalUserModelChannelsLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [preferences.unifiedCustomAgentModels, updatePreferences, userModelConfigService]);
+  // The agents runtime keeps configurations in memory only: after a restart
+  // (or when switching to another agent engine) the saved client-local
+  // selection is re-applied so the channel credential and model pairing stay
+  // active without reopening the picker. Best-effort, once per engine per boot.
+  const restoredEngineSelectionRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!localUserModelChannelsLoaded || !resolvedSelectedEngineId) {
+      return;
+    }
+    const engineId = resolvedSelectedEngineId;
+    if (restoredEngineSelectionRef.current.has(engineId)) {
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const selection = await userModelConfigService.getEngineSelection(engineId);
+        if (!selection) {
+          return;
+        }
+        const channel = localUserModelChannels.find((candidate) => (
+          candidate.code.trim().toLowerCase() === selection.channelCode.trim().toLowerCase()
+        ));
+        if (!channel) {
+          return;
+        }
+        const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+          engineId,
+          preferences,
+        )?.trim().toLowerCase();
+        if (preferenceChannelId && preferenceChannelId !== selection.channelCode.trim().toLowerCase()) {
+          // The user picked another channel in a later session; keep that choice.
+          return;
+        }
+        type SelectionInput = Parameters<
+          typeof agentModelConfigurationService.applySelection
+        >[0];
+        const engineConfigs = await userModelConfigService.listEngineConfigs(engineId);
+        const engineConfig = engineConfigs.find(
+          (config) => config.channelCode === selection.channelCode,
+        );
+        if (engineConfig) {
+          const apiKey = await userModelConfigService.getApiKey(selection.channelCode);
+          await agentModelConfigurationService.apply({
+            configurationId: selection.channelCode,
+            engineId: engineId as SelectionInput['engineId'],
+            vendorCode: engineConfig.vendorCode,
+            baseUrl: engineConfig.baseUrl,
+            ...(apiKey ? { apiKey } : {}),
+            defaultModelId: engineConfig.defaultModelId,
+            supportedModelIds: engineConfig.supportedModelIds,
+            supportedProviderIds: engineConfig.supportedProviderIds as NonNullable<
+              SelectionInput['configuration']
+            >['supportedProviderIds'],
+            inputContextTokens: engineConfig.inputContextTokens ?? undefined,
+            outputContextTokens: engineConfig.outputContextTokens ?? undefined,
+            toolCallRounds: engineConfig.toolCallRounds ?? undefined,
+            supportsMultimodal: engineConfig.supportsMultimodal,
+          });
+        }
+        await agentModelConfigurationService.applySelection({
+          configurationId: selection.channelCode,
+          engineId: engineId as SelectionInput['engineId'],
+          modelId: selection.modelId,
+        });
+      } catch (error) {
+        // Restore is best-effort: a missing agents runtime (web mode, cold
+        // engine) must not break boot; the user can re-select in the picker.
+        console.warn('Failed to restore the client-local model configuration.', error);
+      } finally {
+        if (active) {
+          restoredEngineSelectionRef.current.add(engineId);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [
+    agentModelConfigurationService,
+    localUserModelChannels,
+    localUserModelChannelsLoaded,
+    preferences,
+    resolvedSelectedEngineId,
+    userModelConfigService,
+  ]);
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setModelAccessCatalogSnapshot(null);
+    void modelAccessCatalogService.loadCatalog({
+      fallbackModels: modelAccessFallbackModelsRef.current,
+      signal: controller.signal,
+    }).then((snapshot) => {
+      if (active) {
+        setModelAccessCatalogSnapshot(snapshot);
+      }
+    }).catch((error: unknown) => {
+      if (!active || controller.signal.aborted) {
+        return;
+      }
+      console.error('Failed to load the model access catalog.', error);
+      setModelAccessCatalogSnapshot({
+        models: modelAccessFallbackModelsRef.current,
+        accessChannels: [],
+        source: 'fallback',
+      });
+    });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [modelAccessCatalogService]);
+  useEffect(() => {
+    const query = modelAccessSearchQuery.trim();
+    if (!isAgentModelAccessSelectorOpen || !query) {
+      setModelAccessSearchSnapshot(null);
+      setIsModelAccessSearchLoading(false);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setIsModelAccessSearchLoading(true);
+      void modelAccessCatalogService.loadCatalog({
+        // A remote search result is authoritative. The base snapshot remains
+        // available until this request resolves, so typing stays responsive.
+        fallbackModels: [],
+        query,
+        pageSize: 100,
+        agentProviderId: resolvedSelectedEngineId,
+        signal: controller.signal,
+      }).then((snapshot) => {
+        if (!controller.signal.aborted) {
+          setModelAccessSearchSnapshot(snapshot);
+        }
+      }).catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to search the model access catalog.', error);
+          setModelAccessSearchSnapshot(null);
+        }
+      }).finally(() => {
+        if (!controller.signal.aborted) {
+          setIsModelAccessSearchLoading(false);
+        }
+      });
+    }, 220);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+      setIsModelAccessSearchLoading(false);
+    };
+  }, [
+    isAgentModelAccessSelectorOpen,
+    modelAccessCatalogService,
+    modelAccessSearchQuery,
+    resolvedSelectedEngineId,
+  ]);
+  const resolvedModelAccessCatalogSnapshot = modelAccessCatalogSnapshot ?? {
+    models: modelAccessFallbackModels,
+    accessChannels: [],
+    source: 'fallback' as const,
+  };
+  const effectiveModelAccessCatalogSnapshot = useMemo(() => {
+    if (!modelAccessSearchSnapshot || modelAccessSearchSnapshot.source !== 'database') {
+      return resolvedModelAccessCatalogSnapshot;
+    }
+    return mergeWorkbenchModelAccessCatalogSnapshot(
+      resolvedModelAccessCatalogSnapshot,
+      modelAccessSearchSnapshot,
+    );
+  }, [modelAccessSearchSnapshot, resolvedModelAccessCatalogSnapshot]);
+  const agentProviderOptions = useMemo<AgentProviderOption[]>(
     () => availableEngines.map((engine) => ({
       id: engine.id,
       label: engine.label,
     })),
     [availableEngines],
+  );
+  const agentModelAccessSelectorCatalog = useMemo(
+    () => createWorkbenchAgentModelAccessSelectorCatalog(
+      effectiveModelAccessCatalogSnapshot,
+      localUserModelChannels.map(toWorkbenchUnifiedCustomAgentModelDefinition),
+      agentProviderOptions.map((provider) => provider.id),
+    ),
+    [
+      agentProviderOptions,
+      localUserModelChannels,
+      effectiveModelAccessCatalogSnapshot,
+    ],
   );
   const currentEngine =
     findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
@@ -1539,22 +1824,18 @@ export const UniversalChat = memo(function UniversalChat({
     engineId: resolvedSelectedEngineId,
     modelId: currentModelId,
   }), [currentAccessModeId, currentModelId, resolvedSelectedEngineId]);
-  const currentUnifiedAgentModelOptionId = resolveWorkbenchUnifiedAgentModelOptionId(
-    unifiedAgentModelSelectorCatalog,
+  const currentAgentModelOptionId = resolveWorkbenchAgentModelOptionId(
+    agentModelAccessSelectorCatalog,
     resolvedSelectedEngineId,
     currentModelId,
   );
-  const unifiedAgentModelOptions = useMemo(
-    () => unifiedAgentModelSelectorCatalog.options.map((option) => ({
-      ...option,
-      disabled:
-        option.disabled
-        || Boolean(
-          option.supportedProviderIds
-          && !option.supportedProviderIds.includes(resolvedSelectedEngineId),
-        ),
-    })),
-    [resolvedSelectedEngineId, unifiedAgentModelSelectorCatalog.options],
+  const effectiveSelectedModelAccessChannelId = resolveWorkbenchModelAccessChannelId(
+    agentModelAccessSelectorCatalog,
+    currentAgentModelOptionId,
+    resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+      resolvedSelectedEngineId,
+      preferences,
+    ),
   );
   const handleCloseComposerActionPanel = useCallback(() => {
     setShowAttachmentMenu(false);
@@ -1563,22 +1844,29 @@ export const UniversalChat = memo(function UniversalChat({
     setShowAccessModeMenu(open);
     if (open) {
       setShowAttachmentMenu(false);
-      setUnifiedAgentModelSelectorOpen(false);
+      setAgentModelAccessSelectorOpen(false);
     }
   }, []);
   const handleAttachmentMenuOpenChange = useCallback((open: boolean) => {
     setShowAttachmentMenu(open);
     if (open) {
       setShowAccessModeMenu(false);
-      setUnifiedAgentModelSelectorOpen(false);
+      setAgentModelAccessSelectorOpen(false);
     }
   }, []);
-  const handleUnifiedAgentModelSelectorOpenChange = useCallback((open: boolean) => {
-    setUnifiedAgentModelSelectorOpen(open);
+  const handleAgentModelAccessSelectorOpenChange = useCallback((open: boolean) => {
+    setAgentModelAccessSelectorOpen(open);
+    if (!open) {
+      setModelAccessSearchQuery('');
+      setModelAccessSearchSnapshot(null);
+    }
     if (open) {
       setShowAccessModeMenu(false);
       setShowAttachmentMenu(false);
     }
+  }, []);
+  const handleModelAccessSearchQueryChange = useCallback((query: string) => {
+    setModelAccessSearchQuery(query);
   }, []);
   const handleAccessModeSelect = useCallback((accessModeId: string) => {
     updatePreferences((previousPreferences) => setWorkbenchCodeEngineAccessMode(
@@ -1655,100 +1943,391 @@ export const UniversalChat = memo(function UniversalChat({
     setSelectedEngineId,
     setSelectedModelId,
   ]);
-  const handleUnifiedAgentModelSelect = useCallback(async (
-    option: UnifiedAgentModelOption,
-  ) => {
+  const handleAgentModelAccessSelect = useCallback(async (
+    selection: AgentModelAccessSelection,
+  ): Promise<AgentModelAccessSelectionOutcome> => {
+    const { channel, model, offering, offeredModel } = selection;
     if (
-      option.supportedProviderIds
-      && !option.supportedProviderIds.includes(resolvedSelectedEngineId)
+      model.supportedAgentProviderIds?.length
+      && !model.supportedAgentProviderIds.includes(resolvedSelectedEngineId)
     ) {
       throw new Error('The selected model does not support the active Agent provider.');
     }
-
-    if (option.kind === 'custom' && !option.configurationId) {
-      throw new Error('The custom model configuration is incomplete.');
+    if (
+      channel.supportedAgentProviderIds.length
+      && !channel.supportedAgentProviderIds.includes(resolvedSelectedEngineId)
+    ) {
+      throw new Error('The selected access channel does not support the active Agent provider.');
     }
 
     type SelectionInput = Parameters<
       typeof agentModelConfigurationService.applySelection
     >[0];
-    await agentModelConfigurationService.applySelection({
-      configurationId: option.configurationId,
-      engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
-      modelId: option.modelId,
-    });
-
-    applyComposerSelection(
-      resolvedSelectedEngineId,
-      option.modelId,
-      option.kind === 'custom' || Boolean(option.catalogKey),
+    const stableChannelCode = channel.code?.trim() || channel.id.trim();
+    // Platform-managed official channels (the built-in catalog) switch models
+    // directly: their credentials and endpoint are owned by the platform, so no
+    // client-side configuration is applied. Relay stations and custom official
+    // channels keep the apply-with-configuration flow so an existing saved
+    // credential is reused and a missing one surfaces as configuration-required.
+    const isPlatformManagedChannel = channel.kind === 'official'
+      && channel.isCustom !== true;
+    const channelConfigurationId = !isPlatformManagedChannel && channel.baseUrl?.trim()
+      ? stableChannelCode
+      : undefined;
+    const shouldApplyPublicChannelConfiguration = Boolean(channelConfigurationId);
+    const supportedModelIds = [...new Set(channel.offerings.flatMap(
+      (channelOffering) => channelOffering.models.map((item) => item.model.trim()),
+    ).filter(Boolean))];
+    let configurationMetadata = resolveWorkbenchAgentModelConfigurationMetadata(
+      [...effectiveModelAccessCatalogSnapshot.models, ...modelAccessFallbackModels],
+      offering.vendorCode,
+      offeredModel.model,
+      offeredModel.catalogKey,
     );
+    if (shouldApplyPublicChannelConfiguration && !configurationMetadata) {
+      const lookupSnapshot = await modelAccessCatalogService.loadCatalog({
+        fallbackModels: modelAccessFallbackModels,
+        query: offeredModel.model,
+        pageSize: 20,
+        agentProviderId: resolvedSelectedEngineId,
+      });
+      configurationMetadata = resolveWorkbenchAgentModelConfigurationMetadata(
+        [...lookupSnapshot.models, ...modelAccessFallbackModels],
+        offering.vendorCode,
+        offeredModel.model,
+        offeredModel.catalogKey,
+      );
+      if (lookupSnapshot.source === 'database') {
+        setModelAccessCatalogSnapshot((currentSnapshot) => (
+          mergeWorkbenchModelAccessCatalogSnapshot(
+            currentSnapshot ?? effectiveModelAccessCatalogSnapshot,
+            lookupSnapshot,
+          )
+        ));
+      }
+    }
+    // Metadata is optional: relay/custom channels may use models that are not
+    // (yet) in the sdkwork-models catalog, and agents apply accepts missing
+    // capability settings. Proceed with undefined metadata instead of failing.
+    const configuredProviderIds = channel.supportedAgentProviderIds.length > 0
+      ? channel.supportedAgentProviderIds
+      : agentProviderOptions.map((provider) => provider.id);
+    // The agents runtime keeps configurations in memory only, so an
+    // apply-with-configuration must carry the credential from the durable
+    // client-local store; otherwise a fresh configuration is rejected with
+    // "apiKey is required for a new model configuration".
+    const apiKey = shouldApplyPublicChannelConfiguration
+      ? (await userModelConfigService.getApiKey(stableChannelCode)) ?? undefined
+      : undefined;
+    try {
+      await agentModelConfigurationService.applySelection({
+        configurationId: channelConfigurationId,
+        engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
+        modelId: offeredModel.model,
+        ...(shouldApplyPublicChannelConfiguration ? {
+          configuration: {
+            vendorCode: offering.vendorCode,
+            baseUrl: channel.baseUrl!.trim(),
+            ...(apiKey ? { apiKey } : {}),
+            defaultModelId: offeredModel.model,
+            supportedModelIds,
+            supportedProviderIds: configuredProviderIds as NonNullable<
+              SelectionInput['configuration']
+            >['supportedProviderIds'],
+            inputContextTokens: configurationMetadata?.inputContextTokens,
+            outputContextTokens: configurationMetadata?.outputContextTokens,
+            toolCallRounds: configurationMetadata?.toolCallRounds,
+            supportsMultimodal: configurationMetadata?.supportsMultimodal ?? false,
+          },
+        } : {}),
+      });
+    } catch (error) {
+      if (error instanceof AgentModelConfigurationCredentialRequiredError) {
+        return {
+          status: 'configuration-required',
+          channelId: stableChannelCode,
+        };
+      }
+      throw error;
+    }
+
+    updatePreferences((previousPreferences) => setWorkbenchCodeEngineModelAccessChannel(
+      previousPreferences,
+      resolvedSelectedEngineId,
+      stableChannelCode,
+    ));
+    // Persist the per-engine selection for client-local channels so restarts
+    // keep the same channel/model pairing without a server round-trip.
+    if (localUserModelChannels.some((localChannel) => (
+      localChannel.code.trim().toLowerCase() === stableChannelCode.trim().toLowerCase()
+    ))) {
+      await userModelConfigService.upsertEngineSelection({
+        engineId: resolvedSelectedEngineId,
+        channelCode: stableChannelCode,
+        modelId: offeredModel.model,
+      });
+    }
+    // The model id comes from the authoritative selector catalog (built-in
+    // fallback, database, or custom), so it is adopted verbatim instead of
+    // being clamped to the engine preset whitelist.
+    applyComposerSelection(resolvedSelectedEngineId, offeredModel.model, true);
+    return undefined;
   }, [
     agentModelConfigurationService,
+    agentProviderOptions,
     applyComposerSelection,
+    localUserModelChannels,
+    modelAccessCatalogService,
+    modelAccessFallbackModels,
+    effectiveModelAccessCatalogSnapshot,
     resolvedSelectedEngineId,
+    updatePreferences,
+    userModelConfigService,
   ]);
-  const handleCreateUnifiedAgentModelConfiguration = useCallback(async (
-    draft: AgentModelConfigurationDraft,
+  const handleSaveModelAccessChannel = useCallback(async (
+    draft: ModelAccessChannelConfigurationDraft,
   ) => {
-    const availableProviderIds = new Set(unifiedAgentProviderOptions.map((provider) => provider.id));
-    const supportedProviderIds = draft.supportedProviderIds.filter(
+    const availableProviderIds = new Set(agentProviderOptions.map((provider) => provider.id));
+    const requestedProviderIds = draft.supportedAgentProviderIds.filter(
       (providerId) => availableProviderIds.has(providerId),
     );
     if (
-      supportedProviderIds.length !== draft.supportedProviderIds.length
-      || !supportedProviderIds.includes(resolvedSelectedEngineId)
+      requestedProviderIds.length !== draft.supportedAgentProviderIds.length
+      || !requestedProviderIds.includes(resolvedSelectedEngineId)
     ) {
       throw new Error('The model configuration contains an unsupported Agent provider.');
     }
+    const defaultOffering = draft.offerings.find(
+      (offering) => offering.vendorCode === draft.defaultVendorCode,
+    );
+    if (!defaultOffering?.modelIds.includes(draft.defaultModelId)) {
+      throw new Error('The default model must belong to the default vendor offering.');
+    }
+    const configurationId = draft.channelId.trim();
+    const defaultVendorCode = draft.defaultVendorCode.trim();
+    const defaultModelId = draft.defaultModelId.trim();
+    if (!configurationId || !defaultVendorCode || !defaultModelId) {
+      throw new Error('The model configuration is missing its channel identity.');
+    }
+    const supportedModelIds = [...new Set(draft.offerings.flatMap(
+      (offering) => offering.models.map((model) => model.modelId.trim()),
+    ).filter(Boolean))];
+    const supportedProviderIds = requestedProviderIds;
+    // Persist the configuration locally: the client-local sqlite store is the
+    // single source of truth, fully decoupled from the sdkwork-models server
+    // ai_resource catalog.
+    const localChannel: UserModelChannel = {
+      code: configurationId,
+      name: draft.name,
+      kind: draft.kind,
+      baseUrl: draft.baseUrl,
+      description: draft.description ?? '',
+      defaultVendorCode,
+      defaultModelId,
+      apiKeyConfigured: Boolean(draft.apiKey.trim() || draft.apiKeyConfigured),
+      sortOrder: null,
+      offerings: draft.offerings.map((offering) => ({
+        vendorCode: offering.vendorCode,
+        vendorName: offering.vendorName,
+        models: offering.models.map((model) => ({
+          modelId: model.modelId,
+          displayName: model.displayName,
+          supportsMultimodal: false,
+        })),
+      })),
+    };
+    await userModelConfigService.upsertChannel(localChannel);
+    if (draft.apiKey.trim()) {
+      await userModelConfigService.upsertApiKey(configurationId, draft.apiKey.trim());
+    }
+    // The key is persisted locally so agents apply can reuse it after restarts
+    // (the agents SecretProvider is ephemeral).
+    const apiKey = draft.apiKey.trim()
+      || (await userModelConfigService.getApiKey(configurationId)) || undefined;
+
+    const metadataLookup = await modelAccessCatalogService.loadCatalog({
+      fallbackModels: modelAccessFallbackModels,
+      query: defaultModelId,
+      pageSize: 20,
+      agentProviderId: resolvedSelectedEngineId,
+    });
+    const configurationMetadata = resolveWorkbenchAgentModelConfigurationMetadata(
+      [
+        ...metadataLookup.models,
+        ...modelAccessFallbackModels,
+        ...effectiveModelAccessCatalogSnapshot.models,
+      ],
+      defaultVendorCode,
+      defaultModelId,
+    );
+    // Metadata is optional: relay/custom channels may use models that are not
+    // (yet) in the sdkwork-models catalog, and agents apply accepts missing
+    // capability settings. Proceed with undefined metadata instead of failing.
 
     type SelectionInput = Parameters<
       typeof agentModelConfigurationService.applySelection
     >[0];
-    const appliedSelection = await agentModelConfigurationService.applySelection({
-      configurationId: draft.configurationId,
+    const typedSupportedProviderIds = supportedProviderIds as NonNullable<
+      SelectionInput['configuration']
+    >['supportedProviderIds'];
+    const configuration = {
+      vendorCode: defaultVendorCode,
+      baseUrl: localChannel.baseUrl,
+      apiKey,
+      defaultModelId,
+      supportedModelIds,
+      supportedProviderIds: typedSupportedProviderIds,
+      inputContextTokens: configurationMetadata?.inputContextTokens,
+      outputContextTokens: configurationMetadata?.outputContextTokens,
+      toolCallRounds: configurationMetadata?.toolCallRounds,
+      supportsMultimodal: configurationMetadata?.supportsMultimodal ?? false,
+    };
+    const appliedConfigurations = [];
+    for (const providerId of typedSupportedProviderIds) {
+      appliedConfigurations.push(await agentModelConfigurationService.apply({
+        ...configuration,
+        configurationId,
+        engineId: providerId,
+      }));
+    }
+    await agentModelConfigurationService.applySelection({
+      configurationId,
       engineId: resolvedSelectedEngineId as SelectionInput['engineId'],
-      modelId: draft.defaultModelId,
-      configuration: {
-        vendorCode: draft.vendorCode,
-        baseUrl: draft.baseUrl,
-        apiKey: draft.apiKey,
-        defaultModelId: draft.defaultModelId,
-        supportedModelIds: draft.supportedModelIds,
-        supportedProviderIds: supportedProviderIds as NonNullable<
-          SelectionInput['configuration']
-        >['supportedProviderIds'],
-        inputContextTokens: draft.inputContextTokens,
-        outputContextTokens: draft.outputContextTokens,
-        toolCallRounds: draft.toolCallRounds,
-        supportsMultimodal: draft.supportsMultimodal,
-      },
+      modelId: defaultModelId,
+    });
+    const activeConfiguration = appliedConfigurations.find(
+      (item) => item.engineId === resolvedSelectedEngineId,
+    );
+    const apiKeyConfigured = activeConfiguration?.apiKeyConfigured
+      ?? Boolean(apiKey)
+      ?? draft.apiKeyConfigured;
+    const appliedAt = new Date().toISOString();
+    for (const providerId of typedSupportedProviderIds) {
+      await userModelConfigService.upsertEngineConfig({
+        engineId: providerId,
+        channelCode: configurationId,
+        vendorCode: defaultVendorCode,
+        baseUrl: localChannel.baseUrl,
+        defaultModelId,
+        supportedModelIds,
+        supportedProviderIds: typedSupportedProviderIds,
+        inputContextTokens: configurationMetadata?.inputContextTokens,
+        outputContextTokens: configurationMetadata?.outputContextTokens,
+        toolCallRounds: configurationMetadata?.toolCallRounds,
+        supportsMultimodal: configurationMetadata?.supportsMultimodal ?? false,
+        apiKeyConfigured,
+        appliedAt,
+      });
+    }
+    await userModelConfigService.upsertEngineSelection({
+      engineId: resolvedSelectedEngineId,
+      channelCode: configurationId,
+      modelId: defaultModelId,
     });
 
-    updatePreferences((previousPreferences) => saveWorkbenchUnifiedCustomAgentModel(
-      previousPreferences,
-      {
-        activeProviderId: resolvedSelectedEngineId,
-        configurationId: draft.configurationId,
-        modelId: draft.defaultModelId,
-        vendorCode: draft.vendorCode,
-        baseUrl: draft.baseUrl,
-        supportedModelIds: draft.supportedModelIds,
-        supportedProviderIds,
-        inputContextTokens: draft.inputContextTokens,
-        outputContextTokens: draft.outputContextTokens,
-        toolCallRounds: draft.toolCallRounds,
-        supportsMultimodal: draft.supportsMultimodal,
-        apiKeyConfigured: appliedSelection.configurationApplied?.apiKeyConfigured ?? false,
-      },
+    const projectedChannel = toModelAccessCatalogChannel({
+      ...localChannel,
+      apiKeyConfigured,
+    });
+    setLocalUserModelChannels((current) => {
+      const without = current.filter((channel) => channel.code !== configurationId);
+      return [...without, { ...localChannel, apiKeyConfigured }];
+    });
+    setModelAccessCatalogSnapshot((currentSnapshot) => (
+      mergeWorkbenchModelAccessCatalogSnapshot(
+        currentSnapshot ?? effectiveModelAccessCatalogSnapshot,
+        // An empty authoritative query result must not wipe the fallback
+        // catalog: only merge the lookup when it actually returned models.
+        metadataLookup.models.length > 0
+          ? metadataLookup
+          : { models: [], accessChannels: [], source: 'fallback' },
+        projectedChannel,
+      )
     ));
-    applyComposerSelection(resolvedSelectedEngineId, draft.defaultModelId, true);
+    updatePreferences((previousPreferences) => setWorkbenchCodeEngineModelAccessChannel(
+      previousPreferences,
+      resolvedSelectedEngineId,
+      configurationId,
+    ));
+    applyComposerSelection(resolvedSelectedEngineId, defaultModelId, true);
+  }, [
+    agentModelConfigurationService,
+    agentProviderOptions,
+    applyComposerSelection,
+    modelAccessCatalogService,
+    modelAccessFallbackModels,
+    effectiveModelAccessCatalogSnapshot,
+    resolvedSelectedEngineId,
+    updatePreferences,
+    userModelConfigService,
+  ]);
+  const handleDeleteModelAccessChannel = useCallback(async (channel: ModelAccessChannel) => {
+    const stableChannelCode = channel.code?.trim() || channel.id.trim();
+    if (!stableChannelCode) {
+      return;
+    }
+    // Remove from the client-local sqlite store; the database cascades the
+    // key, engine configurations, and engine selections.
+    await userModelConfigService.deleteChannel(stableChannelCode);
+    setLocalUserModelChannels((current) => (
+      current.filter((localChannel) => localChannel.code !== stableChannelCode)
+    ));
+    setModelAccessCatalogSnapshot((currentSnapshot) => {
+      if (!currentSnapshot) {
+        return currentSnapshot;
+      }
+      return {
+        ...currentSnapshot,
+        accessChannels: currentSnapshot.accessChannels.filter((channelEntry) => (
+          (channelEntry.code || channelEntry.id).trim().toLowerCase()
+          !== stableChannelCode.trim().toLowerCase()
+        )),
+      };
+    });
+    updatePreferences((previousPreferences) => {
+      const engineSettings = { ...previousPreferences.codeEngineSettings };
+      let changed = false;
+      for (const engineId of Object.keys(engineSettings)) {
+        const settings = engineSettings[engineId];
+        if (settings?.modelAccessChannelId?.trim().toLowerCase()
+          === stableChannelCode.trim().toLowerCase()) {
+          engineSettings[engineId] = { ...settings, modelAccessChannelId: undefined };
+          changed = true;
+        }
+      }
+      return changed ? { ...previousPreferences, codeEngineSettings: engineSettings } : previousPreferences;
+    });
+    // The deleted channel may still be bound in the agents runtime (its
+    // configuration is in-memory). Unbind it best-effort and fall back to the
+    // engine's default model so a deleted credential is never reused.
+    const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+      resolvedSelectedEngineId,
+      preferences,
+    )?.trim().toLowerCase();
+    if (preferenceChannelId === stableChannelCode.trim().toLowerCase()) {
+      const fallbackModelId = resolveWorkbenchCodeEngineSelectedModelId(
+        resolvedSelectedEngineId,
+        preferences,
+      );
+      try {
+        await agentModelConfigurationService.applySelection({
+          engineId: resolvedSelectedEngineId as Parameters<
+            typeof agentModelConfigurationService.applySelection
+          >[0]['engineId'],
+          modelId: fallbackModelId,
+        });
+      } catch (error) {
+        console.warn('Failed to unbind the deleted model access channel.', error);
+      }
+      applyComposerSelection(resolvedSelectedEngineId, fallbackModelId);
+    }
   }, [
     agentModelConfigurationService,
     applyComposerSelection,
+    preferences,
     resolvedSelectedEngineId,
-    unifiedAgentProviderOptions,
     updatePreferences,
+    userModelConfigService,
   ]);
   const handleNewSessionProviderSelect = useCallback((engineId: string) => {
     const modelId = resolveWorkbenchCodeEngineSelectedModelId(
@@ -3166,7 +3745,7 @@ export const UniversalChat = memo(function UniversalChat({
   const hasOpenComposerMenu =
     showAttachmentMenu
     || showAccessModeMenu
-    || isUnifiedAgentModelSelectorOpen
+    || isAgentModelAccessSelectorOpen
     || showPromptModal;
 
   const handleFloatingMenuClickOutside = useCallback(
@@ -3212,8 +3791,8 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (isUnifiedAgentModelSelectorOpen) {
-      setUnifiedAgentModelSelectorOpen(false);
+    if (isAgentModelAccessSelectorOpen) {
+      setAgentModelAccessSelectorOpen(false);
     }
 
     if (showAttachmentMenu) {
@@ -3229,7 +3808,7 @@ export const UniversalChat = memo(function UniversalChat({
     }
   }, [
     isActive,
-    isUnifiedAgentModelSelectorOpen,
+    isAgentModelAccessSelectorOpen,
     showAccessModeMenu,
     showAttachmentMenu,
     showPromptModal,
@@ -3987,30 +4566,34 @@ export const UniversalChat = memo(function UniversalChat({
               isStoppingTurn={isStoppingTurn}
               isStopTurnConfirmationVisible={isStopTurnConfirmationVisible}
               isUploadingAttachments={hasUploadingComposerAttachments}
-              unifiedAgentModelOptions={unifiedAgentModelOptions}
-              unifiedAgentProviderOptions={unifiedAgentProviderOptions}
+              agentModelOptions={agentModelAccessSelectorCatalog.models}
+              agentProviderOptions={agentProviderOptions}
+              modelAccessChannels={agentModelAccessSelectorCatalog.accessChannels}
               onAccessModeMenuOpenChange={handleAccessModeMenuOpenChange}
               onAttachmentMenuOpenChange={handleAttachmentMenuOpenChange}
               onFileUpload={handleFileUpload}
               onFolderUpload={handleFolderUpload}
               onImageUpload={handleImageUpload}
-              onCreateUnifiedAgentModelConfiguration={
-                handleCreateUnifiedAgentModelConfiguration
-              }
-              onSelectUnifiedAgentModel={handleUnifiedAgentModelSelect}
+              onCreateModelAccessChannel={handleSaveModelAccessChannel}
+              onDeleteModelAccessChannel={handleDeleteModelAccessChannel}
+              onModelAccessSearchQueryChange={handleModelAccessSearchQueryChange}
+              onSelectAgentModelAccess={handleAgentModelAccessSelect}
+              onUpdateModelAccessChannel={handleSaveModelAccessChannel}
               onSelectAccessMode={handleAccessModeSelect}
               onSend={handleSend}
               onStopTurn={handleStopTurn}
               onToggleVoiceInput={toggleVoiceInput}
               selectedAccessModeId={currentAccessModeId}
               selectedModelLabel={currentComposerModelLabel}
-              selectedUnifiedAgentModelOptionId={currentUnifiedAgentModelOptionId}
+              selectedAgentModelOptionId={currentAgentModelOptionId}
+              selectedModelAccessChannelId={effectiveSelectedModelAccessChannelId}
               selectedModelSummary={currentEngineSummary}
-              onUnifiedAgentModelSelectorOpenChange={
-                handleUnifiedAgentModelSelectorOpenChange
+              onAgentModelAccessSelectorOpenChange={
+                handleAgentModelAccessSelectorOpenChange
               }
-              isUnifiedAgentModelSelectorOpen={isUnifiedAgentModelSelectorOpen}
-              showUnifiedAgentModelSelector={showComposerEngineSelector}
+              isAgentModelAccessSelectorOpen={isAgentModelAccessSelectorOpen}
+              isModelAccessSearchLoading={isModelAccessSearchLoading}
+              showAgentModelAccessSelector={showComposerEngineSelector}
             />
             </UniversalChatComposerChrome>
           </div>

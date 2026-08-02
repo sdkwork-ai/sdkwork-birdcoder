@@ -153,7 +153,7 @@ function services(
 }
 
 describe('manual Project Session refresh', () => {
-  it('loads the complete canonical activity snapshot without triggering Provider discovery', async () => {
+  it('synchronizes Provider inventory before loading the complete canonical activity snapshot', async () => {
     const dependencies = services(project(), (request) => {
       if (request.cursor === undefined) {
         return cursorPage([summary('session.codex')], {
@@ -176,7 +176,16 @@ describe('manual Project Session refresh', () => {
       projectService: dependencies.projectService,
     });
 
-    expect(dependencies.synchronizeProjectSessions).not.toHaveBeenCalled();
+    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledWith(
+      PROJECT_ID,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(
+      dependencies.synchronizeProjectSessions.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      dependencies.listSessionActivitySummaries.mock.invocationCallOrder[0],
+    );
     expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(3);
     expect(dependencies.listSessionActivitySummaries.mock.calls.map(([request]) => request))
       .toEqual([
@@ -186,6 +195,10 @@ describe('manual Project Session refresh', () => {
       ]);
     expect(dependencies.listSessionsByProject).not.toHaveBeenCalled();
     expect(result.status).toBe('refreshed');
+    expect(result.providerSynchronization).toEqual({
+      projectId: PROJECT_ID,
+      synchronizedSessionCount: '2',
+    });
     expect(result.sessionIds).toEqual(['session.codex', 'session.claude', 'session.gemini']);
     expect(result.projects?.[0]?.agentSessions.map((candidate) => candidate.id)).toEqual([
       'session.codex',

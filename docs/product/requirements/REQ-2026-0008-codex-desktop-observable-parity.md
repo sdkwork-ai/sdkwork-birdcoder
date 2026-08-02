@@ -4,7 +4,7 @@ Status: in-progress
 Owner: SDKWork maintainers
 Source: customer
 Priority: P0
-Updated: 2026-08-01
+Updated: 2026-08-02
 Specs: REQUIREMENTS_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, APP_PC_REACT_UI_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, FRONTEND_SPEC.md, UI_ARCHITECTURE_SPEC.md, TYPESCRIPT_CODE_SPEC.md, SECURITY_SPEC.md, TEST_SPEC.md
 
 ## Problem
@@ -109,6 +109,19 @@ evidence of product parity.
     `aligned-and-verified`, every presentation fixture has evidence, the real
     provider E2E is passed, and no open blocker or human-review gate remains.
     Partial feature completion never changes the overall goal to complete.
+14. For every project directory bound on the desktop device, the per-project
+    Session list contains exactly the provider Sessions created inside that
+    directory (codex/opencode/claude-code; top-level Sessions only, no
+    subagent turns), ordered by recency with provider directory titles and
+    previews, and selecting a Session rehydrates its message list from the
+    provider's official SDK with bounded cursor pagination and strict
+    descending sequence. Project directories are resolved from the device
+    mount table, never from the service process cwd; a project deleted and
+    re-imported under a new id (stale mount projectId) resolves to the same
+    desktop root without producing an empty or cross-project Session list.
+    Synchronization is idempotent: re-running a project Session synchronize
+    converges to the provider inventory without duplicates or unique-key
+    failures.
 
 ## Non-Functional Requirements
 
@@ -139,6 +152,9 @@ node scripts/codex-desktop-parity-contract.test.mjs
 pnpm check:provider-protocols
 pnpm check:agents-birdcoder-alignment
 pnpm check:kernel-birdcoder-alignment
+cargo test -p sdkwork-intelligence-agents-service --lib
+cargo test -p sdkwork-birdcoder-tauri-host --lib
+node ../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.test.mjs
 pnpm --dir apps/sdkwork-birdcoder-pc typecheck
 pnpm --dir apps/sdkwork-birdcoder-pc test:e2e
 pnpm lint

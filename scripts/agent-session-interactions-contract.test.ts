@@ -62,13 +62,16 @@ assert.deepEqual(
   mapAgentSessionPendingInteractions([approval, resolvedApproval, question]),
   {
     approvals: [{
+      createdAt: '2026-07-22T01:02:00.000Z',
       interactionId: 'approval-1',
       prompt: 'Approve the patch?',
+      request: undefined,
       runtimeBindingId: undefined,
       sessionId: 'agent-session-interactions-contract',
       turnId: undefined,
     }],
     questions: [{
+      createdAt: '2026-07-22T01:01:00.000Z',
       interactionId: 'question-1',
       prompt: 'Which verification profile should run?',
       questions: [{
@@ -78,6 +81,7 @@ assert.deepEqual(
           { label: 'Release', value: 'release' },
         ],
       }],
+      request: undefined,
       runtimeBindingId: undefined,
       sessionId: 'agent-session-interactions-contract',
       turnId: undefined,

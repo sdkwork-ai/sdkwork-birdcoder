@@ -23,6 +23,7 @@ sdkwork_iam_web_adapter.workspace = true
 sdkwork-api-birdcoder-assembly.workspace = true
 sdkwork-api-iam-assembly.workspace = true
 sdkwork-api-agents-assembly.workspace = true
+sdkwork-api-models-assembly.workspace = true
 sdkwork-agents-runtime-facade.workspace = true
 sdkwork-api-documents-assembly.workspace = true
 sdkwork-api-drive-assembly.workspace = true

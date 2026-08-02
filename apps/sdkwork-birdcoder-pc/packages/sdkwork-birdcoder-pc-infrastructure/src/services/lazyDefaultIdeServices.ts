@@ -11,6 +11,12 @@ import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipServ
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
 import { AgentsSdkAutomationService } from './impl/AgentsSdkAutomationService.ts';
 import { AgentsSdkModelConfigurationService } from './agentsModelConfigurationService.ts';
+import { ModelsSdkModelAccessCatalogService } from './impl/ModelsSdkModelAccessCatalogService.ts';
+import { isBirdCoderTauriRuntime } from '../platform/tauriRuntime.ts';
+import {
+  InMemoryUserModelConfigService,
+  TauriUserModelConfigService,
+} from './userModelConfigService.ts';
 
 export type {
   BirdCoderDefaultIdeServiceKey,
@@ -54,6 +60,12 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return new AgentsSdkAutomationService(runtime.agentsClient);
       case 'agentModelConfigurationService':
         return new AgentsSdkModelConfigurationService(runtime.agentsClient);
+      case 'userModelConfigService':
+        return isBirdCoderTauriRuntime()
+          ? new TauriUserModelConfigService()
+          : new InMemoryUserModelConfigService();
+      case 'modelAccessCatalogService':
+        return new ModelsSdkModelAccessCatalogService(runtime.modelsClient);
       case 'agentSessionService':
         return new BirdCoderAgentSessionService({
           client: runtime.agentsClient,

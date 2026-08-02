@@ -1651,6 +1651,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     let content = '';
     let didNotifyAccepted = false;
     let didNotifyDeliveryUncertain = false;
+    let didObserveStreamEvent = false;
     let expectedDeltaIndex = 0;
     let expectedRuntimeEventSequence = 0;
     const runtimeEventBudget = createAgentTurnRuntimeEventBudget();
@@ -1686,6 +1687,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
         toApiRequestOptions(options),
       );
       for await (const event of events) {
+        didObserveStreamEvent = true;
         if (completion) {
           throw new Error('Agents turn stream emitted an event after completion.');
         }
@@ -1752,7 +1754,10 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       const clientWithHttp = this.client as AgentsAppSdkClient & {
         http?: { request?: unknown };
       };
-      if (typeof clientWithHttp.http?.request === 'function') {
+      if (
+        !didObserveStreamEvent
+        && typeof clientWithHttp.http?.request === 'function'
+      ) {
         try {
           completion = await completeAgentTurn(
             this.client,

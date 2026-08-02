@@ -748,6 +748,7 @@ export function toAgentSessionItemView(
         ? { providerMessageCompleted: providerPayload.messageCompleted }
         : {}),
       ...(feedbackRating ? { assistantRating: feedbackRating } : {}),
+      ...(userContent?.source ? { providerUserMessageSource: userContent.source } : {}),
       ...transcriptMetadata,
     },
     createdAt: item.createdAt,

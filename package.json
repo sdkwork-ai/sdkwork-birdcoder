@@ -244,10 +244,10 @@
   "dependencies": {
     "@babel/runtime": "catalog:",
     "@sdkwork/app-topology": "workspace:*",
-    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
-    "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
     "@tauri-apps/api": "catalog:",
@@ -269,10 +269,10 @@
     "void-elements": "^3.1.0"
   },
   "devDependencies": {
-    "@sdkwork/iam-credential-entry": "workspace:*",
     "@playwright/test": "catalog:",
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@sdkwork/utils": "workspace:*",
-    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "catalog:",
     "@types/express": "^4.17.21",
     "@types/node": "catalog:",

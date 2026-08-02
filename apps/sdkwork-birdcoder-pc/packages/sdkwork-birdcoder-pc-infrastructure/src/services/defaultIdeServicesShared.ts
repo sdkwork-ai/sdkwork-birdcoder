@@ -3,6 +3,7 @@ import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/d
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
 import type { SdkworkSkillsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 import type { McpAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/mcp-app';
+import type { ModelsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/models-app';
 
 import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
 import { createBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
@@ -30,6 +31,8 @@ import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IAgentWorkspaceService } from './interfaces/IAgentWorkspaceService.ts';
 import type { IAgentAutomationService } from './interfaces/IAgentAutomationService.ts';
 import type { IAgentModelConfigurationService } from './interfaces/IAgentModelConfigurationService.ts';
+import type { IUserModelConfigService } from './interfaces/IUserModelConfigService.ts';
+import type { IModelAccessCatalogService } from './interfaces/IModelAccessCatalogService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
@@ -38,10 +41,13 @@ import { createProjectFileSystemService } from './projectFileSystemServiceFactor
 import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
 import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
 import { createBirdCoderMcpAppSdkClient } from './mcpSdkClient.ts';
+import { createBirdCoderModelsAppSdkClient } from './modelsAppSdkClient.ts';
 
 export interface BirdCoderDefaultIdeServices {
   agentAutomationService: IAgentAutomationService;
   agentModelConfigurationService: IAgentModelConfigurationService;
+  userModelConfigService: IUserModelConfigService;
+  modelAccessCatalogService: IModelAccessCatalogService;
   agentSessionService: IAgentSessionService;
   applicationPublishService: IApplicationPublishService;
   authService: IAuthService;
@@ -63,6 +69,7 @@ export interface CreateBirdCoderDefaultIdeServicesOptions {
   documentsClient?: SdkworkDocumentsAppClient;
   gitService?: IGitService;
   mcpClient?: McpAppSdkClient;
+  modelsClient?: ModelsAppSdkClient;
   promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
 }
@@ -75,6 +82,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   fileSystemService: IFileSystemService;
   gitService: IGitService;
   mcpClient: McpAppSdkClient;
+  modelsClient: ModelsAppSdkClient;
   promptsClient: SdkworkPromptsAppClient;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectDeviceMountRegistry: ProjectDeviceMountRegistry;
@@ -104,6 +112,11 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const mcpClient =
     options.mcpClient ??
     createBirdCoderMcpAppSdkClient({
+      platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+    });
+  const modelsClient =
+    options.modelsClient ??
+    createBirdCoderModelsAppSdkClient({
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     });
   const promptsClient =
@@ -174,6 +187,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     fileSystemService,
     gitService,
     mcpClient,
+    modelsClient,
     promptsClient,
     projectRuntimeLocationService,
     projectDeviceMountRegistry,

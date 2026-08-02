@@ -293,7 +293,7 @@ async function assertVisualLayout(page: Page): Promise<void> {
 
 const visualCases = [
   {
-    interactions: [approvalFixture, questionFixture],
+    interactions: [approvalFixture],
     name: 'desktop',
     snapshot: 'codex-session-desktop-1440x900.png',
     viewport: { height: 900, width: 1_440 },
@@ -408,10 +408,12 @@ for (const visualCase of visualCases) {
 
     const pendingInteractions = page.locator('[data-chat-pending-interactions="true"]');
     await expect(pendingInteractions).toHaveCount(1);
-    await expect(pendingInteractions).toContainText('How should the Codex Session continue?');
     if (visualCase.name === 'desktop') {
       await expect(pendingInteractions).toContainText(
         'Approve the Codex visual parity file change.',
+      );
+      await expect(pendingInteractions).not.toContainText(
+        'How should the Codex Session continue?',
       );
       const approvalSurface = pendingInteractions.locator(
         '[data-codex-approval-surface="true"]',
@@ -426,6 +428,13 @@ for (const visualCase of visualCases) {
       await expect(allowOnceButton.locator('svg')).toHaveCount(0);
       await expect(approvalSurface.getByPlaceholder('Optional reason...')).toHaveCount(0);
       await expect(approvalSurface.getByRole('button', { name: 'Block' })).toHaveCount(0);
+    } else {
+      await expect(pendingInteractions).toContainText(
+        'How should the Codex Session continue?',
+      );
+      await expect(pendingInteractions).not.toContainText(
+        'Approve the Codex visual parity file change.',
+      );
     }
     await expect(pendingInteractions.locator('[data-user-input-auto-resolution]')).toHaveCount(0);
     await expect(

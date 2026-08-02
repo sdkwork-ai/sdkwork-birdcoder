@@ -559,6 +559,17 @@ pub fn run() {
             desktop_session_attachment_acknowledge,
             desktop_session_resize,
             desktop_session_terminate,
+            user_model_config_list_channels,
+            user_model_config_get_channel,
+            user_model_config_upsert_channel,
+            user_model_config_delete_channel,
+            user_model_config_get_api_key,
+            user_model_config_upsert_api_key,
+            user_model_config_list_engine_configs,
+            user_model_config_upsert_engine_config,
+            user_model_config_list_engine_selections,
+            user_model_config_get_engine_selection,
+            user_model_config_upsert_engine_selection,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build SDKWork BirdCoder desktop")
@@ -568,3 +579,61 @@ pub fn run() {
             }
         });
 }
+
+/// Wraps the tauri host user model config commands so the desktop surface
+/// exposes them under the same names the webview invokes.
+#[tauri::command]
+async fn user_model_config_list_channels() -> Result<Vec<sdkwork_models_user_config_repository_sqlx::UserModelChannel>, String> {
+    host::user_model_config_list_channels().await
+}
+
+#[tauri::command]
+async fn user_model_config_get_channel(code: String) -> Result<Option<sdkwork_models_user_config_repository_sqlx::UserModelChannel>, String> {
+    host::user_model_config_get_channel(code).await
+}
+
+#[tauri::command]
+async fn user_model_config_upsert_channel(channel: sdkwork_models_user_config_repository_sqlx::UserModelChannel) -> Result<(), String> {
+    host::user_model_config_upsert_channel(channel).await
+}
+
+#[tauri::command]
+async fn user_model_config_delete_channel(code: String) -> Result<(), String> {
+    host::user_model_config_delete_channel(code).await
+}
+
+#[tauri::command]
+async fn user_model_config_get_api_key(channel_code: String) -> Result<Option<String>, String> {
+    host::user_model_config_get_api_key(channel_code).await
+}
+
+#[tauri::command]
+async fn user_model_config_upsert_api_key(channel_code: String, api_key: String) -> Result<(), String> {
+    host::user_model_config_upsert_api_key(channel_code, api_key).await
+}
+
+#[tauri::command]
+async fn user_model_config_list_engine_configs(engine_id: Option<String>) -> Result<Vec<sdkwork_models_user_config_repository_sqlx::UserModelEngineConfig>, String> {
+    host::user_model_config_list_engine_configs(engine_id).await
+}
+
+#[tauri::command]
+async fn user_model_config_upsert_engine_config(config: sdkwork_models_user_config_repository_sqlx::UserModelEngineConfig) -> Result<(), String> {
+    host::user_model_config_upsert_engine_config(config).await
+}
+
+#[tauri::command]
+async fn user_model_config_list_engine_selections() -> Result<Vec<sdkwork_models_user_config_repository_sqlx::UserModelEngineSelection>, String> {
+    host::user_model_config_list_engine_selections().await
+}
+
+#[tauri::command]
+async fn user_model_config_get_engine_selection(engine_id: String) -> Result<Option<sdkwork_models_user_config_repository_sqlx::UserModelEngineSelection>, String> {
+    host::user_model_config_get_engine_selection(engine_id).await
+}
+
+#[tauri::command]
+async fn user_model_config_upsert_engine_selection(selection: sdkwork_models_user_config_repository_sqlx::UserModelEngineSelection) -> Result<(), String> {
+    host::user_model_config_upsert_engine_selection(selection).await
+}
+

@@ -6,6 +6,8 @@ export default defineLocaleModule('settings/extra', {
       navigationLabel: '\u8bbe\u7f6e\u5bfc\u822a',
       searchPlaceholder: '\u641c\u7d22\u8bbe\u7f6e...',
       clearSearch: '\u6e05\u9664\u8bbe\u7f6e\u641c\u7d22',
+      collapseNavigation: '\u6536\u8d77\u8bbe\u7f6e\u5bfc\u822a',
+      expandNavigation: '\u5c55\u5f00\u8bbe\u7f6e\u5bfc\u822a',
       noResults: '\u6ca1\u6709\u5339\u914d\u7684\u8bbe\u7f6e',
       groups: {
         personal: '\u4e2a\u4eba',
@@ -14,6 +16,7 @@ export default defineLocaleModule('settings/extra', {
         archive: '\u5df2\u5f52\u6863',
       },
       codeEngines: '代码引擎与模型',
+      modelManagement: '模型管理',
       appearance: '外观',
       voice: '\u8bed\u97f3',
       shortcuts: '\u952e\u76d8\u5feb\u6377\u952e',

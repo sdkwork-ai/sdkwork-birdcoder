@@ -40,9 +40,16 @@ const CODEX_FILE_INPUT_TYPES = new Set([
   'inputfile',
 ]);
 
+export interface AgentSessionUserContentSourceView {
+  kind: 'codex-delegation' | 'automation-heartbeat';
+  sourceSessionId?: string;
+  automationId?: string;
+}
+
 export interface AgentSessionUserContentProjection {
   content: string;
   resources: AgentSessionItemResourceView[];
+  source?: AgentSessionUserContentSourceView;
 }
 
 export interface AgentSessionUserContentProviderIdentity {
@@ -61,6 +68,87 @@ interface AgentSessionUserContentRecord {
 
 interface CodexTextProjection extends AgentSessionUserContentProjection {
   handled: boolean;
+}
+
+const CODEX_DELEGATION_OPEN_TAG = '<codex_delegation>';
+const CODEX_DELEGATION_CLOSE_TAG = '</codex_delegation>';
+
+function decodeCodexXmlEntities(value: string): string {
+  return value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&');
+}
+
+function readCodexXmlTag(value: string, tag: string): string | null {
+  const pattern = new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'iu');
+  const match = pattern.exec(value);
+  return match?.[1] == null ? null : decodeCodexXmlEntities(match[1]).trim();
+}
+
+/**
+ * Recognizes the Codex desktop `<codex_delegation>` envelope that wraps a
+ * prompt delegated from another Codex task. The rendered content is the
+ * delegated `input`; the source thread identity becomes a label
+ * ("Sent by Codex from another chat") instead of leaking raw XML.
+ */
+export function resolveCodexDelegationSource(
+  value: string,
+): { sourceSessionId: string; input: string } | null {
+  const text = value.trim();
+  if (
+    !text.startsWith(CODEX_DELEGATION_OPEN_TAG)
+    || !text.endsWith(CODEX_DELEGATION_CLOSE_TAG)
+  ) {
+    return null;
+  }
+  const sourceSessionId = readCodexXmlTag(text, 'source_thread_id');
+  const input = readCodexXmlTag(text, 'input');
+  return sourceSessionId && input ? { sourceSessionId, input } : null;
+}
+
+const CODEX_HEARTBEAT_OPEN_TAG = '<heartbeat>';
+const CODEX_HEARTBEAT_CLOSE_TAG = '</heartbeat>';
+const CODEX_HEARTBEAT_BLOCK_PATTERN = /<heartbeat>[\s\S]*?<\/heartbeat>/giu;
+
+export interface CodexHeartbeatSourceView {
+  automationId?: string;
+  instructions: string;
+}
+
+/**
+ * Recognizes the Codex desktop `<heartbeat>` envelope used by scheduled task
+ * triggers. The rendered content is the heartbeat `instructions`; the
+ * automation identity becomes a label ("Sent by scheduled task").
+ */
+export function resolveCodexHeartbeatSource(
+  value: string,
+): CodexHeartbeatSourceView | null {
+  const text = value.trim();
+  if (
+    !text.startsWith(CODEX_HEARTBEAT_OPEN_TAG)
+    || !text.endsWith(CODEX_HEARTBEAT_CLOSE_TAG)
+  ) {
+    return null;
+  }
+  const instructions = readCodexXmlTag(text, 'instructions');
+  if (!instructions) {
+    return null;
+  }
+  const automationId = readCodexXmlTag(text, 'automation_id');
+  return {
+    instructions,
+    ...(automationId ? { automationId } : {}),
+  };
+}
+
+/**
+ * Strips inline `<heartbeat>...</heartbeat>` blocks from a user message and
+ * returns the remaining text, or null when no heartbeat block was present.
+ */
+export function stripCodexInlineHeartbeatBlocks(value: string): string | null {
+  const stripped = value.replace(CODEX_HEARTBEAT_BLOCK_PATTERN, '').trim();
+  return stripped === value.trim() ? null : stripped;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -480,6 +568,39 @@ function resolveCodexTextProjection(
   textIndex: number,
 ): CodexTextProjection {
   const text = value.trim();
+  const delegation = resolveCodexDelegationSource(text);
+  if (delegation) {
+    return {
+      content: delegation.input,
+      handled: true,
+      resources: [],
+      source: {
+        kind: 'codex-delegation',
+        sourceSessionId: delegation.sourceSessionId,
+      },
+    };
+  }
+  const heartbeat = resolveCodexHeartbeatSource(text);
+  if (heartbeat) {
+    return {
+      content: heartbeat.instructions,
+      handled: true,
+      resources: [],
+      source: {
+        kind: 'automation-heartbeat',
+        ...(heartbeat.automationId ? { automationId: heartbeat.automationId } : {}),
+      },
+    };
+  }
+  const strippedHeartbeat = stripCodexInlineHeartbeatBlocks(text);
+  if (strippedHeartbeat !== null) {
+    return {
+      content: strippedHeartbeat || text,
+      handled: true,
+      resources: [],
+      source: { kind: 'automation-heartbeat' },
+    };
+  }
   const mediaPlaceholder = resolveCodexMediaPlaceholder(text, itemId, textIndex);
   if (mediaPlaceholder) {
     return mediaPlaceholder;
@@ -665,11 +786,19 @@ export function resolveAgentSessionUserContent(
   if (!parts) {
     if (item.kind === 'user_input') {
       const projection = resolveCodexTextProjection(rawContent, item.itemId, 0);
-      return { content: projection.content, resources: projection.resources };
+      return {
+        content: projection.content,
+        resources: projection.resources,
+        ...(projection.source ? { source: projection.source } : {}),
+      };
     }
     const projection = resolveCodexTextProjection(rawContent, item.itemId, 0);
     if (projection.handled) {
-      return { content: projection.content, resources: projection.resources };
+      return {
+        content: projection.content,
+        resources: projection.resources,
+        ...(projection.source ? { source: projection.source } : {}),
+      };
     }
     const resource = resolveCodexArtifactFallback(item);
     return resource ? { content: '', resources: [resource] } : null;
@@ -677,6 +806,7 @@ export function resolveAgentSessionUserContent(
 
   const textSegments: string[] = [];
   const resources: AgentSessionItemResourceView[] = [];
+  let contentSource: AgentSessionUserContentSourceView | undefined;
   parts.slice(0, MAX_CODEX_USER_CONTENT_PARTS).forEach((part, index) => {
     if (!isRecord(part)) {
       return;
@@ -689,6 +819,7 @@ export function resolveAgentSessionUserContent(
         if (projection.content) {
           textSegments.push(projection.content);
         }
+        contentSource ??= projection.source;
         resources.push(...projection.resources.slice(
           0,
           Math.max(0, MAX_AGENT_SESSION_ITEM_RESOURCES - resources.length),
@@ -715,5 +846,6 @@ export function resolveAgentSessionUserContent(
   return {
     content: textSegments.join('\n'),
     resources: coalesceCodexUserContentResources(resources),
+    ...(contentSource ? { source: contentSource } : {}),
   };
 }

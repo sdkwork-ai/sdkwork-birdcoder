@@ -133,9 +133,9 @@ test('Codex canonical Session claims and resolves pending interactions', async (
       kind: 'approval',
       prompt: 'Allow Codex to run the focused verification command?',
       providerInteractionId: 'provider-interaction.codex-approval-e2e',
-      requestedAt: '2026-01-01T00:21:00.000Z',
+      requestedAt: '2026-01-01T00:21:02.000Z',
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
-      turnId: 'turn.e2e-codex-interactions',
+      turnId: 'turn.e2e-codex-legacy-approval',
     }),
     createPendingInteraction(request, authenticatedSession.accessToken, {
       interactionId: questionInteractionId,
@@ -146,16 +146,16 @@ test('Codex canonical Session claims and resolves pending interactions', async (
       ],
       prompt: 'Which verification mode should Codex use?',
       providerInteractionId: 'provider-interaction.codex-question-e2e',
-      requestedAt: '2026-01-01T00:21:01.000Z',
+      requestedAt: '2026-01-01T00:21:00.000Z',
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
-      turnId: 'turn.e2e-codex-interactions',
+      turnId: 'turn.e2e-codex-legacy-question',
     }),
     createPendingInteraction(request, authenticatedSession.accessToken, {
       interactionId: typedApprovalInteractionId,
       kind: 'approval',
       prompt: 'Allow Codex to run the typed verification command?',
       providerInteractionId: 'provider-interaction.codex-typed-approval-e2e',
-      requestedAt: '2026-01-01T00:21:02.000Z',
+      requestedAt: '2026-01-01T00:21:03.000Z',
       request: {
         schemaVersion: 1,
         category: 'approval',
@@ -175,14 +175,14 @@ test('Codex canonical Session claims and resolves pending interactions', async (
         },
       },
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
-      turnId: 'turn.e2e-codex-interactions',
+      turnId: 'turn.e2e-codex-typed-approval',
     }),
     createPendingInteraction(request, authenticatedSession.accessToken, {
       interactionId: typedQuestionInteractionId,
       kind: 'user_question',
       prompt: 'Which typed verification strategy should Codex use?',
       providerInteractionId: 'provider-interaction.codex-typed-question-e2e',
-      requestedAt: '2026-01-01T00:21:03.000Z',
+      requestedAt: '2026-01-01T00:21:01.000Z',
       request: {
         schemaVersion: 1,
         category: 'user_input',
@@ -203,7 +203,7 @@ test('Codex canonical Session claims and resolves pending interactions', async (
         },
       },
       runtimeBindingId: `runtime-binding.${codexSessionId}`,
-      turnId: 'turn.e2e-codex-interactions',
+      turnId: 'turn.e2e-codex-typed-question',
     }),
   ]);
   await exposeCompletedCodexSessionActivity(page);
@@ -247,10 +247,10 @@ test('Codex canonical Session claims and resolves pending interactions', async (
   const typedQuestionPrompt = page.locator(
     `[data-codex-interaction-id="${typedQuestionInteractionId}"]`,
   );
-  await expect(approvalPrompt).toBeVisible();
+  await expect(approvalPrompt).toHaveCount(0);
   await expect(typedApprovalPrompt).toBeVisible();
-  await expect(questionPrompt).toBeVisible();
-  await expect(typedQuestionPrompt).toBeVisible();
+  await expect(questionPrompt).toHaveCount(0);
+  await expect(typedQuestionPrompt).toHaveCount(0);
 
   const typedApprovalClaimResponse = page.waitForResponse((response) => (
     response.request().method() === 'POST'
@@ -278,6 +278,7 @@ test('Codex canonical Session claims and resolves pending interactions', async (
     },
   });
   await expect(typedApprovalPrompt).toHaveCount(0);
+  await expect(approvalPrompt).toBeVisible();
 
   const approvalClaimResponse = page.waitForResponse((response) => (
     response.request().method() === 'POST'

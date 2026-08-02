@@ -5,8 +5,10 @@ import commonExtra from './common-extra.ts';
 import auth from './auth.ts';
 import settingsExtra from './settings-extra.ts';
 import settingsEngine from './settings-engine.ts';
+import settingsModelManagement from './settings-model-management.ts';
 import chat from './chat.ts';
 import chatUnifiedAgentModelSelector from './chat/unified-agent-model-selector.ts';
+import chatAgentModelAccessSelector from './chat/agent-model-access-selector.ts';
 import multiWindow from './multiwindow.ts';
 import appErrors from './app/errors.ts';
 import appBootstrap from './app/bootstrap.ts';
@@ -38,8 +40,10 @@ export const zhModules = [
   auth,
   settingsExtra,
   settingsEngine,
+  settingsModelManagement,
   chat,
   chatUnifiedAgentModelSelector,
+  chatAgentModelAccessSelector,
   multiWindow,
   appErrors,
   appBootstrap,

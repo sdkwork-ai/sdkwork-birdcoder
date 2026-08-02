@@ -1,4 +1,4 @@
-import { memo, useId } from 'react';
+import { memo, useId, useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Lightbulb } from 'lucide-react';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 import { buildChatContentPreview } from '../contentPreview.ts';
@@ -31,7 +31,21 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
   const disclosureKey = `${context.sessionId}\u0001${
     sourceMessage?.id?.trim() || sourceMessage?.turnId?.trim() || String(context.index)
   }\u0001reasoning`;
-  const isExpanded = context.expandedDisclosureKeys.has(disclosureKey);
+  // The Codex desktop renderer keeps an in-progress reasoning item expanded
+  // automatically while it streams and collapses it after completion; the
+  // user can still collapse it manually during streaming.
+  const isStreaming = block.items.some((item) => item.completedAt === undefined);
+  const [userCollapsedWhileStreaming, setUserCollapsedWhileStreaming] = useState(false);
+  const isExpanded = isStreaming
+    ? !userCollapsedWhileStreaming
+    : context.expandedDisclosureKeys.has(disclosureKey);
+  const toggleReasoningDisclosure = () => {
+    if (isStreaming) {
+      setUserCollapsedWhileStreaming((value) => !value);
+      return;
+    }
+    context.toggleDisclosure(disclosureKey);
+  };
   const summaryLabel = context.environment?.t('chat.reasoningSummary') ?? 'Reasoning summary';
   const expandLabel = context.environment?.t('chat.reasoningExpand') ?? 'Show reasoning summary';
   const collapseLabel = context.environment?.t('chat.reasoningCollapse') ?? 'Hide reasoning summary';
@@ -58,7 +72,7 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
         aria-controls={detailsId}
         aria-label={`${isExpanded ? collapseLabel : expandLabel}: ${summaryLabel}`}
         title={isExpanded ? collapseLabel : expandLabel}
-        onClick={() => context.toggleDisclosure(disclosureKey)}
+        onClick={toggleReasoningDisclosure}
       >
         <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-600">
           <Lightbulb size={13} aria-hidden="true" />

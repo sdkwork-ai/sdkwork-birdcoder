@@ -84,6 +84,9 @@ export interface LoadEarlierAgentSessionItemsOptions {
 export interface RefreshProjectSessionsResult {
   deletedSessionIds: string[];
   deletedSessionTombstones: AgentSessionView[];
+  providerSynchronization?: Awaited<
+    ReturnType<IAgentSessionService['synchronizeProjectSessions']>
+  >;
   sessionIds: string[];
   projectIds: string[];
   projects?: AgentProjectView[];
@@ -820,6 +823,11 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
+  const providerSynchronization = await agentSessionService.synchronizeProjectSessions(
+    normalizedProjectId,
+    { signal },
+  );
+  signal?.throwIfAborted();
   const snapshot = await loadProjectSessionActivitySnapshot(
     agentSessionService,
     project,
@@ -832,6 +840,7 @@ async function refreshProjectSessionsWithoutTimeout({
   return {
     deletedSessionIds: snapshot.deletedSessionIds,
     deletedSessionTombstones: snapshot.deletedSessionTombstones,
+    providerSynchronization,
     sessionIds: synchronizedProject.agentSessions.map((session) => session.id),
     projectIds: [normalizedProjectId],
     projects: [synchronizedProject],

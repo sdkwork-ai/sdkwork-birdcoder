@@ -116,14 +116,15 @@ assert.equal(
 );
 assert.equal(unixBundlePlan.shell, false);
 
-const preflightPlan = buildDesktopReleaseBuildPreflightPlan({
+const preflightPlans = buildDesktopReleaseBuildPreflightPlan({
   phase: 'bundle',
   platform: 'win32',
   hostArch: 'x64',
   targetTriple: 'x86_64-pc-windows-msvc',
 });
-assert.equal(preflightPlan.command, process.execPath);
-assert.deepEqual(preflightPlan.args, [
+assert.equal(preflightPlans.length, 2);
+assert.equal(preflightPlans[0].command, process.execPath);
+assert.deepEqual(preflightPlans[0].args, [
   'scripts/stage-desktop-provider-host.mjs',
   '--platform',
   'win32',
@@ -132,9 +133,12 @@ assert.deepEqual(preflightPlan.args, [
   '--target',
   'x86_64-pc-windows-msvc',
 ]);
-assert.equal(preflightPlan.cwd, path.resolve(import.meta.dirname, '..'));
-assert.equal(preflightPlan.shell, false);
-assert.equal(buildDesktopReleaseBuildPreflightPlan({ phase: 'sync' }), null);
+assert.equal(preflightPlans[0].cwd, path.resolve(import.meta.dirname, '..'));
+assert.equal(preflightPlans[0].shell, false);
+assert.deepEqual(preflightPlans[1].args, ['scripts/stage-models-catalog.mjs']);
+assert.equal(preflightPlans[1].cwd, path.resolve(import.meta.dirname, '..'));
+assert.equal(preflightPlans[1].shell, false);
+assert.deepEqual(buildDesktopReleaseBuildPreflightPlan({ phase: 'sync' }), []);
 
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const providerHostResourceSource =

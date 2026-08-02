@@ -158,19 +158,23 @@ Compression chains and ancestor sessions can form one logical resumed conversati
 
 ## Runtime Readiness Gate
 
-The current Kernel Hermes TUI gateway worker invokes `llm.oneshot` and returns
-only completed text. It does not expose the API server's
-`hermes.tool.progress` or Responses item stream, and it currently rejects
-per-request model selection. The Agents terminal-item projector consumes
-canonical item lifecycle events, not these raw Hermes envelopes or provider
-approval callbacks.
+The Kernel Hermes TUI gateway worker is a full JSON-RPC client of the
+official `tui_gateway.entry` channel used by the Hermes desktop and TUI
+applications: `session.create`/`session.resume` -> `prompt.submit` -> the
+`message.start`/`message.delta`/`message.complete` event stream, with
+`reasoning.delta`, `tool.start`/`tool.complete`, `status.update`, and the
+blocking interaction events (`approval.request`, `clarify.request`,
+`sudo.request`, `secret.request`) resolved through the kernel interaction
+registry (`sdkwork/serverRequest.respond` -> `approval.respond`/`clarify.respond`).
+Streaming turns emit kernel stream frames (`stream.chunk`/`stream.event`/
+`stream.done`) with the persistent `stored_session_id` as the provider session
+identity for resumption, and per-request model selection is supported through
+`session.create`'s `model` parameter.
 
-Therefore BirdCoder can parse normalized Hermes tool history and the real TUI
-tool wire shape once forwarded, but must not claim live tool, approval, or
-Interaction parity until Kernel and Agents forward those events.
-Completion requires a streaming Kernel adapter, canonical Agents
-item/Interaction translation, lineage-aware history reconciliation, and a
-credentialed send/stream/tool/error/reconnect E2E.
+Live tool, approval, and Interaction events are forwarded as canonical kernel
+events; the Agents terminal-item projector consumes those lifecycle events.
+Lineage-aware history reconciliation and a credentialed
+send/stream/tool/error/reconnect E2E remain the outstanding product items.
 
 `message.interim` remains a distinct commentary channel and must not be folded
 into final content or reasoning. `clarify.request` has a stable `request_id` and

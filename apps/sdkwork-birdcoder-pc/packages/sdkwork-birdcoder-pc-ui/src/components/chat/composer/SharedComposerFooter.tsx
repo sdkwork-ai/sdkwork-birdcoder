@@ -8,13 +8,11 @@ import {
   Plus,
   Square,
 } from 'lucide-react';
-import {
-  Button,
-  WorkbenchCodeEngineIcon,
-} from '@sdkwork/birdcoder-pc-ui-shell';
-import { UnifiedAgentModelSelector } from '@sdkwork/models-pc-picker';
+import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { AgentModelAccessSelector } from '@sdkwork/models-pc-picker';
 import { ComposerAccessModeControl } from './ComposerAccessModeControl';
 import type { EngineComposerFooterProps } from './UniversalChatComposerFooter.types';
+import { createAgentModelAccessSelectorMessages } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 
 interface SharedComposerFooterProps extends EngineComposerFooterProps {
   engineId: string;
@@ -41,78 +39,39 @@ export function SharedComposerFooter({
   isStopTurnConfirmationVisible,
   isStoppingTurn,
   isUploadingAttachments,
-  unifiedAgentModelOptions,
-  unifiedAgentProviderOptions,
+  agentModelOptions,
+  agentProviderOptions,
+  modelAccessChannels,
   onAttachmentMenuOpenChange,
   onAccessModeMenuOpenChange,
   onFileUpload,
   onFolderUpload,
   onImageUpload,
-  onCreateUnifiedAgentModelConfiguration,
-  onGetUnifiedAgentModelApiKey,
-  onSelectUnifiedAgentModel,
+  onCreateModelAccessChannel,
+  onDeleteModelAccessChannel,
+  onGetModelAccessApiKey,
+  onModelAccessSearchQueryChange,
+  onSelectAgentModelAccess,
+  onUpdateModelAccessChannel,
   onSelectAccessMode,
   onSend,
   onStopTurn,
   onToggleVoiceInput,
   selectedModelLabel,
   selectedAccessModeId,
-  selectedUnifiedAgentModelOptionId,
+  selectedAgentModelOptionId,
+  selectedModelAccessChannelId,
   selectedModelSummary,
-  onUnifiedAgentModelSelectorOpenChange,
-  isUnifiedAgentModelSelectorOpen,
-  showUnifiedAgentModelSelector,
+  onAgentModelAccessSelectorOpenChange,
+  isAgentModelAccessSelectorOpen,
+  isModelAccessSearchLoading,
+  showAgentModelAccessSelector,
 }: SharedComposerFooterProps) {
   const { t } = useTranslation();
   const attachmentActionDisabled = disabled;
   const attachmentInputDisabled = disabled || attachmentsDisabled;
   const modelSelectorMessages = useMemo(
-    () => ({
-      addModel: t('chat.unifiedAgentModelSelector.addModel'),
-      addModelTitle: t('chat.unifiedAgentModelSelector.addModelTitle'),
-      advancedSettings: t('chat.unifiedAgentModelSelector.advancedSettings'),
-      apiKeyLabel: t('chat.unifiedAgentModelSelector.apiKeyLabel'),
-      apiKeyPlaceholder: t('chat.unifiedAgentModelSelector.apiKeyPlaceholder'),
-      apiKeyRequired: t('chat.unifiedAgentModelSelector.apiKeyRequired'),
-      baseUrlInvalid: t('chat.unifiedAgentModelSelector.baseUrlInvalid'),
-      baseUrlLabel: t('chat.unifiedAgentModelSelector.baseUrlLabel'),
-      baseUrlPlaceholder: t('chat.unifiedAgentModelSelector.baseUrlPlaceholder'),
-      builtInModels: t('chat.unifiedAgentModelSelector.builtInModels'),
-      cancel: t('chat.unifiedAgentModelSelector.cancel'),
-      close: t('chat.unifiedAgentModelSelector.close'),
-      clearSearch: t('chat.unifiedAgentModelSelector.clearSearch'),
-      createFailed: t('chat.unifiedAgentModelSelector.createFailed'),
-      creating: t('chat.unifiedAgentModelSelector.creating'),
-      customModels: t('chat.unifiedAgentModelSelector.customModels'),
-      customTag: t('chat.unifiedAgentModelSelector.customTag'),
-      defaultModelLabel: t('chat.unifiedAgentModelSelector.defaultModelLabel'),
-      defaultModelPlaceholder: t('chat.unifiedAgentModelSelector.defaultModelPlaceholder'),
-      defaultModelRequired: t('chat.unifiedAgentModelSelector.defaultModelRequired'),
-      getApiKey: t('chat.unifiedAgentModelSelector.getApiKey'),
-      inputContextLabel: t('chat.unifiedAgentModelSelector.inputContextLabel'),
-      modelAlreadyExists: t('chat.unifiedAgentModelSelector.modelAlreadyExists'),
-      modelSelectorLabel: t('chat.unifiedAgentModelSelector.modelSelectorLabel'),
-      multimodalLabel: t('chat.unifiedAgentModelSelector.multimodalLabel'),
-      noModels: t('chat.unifiedAgentModelSelector.noModels'),
-      noSearchResults: t('chat.unifiedAgentModelSelector.noSearchResults'),
-      notSupported: t('chat.unifiedAgentModelSelector.notSupported'),
-      outputContextLabel: t('chat.unifiedAgentModelSelector.outputContextLabel'),
-      providerRequired: t('chat.unifiedAgentModelSelector.providerRequired'),
-      providerSection: t('chat.unifiedAgentModelSelector.providerSection'),
-      previewTag: t('chat.unifiedAgentModelSelector.previewTag'),
-      searchPlaceholder: t('chat.unifiedAgentModelSelector.searchPlaceholder'),
-      selectFailed: t('chat.unifiedAgentModelSelector.selectFailed'),
-      submit: t('chat.unifiedAgentModelSelector.submit'),
-      supported: t('chat.unifiedAgentModelSelector.supported'),
-      supportedModelsLabel: t('chat.unifiedAgentModelSelector.supportedModelsLabel'),
-      supportedModelsPlaceholder: t('chat.unifiedAgentModelSelector.supportedModelsPlaceholder'),
-      supportedProvidersHint: t('chat.unifiedAgentModelSelector.supportedProvidersHint'),
-      toolCallRoundsLabel: t('chat.unifiedAgentModelSelector.toolCallRoundsLabel'),
-      useSystemDefaultPlaceholder: t('chat.unifiedAgentModelSelector.useSystemDefaultPlaceholder'),
-      vendorLabel: t('chat.unifiedAgentModelSelector.vendorLabel'),
-      vendorPlaceholder: t('chat.unifiedAgentModelSelector.vendorPlaceholder'),
-      vendorRequired: t('chat.unifiedAgentModelSelector.vendorRequired'),
-    }),
+    () => createAgentModelAccessSelectorMessages(t),
     [t],
   );
 
@@ -186,27 +145,31 @@ export function SharedComposerFooter({
       </div>
 
       <div className="flex min-w-0 items-center gap-1.5">
-        {showUnifiedAgentModelSelector ? (
+        {showAgentModelAccessSelector ? (
           <div
             className="birdcoder-composer-model-selector min-w-0 max-w-[min(46vw,240px)] shrink"
-            data-testid="universal-chat-unified-agent-model-selector"
+            data-testid="universal-chat-agent-model-access-selector"
           >
-            <UnifiedAgentModelSelector
+            <AgentModelAccessSelector
+              accessChannels={modelAccessChannels}
               activeProviderId={engineId}
               disabled={disabled}
               fallbackLabel={selectedModelLabel}
               messages={modelSelectorMessages}
-              onCreateModelConfiguration={onCreateUnifiedAgentModelConfiguration}
-              onGetApiKey={onGetUnifiedAgentModelApiKey}
-              onOpenChange={onUnifiedAgentModelSelectorOpenChange}
-              onSelectModelOption={onSelectUnifiedAgentModel}
-              open={isUnifiedAgentModelSelectorOpen}
-              options={unifiedAgentModelOptions}
-              providerOptions={unifiedAgentProviderOptions}
-              renderModelIcon={(option) => (
-                <WorkbenchCodeEngineIcon engineId={option.iconKey} size="sm" />
-              )}
-              selectedModelOptionId={selectedUnifiedAgentModelOptionId}
+              models={agentModelOptions}
+              onCreateAccessChannel={onCreateModelAccessChannel}
+              onDeleteAccessChannel={onDeleteModelAccessChannel}
+              onGetApiKey={onGetModelAccessApiKey}
+              onOpenChange={onAgentModelAccessSelectorOpenChange}
+              onSearchQueryChange={onModelAccessSearchQueryChange}
+              onSelectModelAccess={onSelectAgentModelAccess}
+              onUpdateAccessChannel={onUpdateModelAccessChannel}
+              open={isAgentModelAccessSelectorOpen}
+              providerOptions={agentProviderOptions}
+              renderModelIcon={() => null}
+              selectedAccessChannelId={selectedModelAccessChannelId}
+              selectedModelOptionId={selectedAgentModelOptionId}
+              isSearchLoading={isModelAccessSearchLoading}
             />
           </div>
         ) : (

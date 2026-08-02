@@ -36,6 +36,16 @@ export interface WorkbenchUnifiedCustomAgentModelDefinition {
   toolCallRounds?: number;
   supportsMultimodal: boolean;
   apiKeyConfigured: boolean;
+  accessChannelKind: 'official' | 'relay' | 'custom';
+  accessChannelName: string;
+  defaultVendorCode: string;
+  vendorOfferings: WorkbenchModelAccessVendorOfferingDefinition[];
+}
+
+export interface WorkbenchModelAccessVendorOfferingDefinition {
+  vendorCode: string;
+  vendorName: string;
+  modelIds: string[];
 }
 
 export interface WorkbenchCodeEngineAccessModeDefinition
@@ -61,6 +71,7 @@ export interface WorkbenchCodeEngineDefinition {
 export interface WorkbenchCodeEngineSettings {
   defaultModelId: string;
   accessModeId?: string;
+  modelAccessChannelId?: string;
 }
 
 export type WorkbenchCodeEngineSettingsMap = Partial<
@@ -147,6 +158,7 @@ const MAX_CUSTOM_MODEL_VENDOR_LENGTH = 128;
 const MAX_CUSTOM_MODEL_BASE_URL_LENGTH = 2048;
 const MAX_CUSTOM_MODEL_PROVIDER_IDS = 16;
 const MAX_CUSTOM_MODEL_SUPPORTED_IDS = 256;
+const MAX_CUSTOM_MODEL_VENDOR_OFFERINGS = 32;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -188,6 +200,44 @@ function normalizeStringList(
     }
   }
   return values;
+}
+
+function normalizeCustomModelVendorOfferings(
+  value: unknown,
+  fallback: WorkbenchModelAccessVendorOfferingDefinition,
+): WorkbenchModelAccessVendorOfferingDefinition[] {
+  const source = Array.isArray(value) ? value : [];
+  const offerings: WorkbenchModelAccessVendorOfferingDefinition[] = [];
+  const vendorCodes = new Set<string>();
+  for (const entry of source) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const vendorCode = String(entry.vendorCode ?? '')
+      .trim()
+      .slice(0, MAX_CUSTOM_MODEL_VENDOR_LENGTH);
+    const identity = vendorCode.toLowerCase();
+    const modelIds = normalizeStringList(
+      entry.modelIds,
+      MAX_CUSTOM_MODEL_SUPPORTED_IDS,
+      MAX_CUSTOM_MODEL_ID_LENGTH,
+    );
+    if (!vendorCode || modelIds.length === 0 || vendorCodes.has(identity)) {
+      continue;
+    }
+    vendorCodes.add(identity);
+    offerings.push({
+      vendorCode,
+      vendorName: String(entry.vendorName ?? vendorCode)
+        .trim()
+        .slice(0, MAX_CUSTOM_MODEL_LABEL_LENGTH) || vendorCode,
+      modelIds,
+    });
+    if (offerings.length >= MAX_CUSTOM_MODEL_VENDOR_OFFERINGS) {
+      break;
+    }
+  }
+  return offerings.length > 0 ? offerings : [fallback];
 }
 
 export function normalizeWorkbenchUnifiedCustomAgentModels(
@@ -236,6 +286,23 @@ export function normalizeWorkbenchUnifiedCustomAgentModels(
     const label = String(entry.label ?? entry.displayName ?? modelId)
       .trim()
       .slice(0, MAX_CUSTOM_MODEL_LABEL_LENGTH) || modelId;
+    const supportedModelIds = normalizeStringList(
+      [modelId, ...normalizeStringList(
+        entry.supportedModelIds,
+        MAX_CUSTOM_MODEL_SUPPORTED_IDS,
+        MAX_CUSTOM_MODEL_ID_LENGTH,
+      )],
+      MAX_CUSTOM_MODEL_SUPPORTED_IDS,
+      MAX_CUSTOM_MODEL_ID_LENGTH,
+    );
+    const vendorOfferings = normalizeCustomModelVendorOfferings(
+      entry.vendorOfferings,
+      { vendorCode, vendorName: vendorCode, modelIds: supportedModelIds },
+    );
+    const requestedDefaultVendorCode = String(entry.defaultVendorCode ?? vendorCode).trim();
+    const defaultVendor = vendorOfferings.find(
+      (offering) => offering.vendorCode.toLowerCase() === requestedDefaultVendorCode.toLowerCase(),
+    ) ?? vendorOfferings[0];
     models.push({
       configurationId,
       modelId,
@@ -245,21 +312,19 @@ export function normalizeWorkbenchUnifiedCustomAgentModels(
         .slice(0, MAX_CUSTOM_MODEL_DESCRIPTION_LENGTH),
       vendorCode,
       baseUrl,
-      supportedModelIds: normalizeStringList(
-        [modelId, ...normalizeStringList(
-          entry.supportedModelIds,
-          MAX_CUSTOM_MODEL_SUPPORTED_IDS,
-          256,
-        )],
-        MAX_CUSTOM_MODEL_SUPPORTED_IDS,
-        256,
-      ),
+      supportedModelIds,
       supportedProviderIds,
       inputContextTokens: normalizePositiveInteger(entry.inputContextTokens),
       outputContextTokens: normalizePositiveInteger(entry.outputContextTokens),
       toolCallRounds: normalizePositiveInteger(entry.toolCallRounds),
       supportsMultimodal: entry.supportsMultimodal === true,
       apiKeyConfigured: entry.apiKeyConfigured === true,
+      accessChannelKind: entry.accessChannelKind === 'official' ? 'official' : 'relay',
+      accessChannelName: String(entry.accessChannelName ?? label)
+        .trim()
+        .slice(0, MAX_CUSTOM_MODEL_LABEL_LENGTH) || label,
+      defaultVendorCode: defaultVendor.vendorCode,
+      vendorOfferings,
     });
     if (models.length >= MAX_UNIFIED_CUSTOM_AGENT_MODELS) {
       break;
@@ -676,10 +741,14 @@ export function normalizeWorkbenchCodeEngineSettingsMap(
       engineId,
       entry.accessModeId ?? definition?.defaultAccessModeId,
     );
+    const modelAccessChannelId = String(
+      entry.modelAccessChannelId ?? entry.selectedModelAccessChannelId ?? '',
+    ).trim().slice(0, 160);
     if (defaultModelId) {
       settings[engineId] = {
         defaultModelId,
         ...(accessModeId ? { accessModeId } : {}),
+        ...(modelAccessChannelId ? { modelAccessChannelId } : {}),
       };
     }
   }
@@ -722,6 +791,19 @@ export function resolveWorkbenchCodeEngineSelectedAccessModeId(
     explicitAccessModeId?.trim() || configuredAccessModeId,
     carrier,
   );
+}
+
+export function resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+  engineId: unknown,
+  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+): string {
+  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId) ?? normalizeKey(engineId);
+  const rawSettings = isRecord(carrier?.codeEngineSettings)
+    ? carrier.codeEngineSettings[normalizedEngineId]
+    : undefined;
+  return isRecord(rawSettings)
+    ? String(rawSettings.modelAccessChannelId ?? '').trim().slice(0, 160)
+    : '';
 }
 
 export function resolveWorkbenchChatSelection(

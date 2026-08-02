@@ -176,12 +176,10 @@ class BirdCoderIamAuthService {
 
     final response =
         await _sdkClients.credentialEntryIamSdk.oauth.sessionsCreate(
-      <String, dynamic>{
-        'code': normalizedCode,
-        'provider': normalizedProvider,
-        if (_normalizeOptionalString(state) case final value?) 'state': value,
-        'deviceType': 'mobile',
-      },
+      iam_sdk.AppbaseSessionCreateCommand(
+        externalToken: normalizedCode,
+        providerKey: normalizedProvider,
+      ),
     );
     await _commitSession(iamRuntime, response, 'OAuth sign-in');
   }

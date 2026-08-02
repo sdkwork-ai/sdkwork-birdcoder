@@ -87,6 +87,7 @@
       "./bootstrap/createBootstrapGateMessages",
       "./components/ErrorBoundary",
       "./hooks/*",
+      "./hooks/useAgentTurnInputQueue",
       "./chat/*",
       "./i18n",
       "./contexts/*",

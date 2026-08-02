@@ -4,11 +4,13 @@ import {
   listWorkbenchServerImplementedCodeEngines,
   replaceWorkbenchCodeEngineCatalogForTesting,
   resetWorkbenchCodeEngineCatalog,
+  resolveWorkbenchCodeEngineSelectedModelAccessChannelId,
   resolveWorkbenchRuntimeBindingIdentity,
 } from '../src/workbench/codeEngineCatalog.ts';
 import {
   normalizeWorkbenchPreferences,
   saveWorkbenchUnifiedCustomAgentModel,
+  setWorkbenchCodeEngineModelAccessChannel,
 } from '../src/workbench/preferences.ts';
 
 const catalogEntry = {
@@ -98,6 +100,14 @@ describe('custom code model preferences', () => {
       toolCallRounds: 32,
       supportsMultimodal: true,
       apiKeyConfigured: true,
+      accessChannelKind: 'relay',
+      accessChannelName: 'GPT-5 Custom',
+      defaultVendorCode: 'openai-compatible',
+      vendorOfferings: [{
+        vendorCode: 'openai-compatible',
+        vendorName: 'openai-compatible',
+        modelIds: ['gpt-5-custom', 'gpt-5-fast'],
+      }],
     }]);
     expect(preferences.unifiedCustomAgentModels[0]).not.toHaveProperty('apiKey');
     expect(preferences.codeModelId).toBe('gpt-5-custom');
@@ -145,5 +155,24 @@ describe('custom code model preferences', () => {
       providerBindingId: 'binding.provider.claude-code',
       providerId: 'provider.anthropic',
     });
+  });
+
+  it('persists a stable model access channel code for each Agent provider', () => {
+    const preferences = setWorkbenchCodeEngineModelAccessChannel(
+      saveUnifiedModel(),
+      'codex',
+      'relay.team-gateway',
+    );
+
+    expect(resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+      'codex',
+      preferences,
+    )).toBe('relay.team-gateway');
+    expect(resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+      'claude-code',
+      preferences,
+    )).toBe('');
+    expect(preferences.codeEngineSettings.codex?.modelAccessChannelId)
+      .toBe('relay.team-gateway');
   });
 });

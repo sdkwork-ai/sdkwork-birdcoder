@@ -680,7 +680,7 @@ test('Provider lifecycle protocols share one structured expandable presentation'
   await selectSessionByTitle(page, 'OpenCode verification');
   await expect(transcript.getByText('Verify OpenCode lifecycle rendering.', { exact: true })).toBeVisible();
   await transcript.getByRole('button', {
-    name: /Processed.*Show execution process/u,
+    name: /Worked for.*Show execution process/u,
   }).click();
   const openCodeCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
   await expect(openCodeCompleted).toContainText('Turn completed');
@@ -796,7 +796,7 @@ test('Provider lifecycle protocols share one structured expandable presentation'
 
   await selectSessionByTitle(page, 'Gemini failure triage');
   await transcript.getByRole('button', {
-    name: /Processed.*Show execution process/u,
+    name: /Worked for.*Show execution process/u,
   }).click();
   const geminiBlocked = transcript.locator('[data-chat-lifecycle-event="blocked"]');
   const geminiCompacted = transcript.locator('[data-chat-lifecycle-event="compacted"]');
@@ -870,7 +870,7 @@ test('OpenClaw and Hermes durable histories render merged natural tool activity'
     'OpenClaw operations plan',
   );
   await transcript.getByRole('button', {
-    name: /Processed.*Show execution process/u,
+    name: /Worked for.*Show execution process/u,
   }).click();
 
   const openClawContextGroup = transcript.locator('[data-chat-context-tool-group="true"]');
@@ -915,7 +915,7 @@ test('OpenClaw and Hermes durable histories render merged natural tool activity'
 
   await selectWorkSessionById(page, 'e2e-hermes-session', 'Hermes research brief');
   await transcript.getByRole('button', {
-    name: /Processed.*Show execution process/u,
+    name: /Worked for.*Show execution process/u,
   }).click();
 
   const hermesMcpCall = transcript.locator('[data-chat-tool-kind="mcp"]');

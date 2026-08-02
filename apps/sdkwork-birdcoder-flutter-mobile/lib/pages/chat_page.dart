@@ -19,8 +19,14 @@ class _ChatPageState extends State<ChatPage> {
   final List<BirdCoderAgentSessionItemView> _sessionItems =
       <BirdCoderAgentSessionItemView>[];
   String? _sessionId;
+  String? _nextCursor;
+  bool _hasEarlierItems = false;
   bool _isLoadingHistory = false;
+  bool _isLoadingEarlier = false;
   bool _isSending = false;
+  String? _streamingItemId;
+  String _streamingContent = '';
+  String? _earlierLoadError;
   String? _lastError;
 
   BirdCoderFlutterSdkClients get _sdkClients =>
@@ -45,18 +51,17 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _loadHistory() async {
     setState(() {
       _isLoadingHistory = true;
+      _isLoadingEarlier = false;
+      _hasEarlierItems = false;
+      _nextCursor = null;
+      _earlierLoadError = null;
       _lastError = null;
     });
     try {
       final session = await ensureBirdCoderAssistantSession(_sdkClients);
-      final latestPage = session.itemCount == 0
-          ? 1
-          : (session.itemCount + birdCoderAssistantSessionPageSize - 1) ~/
-              birdCoderAssistantSessionPageSize;
-      final items = await listBirdCoderAssistantSessionItems(
+      final page = await listBirdCoderAssistantSessionItems(
         _sdkClients,
         session.sessionId,
-        page: latestPage,
       );
       if (!mounted) {
         return;
@@ -65,7 +70,9 @@ class _ChatPageState extends State<ChatPage> {
         _sessionId = session.sessionId;
         _sessionItems
           ..clear()
-          ..addAll(items);
+          ..addAll(page.items);
+        _nextCursor = page.nextCursor;
+        _hasEarlierItems = page.hasMore;
         _isLoadingHistory = false;
       });
       _scrollToBottom();
@@ -80,6 +87,69 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> _loadEarlier() async {
+    final sessionId = _sessionId;
+    final cursor = _nextCursor;
+    if (sessionId == null ||
+        cursor == null ||
+        !_hasEarlierItems ||
+        _isLoadingEarlier) {
+      return;
+    }
+    final previousOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final previousMaxExtent = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
+    setState(() {
+      _isLoadingEarlier = true;
+      _earlierLoadError = null;
+    });
+    try {
+      final page = await listBirdCoderAssistantSessionItems(
+        _sdkClients,
+        sessionId,
+        cursor: cursor,
+      );
+      if (!mounted || sessionId != _sessionId || cursor != _nextCursor) {
+        return;
+      }
+      final mergedItems = _mergeSessionItems(_sessionItems, page.items);
+      setState(() {
+        _sessionItems
+          ..clear()
+          ..addAll(mergedItems);
+        _nextCursor = page.nextCursor;
+        _hasEarlierItems = page.hasMore;
+        _isLoadingEarlier = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) {
+          return;
+        }
+        final addedExtent =
+            _scrollController.position.maxScrollExtent - previousMaxExtent;
+        _scrollController.jumpTo(
+          (previousOffset + addedExtent)
+              .clamp(
+                0.0,
+                _scrollController.position.maxScrollExtent,
+              )
+              .toDouble(),
+        );
+      });
+    } catch (_) {
+      if (!mounted || sessionId != _sessionId || cursor != _nextCursor) {
+        return;
+      }
+      setState(() {
+        _earlierLoadError =
+            AppLocalizations.of(context)!.agent_session_load_earlier_failed;
+        _isLoadingEarlier = false;
+      });
+    }
+  }
+
   Future<void> _sendTurn() async {
     final text = _inputController.text.trim();
     final sessionId = _sessionId;
@@ -89,6 +159,8 @@ class _ChatPageState extends State<ChatPage> {
 
     setState(() {
       _isSending = true;
+      _streamingItemId = null;
+      _streamingContent = '';
       _lastError = null;
     });
     _inputController.clear();
@@ -99,15 +171,54 @@ class _ChatPageState extends State<ChatPage> {
         _sdkClients,
         sessionId,
         text,
+        onStreamUpdate: (update) {
+          if (!mounted || update.eventType != 'delta') {
+            return;
+          }
+          final delta = update.delta;
+          if (delta == null || delta.isEmpty) {
+            return;
+          }
+          final itemId = _streamingItemId ??= 'streaming:$sessionId';
+          _streamingContent += delta;
+          final nextSequence = _sessionItems.fold<BigInt>(
+                BigInt.zero,
+                (maximum, item) =>
+                    item.sequence > maximum ? item.sequence : maximum,
+              ) +
+              BigInt.one;
+          final streamingItem = BirdCoderAgentSessionItemView(
+            itemId: itemId,
+            sessionId: sessionId,
+            kind: 'assistant_output',
+            role: 'assistant',
+            content: _streamingContent,
+            sequence: nextSequence,
+            createdAt: DateTime.now().toUtc(),
+          );
+          setState(() {
+            _sessionItems
+              ..removeWhere((item) => item.itemId == itemId)
+              ..add(streamingItem)
+              ..sort((left, right) => left.sequence.compareTo(right.sequence));
+          });
+          _scrollToBottom();
+        },
       );
       if (!mounted) {
         return;
       }
-      final mergedItems = _mergeSessionItems(_sessionItems, completedItems);
+      final completedBase = _streamingItemId == null
+          ? _sessionItems
+          : _sessionItems.where((item) => item.itemId != _streamingItemId);
+      final mergedItems = _mergeSessionItems(completedBase, completedItems);
       setState(() {
         _sessionItems
+          ..removeWhere((item) => item.itemId == _streamingItemId)
           ..clear()
           ..addAll(mergedItems);
+        _streamingItemId = null;
+        _streamingContent = '';
         _isSending = false;
       });
       _scrollToBottom();
@@ -117,6 +228,11 @@ class _ChatPageState extends State<ChatPage> {
       }
       final l10n = AppLocalizations.of(context)!;
       setState(() {
+        if (_streamingItemId != null) {
+          _sessionItems.removeWhere((item) => item.itemId == _streamingItemId);
+        }
+        _streamingItemId = null;
+        _streamingContent = '';
         if (_inputController.text.isEmpty) {
           _inputController.text = text;
         }
@@ -171,12 +287,23 @@ class _ChatPageState extends State<ChatPage> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      itemCount: _sessionItems.length,
-                      itemBuilder: (BuildContext context, int index) =>
-                          _AgentSessionItemBubble(
-                        item: _sessionItems[index],
-                        isUser: _isUserItem(_sessionItems[index]),
-                      ),
+                      itemCount: _sessionItems.length +
+                          ((_hasEarlierItems || _earlierLoadError != null)
+                              ? 1
+                              : 0),
+                      itemBuilder: (BuildContext context, int index) {
+                        final hasHistoryControl =
+                            _hasEarlierItems || _earlierLoadError != null;
+                        if (hasHistoryControl && index == 0) {
+                          return _buildEarlierHistoryControl(theme, l10n);
+                        }
+                        final itemIndex = index - (hasHistoryControl ? 1 : 0);
+                        final item = _sessionItems[itemIndex];
+                        return _AgentSessionItemBubble(
+                          item: item,
+                          isUser: _isUserItem(item),
+                        );
+                      },
                     ),
         ),
         if (_lastError != null) _buildErrorBar(theme, _lastError!),
@@ -196,6 +323,38 @@ class _ChatPageState extends State<ChatPage> {
               style: theme.textTheme.bodyMedium,
             ),
           ],
+        ),
+      );
+
+  Widget _buildEarlierHistoryControl(
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: _isLoadingEarlier ? null : _loadEarlier,
+            icon: _isLoadingEarlier
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    _earlierLoadError == null
+                        ? Icons.expand_less
+                        : Icons.refresh,
+                    size: 18,
+                  ),
+            label: Text(
+              _isLoadingEarlier
+                  ? l10n.common_loading
+                  : _earlierLoadError == null
+                      ? l10n.agent_session_load_earlier
+                      : l10n.common_retry,
+              style: theme.textTheme.labelLarge,
+            ),
+          ),
         ),
       );
 
