@@ -4,6 +4,7 @@
 
 - Repository: [anomalyco/opencode](https://github.com/anomalyco/opencode)
 - Version: `1.18.11`
+- Checked-out commit: `a6f7fe739c691e8b086c50390cf3205f0b5d431e` (`external/opencode/`)
 - Message authority: `external/opencode/packages/opencode/src/session/message-v2.ts`
 - Durable schema: `external/opencode/packages/schema/src/v1/session.ts`
 - HTTP schema: `external/opencode/packages/sdk/openapi.json`

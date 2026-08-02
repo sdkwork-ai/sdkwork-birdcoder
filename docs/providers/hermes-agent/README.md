@@ -122,6 +122,14 @@ the same ID. Streaming Responses emits `response.output_item.added` and
 `[{ "type": "input_text", "text": "..." }]` and projects to text rather
 than raw JSON.
 
+The same OpenAI-compatible surface also serves non-streaming `llm.oneshot`
+requests through the shared llm-core contract
+(`external/openclaw/packages/llm-core/src/types.ts`). A oneshot response
+carries the same assistant content, tool calls, reasoning, and finish-reason
+shapes as one settled streaming turn and must be projected through the same
+canonical Agents Session item pipeline instead of a second ad-hoc row shape;
+it is a transport variant, never a new domain identity.
+
 ## Tool Calls
 
 Persisted assistant messages may contain multiple OpenAI-compatible tool calls. The following tool-role message references each call through `tool_call_id`. BirdCoder correlates these into compact tool rows, preserves raw arguments and outputs, and maps errors/lifecycle where Hermes exposes them.

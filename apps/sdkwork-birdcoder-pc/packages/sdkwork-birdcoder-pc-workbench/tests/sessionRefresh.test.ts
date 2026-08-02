@@ -963,6 +963,67 @@ describe('Agent Session transcript refresh errors', () => {
     );
     expect(harness.listSessionItems).not.toHaveBeenCalled();
   });
+
+  it('falls back to the persisted window when item synchronization conflicts', async () => {
+    const harness = createRefreshHarness();
+    const conflict = Object.assign(
+      new Error('terminal provider Session history item is immutable'),
+      {
+        code: 40901,
+        httpStatus: 409,
+        name: 'SdkError',
+        problem: { code: 40901, status: 409 },
+      },
+    );
+    const persistedItem = {
+      content: 'Existing transcript remains visible',
+      createdAt: '2026-07-27T09:00:00.000Z',
+      itemId: 'item.existing',
+      kind: 'assistant_output',
+      sequence: '1',
+      sessionId: harness.sessionId,
+      status: 'completed',
+    } as AgentSessionItemRecord;
+    harness.synchronizeSessionItems.mockRejectedValueOnce(conflict);
+    harness.listSessionItems.mockResolvedValueOnce({
+      items: [persistedItem],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
+      {
+        cursor: undefined,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(harness.listSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
+      {
+        cursor: undefined,
+        pageSize: 50,
+        sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(result.agentSession?.items.map((item) => item.id)).toContain('item.existing');
+  });
 });
 
 describe('manual Project Session refresh consistency', () => {

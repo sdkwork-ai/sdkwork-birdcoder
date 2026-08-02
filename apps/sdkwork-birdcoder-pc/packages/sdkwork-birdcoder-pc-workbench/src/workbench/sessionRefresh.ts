@@ -545,7 +545,7 @@ async function loadLatestSessionItemWindowPage(
   pageRequest: {
     cursor: string | undefined;
     pageSize: number;
-    sort: string;
+    sort: 'sequence' | '-sequence';
   },
   signal: AbortSignal,
 ): Promise<Awaited<ReturnType<IAgentSessionService['synchronizeSessionItems']>>> {
