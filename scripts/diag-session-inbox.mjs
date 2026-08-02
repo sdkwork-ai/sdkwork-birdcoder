@@ -136,38 +136,58 @@ async function run() {
     await page.waitForTimeout(20_000);
 
     // Open the Claude session so the transcript renders.
-    const opened = await page.evaluate(() => {
-      const row = document.querySelector('[data-agent-session-id="e2e-claude-session"]');
-      if (!row) return false;
-      row.click();
-      return true;
-    });
+    const opened = await page
+      .locator('.birdcoder-session-row[data-agent-session-id="e2e-claude-session"]')
+      .first()
+      .click({ timeout: 10_000 })
+      .then(() => true, () => false);
     if (!opened) {
       console.log('claude session row not found; dumping rows instead');
     }
     await page.waitForTimeout(12_000);
 
-    const transcript = await page.evaluate(() => {
-      const blocks = Array.from(
-        document.querySelectorAll('[class*="transcript"], [class*="message-row"], [class*="chat-message"], [data-item-id], [class*="tool-call"], [class*="activity-summary"], [class*="worked"]'),
-      );
-      const seen = new Set();
-      const items = [];
-      for (const block of blocks) {
-        const text = (block.textContent ?? '').replace(/\s+/g, ' ').trim();
-        if (!text || text.length > 400) continue;
-        if (seen.has(text)) continue;
-        seen.add(text);
-        items.push({
-          cls: (typeof block.className === 'string' ? block.className : '').split(' ').slice(0, 3).join(' '),
-          id: block.getAttribute('data-item-id') ?? null,
-          text: text.slice(0, 220),
-        });
-      }
-      return items.slice(0, 60);
-    });
+    const transcript = page.getByRole('region', { name: 'Conversation messages' });
+    const transcriptCount = await transcript.count();
+    let transcriptBlocks = [];
+    if (transcriptCount > 0) {
+      transcriptBlocks = await transcript.evaluate((region) => {
+        const blocks = Array.from(region.querySelectorAll('*'));
+        const seen = new Set();
+        const items = [];
+        for (const block of blocks) {
+          const text = (block.textContent ?? '').replace(/\s+/g, ' ').trim();
+          if (!text || text.length > 400) continue;
+          if (seen.has(text)) continue;
+          seen.add(text);
+          const cls = typeof block.className === 'string' ? block.className : '';
+          const toolKind = block.getAttribute('data-chat-tool-kind');
+          const itemId = block.getAttribute('data-item-id');
+          const notice = block.getAttribute('data-chat-system-notice');
+          const activity = block.getAttribute('data-chat-activity') ?? null;
+          items.push({
+            cls: cls.split(' ').slice(0, 3).join(' '),
+            itemId,
+            toolKind,
+            notice,
+            activity,
+            text: text.slice(0, 200),
+          });
+        }
+        return items.slice(0, 80);
+      });
+    }
     console.log('=== TRANSCRIPT BLOCKS (claude session) ===');
-    for (const item of transcript) console.log(JSON.stringify(item));
+    console.log('transcript regions:', transcriptCount);
+    for (const item of transcriptBlocks) console.log(JSON.stringify(item));
+    const transcriptText = transcriptCount > 0
+      ? await transcript.evaluate((region) => (region.textContent ?? '').replace(/\s+/g, ' '))
+      : '';
+    console.log('--- transcript text (first 3000) ---');
+    console.log(transcriptText.slice(0, 3_000));
+    console.log('--- transcript text (3000-8000) ---');
+    console.log(transcriptText.slice(3_000, 8_000));
+    console.log('--- transcript text tail ---');
+    console.log(transcriptText.slice(-1_500));
     console.log('=== SESSION ITEM API ===');
     const itemResponses = sessionApiBodies.filter((entry) => (
       /\/items/u.test(entry.url) || /\/item_pages/u.test(entry.url)
