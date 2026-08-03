@@ -1162,6 +1162,106 @@
     background-color: var(--sdk-color-surface-field) !important;
   }
 
+  /* Arbitrary-value gray text (text-[#ededee], text-[#8e8f93], ...) is
+     written for dark shells across the app and popup surfaces; bucket the
+     grayscale shades into theme tokens in light mode. */
+  html[data-sdk-color-mode='light'] :is(
+    .birdcoder-app-shell,
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='text-[#F1F1F2]' i],
+    [class~='text-[#F0F0F1]' i],
+    [class~='text-[#EDEDEE]' i],
+    [class~='text-[#E6E6E8]' i],
+    [class~='text-[#E5E5E7]' i],
+    [class~='text-[#E3E3E5]' i],
+    [class~='text-[#E2E2E4]' i],
+    [class~='text-[#E1E1E3]' i],
+    [class~='text-[#E0E0E2]' i],
+    [class~='text-[#DEDEE0]' i],
+    [class~='text-[#D8D9DC]' i],
+    [class~='text-[#D8D8DA]' i],
+    [class~='text-[#D7D8DA]' i],
+    [class~='text-[#D7D7D9]' i],
+    [class~='text-[#D4D4D6]' i],
+    [class~='text-[#D0D1D3]' i]
+  ) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .birdcoder-app-shell,
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='text-[#C8C8CB]' i],
+    [class~='text-[#C7C8CA]' i],
+    [class~='text-[#C7C8CC]' i],
+    [class~='text-[#B8B9BC]' i],
+    [class~='text-[#B7B8BC]' i],
+    [class~='text-[#A9AAAE]' i],
+    [class~='text-[#A6A7AA]' i],
+    [class~='text-[#A4A5AA]' i],
+    [class~='text-[#A0A1A5]' i],
+    [class~='text-[#9B9CA1]' i]
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .birdcoder-app-shell,
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='text-[#96979C]' i],
+    [class~='text-[#92949A]' i],
+    [class~='text-[#929398]' i],
+    [class~='text-[#919399]' i],
+    [class~='text-[#8E8F93]' i],
+    [class~='text-[#8D8E92]' i],
+    [class~='text-[#8C8D91]' i],
+    [class~='text-[#8B8D92]' i],
+    [class~='text-[#88898E]' i],
+    [class~='text-[#88898D]' i],
+    [class~='text-[#87888D]' i],
+    [class~='text-[#85868B]' i],
+    [class~='text-[#85868A]' i],
+    [class~='text-[#818287]' i],
+    [class~='text-[#7F8085]' i],
+    [class~='text-[#7E7F84]' i],
+    [class~='text-[#77797E]' i],
+    [class~='text-[#77787D]' i],
+    [class~='text-[#77787C]' i],
+    [class~='text-[#737479]' i],
+    [class~='text-[#727378]' i],
+    [class~='text-[#6F7075]' i],
+    [class~='text-[#66676C]' i],
+    [class~='text-[#55565A]' i]
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .birdcoder-app-shell,
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class~='text-[#4285F4]' i],
+    [class~='text-[#62A8ED]' i],
+    [class~='text-[#8CC4FB]' i]
+  ) {
+    color: #1d4ed8 !important;
+  }
+
   /* Popup-scope semantic status text (blue/red/green/amber/rose/sky) is
      written in light pastel shades for dark shells; remap to readable dark
      shades in light mode. */
