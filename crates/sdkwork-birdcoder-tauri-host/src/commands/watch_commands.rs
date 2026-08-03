@@ -11,6 +11,12 @@ use crate::commands::filesystem_commands::resolve_root_directory_path;
 
 const FILE_SYSTEM_WATCH_EVENT_NAME: &str = "birdcoder:file-system-watch";
 
+/// Bounds the number of concurrently active file-system watches. Each watch
+/// holds an OS-level notify handle; an unbounded registry would leak handles
+/// if the renderer ever forgot to stop a watch or a window closed without
+/// cleanup.
+const MAX_ACTIVE_FILE_SYSTEM_WATCHES: usize = 64;
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileSystemWatchRegistration {
@@ -107,6 +113,17 @@ pub fn fs_watch_start(
 ) -> Result<FileSystemWatchRegistration, String> {
     let root_directory = resolve_root_directory_path(&root_path)?;
     let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
+    if state
+        .watchers
+        .lock()
+        .map_err(|_| "file-system watch state mutex poisoned".to_string())?
+        .len()
+        >= MAX_ACTIVE_FILE_SYSTEM_WATCHES
+    {
+        return Err(format!(
+            "refusing to start another file-system watch: the active watch limit of {MAX_ACTIVE_FILE_SYSTEM_WATCHES} is reached; stop an existing watch first"
+        ));
+    }
     let watch_id = format!(
         "fs-watch-{}",
         state.next_watch_id.fetch_add(1, Ordering::Relaxed) + 1

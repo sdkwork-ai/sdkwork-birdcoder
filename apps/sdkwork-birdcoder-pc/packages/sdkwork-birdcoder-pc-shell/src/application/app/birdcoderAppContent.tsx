@@ -93,7 +93,11 @@ import {
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
-import { resolveWorkbenchModeForEngineId } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
+import {
+  filterWorkbenchModeCatalogEngines,
+  normalizeWorkbenchMode,
+  resolveWorkbenchModeForEngineId,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { useTranslation } from 'react-i18next';
 import {
   createAppHeaderWindowDragController,
@@ -1961,10 +1965,25 @@ export function AppContent() {
       preferences,
     ],
   );
-  const availableNewSessionEngines = useMemo(() => newSessionEngineCatalog.availableEngines.map((engine) => ({
+  const modeAvailableNewSessionEngines = useMemo(
+    () => filterWorkbenchModeCatalogEngines(
+      normalizeWorkbenchMode(preferences.workbenchMode),
+      newSessionEngineCatalog.availableEngines,
+    ),
+    [newSessionEngineCatalog.availableEngines, preferences.workbenchMode],
+  );
+  const availableNewSessionEngines = useMemo(() => modeAvailableNewSessionEngines.map((engine) => ({
     ...engine,
     modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
-  })), [newSessionEngineCatalog.availableEngines, preferences]);
+  })), [modeAvailableNewSessionEngines, preferences]);
+  const modePreferredNewSessionEngine =
+    modeAvailableNewSessionEngines.find(
+      (engine) => engine.id === newSessionEngineCatalog.preferredSelection.engineId,
+    ) ?? modeAvailableNewSessionEngines[0] ?? newSessionEngineCatalog.preferredSelection.engine;
+  const modePreferredNewSessionModelId = resolveWorkbenchCodeEngineSelectedModelId(
+    modePreferredNewSessionEngine.id,
+    preferences,
+  );
   const titleBarDragEnabled = isDesktopWindowAvailable && !isDocumentFullscreen;
   const titleBarDragSurfaceClass = titleBarDragEnabled
     ? 'cursor-grab border-white/[0.10] text-gray-200 hover:border-white/[0.16] hover:bg-white/[0.04] active:cursor-grabbing active:bg-white/[0.06]'
@@ -2068,8 +2087,8 @@ export function AppContent() {
         shortcut: shortcutFor('newSession'),
         onClick: () =>
           handleCreateAgentSessionCommand({
-            engineId: newSessionEngineCatalog.preferredSelection.engineId,
-            modelId: newSessionEngineCatalog.preferredSelection.modelId,
+            engineId: modePreferredNewSessionEngine.id,
+            modelId: modePreferredNewSessionModelId,
             source: 'file-menu',
           }),
       },
@@ -2114,8 +2133,8 @@ export function AppContent() {
       handleCreateAgentSessionCommand,
       handleOpenFolder,
       handleLogout,
-      newSessionEngineCatalog.preferredSelection.engineId,
-      newSessionEngineCatalog.preferredSelection.modelId,
+      modePreferredNewSessionEngine.id,
+      modePreferredNewSessionModelId,
       shortcutFor,
       t,
     ],

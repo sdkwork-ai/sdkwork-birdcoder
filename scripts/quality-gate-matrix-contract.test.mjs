@@ -119,7 +119,7 @@ assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scri
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(
   rootPackageJson.scripts['check:desktop'],
-  'node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml',
+  'node scripts/desktop-user-model-config-command-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml',
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],

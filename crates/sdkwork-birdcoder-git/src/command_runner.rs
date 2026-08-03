@@ -72,7 +72,9 @@ fn run_git_from_candidates(
             Ok(output) => {
                 return Err(GitCommandError {
                     kind: GitCommandFailureKind::CommandFailed,
-                    message: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+                    message: sanitize_git_error_message(
+                        &String::from_utf8_lossy(&output.stderr),
+                    ),
                 });
             }
             Err(error) => {
@@ -100,6 +102,40 @@ pub(crate) fn run_git_allow_exit_codes(
     allowed_exit_codes: &[i32],
 ) -> Result<String, GitCommandError> {
     SystemGitCommandRunner.run(args, cwd, allowed_exit_codes)
+}
+
+/// Redacts credentials that git may echo back in error output (for example a
+/// remote URL that embeds `user:password@host`). The sanitized message keeps
+/// the diagnostic value while ensuring secrets never cross the host boundary
+/// into renderer-facing errors or logs.
+fn sanitize_git_error_message(stderr: &str) -> String {
+    let mut sanitized = String::with_capacity(stderr.len());
+    let mut remaining = stderr.trim();
+    while let Some(scheme_end) = remaining.find("://") {
+        let scheme_start = remaining[..scheme_end]
+            .rfind(|character: char| !(character.is_ascii_alphanumeric() || character == '+'))
+            .map_or(0, |index| index + 1);
+        let scheme = &remaining[scheme_start..=scheme_end + 2];
+        sanitized.push_str(&remaining[..scheme_start]);
+        let rest = &remaining[scheme_end + 3..];
+        let authority_end = rest
+            .find(|character: char| !(character.is_ascii_alphanumeric()
+                || matches!(character, ':' | '@' | '.' | '-' | '_' | '[' | ']' | '%' | '~' | '+')))
+            .unwrap_or(rest.len());
+        let authority = &rest[..authority_end];
+        if let Some(at) = authority.rfind('@') {
+            // user:password@host -> ***@host
+            sanitized.push_str(scheme);
+            sanitized.push_str("***");
+            sanitized.push_str(&authority[at..]);
+        } else {
+            sanitized.push_str(scheme);
+            sanitized.push_str(&authority);
+        }
+        remaining = &rest[authority_end..];
+    }
+    sanitized.push_str(remaining);
+    sanitized
 }
 
 fn push_candidate(candidates: &mut Vec<PathBuf>, candidate: PathBuf) {
@@ -199,5 +235,21 @@ mod tests {
             command_error.kind,
             GitCommandFailureKind::ExecutableUnavailable
         );
+    }
+
+    #[test]
+    fn git_error_messages_redact_embedded_credentials() {
+        let message = sanitize_git_error_message(
+            "fatal: unable to access 'https://user:supersecret@example.com/repo.git/': \
+             The requested URL returned error: 403\n",
+        );
+        assert!(!message.contains("supersecret"), "password must not survive");
+        assert!(message.contains("https://***@example.com/repo.git/"));
+        // A credential-free URL stays intact.
+        let plain = sanitize_git_error_message(
+            "fatal: unable to access 'https://example.com/repo.git/': error",
+        );
+        assert!(plain.contains("https://example.com/repo.git/"));
+        assert!(!plain.contains("***"));
     }
 }

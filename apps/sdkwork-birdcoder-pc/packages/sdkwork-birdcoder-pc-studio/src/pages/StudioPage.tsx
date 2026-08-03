@@ -39,6 +39,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench';
 import { useImportedProjectSessionInventory } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionInventory';
 import { getProviderSessionImportFailureCount } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
+import { normalizeWorkbenchMode } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import {
@@ -1438,6 +1439,7 @@ function StudioPageComponent({
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
+        workbenchMode={normalizeWorkbenchMode(preferences.workbenchMode)}
         hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
         isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
         remoteMessagesLoadError={earlierAgentSessionItemsError}

@@ -14,6 +14,7 @@ export type {
   ModelAccessCatalogModel,
   ModelAccessCatalogSnapshot,
   UserModelChannel,
+  UserModelEngineConfig,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 export {
   BIRDCODER_OFFICIAL_MODEL_RELAY_BASE_URL,

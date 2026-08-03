@@ -13,6 +13,8 @@ const THEME_TOKENS: Record<ThemeMode, Record<string, string>> = {
   dark: {
     '--birdcoder-chrome-surface': '#1e2024',
     '--sdk-color-border-default': 'rgba(255, 255, 255, 0.14)',
+    '--sdk-color-brand-primary': '#339cff',
+    '--sdk-color-brand-primary-soft': 'rgba(51, 156, 255, 0.18)',
     '--sdk-color-surface-canvas': '#181818',
     '--sdk-color-surface-elevated': '#2d2d2d',
     '--sdk-color-surface-field-hover': '#333333',
@@ -25,6 +27,8 @@ const THEME_TOKENS: Record<ThemeMode, Record<string, string>> = {
   light: {
     '--birdcoder-chrome-surface': '#f0f3f9',
     '--sdk-color-border-default': 'rgba(13, 13, 13, 0.10)',
+    '--sdk-color-brand-primary': '#0285ff',
+    '--sdk-color-brand-primary-soft': 'rgba(2, 133, 255, 0.12)',
     '--sdk-color-surface-canvas': '#ffffff',
     '--sdk-color-surface-elevated': '#ffffff',
     '--sdk-color-surface-field-hover': '#fafafa',
@@ -219,4 +223,44 @@ test('model access selector trigger and menu follow light and dark theme tokens'
   await applyTheme(page, 'dark');
   await expect(trigger).not.toHaveCSS('color', 'rgb(82, 82, 82)');
   await expect(menu).not.toHaveCSS('background-color', 'rgb(255, 255, 255)');
+});
+
+test('model access config dialog tabs show a distinct selected state in both themes', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_440, height: 900 });
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await expandProjectSessions(page);
+  await selectClaudeSession(page);
+
+  const trigger = page.locator('.sdkwork-model-access-trigger').first();
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const menu = page.locator('.sdkwork-model-access-menu');
+  await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name: /add access channel/i }).click();
+  const dialog = page.locator('.sdkwork-model-access-dialog');
+  await expect(dialog).toBeVisible();
+
+  const tablist = dialog.locator('.sdkwork-model-access-kind-tabs');
+  await expect(tablist).toBeVisible();
+  const selectedTab = tablist.locator('button[aria-selected="true"]');
+  const unselectedTab = tablist.locator('button[aria-selected="false"]').first();
+  await expect(selectedTab).toHaveCount(1);
+
+  await applyTheme(page, 'light');
+  await expect(selectedTab).toHaveCSS('background-color', 'rgba(2, 133, 255, 0.12)');
+  await expect(selectedTab).toHaveCSS('color', 'rgb(2, 133, 255)');
+  await expect(unselectedTab).not.toHaveCSS('background-color', 'rgba(2, 133, 255, 0.12)');
+
+  await applyTheme(page, 'dark');
+  await expect(selectedTab).toHaveCSS('background-color', 'rgba(51, 156, 255, 0.18)');
+  await expect(selectedTab).toHaveCSS('color', 'rgb(51, 156, 255)');
+  await expect(unselectedTab).not.toHaveCSS('background-color', 'rgba(51, 156, 255, 0.18)');
 });

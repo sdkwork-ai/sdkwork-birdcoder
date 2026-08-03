@@ -380,6 +380,15 @@ The PC Projects Store retains at most 500 items and 4 MiB of estimated
 structured content per Session. Estimation is iterative, cycle-aware, and
 bounded to 65,536 visited nodes, so deeply nested provider metadata neither
 recurses on the JavaScript stack nor requires a full JSON string allocation.
+History loading is additionally capped at ten cumulative pages of new
+earlier-message progress per Session across all scroll-to-top gestures, and
+the whole scope projection enforces a 50,000-item global transcript ceiling:
+the lowest-priority populated Sessions lose their transcript items first
+(their inventory row survives and a later refresh restores the transcript
+from the owner SDK), so many populated Sessions can never accumulate
+unbounded transcript memory. Cache trimming retains Sessions
+priority-first and partially retains an over-capacity Project instead of
+dropping it as a whole, so leftover session capacity is never wasted.
 The progressive renderer starts with the latest 48 messages. Its state commits
 the stable Project and Session identity before remote prepend; later Agent or
 Provider metadata enrichment cannot reset the expanded window or its scroll
@@ -482,10 +491,36 @@ runtime host. Until those items close, provider-only activity cannot be
 described as complete head discovery, and clients use returned owner fact
 versions without claiming monotonic aggregate order.
 
-The repository technical-debt quality gate currently also rejects retired
-Workspace/IDE service types. That independent cleanup must pass before release;
-it must preserve the rule that BirdCoder has no Workspace, Project, or Session
-business authority.
+The repository technical-debt quality gate for retired Workspace/IDE service
+types is closed: the retired crate, package, and `database/` directory
+skeletons were removed, the orphaned App SDK offset-pagination test and
+stale release OpenAPI artifacts (which still advertised retired
+`workspaces`/`projects`/`git` routes and permissions absent from
+`specs/iam.module.manifest.json`) were purged, and release artifacts are
+now pinned to the authoritative OpenAPI by a parity contract
+(`scripts/release/openapi-artifact-parity-contract.test.mjs`). The rule that
+BirdCoder has no Workspace, Project, or Session business authority is
+preserved.
+
+The embedded desktop gateway asserts an explicit IAM authentication path
+before serving protected routes: an operator-configured
+`SDKWORK_IAM_DATABASE_URL` selects database-backed sessions, otherwise the
+local development authentication fallback is enabled for loopback local
+login, and a state with neither fails closed with a diagnostic instead of
+silently returning 401 on every protected route. The desktop WebView also
+enforces a Content-Security-Policy (mirroring the renderer's HTML meta
+policy) as a defense-in-depth layer, and browser-local session persistence
+never stores the rotating refresh token — long-lived credentials are
+persisted only through the OS-level keyring-backed secure port and fail
+closed in-memory otherwise.
+
+The gateway also mounts the SDKWork Deployments owner module as one of its
+owner API contributions. The Deployments module owns its own database and
+lifecycle (`sdkwork-deployments`); BirdCoder's stateless-ownership promise is
+unchanged — the gateway holds no BirdCoder business table and delegates the
+Deployments module's database bootstrap to that module's own migration entry
+point before serving. Deploying the gateway without the Deployments module
+(no Deploy database configuration) remains a supported stateless profile.
 
 ## 6. PC Host And Composition Boundaries
 

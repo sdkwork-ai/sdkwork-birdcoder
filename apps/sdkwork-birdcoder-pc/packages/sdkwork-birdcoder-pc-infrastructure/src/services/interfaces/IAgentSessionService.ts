@@ -103,10 +103,23 @@ export interface AgentSessionCursorPage<TItem> {
   };
 }
 
-export type AgentSessionItemSynchronizationRequest = Omit<
-  AgentSessionItemPageRequest,
-  'cursor'
->;
+export type AgentSessionItemSynchronizationStatus =
+  | 'engine-unavailable'
+  | 'imported'
+  | 'no-active-binding'
+  | 'not-provider-session';
+
+/**
+ * Outcome of the best-effort provider transcript synchronization returned by
+ * `agents.sessionItems.synchronize`. Only `imported` means the provider
+ * transcript was loaded and reconciled; every other status describes why the
+ * synchronization did not run. The command never returns an item window: the
+ * persisted window is read through `listSessionItems`.
+ */
+export interface AgentSessionItemSynchronizationView {
+  importedItemCount: string;
+  status: AgentSessionItemSynchronizationStatus;
+}
 
 export interface CreateAgentSessionInput {
   agentId?: string;
@@ -217,9 +230,8 @@ export interface IAgentSessionService {
   ): Promise<AgentSessionCursorPage<AgentSessionItemRecord>>;
   synchronizeSessionItems(
     identity: AgentSessionIdentity,
-    request?: AgentSessionItemSynchronizationRequest,
     options?: AgentSessionReadOptions,
-  ): Promise<AgentSessionCursorPage<AgentSessionItemRecord>>;
+  ): Promise<AgentSessionItemSynchronizationView>;
   listTurns(
     identity: AgentSessionIdentity,
     request?: AgentSessionPageRequest,

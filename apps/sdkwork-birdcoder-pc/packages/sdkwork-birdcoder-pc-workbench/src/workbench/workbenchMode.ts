@@ -138,3 +138,25 @@ export function listWorkbenchModeProviderAvailability<
     };
   });
 }
+
+/**
+ * Constrain a resolved engine to the given workbench mode. When the engine
+ * already belongs to the mode it is returned unchanged; otherwise the first
+ * available engine that matches the mode is returned. Falls back to null when
+ * no available engine matches (e.g. the mode's providers are not implemented
+ * for the current deployment).
+ */
+export function resolveWorkbenchModeConstrainedEngineId(
+  mode: WorkbenchMode,
+  engineId: unknown,
+  availableEngines: readonly WorkbenchModeEngineIdentity[],
+): string | null {
+  const normalizedEngineId = normalizeIdentitySegment(engineId);
+  if (matchesWorkbenchModeEngineId(mode, normalizedEngineId)) {
+    return normalizedEngineId || null;
+  }
+  const modeEngine = availableEngines.find((engine) =>
+    matchesWorkbenchModeCatalogEngine(mode, engine),
+  );
+  return modeEngine ? modeEngine.id : null;
+}

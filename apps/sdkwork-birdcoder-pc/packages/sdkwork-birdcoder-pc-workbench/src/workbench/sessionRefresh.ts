@@ -48,6 +48,14 @@ const AGENT_SESSION_ITEM_PAGE_SIZE = 50;
 const AGENT_SESSION_INITIAL_CONVERSATION_TURN_TARGET = 8;
 const AGENT_SESSION_LATEST_ITEM_MAX_PAGES = 8;
 const AGENT_SESSION_EARLIER_DUPLICATE_PAGE_LIMIT = 3;
+/**
+ * Cumulative ceiling for earlier-message loading across all scroll-to-top
+ * gestures in one Session. Each gesture advances one page of new history;
+ * this total bounds retained transcript growth before the store's per-Session
+ * retention window (500 items) does, keeping history-loading work and memory
+ * strictly bounded.
+ */
+const AGENT_SESSION_EARLIER_ITEM_MAX_TOTAL_PAGES = 10;
 const AGENT_SESSION_ITEM_CURSOR_MAX_LENGTH = 2_048;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
@@ -296,15 +304,26 @@ function retainTransientSessionItems(
   return items.filter(isTransientSessionItem);
 }
 
+/**
+ * Keeps transient local items (optimistic user input) at the newest edge of
+ * the merged transcript: authority rows stay in chronological order and the
+ * transient tail renders after them instead of being buried at the head.
+ */
+function moveTransientItemsToTail(
+  items: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  return [
+    ...items.filter((item) => !isTransientSessionItem(item)),
+    ...items.filter(isTransientSessionItem),
+  ];
+}
+
 function mergeResetSessionItemWindow(
   transientItems: readonly AgentSessionItemView[],
   authorityItems: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
   const mergedItems = mergeLatestAgentSessionItems(transientItems, authorityItems);
-  return [
-    ...mergedItems.filter((item) => !isTransientSessionItem(item)),
-    ...mergedItems.filter(isTransientSessionItem),
-  ];
+  return moveTransientItemsToTail(mergedItems);
 }
 
 function latestTimestamp(
@@ -408,7 +427,9 @@ export function mergeRefreshedAgentSessionIntoCurrent(
         ),
     // Loaded earlier pages and transient user items are always retained;
     // an authority window that cannot be joined appends the fresh window to
-    // the loaded history instead of wiping it.
+    // the loaded history instead of wiping it. This merge is order-preserving
+    // by contract; transient-tail placement happens at the refresh assembly
+    // point where the complete window is known.
     items: mergeLatestAgentSessionItems(current.items, refreshed.items),
   };
 }
@@ -546,19 +567,22 @@ async function loadLatestSessionItemWindowPage(
     sort: 'sequence' | '-sequence';
   },
   signal: AbortSignal,
-): Promise<Awaited<ReturnType<IAgentSessionService['synchronizeSessionItems']>>> {
+): Promise<Awaited<ReturnType<IAgentSessionService['listSessionItems']>>> {
+  // The provider transcript synchronization is a best-effort command: it
+  // never returns the item window (API_SPEC §14.1.3 — commands MUST NOT hide
+  // list behavior behind POST), and a failure or skipped outcome must not
+  // fail the read. The persisted window is always read through the canonical
+  // list operation afterwards.
   try {
-    return await service.synchronizeSessionItems(identity, pageRequest, { signal });
+    await service.synchronizeSessionItems(identity, { signal });
   } catch (error) {
-    if (isSessionItemSynchronizationConflictError(error)) {
-      // Provider Session history items are immutable once terminal; the
-      // provider transcript synchronization is then rejected with a conflict.
-      // The transcript read must still succeed, so fall back to the persisted
-      // item window instead of failing the message list.
-      return service.listSessionItems(identity, pageRequest, { signal });
+    if (isAgentSessionNotFoundError(error)) {
+      // A vanished Session must surface so the caller can re-resolve the
+      // project inventory and remove it; a list retry cannot resurrect it.
+      throw error;
     }
-    throw error;
   }
+  return service.listSessionItems(identity, pageRequest, { signal });
 }
 
 async function loadSessionItemPage(
@@ -904,35 +928,21 @@ export function isAgentSessionNotFoundError(error: unknown): boolean {
     ?? candidate.statusCode
     ?? candidate.response?.status
     ?? candidate.problem?.status;
-  if (status === 404 || candidate.code === 'NOT_FOUND') {
+  // The agents app API reports not-found as HTTP 404 with problem code 40401;
+  // the message regex is only a defensive fallback for adapters without a
+  // structured code.
+  if (
+    status === 404
+    || candidate.code === 'NOT_FOUND'
+    || candidate.code === 40401
+    || candidate.code === '40401'
+  ) {
     return true;
   }
   return (
     typeof candidate.message === 'string' &&
     /(?:agent\s+)?session\s+not\s+found/iu.test(candidate.message)
   );
-}
-
-export function isSessionItemSynchronizationConflictError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
-  const candidate = error as {
-    code?: unknown;
-    httpStatus?: unknown;
-    problem?: { code?: unknown; status?: unknown };
-    response?: { status?: unknown };
-    status?: unknown;
-    statusCode?: unknown;
-  };
-  const status = candidate.httpStatus
-    ?? candidate.status
-    ?? candidate.statusCode
-    ?? candidate.response?.status
-    ?? candidate.problem?.status;
-  return status === 409
-    || candidate.code === 40901
-    || candidate.code === '40901';
 }
 
 async function refreshAgentSessionItemsWithoutTimeout({
@@ -1070,9 +1080,12 @@ async function refreshAgentSessionItemsWithoutTimeout({
         // Loaded history and transient user items are always retained as the
         // merge base, even when a disconnected authority window is replaced;
         // the fresh window (or its source-window projection) is appended.
-        items: mergeLatestAgentSessionItems(
-          retainedExistingItems,
-          sourceWindowItems ?? refreshedAgentSession.items,
+        // Transient local items keep their newest-edge tail position.
+        items: moveTransientItemsToTail(
+          mergeLatestAgentSessionItems(
+            retainedExistingItems,
+            sourceWindowItems ?? refreshedAgentSession.items,
+          ),
         ),
       }
     : refreshedAgentSession;
@@ -1137,6 +1150,7 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
   let currentAgentSession = agentSession;
   let loadedItemCount = 0;
   let duplicateOnlyPageCount = 0;
+  let cumulativeProgressPageCount = 0;
   while (true) {
     const loadedPageInfo = validateLoadedItemPageInfo(
       currentAgentSession.itemPageInfo!,
@@ -1180,13 +1194,19 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
       : nextAgentSession;
     const pageMadeProgress = addedItemCount > 0 || addedSourceItemCount > 0;
     duplicateOnlyPageCount = pageMadeProgress ? 0 : duplicateOnlyPageCount + 1;
+    if (pageMadeProgress) {
+      cumulativeProgressPageCount += 1;
+    }
     // One page of new history per scroll-to-top gesture: stop as soon as the
     // page made progress; only duplicate-only pages are walked further (up to
-    // the duplicate limit) to catch up with a shifted provider window.
+    // the duplicate limit) to catch up with a shifted provider window. The
+    // cumulative ceiling bounds total history retained across gestures so a
+    // long session cannot grow its in-memory transcript without limit.
     if (
       pageMadeProgress
       || !itemPage.pageInfo.hasMore
       || duplicateOnlyPageCount >= AGENT_SESSION_EARLIER_DUPLICATE_PAGE_LIMIT
+      || cumulativeProgressPageCount >= AGENT_SESSION_EARLIER_ITEM_MAX_TOTAL_PAGES
     ) {
       break;
     }

@@ -1,6 +1,5 @@
 packages:
   - "apps/sdkwork-birdcoder-common"
-  - "apps/sdkwork-birdcoder-common/packages/*"
   - "apps/sdkwork-birdcoder-flutter-mobile"
   - "apps/sdkwork-birdcoder-flutter-mobile/packages/*"
   - "apps/sdkwork-birdcoder-h5"

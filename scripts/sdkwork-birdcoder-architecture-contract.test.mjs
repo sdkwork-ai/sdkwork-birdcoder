@@ -14,6 +14,7 @@ const EXPECTED_SYSTEM_PATHS = [
   '/app/v3/api/system/runtime',
 ];
 const EXPECTED_DEPENDENCY_AUTHORITIES = Object.freeze({
+  agentWorkspaces: 'sdkwork-agents',
   agentProjects: 'sdkwork-agents',
   agentProjectComposition: 'sdkwork-agents',
   agentSessions: 'sdkwork-agents',

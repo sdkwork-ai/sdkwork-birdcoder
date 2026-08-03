@@ -43,6 +43,7 @@ export const RELEASE_FLOW_CHECK_LANES = Object.freeze({
   ]),
   releaseEvidence: Object.freeze([
     'node scripts/release/local-release-command.test.mjs',
+    'node scripts/release/deploy-command-standard.test.mjs',
     'node scripts/release/rollback-plan-command.test.mjs',
     'node scripts/run-desktop-release-build.test.mjs',
     'node scripts/release/release-build-paths-contract.test.mjs',
@@ -59,6 +60,7 @@ export const RELEASE_FLOW_CHECK_LANES = Object.freeze({
     'node scripts/release/finalize-release-assets.test.mjs',
     'node scripts/release/write-attestation-evidence.test.mjs',
     'node scripts/release/release-checksums.test.mjs',
+    'node scripts/release/openapi-artifact-parity-contract.test.mjs',
     'node scripts/release/assert-release-readiness.test.mjs',
     'node scripts/release/release-readiness-complete-matrix.test.mjs',
     'node scripts/release/release-stop-ship-governance.test.mjs',

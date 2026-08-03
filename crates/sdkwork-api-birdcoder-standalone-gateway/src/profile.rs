@@ -3,11 +3,13 @@ use std::sync::Arc;
 
 use axum::Router;
 use sdkwork_api_birdcoder_assembly::bootstrap::config::BirdServerConfig;
-use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck};
+use sdkwork_intelligence_deploy_service::DeployService;
+use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck, ReadinessFuture};
 use sdkwork_web_contract::{route_inventory_from_openapi, route_inventory_from_routes, HttpRoute};
 use sdkwork_web_core::{DomainContextInjector, HttpRouteManifest};
 
 const STANDALONE_OPENAPI_TITLE: &str = "SDKWork BirdCoder Standalone App API";
+const DEPLOYMENTS_OPENAPI_TITLE: &str = "SDKWork Deploy App API";
 
 pub(crate) struct StandaloneApiProfile {
     pub router: Router,
@@ -26,6 +28,55 @@ struct OwnerApiContribution {
     permission_catalog: Vec<&'static str>,
     domain_context_injectors: Vec<Arc<dyn DomainContextInjector>>,
     readiness_check: Arc<dyn ReadinessCheck>,
+}
+
+/// Readiness check backed by the composed SDKWork Deploy service host.
+struct DeployServiceReadinessCheck {
+    service: Arc<DeployService>,
+}
+
+impl ReadinessCheck for DeployServiceReadinessCheck {
+    fn check(&self) -> ReadinessFuture<'_> {
+        let service = self.service.clone();
+        Box::pin(async move {
+            service
+                .ready_check()
+                .await
+                .map_err(|error| error.to_string())
+        })
+    }
+}
+
+/// Assembles the SDKWork Deploy owner App API contribution from the
+/// sdkwork-deployments service host (API_ASSEMBLY_SPEC §3/§6.1): the service
+/// host bootstraps its own PostgreSQL repository, drive port, and content
+/// provider from the environment, and the route crate exposes the bare router
+/// plus its route manifest so the gateway composes it under the single shared
+/// web framework layer.
+async fn assemble_deployments_contribution() -> Result<OwnerApiContribution, String> {
+    let host = sdkwork_deploy_service_host::bootstrap_deploy_service_host_from_env()
+        .await
+        .map_err(|error| format!("assemble Deployments owner App API failed: {error}"))?;
+    let router =
+        sdkwork_routes_deploy_app_api::build_router_with_shared_app_api(host.service.clone());
+    let route_manifest = sdkwork_routes_deploy_app_api::app_route_manifest();
+    let permission_catalog = permission_catalog(route_manifest.routes());
+    let openapi = sdkwork_web_contract::build_openapi_document(
+        DEPLOYMENTS_OPENAPI_TITLE,
+        route_manifest.routes(),
+    );
+
+    Ok(OwnerApiContribution {
+        owner: "sdkwork-deployments",
+        router,
+        route_manifest,
+        openapi,
+        permission_catalog,
+        domain_context_injectors: sdkwork_routes_deploy_app_api::deploy_app_api_domain_context_injectors(),
+        readiness_check: Arc::new(DeployServiceReadinessCheck {
+            service: host.service,
+        }),
+    })
 }
 
 /// Assembles the exact standalone HTTP unit from owner assembly entrypoints.
@@ -72,6 +123,9 @@ pub(crate) async fn assemble_standalone_profile(
     let models = sdkwork_api_models_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Models owner App API failed: {error}"))?;
+    let deployments = assemble_deployments_contribution()
+        .await
+        .map_err(|error| format!("assemble Deployments owner App API failed: {error:#}"))?;
 
     compose_owner_contributions(vec![
         OwnerApiContribution {
@@ -163,6 +217,15 @@ pub(crate) async fn assemble_standalone_profile(
             permission_catalog: models.permission_catalog,
             domain_context_injectors: models.domain_context_injectors,
             readiness_check: models.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-deployments",
+            router: deployments.router,
+            route_manifest: deployments.route_manifest,
+            openapi: deployments.openapi,
+            permission_catalog: deployments.permission_catalog,
+            domain_context_injectors: deployments.domain_context_injectors,
+            readiness_check: deployments.readiness_check,
         },
     ])
 }

@@ -44,13 +44,20 @@ pub fn build_list_envelope<T: Serialize>(
 }
 
 /// Lists with bounded cardinality (PAGINATION_SPEC.md §11) that return the full
-/// set in one response still emit accurate `pageInfo` metadata.
+/// set in one response still emit accurate `pageInfo` metadata. The payload is
+/// defensively capped at the standard maximum page size so `pageInfo.pageSize`
+/// and the returned item count stay self-consistent even if the caller's
+/// bounded collection grows beyond its documented ceiling.
 pub fn build_unbounded_list_envelope<T: Serialize>(
     items: Vec<T>,
     trace_id: &str,
 ) -> ApiListEnvelope<T> {
-    let total = items.len();
-    build_offset_list_envelope(items, 0, total.max(1), total, trace_id)
+    let bounded_items: Vec<T> = items
+        .into_iter()
+        .take(usize::try_from(MAX_LIST_PAGE_SIZE).unwrap_or(usize::MAX))
+        .collect();
+    let total = bounded_items.len();
+    build_offset_list_envelope(bounded_items, 0, total.max(1), total, trace_id)
 }
 
 pub fn build_offset_list_envelope<T: Serialize>(
@@ -133,5 +140,29 @@ mod tests {
         assert_eq!(json["code"], 0);
         assert_eq!(json["traceId"], "trace-data-envelope");
         assert_eq!(json["data"]["item"]["id"], "session-1");
+    }
+
+    #[test]
+    fn bounded_list_envelope_caps_page_size_and_item_count_at_the_standard_maximum() {
+        let oversized: Vec<String> = (0..250).map(|index| format!("route-{index}")).collect();
+        let envelope = build_unbounded_list_envelope(oversized, "trace-bounded-list-envelope");
+        let json = serde_json::to_value(envelope).expect("serialize bounded list envelope");
+
+        let items = json["data"]["items"]
+            .as_array()
+            .expect("bounded list envelope items array");
+        assert!(
+            items.len() <= usize::try_from(MAX_LIST_PAGE_SIZE).unwrap_or(usize::MAX),
+            "item count must never exceed the standard maximum page size"
+        );
+        let page_size = json["data"]["pageInfo"]["pageSize"]
+            .as_i64()
+            .expect("pageInfo.pageSize number");
+        assert!(
+            page_size <= i64::from(MAX_LIST_PAGE_SIZE),
+            "pageInfo.pageSize must never exceed the standard maximum"
+        );
+        assert_eq!(i64::try_from(items.len()).expect("item count fits i64"), page_size);
+        assert_eq!(json["data"]["pageInfo"]["totalItems"].as_str().expect("totalItems string"), "200");
     }
 }

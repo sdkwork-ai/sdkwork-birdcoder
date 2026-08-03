@@ -39,13 +39,19 @@ struct LabeledHistogram {
 
 impl LabeledHistogram {
     fn observe(&self, labels: &str, value_seconds: f64) {
-        let mut stats = self.stats.lock().expect("metrics histogram mutex");
+        // Metrics are best-effort: a poisoned lock must never panic the
+        // request thread, so observation is skipped instead.
+        let Ok(mut stats) = self.stats.lock() else {
+            return;
+        };
         let labels = bounded_labels(&stats, labels);
         stats.entry(labels).or_default().observe(value_seconds);
     }
 
     fn render(&self, name: &str, help: &str) -> String {
-        let stats = self.stats.lock().expect("metrics histogram mutex");
+        let Ok(stats) = self.stats.lock() else {
+            return String::new();
+        };
         if stats.is_empty() {
             return String::new();
         }
@@ -73,13 +79,17 @@ struct LabeledCounter {
 
 impl LabeledCounter {
     fn inc(&self, labels: &str) {
-        let mut counts = self.counts.lock().expect("metrics counter mutex");
+        let Ok(mut counts) = self.counts.lock() else {
+            return;
+        };
         let labels = bounded_labels(&counts, labels);
         *counts.entry(labels).or_default() += 1;
     }
 
     fn render(&self, name: &str, help: &str) -> String {
-        let counts = self.counts.lock().expect("metrics counter mutex");
+        let Ok(counts) = self.counts.lock() else {
+            return String::new();
+        };
         if counts.is_empty() {
             return String::new();
         }

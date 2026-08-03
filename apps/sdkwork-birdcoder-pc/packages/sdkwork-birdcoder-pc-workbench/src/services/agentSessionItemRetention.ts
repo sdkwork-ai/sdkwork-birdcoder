@@ -1,6 +1,11 @@
-export const AGENT_SESSION_ITEM_RETENTION_MAX_ITEMS = 2_000;
-export const AGENT_SESSION_ITEM_RETENTION_MAX_CHARACTERS = 16 * 1_048_576;
-export const AGENT_SESSION_ITEM_RETENTION_MAX_ESTIMATE_NODES = 262_144;
+// Per-Session transcript retention budgets declared by the product contract:
+// at most 500 Session Items and 4 MiB of estimated structured content, with
+// cycle-aware estimation bounded to 65,536 visited nodes so deeply nested
+// provider metadata neither recurses on the JavaScript stack nor requires a
+// full JSON string allocation.
+export const AGENT_SESSION_ITEM_RETENTION_MAX_ITEMS = 500;
+export const AGENT_SESSION_ITEM_RETENTION_MAX_CHARACTERS = 4 * 1_048_576;
+export const AGENT_SESSION_ITEM_RETENTION_MAX_ESTIMATE_NODES = 65_536;
 
 export interface AgentSessionItemRetentionEstimateBudget {
   remainingNodes: number;

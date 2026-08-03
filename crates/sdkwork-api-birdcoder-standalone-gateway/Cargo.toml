@@ -31,6 +31,10 @@ sdkwork-api-membership-assembly.workspace = true
 sdkwork-api-order-assembly.workspace = true
 sdkwork-api-prompts-assembly.workspace = true
 sdkwork-api-skills-assembly.workspace = true
+sdkwork-api-deployments-assembly.workspace = true
+sdkwork-deploy-service-host.workspace = true
+sdkwork-routes-deploy-app-api.workspace = true
+sdkwork-intelligence-deploy-service.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

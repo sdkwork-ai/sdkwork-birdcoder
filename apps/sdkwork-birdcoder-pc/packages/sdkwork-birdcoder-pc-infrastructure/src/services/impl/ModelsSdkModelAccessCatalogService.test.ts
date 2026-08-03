@@ -14,6 +14,7 @@ function databaseModel(overrides: Partial<AppModelCatalogItem> = {}): AppModelCa
     capabilityIntro: null,
     catalogKey: 'openai/gpt-test',
     categories: ['coding'],
+    codingVisible: true,
     contextTokens: null,
     description: 'Database model',
     displayName: 'GPT Test',
@@ -41,6 +42,7 @@ function databaseModel(overrides: Partial<AppModelCatalogItem> = {}): AppModelCa
     supportsTools: true,
     trainingDataCutoff: null,
     useCases: ['code generation'],
+    usageScopes: ['coding'],
     vendor: 'OpenAI',
     vendorCode: 'openai',
     ...overrides,
@@ -114,7 +116,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
         }),
       ],
       groups: [],
-      pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: true },
+      pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: false },
     });
     const listChannels = vi.fn().mockResolvedValue({
       items: [{
@@ -181,7 +183,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     })]);
     expect(listModels).toHaveBeenCalledOnce();
     expect(listModels).toHaveBeenCalledWith(
-      { page: 1, pageSize: 100, q: 'test' },
+      { page: 1, pageSize: 100, q: 'test', capabilities: ['chat'] },
       { signal: undefined },
     );
     expect(listChannels).toHaveBeenCalledWith(
@@ -210,7 +212,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
       .mockResolvedValueOnce({
         items: [databaseModel()],
         groups: [],
-        pageInfo: { mode: 'offset', page: 1, pageSize: 1, hasMore: true },
+        pageInfo: { mode: 'offset', page: 1, pageSize: 1, hasMore: false },
       });
     const { service } = createService({ listModels });
 
@@ -223,9 +225,207 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     });
     expect(listModels).toHaveBeenNthCalledWith(
       2,
-      { page: 1, pageSize: 1 },
+      { page: 1, pageSize: 1, capabilities: ['chat'] },
       { signal: undefined },
     );
+  });
+
+  it('walks bounded catalog pages until the authority reports no more rows', async () => {
+    const listModels = vi.fn()
+      .mockResolvedValueOnce({
+        items: [databaseModel()],
+        groups: [],
+        pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: true },
+      })
+      .mockResolvedValueOnce({
+        items: [databaseModel({
+          catalogKey: 'anthropic/claude-test',
+          displayName: 'Claude Test',
+          model: 'claude-test',
+          vendor: 'Anthropic',
+          vendorCode: 'anthropic',
+        })],
+        groups: [],
+        pageInfo: { mode: 'offset', page: 2, pageSize: 100, hasMore: false },
+      });
+    const { service, listModels: listModelsSpy } = createService({ listModels });
+
+    const result = await service.loadCatalog({
+      fallbackModels: [fallbackModel],
+      agentProviderId: 'codex',
+    });
+
+    expect(listModelsSpy).toHaveBeenCalledTimes(2);
+    expect(listModelsSpy).toHaveBeenNthCalledWith(
+      1,
+      { page: 1, pageSize: 100, capabilities: ['chat'] },
+      { signal: undefined },
+    );
+    expect(listModelsSpy).toHaveBeenNthCalledWith(
+      2,
+      { page: 2, pageSize: 100, capabilities: ['chat'] },
+      { signal: undefined },
+    );
+    expect(result.source).toBe('database');
+    expect(result.models.map((model) => model.modelId)).toEqual([
+      'gpt-test',
+      'claude-test',
+    ]);
+    expect(result.models).toMatchObject([
+      { modelId: 'gpt-test', sortOrder: 0 },
+      { modelId: 'claude-test', sortOrder: 1 },
+    ]);
+  });
+
+  it('stops walking at the bounded page ceiling', async () => {
+    const listModels = vi.fn().mockResolvedValue({
+      items: [databaseModel()],
+      groups: [],
+      pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: true },
+    });
+    const { service, listModels: listModelsSpy } = createService({ listModels });
+
+    await service.loadCatalog({
+      fallbackModels: [fallbackModel],
+      agentProviderId: 'codex',
+    });
+
+    // 1 initial page + the ceiling applies when every page reports hasMore.
+    expect(listModelsSpy).toHaveBeenCalledTimes(10);
+    expect(listModelsSpy).toHaveBeenLastCalledWith(
+      { page: 10, pageSize: 100, capabilities: ['chat'] },
+      { signal: undefined },
+    );
+  });
+
+  it('forwards an explicit capability/modality projection to the SDK', async () => {
+    const listModels = vi.fn().mockResolvedValue({
+      items: [databaseModel()],
+      groups: [],
+      pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: false },
+    });
+    const { service } = createService({ listModels });
+
+    await service.loadCatalog({
+      fallbackModels: [fallbackModel],
+      capabilities: ['chat', 'embedding'],
+      modalities: ['image'],
+    });
+
+    expect(listModels).toHaveBeenCalledOnce();
+    expect(listModels).toHaveBeenCalledWith(
+      {
+        page: 1,
+        pageSize: 100,
+        capabilities: ['chat', 'embedding'],
+        modalities: ['image'],
+      },
+      { signal: undefined },
+    );
+  });
+
+  it('treats an empty capability list as an unconstrained projection', async () => {
+    const listModels = vi.fn().mockResolvedValue({
+      items: [databaseModel()],
+      groups: [],
+      pageInfo: { mode: 'offset', page: 1, pageSize: 100, hasMore: false },
+    });
+    const { service } = createService({ listModels });
+
+    await service.loadCatalog({
+      fallbackModels: [fallbackModel],
+      capabilities: [],
+    });
+
+    expect(listModels).toHaveBeenCalledWith(
+      { page: 1, pageSize: 100 },
+      { signal: undefined },
+    );
+  });
+
+  it('filters fallback models by capability so only LLM rows remain by default', async () => {
+    const embeddingFallback: ModelAccessCatalogModel = {
+      ...fallbackModel,
+      id: 'fallback:text-embedding',
+      catalogKey: 'alibaba/text-embedding-v3',
+      modelId: 'text-embedding-v3',
+      label: 'Text Embedding V3',
+      capabilities: ['embedding'],
+      inputModalities: ['text'],
+      outputModalities: ['embedding'],
+    };
+    const { service } = createService();
+
+    const defaultResult = await service.loadCatalog({
+      fallbackModels: [fallbackModel, embeddingFallback],
+    });
+
+    expect(defaultResult.source).toBe('fallback');
+    expect(defaultResult.models.map((model) => model.modelId)).toEqual([
+      'gpt-fallback',
+    ]);
+
+    const explicitResult = await service.loadCatalog({
+      fallbackModels: [fallbackModel, embeddingFallback],
+      capabilities: ['embedding'],
+    });
+
+    expect(explicitResult.models.map((model) => model.modelId)).toEqual([
+      'text-embedding-v3',
+    ]);
+  });
+
+  it('filters fallback models by modality when a modality projection is requested', async () => {
+    const embeddingFallback: ModelAccessCatalogModel = {
+      ...fallbackModel,
+      id: 'fallback:text-embedding',
+      catalogKey: 'alibaba/text-embedding-v3',
+      modelId: 'text-embedding-v3',
+      label: 'Text Embedding V3',
+      capabilities: ['chat', 'embedding'],
+      inputModalities: ['text'],
+      outputModalities: ['embedding'],
+    };
+    const { service } = createService();
+
+    const result = await service.loadCatalog({
+      fallbackModels: [fallbackModel, embeddingFallback],
+      capabilities: [],
+      modalities: ['embedding'],
+    });
+
+    expect(result.models.map((model) => model.modelId)).toEqual([
+      'text-embedding-v3',
+    ]);
+  });
+
+  it('applies the capability projection to the offline fallback path', async () => {
+    const embeddingFallback: ModelAccessCatalogModel = {
+      ...fallbackModel,
+      id: 'fallback:text-embedding',
+      catalogKey: 'alibaba/text-embedding-v3',
+      modelId: 'text-embedding-v3',
+      label: 'Text Embedding V3',
+      capabilities: ['embedding'],
+    };
+    const offlineService = new ModelsSdkModelAccessCatalogService(
+      {} as unknown as ModelsAppSdkClient,
+      { offline: true },
+    );
+
+    await expect(offlineService.loadCatalog({
+      fallbackModels: [fallbackModel, embeddingFallback],
+    })).resolves.toMatchObject({
+      models: [expect.objectContaining({ modelId: 'gpt-fallback' })],
+      source: 'fallback',
+    });
+    await expect(offlineService.loadCatalog({
+      fallbackModels: [fallbackModel, embeddingFallback],
+      capabilities: ['embedding'],
+    })).resolves.toMatchObject({
+      models: [expect.objectContaining({ modelId: 'text-embedding-v3' })],
+      source: 'fallback',
+    });
   });
 
   it('uses the generated fallback on model request failure without discarding channels', async () => {

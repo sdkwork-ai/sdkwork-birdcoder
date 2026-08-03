@@ -2,7 +2,7 @@
 
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   DEFAULT_RELEASE_PROFILE_ID,
@@ -47,7 +47,7 @@ function resolveMode(command, family) {
   const normalizedFamily = String(family ?? '').trim().toLowerCase();
 
   if (!normalizedCommand) {
-    throw new Error('A local release command is required: plan, package <family>, verify-trust <family>, smoke <family>, finalize, or assert-ready.');
+    throw new Error('A local release command is required: plan, package <family>, publish, verify-trust <family>, smoke <family>, finalize, or assert-ready.');
   }
   if (normalizedCommand === 'plan') {
     return 'plan';
@@ -60,6 +60,12 @@ function resolveMode(command, family) {
       throw new Error('A release family is required for "package": desktop, server, container, kubernetes, or web.');
     }
     return `package:${normalizedFamily}`;
+  }
+  if (normalizedCommand === 'publish') {
+    if (normalizedFamily) {
+      throw new Error('A publish family is not positional; pass --family web|server|container|kubernetes|desktop.');
+    }
+    return 'publish';
   }
   if (normalizedCommand === 'smoke') {
     if (!normalizedFamily) {
@@ -180,6 +186,19 @@ export function parseArgs(argv) {
     repository: '',
     qualityExecutionReportPath: '',
     enforceSigningPreflight: false,
+    family: 'web',
+    deploymentProfile: 'standalone',
+    environment: 'development',
+    baseUrl: undefined,
+    siteId: undefined,
+    siteSlug: 'sdkwork-birdcoder',
+    versionTag: undefined,
+    accessToken: undefined,
+    authToken: undefined,
+    deploy: false,
+    commitHash: undefined,
+    dryRun: false,
+    output: undefined,
   };
 
   const tokens = argv.slice(command === 'package' || command === 'smoke' || command === 'verify-trust' ? 2 : 1);
@@ -273,6 +292,56 @@ export function parseArgs(argv) {
       case '--enforce-signing-preflight':
         options.enforceSigningPreflight = true;
         break;
+      case '--family':
+        options.family = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--deployment-profile':
+        options.deploymentProfile = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--environment':
+        options.environment = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--base-url':
+        options.baseUrl = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--site-id':
+        options.siteId = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--site-slug':
+        options.siteSlug = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--version-tag':
+        options.versionTag = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--access-token':
+        options.accessToken = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--auth-token':
+        options.authToken = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--commit-hash':
+        options.commitHash = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--output':
+        options.output = readOptionValue(tokens, index, token);
+        index += 1;
+        break;
+      case '--deploy':
+        options.deploy = true;
+        break;
+      case '--dry-run':
+        options.dryRun = true;
+        break;
       default:
         throw new Error(`Unsupported option: ${token}`);
     }
@@ -285,8 +354,89 @@ export function parseArgs(argv) {
   return options;
 }
 
-async function smokeReleaseAssets(context) {
-  const family = context.mode.split(':')[1];
+/// Delegates the publish command to the tsx-based publish CLI
+/// (scripts/release/publish-release.ts), which drives the SDKWork Deploy App
+/// SDK publisher against the control plane. Child output is inherited so the
+/// publish progress and evidence stay human-readable; only the summary is
+/// returned as the command payload.
+async function publishReleaseAssets(context) {
+  const { spawn } = await import('node:child_process');
+  const scriptsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const runner = path.join(scriptsDir, 'run-local-tsx.mjs');
+  const script = path.join(scriptsDir, 'release', 'publish-release.ts');
+  const publishArgs = [
+    runner,
+    script,
+    '--release-assets-dir',
+    path.resolve(process.cwd(), context.releaseAssetsDir || context.outputDir || 'artifacts/release'),
+    '--family',
+    context.family || 'web',
+    '--deployment-profile',
+    context.deploymentProfile,
+    '--environment',
+    context.environment,
+    '--site-slug',
+    context.siteSlug,
+  ];
+  if (context.baseUrl) {
+    publishArgs.push('--base-url', context.baseUrl);
+  }
+  if (context.siteId) {
+    publishArgs.push('--site-id', context.siteId);
+  }
+  if (context.versionTag) {
+    publishArgs.push('--version-tag', context.versionTag);
+  }
+  if (context.accessToken) {
+    publishArgs.push('--access-token', context.accessToken);
+  }
+  if (context.authToken) {
+    publishArgs.push('--auth-token', context.authToken);
+  }
+  if (context.commitHash) {
+    publishArgs.push('--commit-hash', context.commitHash);
+  }
+  if (context.output) {
+    publishArgs.push('--output', context.output);
+  }
+  if (context.deploy) {
+    publishArgs.push('--deploy');
+  }
+  if (context.dryRun) {
+    publishArgs.push('--dry-run');
+  }
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, publishArgs, {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: 'inherit',
+      shell: false,
+    });
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      if (signal) {
+        reject(new Error(`publish interrupted by signal ${signal}`));
+        return;
+      }
+      if (code !== 0) {
+        reject(new Error(`publish failed with exit code ${code}`));
+        return;
+      }
+      resolve();
+    });
+  });
+
+  return {
+    mode: 'publish',
+    family: context.family || 'web',
+    deploymentProfile: context.deploymentProfile,
+    environment: context.environment,
+    releaseAssetsDir: context.releaseAssetsDir || context.outputDir || 'artifacts/release',
+  };
+}
+
+async function smokeReleaseAssets(context) {  const family = context.mode.split(':')[1];
   if (family === 'desktop') {
     return smokeDesktopInstallers({
       releaseAssetsDir: context.releaseAssetsDir || 'artifacts/release',
@@ -371,6 +521,10 @@ async function resolveCommandPayload(context) {
       'image-digest': context.imageDigest,
     });
     return summarizePackageResult(result);
+  }
+
+  if (context.mode === 'publish') {
+    return publishReleaseAssets(context);
   }
 
   if (context.mode.startsWith('smoke:')) {

@@ -17,8 +17,16 @@ import { createAgentModelAccessSelectorMessages } from '@sdkwork/birdcoder-pc-wo
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { listWorkbenchServerImplementedCodeEngines } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
-import { AGENT_MODEL_PROVIDER_IDS } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import type { UserModelChannel } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import {
+  matchesWorkbenchModeEngineId,
+  normalizeWorkbenchMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
+import {
+  AGENT_MODEL_PROVIDER_IDS,
+  saveModelManagementChannel,
+  type UserModelChannel,
+  type UserModelEngineConfig,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 function dedupeCatalogModels(
   models: readonly AgentModelCatalogOption[],
@@ -37,7 +45,19 @@ function dedupeCatalogModels(
   return result;
 }
 
-function toPickerChannel(channel: UserModelChannel): ModelAccessChannel {
+function providerIdsForChannel(
+  engineConfigs: readonly UserModelEngineConfig[],
+  channelCode: string,
+): string[] {
+  return [...new Set(engineConfigs
+    .filter((config) => config.channelCode.trim().toLowerCase() === channelCode.trim().toLowerCase())
+    .map((config) => config.engineId))];
+}
+
+function toPickerChannel(
+  channel: UserModelChannel,
+  engineConfigs: readonly UserModelEngineConfig[],
+): ModelAccessChannel {
   return {
     id: channel.code,
     code: channel.code,
@@ -48,7 +68,9 @@ function toPickerChannel(channel: UserModelChannel): ModelAccessChannel {
     defaultVendorCode: channel.defaultVendorCode,
     defaultModelId: channel.defaultModelId,
     apiKeyConfigured: channel.apiKeyConfigured,
-    supportedAgentProviderIds: [],
+    // The per-provider bindings live in the engine-config rows; the picker
+    // reopens the edit dialog with the same provider set the user checked.
+    supportedAgentProviderIds: providerIdsForChannel(engineConfigs, channel.code),
     offerings: channel.offerings.map((offering) => ({
       vendorCode: offering.vendorCode,
       vendorName: offering.vendorName,
@@ -63,19 +85,28 @@ function toPickerChannel(channel: UserModelChannel): ModelAccessChannel {
 
 export function ModelManagementSettings() {
   const { t } = useTranslation();
-  const { preferences } = useWorkbenchPreferences();
-  const { userModelConfigService, modelAccessCatalogService } = useIDEServices();
+  const { preferences, updatePreferences } = useWorkbenchPreferences();
+  const {
+    agentModelConfigurationService,
+    userModelConfigService,
+    modelAccessCatalogService,
+  } = useIDEServices();
   const [channels, setChannels] = useState<UserModelChannel[]>([]);
+  const [engineConfigs, setEngineConfigs] = useState<UserModelEngineConfig[]>([]);
   const [engineSelections, setEngineSelections] = useState<ModelManagementEngineSelection[]>([]);
   const [catalogModels, setCatalogModels] = useState<AgentModelCatalogOption[]>([]);
 
   const reload = useCallback(async () => {
-    const [channelList, selectionList] = await Promise.allSettled([
+    const [channelList, configList, selectionList] = await Promise.allSettled([
       userModelConfigService.listChannels(),
+      userModelConfigService.listEngineConfigs(),
       userModelConfigService.listEngineSelections(),
     ]);
     if (channelList.status === 'fulfilled') {
       setChannels(channelList.value);
+    }
+    if (configList.status === 'fulfilled') {
+      setEngineConfigs(configList.value);
     }
     if (selectionList.status === 'fulfilled') {
       setEngineSelections(selectionList.value.map((selection) => ({
@@ -101,8 +132,8 @@ export function ModelManagementSettings() {
   }, [reload]);
 
   const projectChannels = useMemo(
-    () => channels.map(toPickerChannel),
-    [channels],
+    () => channels.map((channel) => toPickerChannel(channel, engineConfigs)),
+    [channels, engineConfigs],
   );
 
   const models = useMemo(
@@ -115,10 +146,15 @@ export function ModelManagementSettings() {
 
   const providerOptions = useMemo<AgentProviderOption[]>(() => {
     const engines = listWorkbenchServerImplementedCodeEngines(preferences);
-    return AGENT_MODEL_PROVIDER_IDS.map((providerId) => {
-      const engine = engines.find((item) => item.id === providerId);
-      return { id: providerId, label: engine?.label ?? providerId };
-    });
+    const workbenchMode = normalizeWorkbenchMode(preferences.workbenchMode);
+    // The provider options (and the checked-provider validation derived from
+    // them) only admit the engines the active workbench mode supports.
+    return AGENT_MODEL_PROVIDER_IDS
+      .filter((providerId) => matchesWorkbenchModeEngineId(workbenchMode, providerId))
+      .map((providerId) => {
+        const engine = engines.find((item) => item.id === providerId);
+        return { id: providerId, label: engine?.label ?? providerId };
+      });
   }, [preferences]);
 
   const messages = useMemo<ModelManagementSettingsMessages>(() => ({
@@ -172,37 +208,29 @@ export function ModelManagementSettings() {
   const handleSaveChannel = useCallback(async (
     draft: ModelAccessChannelConfigurationDraft,
   ): Promise<string> => {
-    const code = draft.channelId.trim();
-    if (!code) {
-      throw new Error('A channel identity is required.');
-    }
-    const localChannel: UserModelChannel = {
-      code,
-      name: draft.name.trim(),
-      kind: draft.kind,
-      baseUrl: draft.baseUrl.trim(),
-      description: draft.description ?? '',
-      defaultVendorCode: draft.defaultVendorCode.trim(),
-      defaultModelId: draft.defaultModelId.trim(),
-      apiKeyConfigured: Boolean(draft.apiKey.trim() || draft.apiKeyConfigured),
-      sortOrder: null,
-      offerings: draft.offerings.map((offering) => ({
-        vendorCode: offering.vendorCode.trim(),
-        vendorName: offering.vendorName.trim() || offering.vendorCode.trim(),
-        models: offering.models.map((model) => ({
-          modelId: model.modelId.trim(),
-          displayName: model.displayName.trim() || model.modelId.trim(),
-          supportsMultimodal: false,
-        })),
-      })),
-    };
-    await userModelConfigService.upsertChannel(localChannel);
-    if (draft.apiKey.trim()) {
-      await userModelConfigService.upsertApiKey(code, draft.apiKey.trim());
-    }
+    // The shared orchestrator persists the channel locally (single source of
+    // truth), applies it to the agents runtime for every checked provider,
+    // records the per-engine bindings, and persists the default selection so
+    // the engine-bindings panel and the picker surfaces reflect the save
+    // immediately instead of after the next restart.
+    const { code } = await saveModelManagementChannel({
+      agentModelConfigurationService,
+      userModelConfigService,
+      draft,
+      // The checked provider set is validated against the engines the host
+      // actually publishes instead of the full platform whitelist, so a
+      // provider that is not implemented for this deployment is never
+      // recorded as a binding.
+      availableProviderIds: providerOptions.map((provider) => provider.id),
+    });
     await reload();
     return code;
-  }, [reload, userModelConfigService]);
+  }, [
+    agentModelConfigurationService,
+    providerOptions,
+    reload,
+    userModelConfigService,
+  ]);
 
   const handleDeleteChannel = useCallback(async (channel: ModelAccessChannel) => {
     const code = channel.code?.trim() || channel.id.trim();
@@ -210,8 +238,26 @@ export function ModelManagementSettings() {
       return;
     }
     await userModelConfigService.deleteChannel(code);
+    // Retire any engine preference still referencing the deleted channel so
+    // the workbench falls back to the official relay default (or the next
+    // stored selection) instead of a dangling channel id.
+    updatePreferences((previousPreferences) => {
+      const engineSettings = { ...previousPreferences.codeEngineSettings };
+      let changed = false;
+      for (const engineId of Object.keys(engineSettings)) {
+        const settings = engineSettings[engineId];
+        if (settings?.modelAccessChannelId?.trim().toLowerCase()
+          === code.trim().toLowerCase()) {
+          engineSettings[engineId] = { ...settings, modelAccessChannelId: undefined };
+          changed = true;
+        }
+      }
+      return changed
+        ? { ...previousPreferences, codeEngineSettings: engineSettings }
+        : previousPreferences;
+    });
     await reload();
-  }, [reload, userModelConfigService]);
+  }, [reload, updatePreferences, userModelConfigService]);
 
   return (
     <div className="h-full min-h-0 w-full">

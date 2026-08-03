@@ -420,20 +420,21 @@ describe('Agent Session transcript pagination', () => {
     expect(synchronizeSessionItems).toHaveBeenCalledTimes(1);
     expect(synchronizeSessionItems).toHaveBeenCalledWith(
       { agentId, sessionId },
-      {
-        cursor: undefined,
-        pageSize: 50,
-        sort: '-sequence',
-      },
       { signal: expect.any(AbortSignal) },
     );
-    expect(listSessionItems).toHaveBeenCalledTimes(2);
+    expect(listSessionItems).toHaveBeenCalledTimes(3);
     expect(listSessionItems.mock.calls.map(([identity, request]) => ({
       cursor: request.cursor,
       identity,
       pageSize: request.pageSize,
       sort: request.sort,
     }))).toEqual([
+      {
+        cursor: undefined,
+        identity: { agentId, sessionId },
+        pageSize: 50,
+        sort: '-sequence',
+      },
       {
         cursor: 'cursor.1',
         identity: { agentId, sessionId },
@@ -577,7 +578,7 @@ describe('Agent Session transcript pagination', () => {
     expect(result.agentSession?.items).toHaveLength(65);
     expect(result.agentSession?.items.at(0)?.id).toBe('item.1');
     expect(result.agentSession?.items.at(-1)?.id).toBe('item.65');
-    expect(listSessionItems).toHaveBeenCalledTimes(1);
+    expect(listSessionItems).toHaveBeenCalledTimes(2);
   });
 
   it('replaces a disconnected authority window after the bounded eight-page scan', async () => {
@@ -626,7 +627,7 @@ describe('Agent Session transcript pagination', () => {
       },
     });
 
-    expect(listSessionItems).toHaveBeenCalledTimes(8);
+    expect(listSessionItems).toHaveBeenCalledTimes(9);
     expect(result.replaceLoadedAuthorityWindow).toBe(true);
     expect(result.agentSession?.itemPageInfo).toEqual({
       hasMore: true,
@@ -686,8 +687,9 @@ describe('Agent Session transcript pagination', () => {
   });
 
   it('reaches every paginated item across the initial window and repeated earlier-page loads', async () => {
-    // 13 pages of 50 = 650 items. The initial refresh loads the newest page
-    // (the conversation-turn budget is met by its 50 user turns) and every
+    // 9 pages of 50 = 450 items, inside the per-Session retention window
+    // (500 items). The initial refresh loads the newest page (the
+    // conversation-turn budget is met by its 50 user turns) and every
     // scroll-to-top gesture walks exactly one earlier page until the end.
     const listSessionItems = vi.fn(async (
       _identity: unknown,
@@ -696,29 +698,24 @@ describe('Agent Session transcript pagination', () => {
       const pageIndex = request.cursor === undefined
         ? 1
         : Number(request.cursor.replace('cursor.page.', '')) + 1;
-      const high = 650 - (pageIndex - 1) * 50;
+      const high = 450 - (pageIndex - 1) * 50;
       return {
         items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(high - index)),
         pageInfo: {
-          hasMore: pageIndex < 13,
+          hasMore: pageIndex < 9,
           mode: 'cursor' as const,
-          nextCursor: pageIndex < 13 ? `cursor.page.${pageIndex}` : null,
+          nextCursor: pageIndex < 9 ? `cursor.page.${pageIndex}` : null,
           pageSize: 50,
         },
       };
     });
     const synchronizeSessionItems = vi.fn(async () => ({
-      items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(650 - index)),
-      pageInfo: {
-        hasMore: true,
-        mode: 'cursor' as const,
-        nextCursor: 'cursor.page.1',
-        pageSize: 50,
-      },
+      importedItemCount: '0',
+      status: 'imported',
     }));
     const agentSessionService = transcriptService(
       listSessionItems,
-      transcriptSessionRecord('650'),
+      transcriptSessionRecord('450'),
       synchronizeSessionItems,
     );
 
@@ -745,10 +742,10 @@ describe('Agent Session transcript pagination', () => {
       expect(result.loadedItemCount).toBe(50);
     }
 
-    expect(loadedGestures).toBe(12);
-    expect(agentSession.items).toHaveLength(650);
+    expect(loadedGestures).toBe(8);
+    expect(agentSession.items).toHaveLength(450);
     expect(agentSession.items.at(0)?.id).toBe('item.1');
-    expect(agentSession.items.at(-1)?.id).toBe('item.650');
+    expect(agentSession.items.at(-1)?.id).toBe('item.450');
     expect(agentSession.itemPageInfo).toEqual({
       hasMore: false,
       nextCursor: null,
@@ -762,7 +759,7 @@ describe('Agent Session transcript pagination', () => {
     expect(complete.status).toBe('complete');
     expect(complete.loadedItemCount).toBe(0);
     expect(synchronizeSessionItems).toHaveBeenCalledTimes(1);
-    expect(listSessionItems).toHaveBeenCalledTimes(12);
+    expect(listSessionItems).toHaveBeenCalledTimes(9);
   });
 
   it('skips an already-loaded duplicate page and commits the next page of progress', async () => {
@@ -1065,6 +1062,23 @@ describe('Agent Session transcript refresh errors', () => {
     expect(harness.getSessionUserStates).not.toHaveBeenCalled();
   });
 
+  it('treats a structured 40401 problem code as Session absence', async () => {
+    const harness = createRefreshHarness();
+    const error = Object.assign(new Error('session not found'), {
+      code: 40401,
+      httpStatus: 404,
+      problem: { code: 40401, status: 404 },
+    });
+    harness.getSession.mockRejectedValueOnce(error);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('not-found');
+    expect(harness.listSessionItems).not.toHaveBeenCalled();
+    expect(harness.listRuntimeBindings).not.toHaveBeenCalled();
+    expect(harness.getSessionUserStates).not.toHaveBeenCalled();
+  });
+
   it('rethrows an SDK synchronizeSessionItems 404 after getSession succeeds', async () => {
     const harness = createRefreshHarness();
     const error = sdkNotFoundError();
@@ -1092,6 +1106,39 @@ describe('Agent Session transcript refresh errors', () => {
     );
     expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
       identity,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(harness.listSessionItems).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the persisted item window when synchronizeSessionItems fails transiently', async () => {
+    const harness = createRefreshHarness();
+    const transientError = Object.assign(new Error('provider engine unavailable'), {
+      httpStatus: 503,
+      statusCode: 503,
+    });
+    const persistedPage = {
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor' as const,
+        nextCursor: null,
+        pageSize: 50,
+      },
+    };
+    harness.synchronizeSessionItems.mockRejectedValueOnce(transientError);
+    harness.listSessionItems.mockResolvedValueOnce(persistedPage);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledTimes(1);
+    expect(harness.listSessionItems).toHaveBeenCalledTimes(1);
+    expect(harness.listSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
       {
         cursor: undefined,
         pageSize: 50,
@@ -1099,7 +1146,44 @@ describe('Agent Session transcript refresh errors', () => {
       },
       { signal: expect.any(AbortSignal) },
     );
-    expect(harness.listSessionItems).not.toHaveBeenCalled();
+  });
+
+  it('reads the persisted window even when synchronization reports a skipped outcome', async () => {
+    const harness = createRefreshHarness();
+    const persistedPage = {
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor' as const,
+        nextCursor: null,
+        pageSize: 50,
+      },
+    };
+    harness.synchronizeSessionItems.mockResolvedValueOnce({
+      importedItemCount: '0',
+      status: 'no-active-binding',
+    });
+    harness.listSessionItems.mockResolvedValueOnce(persistedPage);
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledTimes(1);
+    expect(harness.listSessionItems).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the persisted window after a completed synchronization', async () => {
+    const harness = createRefreshHarness();
+    harness.synchronizeSessionItems.mockResolvedValueOnce({
+      importedItemCount: '12',
+      status: 'imported',
+    });
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledTimes(1);
+    expect(harness.listSessionItems).toHaveBeenCalledTimes(1);
   });
 
   it('keeps transcript data when runtime binding metadata returns 404', async () => {
@@ -1170,7 +1254,7 @@ describe('Agent Session transcript refresh errors', () => {
     consoleWarn.mockRestore();
   });
 
-  it('rethrows a non-404 SDK failure', async () => {
+  it('falls back to the persisted window when item synchronization fails with a server error', async () => {
     const harness = createRefreshHarness();
     const error = Object.assign(new Error('Internal server error'), {
       code: 'INTERNAL_SERVER_ERROR',
@@ -1178,22 +1262,29 @@ describe('Agent Session transcript refresh errors', () => {
       name: 'SdkError',
       problem: { status: 500 },
     });
+    const persistedPage = {
+      items: [],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor' as const,
+        nextCursor: null,
+        pageSize: 50,
+      },
+    };
     harness.synchronizeSessionItems.mockRejectedValueOnce(error);
+    harness.listSessionItems.mockResolvedValueOnce(persistedPage);
 
-    await expect(refreshTranscript(harness)).rejects.toBe(error);
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
     expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
       {
         agentId: harness.agentId,
         sessionId: harness.sessionId,
       },
-      {
-        cursor: undefined,
-        pageSize: 50,
-        sort: '-sequence',
-      },
       { signal: expect.any(AbortSignal) },
     );
-    expect(harness.listSessionItems).not.toHaveBeenCalled();
+    expect(harness.listSessionItems).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to the persisted window when item synchronization conflicts', async () => {
@@ -1235,10 +1326,61 @@ describe('Agent Session transcript refresh errors', () => {
         agentId: harness.agentId,
         sessionId: harness.sessionId,
       },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(harness.listSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
+      },
       {
         cursor: undefined,
         pageSize: 50,
         sort: '-sequence',
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(result.agentSession?.items.map((item) => item.id)).toContain('item.existing');
+  });
+
+  it('falls back to the persisted window when the provider engine is temporarily unavailable', async () => {
+    const harness = createRefreshHarness();
+    const unavailable = Object.assign(
+      new Error('A required dependency is temporarily unavailable'),
+      {
+        code: 'SERVICE_UNAVAILABLE',
+        httpStatus: 503,
+        name: 'ServiceUnavailableError',
+        problem: { code: 'SERVICE_UNAVAILABLE', status: 503 },
+      },
+    );
+    const persistedItem = {
+      content: 'Existing transcript remains visible',
+      createdAt: '2026-07-27T09:00:00.000Z',
+      itemId: 'item.existing',
+      kind: 'assistant_output',
+      sequence: '1',
+      sessionId: harness.sessionId,
+      status: 'completed',
+    } as AgentSessionItemRecord;
+    harness.synchronizeSessionItems.mockRejectedValueOnce(unavailable);
+    harness.listSessionItems.mockResolvedValueOnce({
+      items: [persistedItem],
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
+
+    const result = await refreshTranscript(harness);
+
+    expect(result.status).toBe('refreshed');
+    expect(harness.synchronizeSessionItems).toHaveBeenCalledWith(
+      {
+        agentId: harness.agentId,
+        sessionId: harness.sessionId,
       },
       { signal: expect.any(AbortSignal) },
     );

@@ -8,6 +8,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench';
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { isAgentSessionVisibleInInbox } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
+import type { WorkbenchMode } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import {
   DeferredUniversalChat,
   ProjectInventoryStatus,
@@ -135,6 +136,7 @@ interface StudioChatSidebarProps {
   selectedEngineId: string;
   selectedModelId: string;
   disabled: boolean;
+  workbenchMode?: WorkbenchMode;
   onResize: (delta: number) => void;
   onProjectSearchQueryChange: (value: string) => void;
   onMenuActiveProjectIdChange: (projectId: string) => void;
@@ -268,6 +270,7 @@ function areStudioChatSidebarPropsEqual(
     left.selectedEngineId === right.selectedEngineId &&
     left.selectedModelId === right.selectedModelId &&
     left.disabled === right.disabled &&
+    left.workbenchMode === right.workbenchMode &&
     left.onResize === right.onResize &&
     left.onProjectSearchQueryChange === right.onProjectSearchQueryChange &&
     left.onMenuActiveProjectIdChange === right.onMenuActiveProjectIdChange &&
@@ -328,6 +331,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   selectedEngineId,
   selectedModelId,
   disabled,
+  workbenchMode,
   onResize,
   onProjectSearchQueryChange,
   onMenuActiveProjectIdChange,
@@ -1032,6 +1036,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                             selectedEngineId={selectedEngineId}
                             selectedModelId={selectedModelId}
                             variant="studio"
+                            workbenchMode={workbenchMode}
                             onCreateSession={(engineId, modelId) => {
                               void handleCreateProjectAgentSession(engineId, modelId);
                             }}

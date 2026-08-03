@@ -1,25 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use axum::http::{header, HeaderValue, StatusCode};
-use axum::response::{IntoResponse, Response};
-
 const AUTHORITY_PATH: &str =
     "sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json";
-
-pub async fn serve_openapi_json() -> Response {
-    match load_openapi_authority() {
-        Ok(body) => (
-            StatusCode::OK,
-            [(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            )],
-            body,
-        )
-            .into_response(),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
-    }
-}
 
 fn load_openapi_authority() -> Result<String, ()> {
     openapi_candidate_paths()

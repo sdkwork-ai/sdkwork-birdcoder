@@ -48,6 +48,11 @@ sdkwork-api-membership-assembly = { path = "../sdkwork-membership/crates/sdkwork
 sdkwork-api-order-assembly = { path = "../sdkwork-order/crates/sdkwork-api-order-assembly" }
 sdkwork-api-prompts-assembly = { path = "../sdkwork-prompts/crates/sdkwork-api-prompts-assembly" }
 sdkwork-api-skills-assembly = { path = "../sdkwork-skills/crates/sdkwork-api-skills-assembly" }
+sdkwork-api-deployments-assembly = { path = "../sdkwork-deployments/crates/sdkwork-api-deployments-assembly" }
+sdkwork-deploy-service-host = { path = "../sdkwork-deployments/crates/sdkwork-deploy-service-host" }
+sdkwork-routes-deploy-app-api = { path = "../sdkwork-deployments/crates/sdkwork-routes-deploy-app-api" }
+sdkwork-deploy-contract = { path = "../sdkwork-deployments/crates/sdkwork-deploy-contract" }
+sdkwork-intelligence-deploy-service = { path = "../sdkwork-deployments/crates/sdkwork-intelligence-deploy-service" }
 sdkwork-routes-system-app-api = { path = "crates/sdkwork-routes-system-app-api" }
 sdkwork-birdcoder-router-context = { path = "crates/sdkwork-birdcoder-router-context" }
 sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder-system-descriptor-service" }

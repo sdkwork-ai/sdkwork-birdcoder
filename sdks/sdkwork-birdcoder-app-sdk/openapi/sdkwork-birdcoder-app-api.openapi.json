@@ -125,7 +125,7 @@
       "get": {
         "operationId": "routes.list",
         "summary": "List unified API routes",
-        "description": "List unified API routes. Requires an authenticated BirdCoder user session.",
+        "description": "List unified API routes. Requires an authenticated BirdCoder user session. The route catalog is a bounded collection (maximum cardinality 100 entries per the PAGINATION_SPEC.md §11 exemption): the full set is returned in one page without list query parameters, and pageInfo.pageSize never exceeds the standard maximum of 200.",
         "tags": [
           "system"
         ],

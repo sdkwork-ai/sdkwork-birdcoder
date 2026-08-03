@@ -149,3 +149,60 @@ describe('BirdCoderAgentSessionService item feedback', () => {
     );
   });
 });
+
+describe('BirdCoderAgentSessionService Session Item synchronization outcome', () => {
+  function createSynchronizeService(
+    synchronize: ReturnType<typeof vi.fn>,
+  ): BirdCoderAgentSessionService {
+    return new BirdCoderAgentSessionService({
+      client: {
+        ai: { agents: { sessionItems: { synchronize } } },
+      } as unknown as AgentsAppSdkClient,
+    });
+  }
+
+  it('passes through a canonical synchronization outcome', async () => {
+    const outcome = { status: 'imported', importedItemCount: '3' };
+    const synchronize = vi.fn().mockResolvedValue(outcome);
+    const service = createSynchronizeService(synchronize);
+
+    await expect(service.synchronizeSessionItems(identity)).resolves.toEqual(outcome);
+    expect(synchronize).toHaveBeenCalledWith(
+      identity.agentId,
+      identity.sessionId,
+      { signal: undefined, timeout: undefined },
+    );
+  });
+
+  it('passes through a skipped synchronization outcome', async () => {
+    const outcome = { status: 'no-active-binding', importedItemCount: '0' };
+    const synchronize = vi.fn().mockResolvedValue(outcome);
+    const service = createSynchronizeService(synchronize);
+
+    await expect(service.synchronizeSessionItems(identity)).resolves.toEqual(outcome);
+  });
+
+  it('rejects a malformed synchronization outcome instead of trusting it', async () => {
+    const synchronize = vi.fn().mockResolvedValue({
+      status: 'unexpected-status',
+      importedItemCount: '-1',
+    });
+    const service = createSynchronizeService(synchronize);
+
+    await expect(service.synchronizeSessionItems(identity)).rejects.toThrow(
+      'Agents Session Item synchronization returned an invalid outcome.',
+    );
+  });
+
+  it('rejects a non-string imported count', async () => {
+    const synchronize = vi.fn().mockResolvedValue({
+      status: 'imported',
+      importedItemCount: 3,
+    });
+    const service = createSynchronizeService(synchronize);
+
+    await expect(service.synchronizeSessionItems(identity)).rejects.toThrow(
+      'Agents Session Item synchronization returned an invalid outcome.',
+    );
+  });
+});

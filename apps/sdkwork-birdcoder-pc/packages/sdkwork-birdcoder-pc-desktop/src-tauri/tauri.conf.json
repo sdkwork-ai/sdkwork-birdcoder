@@ -10,6 +10,9 @@
     "devUrl": "http://127.0.0.1:1520"
   },
   "app": {
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* https: ws: wss:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';"
+    },
     "windows": [
       {
         "label": "main",

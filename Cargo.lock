@@ -12385,6 +12385,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
+ "sdkwork-agent-kernel",
  "sdkwork-agent-server",
  "sdkwork-agents-contract",
  "sdkwork-agents-database-host",
@@ -12461,6 +12462,7 @@ dependencies = [
  "sdkwork-agents-runtime-facade",
  "sdkwork-api-agents-assembly",
  "sdkwork-api-birdcoder-assembly",
+ "sdkwork-api-deployments-assembly",
  "sdkwork-api-documents-assembly",
  "sdkwork-api-drive-assembly",
  "sdkwork-api-iam-assembly",
@@ -12469,7 +12471,10 @@ dependencies = [
  "sdkwork-api-order-assembly",
  "sdkwork-api-prompts-assembly",
  "sdkwork-api-skills-assembly",
+ "sdkwork-deploy-service-host",
  "sdkwork-iam-web-adapter",
+ "sdkwork-intelligence-deploy-service",
+ "sdkwork-routes-deploy-app-api",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-contract",
@@ -12478,6 +12483,21 @@ dependencies = [
  "tokio",
  "tower 0.5.3",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-api-deployments-assembly"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-deploy-database-host",
+ "sdkwork-deploy-service-host",
+ "sdkwork-intelligence-deploy-service",
+ "sdkwork-routes-deploy-app-api",
+ "sdkwork-routes-deploy-backend-api",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
+ "tokio",
 ]
 
 [[package]]
@@ -13023,6 +13043,111 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-deploy-content-provider-port"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-core",
+ "sdkwork-deploy-runtime-compiler",
+ "sdkwork-drive-app-sdk-generated-rust",
+ "sdkwork-drive-contract",
+ "sdkwork-drive-internal-sdk-generated-rust",
+ "sdkwork-knowledgebase-internal-sdk-generated-rust",
+ "sdkwork-utils-rust",
+ "serde_json",
+ "tokio",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "sdkwork-deploy-contract"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-deploy-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "sdkwork-deploy-core"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-utils-rust",
+]
+
+[[package]]
+name = "sdkwork-deploy-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-drift",
+ "sdkwork-database-lifecycle",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
+]
+
+[[package]]
+name = "sdkwork-deploy-drive-port"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-database-id",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-core",
+ "sdkwork-drive-app-sdk-generated-rust",
+ "sdkwork-utils-rust",
+]
+
+[[package]]
+name = "sdkwork-deploy-runtime-compiler"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "sdkwork-deploy-service-host"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "hickory-resolver",
+ "sdkwork-database-id",
+ "sdkwork-deploy-content-provider-port",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-core",
+ "sdkwork-deploy-database-host",
+ "sdkwork-deploy-drive-port",
+ "sdkwork-deploy-web-port",
+ "sdkwork-intelligence-deploy-repository-sqlx",
+ "sdkwork-intelligence-deploy-service",
+ "sdkwork-utils-rust",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "sdkwork-deploy-web-port"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-runtime-compiler",
+ "sdkwork-utils-rust",
+ "sdkwork-web-internal-sdk",
+ "serde_json",
+]
+
+[[package]]
 name = "sdkwork-documents-contract"
 version = "0.1.0"
 dependencies = [
@@ -13042,6 +13167,17 @@ dependencies = [
  "sdkwork-database-lifecycle",
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
+]
+
+[[package]]
+name = "sdkwork-drive-app-sdk-generated-rust"
+version = "0.1.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -13092,6 +13228,17 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-drive-internal-sdk-generated-rust"
+version = "0.1.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -13335,6 +13482,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "cron",
+ "rusqlite",
  "sdkwork-agent-kernel",
  "sdkwork-agents-contract",
  "sdkwork-agents-runtime-facade",
@@ -13352,6 +13500,44 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tower 0.5.3",
+ "tracing",
+]
+
+[[package]]
+name = "sdkwork-intelligence-deploy-repository-sqlx"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "sdkwork-database-id",
+ "sdkwork-deploy-content-provider-port",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-core",
+ "sdkwork-deploy-runtime-compiler",
+ "sdkwork-deploy-web-port",
+ "sdkwork-intelligence-deploy-service",
+ "sdkwork-utils-rust",
+ "serde_json",
+ "sqlx",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "sdkwork-intelligence-deploy-service"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "idna",
+ "psl",
+ "sdkwork-database-id",
+ "sdkwork-deploy-content-provider-port",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-drive-port",
+ "sdkwork-deploy-runtime-compiler",
+ "sdkwork-deploy-web-port",
+ "serde_json",
  "tracing",
 ]
 
@@ -13413,6 +13599,17 @@ dependencies = [
  "sdkwork-drive-contract",
  "sdkwork-skills-contract",
  "sdkwork-utils-rust",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "sdkwork-knowledgebase-internal-sdk-generated-rust"
+version = "0.1.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest 0.12.28",
+ "serde",
  "serde_json",
  "thiserror 1.0.69",
 ]
@@ -13842,6 +14039,52 @@ dependencies = [
  "sdkwork-intelligence-agents-service",
  "sdkwork-routes-agents-http-shared",
  "tokio",
+]
+
+[[package]]
+name = "sdkwork-routes-deploy-app-api"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "sdkwork-deploy-contract",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-routes-deploy-common",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-routes-deploy-backend-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-deploy-contract",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-routes-deploy-common",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-routes-deploy-common"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "sdkwork-deploy-contract",
+ "sdkwork-deploy-core",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-utils-rust",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -14528,6 +14771,17 @@ dependencies = [
  "sha2 0.10.9",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-web-internal-sdk"
+version = "1.0.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

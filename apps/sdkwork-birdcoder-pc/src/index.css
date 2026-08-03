@@ -233,7 +233,8 @@
     background-color: var(--sdk-color-surface-elevated) !important;
   }
 
-  .birdcoder-app-shell [class*='bg-[#111114]'] {
+  .birdcoder-app-shell [class*='bg-[#111114]'],
+  .birdcoder-app-shell [class*='bg-[#111214]'] {
     background-color: var(--sdk-color-surface-canvas) !important;
   }
 
@@ -299,6 +300,50 @@
     [class*='hover:bg-[#']
   ):hover {
     background-color: var(--sdk-color-surface-field-hover) !important;
+  }
+
+  /* Selected tabs and toggled accent buttons hard-code a translucent white
+     chip (bg-white/[0.12], bg-white/[0.13]) that vanishes on light surfaces;
+     flip them to the brand soft fill so the selected state stays visible. */
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class~='bg-white/[0.12]'],
+    [class~='bg-white/[0.13]']
+  ) {
+    background-color: var(--sdk-color-brand-primary-soft) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class~='border-white/[0.16]'],
+    [class~='border-white/[0.18]']
+  ) {
+    border-color: var(--sdk-color-border-strong) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell [class*='focus:border-white/']:focus {
+    border-color: var(--sdk-color-border-focus) !important;
+  }
+
+  /* Status dots (online/healthy/attention) are dark-only bright tones that
+     lose contrast on light surfaces; use their deeper equivalents. */
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class~='bg-emerald-400'],
+    [class~='bg-green-400']
+  ) {
+    background-color: #059669 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell [class~='bg-amber-400'] {
+    background-color: #d97706 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell .text-amber-300 {
+    color: #92400e !important;
+  }
+
+  /* Work-resources avatar chips paint a colored background with white
+     initials; keep the lettering readable in light mode via text-inverse. */
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell span.work-resources-avatar {
+    color: var(--sdk-color-text-inverse) !important;
   }
 
   html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
@@ -397,6 +442,7 @@
     [class~='border-white/[0.06]'],
     [class~='border-white/[0.07]'],
     [class~='border-white/[0.08]'],
+    [class~='border-white/[0.1]'],
     [class~='border-white/[0.11]'],
     .border-gray-600
   ) {
@@ -882,13 +928,26 @@
     color: var(--sdk-color-text-muted) !important;
   }
 
+  /* Selected kind/offering tabs in the model access dialog were nearly
+     indistinguishable from the tab rail in both modes (dark #35363a vs
+     #26272b, light field-hover vs field); make the active tab use the brand
+     accent in both modes. */
+  .sdkwork-model-access-kind-tabs button[aria-selected='true'],
+  .sdkwork-model-access-offering-tabs button[aria-selected='true'] {
+    background: var(--sdk-color-brand-primary-soft) !important;
+    border-color: transparent !important;
+    color: var(--sdk-color-brand-primary) !important;
+    font-weight: 650 !important;
+  }
+
   html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
     .sdkwork-model-access-kind-tabs button[aria-selected='true'],
     .sdkwork-model-access-offering-tabs button[aria-selected='true']
   ) {
-    background-color: var(--sdk-color-surface-field-hover) !important;
-    border-color: var(--sdk-color-border-default) !important;
-    color: var(--sdk-color-text-primary) !important;
+    background-color: var(--sdk-color-brand-primary-soft) !important;
+    border-color: transparent !important;
+    color: var(--sdk-color-brand-primary) !important;
+    font-weight: 650 !important;
   }
 
   html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(

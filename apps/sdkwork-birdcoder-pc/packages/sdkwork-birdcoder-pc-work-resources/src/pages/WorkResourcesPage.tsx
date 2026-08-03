@@ -83,7 +83,7 @@ function Avatar({
   return (
     <span
       aria-label={alt}
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white ring-1 ring-white/10"
+      className="work-resources-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white ring-1 ring-white/10"
       style={{ backgroundColor: color ?? colorFor(alt) }}
     >
       {initialOf(alt)}

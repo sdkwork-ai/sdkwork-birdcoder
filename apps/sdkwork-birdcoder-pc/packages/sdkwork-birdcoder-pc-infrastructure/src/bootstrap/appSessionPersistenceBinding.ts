@@ -50,6 +50,7 @@ export function bindBirdCoderDesktopAppSessionPersistence(): void {
   };
 
   const port: AsyncAppSessionPersistencePort = {
+    secureTokenStorage: true,
     read() {
       return cache;
     },

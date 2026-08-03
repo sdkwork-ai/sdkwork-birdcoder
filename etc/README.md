@@ -7,6 +7,30 @@ live beside the index. Environment variables and CLI flags are runtime overrides
 Committed config contains no passwords, tokens, API keys, private keys, or local absolute paths.
 Use ignored `*.local.*` files and platform secret injection for private values.
 
+## SDKWork Deploy module environment
+
+The standalone gateway composes the SDKWork Deploy App API (`sdkwork-deployments` api-assembly):
+the Deploy routes (`/app/v3/api/domain_zones|sites|certificates|upload_sessions|artifacts`),
+its PostgreSQL module (`deploy_*` tables, migrated at gateway startup), and the Drive port all run
+inside the BirdCoder gateway process — no separate Deploy Server instance is required.
+
+Each `topology/<profile>.env` file declares the `SDKWORK_DEPLOY_*` keys for that profile:
+
+- `SDKWORK_DEPLOY_ENVIRONMENT` — canonical `development|test|staging|production`; values
+  `test|staging|production` are production-like and enforce the production runtime gates
+  (Drive facade required, static Snowflake node forbidden).
+- `SDKWORK_DEPLOY_USE_MEMORY_DRIVE=1` / `SDKWORK_DEPLOY_USE_MEMORY_CONTENT_PROVIDER=true` —
+  development profiles only; they bypass the Drive/content-provider HTTP facades so the full
+  publish pipeline writes the local PostgreSQL database without extra hosts.
+- `SDKWORK_DEPLOY_SNOWFLAKE_NODE_ID` — static Snowflake node id, development profiles only
+  (production-like profiles allocate nodes through the database lease).
+- `SDKWORK_DRIVE_FACADE_URL` — production-like profiles route Drive uploads through the gateway's
+  own Drive API (`application.public-ingress` origin); remaining production runtime values
+  (ingress tokens, web runtime URLs) are injected by the deployment platform.
+
+`SDKWORK_DATABASE_URL` and friends are shared with every other module (see `.env.postgres`);
+the Deploy module registers `deploy_*` tables in the same database.
+
 ## Client materialization
 
 Run `pnpm workflow:materialize-client-env` after changing a topology profile. It deterministically derives the

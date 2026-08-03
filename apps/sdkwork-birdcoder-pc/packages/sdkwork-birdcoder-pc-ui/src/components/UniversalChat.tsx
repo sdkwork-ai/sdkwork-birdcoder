@@ -22,6 +22,11 @@ import {
   useModelCatalogLoaded,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
+  filterWorkbenchModeCatalogEngines,
+  matchesWorkbenchModeEngineId,
+  normalizeWorkbenchMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
+import {
   deleteSavedPrompt,
   deleteSessionPromptHistoryEntry,
   listSavedPrompts,
@@ -85,6 +90,7 @@ import {
 import type {
   ModelAccessCatalogSnapshot,
   UserModelChannel,
+  UserModelEngineConfig,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import {
   buildDriveMediaResourceContentBlock,
@@ -1209,6 +1215,10 @@ export const UniversalChat = memo(function UniversalChat({
 
   const [localUserModelChannels, setLocalUserModelChannels] = useState<UserModelChannel[]>([]);
   const [localUserModelChannelsLoaded, setLocalUserModelChannelsLoaded] = useState(false);
+  // Per-engine bindings restore the provider support information that is not
+  // part of the channel row itself (see toWorkbenchUnifiedCustomAgentModelDefinition).
+  const [localUserModelEngineConfigs, setLocalUserModelEngineConfigs] =
+    useState<UserModelEngineConfig[]>([]);
   const [modelAccessSearchSnapshot, setModelAccessSearchSnapshot] =
     useState<ModelAccessCatalogSnapshot | null>(null);
   const [isModelAccessSearchLoading, setIsModelAccessSearchLoading] = useState(false);
@@ -1516,9 +1526,18 @@ export const UniversalChat = memo(function UniversalChat({
     () => listWorkbenchServerImplementedCodeEngines(preferences),
     [preferences, catalogLoaded],
   );
+  const workbenchMode = normalizeWorkbenchMode(preferences.workbenchMode);
+  // Provider dropdowns (new-session provider selector, agent model access
+  // selector) and the fallback model catalog only admit the engines the active
+  // workbench mode supports: coding admits codex/claude-code/gemini/opencode,
+  // work admits openclaw/hermes.
+  const modeAvailableEngines = useMemo(
+    () => filterWorkbenchModeCatalogEngines(workbenchMode, availableEngines),
+    [availableEngines, workbenchMode],
+  );
   const modelAccessFallbackModels = useMemo(
-    () => createWorkbenchModelAccessFallbackModels(availableEngines),
-    [availableEngines],
+    () => createWorkbenchModelAccessFallbackModels(modeAvailableEngines),
+    [modeAvailableEngines],
   );
   // Fallback models derive from the global code-engine catalog, whose snapshot
   // identity flips whenever the AppContent catalog effect resets or reloads it
@@ -1541,7 +1560,15 @@ export const UniversalChat = memo(function UniversalChat({
           : { ...previousPreferences, unifiedCustomAgentModels: [] }
       ));
     };
-    void userModelConfigService.listChannels().then(async (channels) => {
+    void Promise.all([
+      userModelConfigService.listChannels(),
+      // The per-engine binding rows are best-effort metadata; a store hiccup
+      // must not block the channel list.
+      userModelConfigService.listEngineConfigs().catch(() => [] as UserModelEngineConfig[]),
+    ]).then(async ([channels, engineConfigs]) => {
+      if (active) {
+        setLocalUserModelEngineConfigs(engineConfigs);
+      }
       if (channels.length > 0) {
         // Retire legacy preference records only when they actually exist.
         // Calling updatePreferences unconditionally would re-create the
@@ -1688,11 +1715,11 @@ export const UniversalChat = memo(function UniversalChat({
     );
   }, [modelAccessSearchSnapshot, resolvedModelAccessCatalogSnapshot]);
   const agentProviderOptions = useMemo<AgentProviderOption[]>(
-    () => availableEngines.map((engine) => ({
+    () => modeAvailableEngines.map((engine) => ({
       id: engine.id,
       label: engine.label,
     })),
-    [availableEngines],
+    [modeAvailableEngines],
   );
   // The agents runtime keeps applied model configurations in memory only, so
   // the workbench re-applies the engine's effective configuration whenever it
@@ -1819,15 +1846,33 @@ export const UniversalChat = memo(function UniversalChat({
     resolvedSelectedEngineId,
     runEngineModelConfigEnsure,
   ]);
+  // Restore the per-provider support set from the engine-config rows so the
+  // picker validates the same provider bindings the settings panel persisted.
+  const providerIdsByLocalChannel = useMemo(() => {
+    const byChannel = new Map<string, string[]>();
+    for (const config of localUserModelEngineConfigs) {
+      const channelCode = config.channelCode.trim().toLowerCase();
+      const providerIds = byChannel.get(channelCode) ?? [];
+      if (!providerIds.includes(config.engineId)) {
+        providerIds.push(config.engineId);
+      }
+      byChannel.set(channelCode, providerIds);
+    }
+    return byChannel;
+  }, [localUserModelEngineConfigs]);
   const agentModelAccessSelectorCatalog = useMemo(
     () => createWorkbenchAgentModelAccessSelectorCatalog(
       effectiveModelAccessCatalogSnapshot,
-      localUserModelChannels.map(toWorkbenchUnifiedCustomAgentModelDefinition),
+      localUserModelChannels.map((channel) => toWorkbenchUnifiedCustomAgentModelDefinition(
+        channel,
+        providerIdsByLocalChannel.get(channel.code.trim().toLowerCase()) ?? [],
+      )),
       agentProviderOptions.map((provider) => provider.id),
     ),
     [
       agentProviderOptions,
       localUserModelChannels,
+      providerIdsByLocalChannel,
       effectiveModelAccessCatalogSnapshot,
     ],
   );
@@ -1952,7 +1997,7 @@ export const UniversalChat = memo(function UniversalChat({
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }, [addToast, setInputValue, t]);
   const newSessionProviderOptions = useMemo<UniversalChatNewSessionProviderOption[]>(
-    () => availableEngines.map((engine) => {
+    () => modeAvailableEngines.map((engine) => {
       const modelId = resolveWorkbenchCodeEngineSelectedModelId(
         engine.id,
         preferences,
@@ -1964,7 +2009,7 @@ export const UniversalChat = memo(function UniversalChat({
         modelLabel: getWorkbenchCodeModelLabel(engine.id, modelId, preferences) || modelId,
       };
     }),
-    [availableEngines, currentModelId, preferences, resolvedSelectedEngineId],
+    [currentModelId, modeAvailableEngines, preferences, resolvedSelectedEngineId],
   );
   const applyComposerSelection = useCallback((
     engineId: string,
@@ -2201,6 +2246,26 @@ export const UniversalChat = memo(function UniversalChat({
     if (draft.apiKey.trim()) {
       await userModelConfigService.upsertApiKey(configurationId, draft.apiKey.trim());
     }
+    // Revoke bindings and selections for providers that are no longer in the
+    // saved set so a narrowed provider selection is reflected in the edit
+    // dialog, the picker, and the engine bindings (best-effort).
+    const normalizedConfigurationId = configurationId.trim().toLowerCase();
+    const existingBindings = await userModelConfigService.listEngineConfigs().catch(() => []);
+    for (const binding of existingBindings) {
+      if (binding.channelCode.trim().toLowerCase() === normalizedConfigurationId
+        && !supportedProviderIds.includes(binding.engineId)) {
+        await userModelConfigService.deleteEngineConfig(binding.engineId, configurationId);
+      }
+    }
+    const existingSelections = await userModelConfigService
+      .listEngineSelections()
+      .catch(() => []);
+    for (const selection of existingSelections) {
+      if (selection.channelCode.trim().toLowerCase() === normalizedConfigurationId
+        && !supportedProviderIds.includes(selection.engineId)) {
+        await userModelConfigService.deleteEngineSelection(selection.engineId);
+      }
+    }
     // The key is persisted locally so agents apply can reuse it after restarts
     // (the agents SecretProvider is ephemeral).
     const apiKey = draft.apiKey.trim()
@@ -2243,13 +2308,26 @@ export const UniversalChat = memo(function UniversalChat({
       toolCallRounds: configurationMetadata?.toolCallRounds,
       supportsMultimodal: configurationMetadata?.supportsMultimodal ?? false,
     };
+    // Apply to every checked provider. The active engine must succeed (the
+    // user is configuring the model for the engine they are using); a
+    // secondary provider whose agents service rejects the configuration only
+    // logs a warning so one unavailable engine cannot block the whole save.
     const appliedConfigurations = [];
+    const failedProviderIds: string[] = [];
     for (const providerId of typedSupportedProviderIds) {
-      appliedConfigurations.push(await agentModelConfigurationService.apply({
-        ...configuration,
-        configurationId,
-        engineId: providerId,
-      }));
+      try {
+        appliedConfigurations.push(await agentModelConfigurationService.apply({
+          ...configuration,
+          configurationId,
+          engineId: providerId,
+        }));
+      } catch (error) {
+        if (providerId === resolvedSelectedEngineId) {
+          throw error;
+        }
+        console.warn(`Failed to apply model configuration for provider "${providerId}".`, error);
+        failedProviderIds.push(providerId);
+      }
     }
     await agentModelConfigurationService.applySelection({
       configurationId,
@@ -2260,11 +2338,14 @@ export const UniversalChat = memo(function UniversalChat({
       (item) => item.engineId === resolvedSelectedEngineId,
     );
     const apiKeyConfigured = activeConfiguration?.apiKeyConfigured
-      ?? Boolean(apiKey)
-      ?? draft.apiKeyConfigured;
+      ?? (Boolean(apiKey) || draft.apiKeyConfigured);
     const appliedAt = new Date().toISOString();
+    const appliedEngineConfigs: UserModelEngineConfig[] = [];
     for (const providerId of typedSupportedProviderIds) {
-      await userModelConfigService.upsertEngineConfig({
+      if (failedProviderIds.includes(providerId)) {
+        continue;
+      }
+      const engineConfig: UserModelEngineConfig = {
         engineId: providerId,
         channelCode: configurationId,
         vendorCode: defaultVendorCode,
@@ -2278,7 +2359,9 @@ export const UniversalChat = memo(function UniversalChat({
         supportsMultimodal: configurationMetadata?.supportsMultimodal ?? false,
         apiKeyConfigured,
         appliedAt,
-      });
+      };
+      await userModelConfigService.upsertEngineConfig(engineConfig);
+      appliedEngineConfigs.push(engineConfig);
     }
     await userModelConfigService.upsertEngineSelection({
       engineId: resolvedSelectedEngineId,
@@ -2286,14 +2369,26 @@ export const UniversalChat = memo(function UniversalChat({
       modelId: defaultModelId,
     });
 
-    const projectedChannel = toModelAccessCatalogChannel({
-      ...localChannel,
-      apiKeyConfigured,
-    });
+    const projectedChannel = toModelAccessCatalogChannel(
+      {
+        ...localChannel,
+        apiKeyConfigured,
+      },
+      requestedProviderIds,
+    );
     setLocalUserModelChannels((current) => {
       const without = current.filter((channel) => channel.code !== configurationId);
       return [...without, { ...localChannel, apiKeyConfigured }];
     });
+    // Keep the binding rows in sync so the picker's provider support set
+    // reflects the save without a store round-trip.
+    setLocalUserModelEngineConfigs((current) => [
+      ...current.filter((config) => (
+        config.channelCode !== configurationId
+        || !(typedSupportedProviderIds as string[]).includes(config.engineId)
+      )),
+      ...appliedEngineConfigs,
+    ]);
     setModelAccessCatalogSnapshot((currentSnapshot) => (
       mergeWorkbenchModelAccessCatalogSnapshot(
         currentSnapshot ?? effectiveModelAccessCatalogSnapshot,
@@ -2332,6 +2427,9 @@ export const UniversalChat = memo(function UniversalChat({
     await userModelConfigService.deleteChannel(stableChannelCode);
     setLocalUserModelChannels((current) => (
       current.filter((localChannel) => localChannel.code !== stableChannelCode)
+    ));
+    setLocalUserModelEngineConfigs((current) => (
+      current.filter((config) => config.channelCode !== stableChannelCode)
     ));
     setModelAccessCatalogSnapshot((currentSnapshot) => {
       if (!currentSnapshot) {
@@ -2464,6 +2562,26 @@ export const UniversalChat = memo(function UniversalChat({
   const focusedNewSessionScopeRef = useRef('');
   const shouldPresentNewSessionComposer =
     isNewSession && normalizedMessages.length === 0 && layout === 'main';
+  // When the new-session composer opens under a workbench mode whose provider
+  // set does not contain the resolved engine (e.g. work mode while the last
+  // active engine was codex), align the composer selection to the first mode
+  // provider so the dropdown, the header, and the created session all stay
+  // inside the mode's admission boundary.
+  useEffect(() => {
+    if (!shouldPresentNewSessionComposer || modeAvailableEngines.length === 0) {
+      return;
+    }
+    if (matchesWorkbenchModeEngineId(workbenchMode, resolvedSelectedEngineId)) {
+      return;
+    }
+    handleNewSessionProviderSelect(modeAvailableEngines[0].id);
+  }, [
+    handleNewSessionProviderSelect,
+    modeAvailableEngines,
+    resolvedSelectedEngineId,
+    shouldPresentNewSessionComposer,
+    workbenchMode,
+  ]);
   const isTranscriptJumpToLatestVisible =
     normalizedMessages.length > 0
     && transcriptScrollCoordinator.jumpToLatestVisible;

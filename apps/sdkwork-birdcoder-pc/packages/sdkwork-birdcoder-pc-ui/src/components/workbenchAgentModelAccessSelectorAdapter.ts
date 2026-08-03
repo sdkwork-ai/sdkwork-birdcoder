@@ -419,9 +419,15 @@ export function resolveWorkbenchModelAccessChannelId(
 /**
  * Converts a client-local user model channel (sqlite) into the workbench
  * custom agent model configuration shape.
+ *
+ * The per-provider bindings are not part of the channel row; they are
+ * persisted in the per-engine config rows, so callers pass the resolved
+ * provider ids (`user_model_engine_config` rows for the channel) to keep the
+ * picker's provider support information accurate.
  */
 export function toWorkbenchUnifiedCustomAgentModelDefinition(
   channel: UserModelChannel,
+  supportedProviderIds: readonly string[] = [],
 ): WorkbenchUnifiedCustomAgentModelDefinition {
   const defaultModel = channel.offerings
     .find((offering) => (
@@ -438,7 +444,7 @@ export function toWorkbenchUnifiedCustomAgentModelDefinition(
     supportedModelIds: channel.offerings.flatMap((offering) => (
       offering.models.map((model) => model.modelId)
     )),
-    supportedProviderIds: [],
+    supportedProviderIds: [...new Set(supportedProviderIds)],
     supportsMultimodal: defaultModel?.supportsMultimodal ?? false,
     apiKeyConfigured: channel.apiKeyConfigured,
     accessChannelKind: channel.kind,
@@ -455,8 +461,15 @@ export function toWorkbenchUnifiedCustomAgentModelDefinition(
 /**
  * Projects a client-local user model channel into the catalog channel shape
  * so the picker list can show it without a server round-trip.
+ *
+ * The provider support set is not part of the channel row; pass the resolved
+ * engine-config bindings so the merged catalog carries the same provider
+ * information the settings panel persisted.
  */
-export function toModelAccessCatalogChannel(channel: UserModelChannel): ModelAccessCatalogChannel {
+export function toModelAccessCatalogChannel(
+  channel: UserModelChannel,
+  supportedProviderIds: readonly string[] = [],
+): ModelAccessCatalogChannel {
   return {
     id: channel.code,
     code: channel.code,
@@ -466,7 +479,7 @@ export function toModelAccessCatalogChannel(channel: UserModelChannel): ModelAcc
     description: channel.description,
     defaultVendorCode: channel.defaultVendorCode,
     defaultModelId: channel.defaultModelId,
-    supportedAgentProviderIds: [],
+    supportedAgentProviderIds: [...new Set(supportedProviderIds)],
     offerings: channel.offerings.map((offering) => ({
       vendorCode: offering.vendorCode,
       vendorName: offering.vendorName,

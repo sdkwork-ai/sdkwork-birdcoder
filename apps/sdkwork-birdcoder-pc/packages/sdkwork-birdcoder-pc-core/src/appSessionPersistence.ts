@@ -4,6 +4,13 @@ export interface AppSessionPersistencePort {
   read(): string | null;
   write(raw: string): void;
   remove(): void;
+  /**
+   * True when the backing store is an OS-level secure credential store
+   * (desktop keyring). Long-lived rotating credentials such as the refresh
+   * token MUST be persisted only through secure ports; browser-local storage
+   * keeps such credentials in memory only and fails closed across reloads.
+   */
+  readonly secureTokenStorage?: boolean;
 }
 
 export interface AsyncAppSessionPersistencePort extends AppSessionPersistencePort {
@@ -15,6 +22,7 @@ let hydratePromise: Promise<void> | null = null;
 
 function createBrowserSessionStoragePort(): AppSessionPersistencePort {
   return {
+    secureTokenStorage: false,
     read() {
       try {
         return globalThis.localStorage?.getItem(APP_SESSION_STORAGE_KEY) ?? null;
@@ -37,6 +45,10 @@ function createBrowserSessionStoragePort(): AppSessionPersistencePort {
       }
     },
   };
+}
+
+export function isSecureTokenPersistencePort(port: AppSessionPersistencePort): boolean {
+  return port.secureTokenStorage === true;
 }
 
 export function bindAppSessionPersistencePort(port: AppSessionPersistencePort): void {

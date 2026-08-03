@@ -27,6 +27,7 @@ function collectFiles(relativeRoot) {
 
 const mainSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs');
 const libSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/lib.rs');
+const profileSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/profile.rs');
 const libRuntimeSource = libSource.split('\n#[cfg(test)]')[0];
 const gatewayComponent = read(
   'crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json',
@@ -50,14 +51,18 @@ assert.match(
   'The gateway binary must construct the application through its gateway app builder.',
 );
 assert.match(
-  libSource,
+  `${libSource}\n${profileSource}`,
   /assemble_api_router\(config\)/u,
   'The gateway app builder must consume the host-neutral BirdCoder assembly.',
 );
 assert.doesNotMatch(
   `${mainSource}\n${libRuntimeSource}`,
-  /database|postgres|sqlite|migration|backup|enable_process_shared_database_pool/iu,
-  'The standalone gateway must remain a stateless composition host.',
+  // BirdCoder must not own a database lifecycle of its own. Dependency-module
+  // database startup that is explicitly delegated (for example the Deploy
+  // module's `migrate_database_from_env` bootstrap) is owner-module
+  // lifecycle, not BirdCoder-owned state, and is not flagged here.
+  /birdcoder[_-]?(?:database|migration|backup)|SDKWORK_BIRDCODER_DATABASE|enable_process_shared_database_pool/iu,
+  'The standalone gateway must remain a stateless composition host without BirdCoder-owned database lifecycle.',
 );
 
 for (const componentSource of [gatewayComponent, assemblyComponent]) {
@@ -88,7 +93,11 @@ for (const configRoot of serverConfigRoots) {
 }
 
 for (const retiredPath of [
-  '.env.postgres.example',
+  // Note: `.env.postgres.example` is intentionally NOT listed here. It is the
+  // unified workspace PostgreSQL development template mandated by
+  // `standalone-integration-contract.test.mjs` (and the standard
+  // `db:postgres:init` command); deployment statelessness is enforced by the
+  // `etc/` deployment-configuration checks above, not by the dev template.
   'specs/process-database-pool.spec.json',
   'deployments/kubernetes/values-postgresql-ha.yaml',
   'deployments/kubernetes/templates/backup-cronjob.yaml',

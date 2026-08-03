@@ -2,6 +2,7 @@ import { APP_SESSION_CHANGE_EVENT_NAME } from './appSessionEvents.ts';
 import {
   APP_SESSION_STORAGE_KEY,
   getAppSessionPersistencePort,
+  isSecureTokenPersistencePort,
 } from './appSessionPersistence.ts';
 import type { IamSession } from '@sdkwork/iam-service';
 
@@ -386,10 +387,18 @@ function serializeForPersistence(token: StoredAppSessionToken): PersistedAppSess
     authToken: token.authToken,
     storedAt: token.storedAt,
   };
+  const securePort = isSecureTokenPersistencePort(getAppSessionPersistencePort());
   if (typeof token.expiresAt === 'number' && Number.isFinite(token.expiresAt)) {
     persisted.expiresAt = token.expiresAt;
   }
-  if (typeof token.refreshToken === 'string' && token.refreshToken.trim().length > 0) {
+  // Long-lived rotating credentials never enter browser-local storage. Only
+  // OS-backed secure ports may persist the refresh token; insecure ports
+  // retain it in memory for the current page and fail closed on reload.
+  if (
+    securePort
+    && typeof token.refreshToken === 'string'
+    && token.refreshToken.trim().length > 0
+  ) {
     persisted.refreshToken = token.refreshToken;
   }
   if (typeof token.sessionId === 'string' && token.sessionId.trim().length > 0) {

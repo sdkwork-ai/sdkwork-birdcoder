@@ -146,10 +146,20 @@ export type {
   UserModelEngineConfig,
   UserModelEngineSelection,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IUserModelConfigService';
+export {
+  saveModelManagementChannel,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/modelManagementChannelSaving';
+export type {
+  SaveModelManagementChannelDraft,
+  SaveModelManagementChannelInput,
+  SaveModelManagementChannelOfferingDraft,
+  SaveModelManagementChannelResult,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/modelManagementChannelSaving';
 export type {
   IModelAccessCatalogService,
   LoadModelAccessCatalogOptions,
   ModelAccessCatalogChannel,
+  ModelAccessCatalogFilter,
   ModelAccessCatalogModel,
   ModelAccessCatalogOffering,
   ModelAccessCatalogOfferingModel,
@@ -158,6 +168,11 @@ export type {
   ModelAccessChannelKind,
   UpsertModelAccessCatalogChannelInput,
   UpsertModelAccessCatalogChannelOptions,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IModelAccessCatalogService';
+export {
+  AGENT_MODEL_LLM_CAPABILITY,
+  DEFAULT_AGENT_MODEL_CAPABILITIES,
+  resolveModelAccessCatalogFilters,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IModelAccessCatalogService';
 export type {
   AgentCatalogListOptions,

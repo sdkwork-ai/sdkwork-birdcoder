@@ -10,7 +10,10 @@
 //! does not depend on `sdkwork_iam_web_adapter`.
 
 use axum::Router;
-use sdkwork_iam_web_adapter::{iam_web_request_context_resolver_from_env, IamAuthorizationPolicy};
+use sdkwork_iam_web_adapter::{
+    allows_dev_authentication_fallback, iam_web_request_context_resolver_from_env,
+    installed_iam_database_pool_for_process, IamAuthorizationPolicy,
+};
 use sdkwork_web_axum::{with_web_request_context, WebFrameworkLayer};
 use sdkwork_web_core::{
     CorsPolicy, DomainContextInjector, HttpMetricsRegistry, HttpRouteManifest, RateLimitPolicy,
@@ -20,7 +23,7 @@ use std::sync::Arc;
 
 use sdkwork_api_birdcoder_assembly::bootstrap::config::{
     default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
-    BirdDeploymentProfile, BirdEnvironment, BirdServerConfig,
+    BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
 };
 
 /// Product route packages declare public operations in the combined route
@@ -45,6 +48,7 @@ pub async fn wrap_with_web_framework(
     metrics: Arc<HttpMetricsRegistry>,
 ) -> Result<Router, String> {
     let resolver = iam_web_request_context_resolver_from_env().await;
+    assert_embedded_iam_authentication_path(config)?;
     let public_prefixes = birdcoder_public_path_prefixes();
     let profile = WebRequestContextProfile {
         public_path_prefixes: public_prefixes.clone(),
@@ -89,6 +93,34 @@ const BIRDOODER_SDK_CORS_REQUEST_HEADERS: &[&str] = &[
     "x-user-id",
     "x-sdkwork-client-kind",
 ];
+
+/// Fail-closed assertion for the embedded desktop gateway's IAM
+/// authentication path.
+///
+/// The desktop runtime resolves IAM from the process environment; when
+/// neither an IAM database pool nor the explicitly enabled local development
+/// authentication fallback is present, every protected route would silently
+/// return 401. The embedded gateway refuses to start in that state instead,
+/// with a diagnostic naming the two accepted configurations.
+fn assert_embedded_iam_authentication_path(config: &BirdServerConfig) -> Result<(), String> {
+    if config.runtime_target != BirdRuntimeTarget::Desktop {
+        // Server and container deployments own their IAM bootstrap; only the
+        // embedded desktop gateway needs this assertion.
+        return Ok(());
+    }
+    let database_backed = installed_iam_database_pool_for_process().is_some()
+        || std::env::var("SDKWORK_IAM_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty());
+    if database_backed || allows_dev_authentication_fallback() {
+        return Ok(());
+    }
+    Err(
+        "embedded gateway IAM authentication path is not ready: configure \
+         SDKWORK_IAM_DATABASE_URL or explicitly enable the local development \
+         authentication fallback (SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK=1); refusing \
+         to serve protected routes in a silently-unauthenticated state"
+            .to_owned(),
+    )
+}
 
 fn with_birdcoder_sdk_cors_headers(policy: CorsPolicy) -> CorsPolicy {
     let mut policy = policy;

@@ -573,9 +573,11 @@ pub fn run() {
             user_model_config_upsert_api_key,
             user_model_config_list_engine_configs,
             user_model_config_upsert_engine_config,
+            user_model_config_delete_engine_config,
             user_model_config_list_engine_selections,
             user_model_config_get_engine_selection,
             user_model_config_upsert_engine_selection,
+            user_model_config_delete_engine_selection,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build SDKWork BirdCoder desktop")
@@ -629,6 +631,11 @@ async fn user_model_config_upsert_engine_config(config: sdkwork_models_user_conf
 }
 
 #[tauri::command]
+async fn user_model_config_delete_engine_config(engine_id: String, channel_code: String) -> Result<(), String> {
+    host::user_model_config_delete_engine_config(engine_id, channel_code).await
+}
+
+#[tauri::command]
 async fn user_model_config_list_engine_selections() -> Result<Vec<sdkwork_models_user_config_repository_sqlx::UserModelEngineSelection>, String> {
     host::user_model_config_list_engine_selections().await
 }
@@ -641,5 +648,10 @@ async fn user_model_config_get_engine_selection(engine_id: String) -> Result<Opt
 #[tauri::command]
 async fn user_model_config_upsert_engine_selection(selection: sdkwork_models_user_config_repository_sqlx::UserModelEngineSelection) -> Result<(), String> {
     host::user_model_config_upsert_engine_selection(selection).await
+}
+
+#[tauri::command]
+async fn user_model_config_delete_engine_selection(engine_id: String) -> Result<(), String> {
+    host::user_model_config_delete_engine_selection(engine_id).await
 }
 

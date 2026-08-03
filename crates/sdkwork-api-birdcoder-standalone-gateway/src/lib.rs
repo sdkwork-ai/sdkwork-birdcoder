@@ -27,12 +27,32 @@ pub async fn build_app_with_provider_session_cwd_resolver(
         std::sync::Arc<dyn sdkwork_agents_runtime_facade::ProviderSessionProjectCwdResolver>,
     >,
 ) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
+    migrate_deployments_database().await?;
     let selected_profile = profile::assemble_standalone_profile(config, resolver)
         .await
         .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(std::io::Error::other(error.to_string()))
         })?;
     build_app_from_profile(config, selected_profile).await
+}
+
+/// Bootstraps the SDKWork Deploy module database (baseline + versioned
+/// migrations + drift gate) before owner contributions are assembled. The
+/// migration helper flips the process-wide `SDKWORK_DATABASE_AUTO_MIGRATE`
+/// switch to `true`; the previous value is restored afterwards so the other
+/// owner modules keep their configured startup behavior.
+async fn migrate_deployments_database() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let previous_auto_migrate = std::env::var("SDKWORK_DATABASE_AUTO_MIGRATE").ok();
+    let result = sdkwork_api_deployments_assembly::migrate_database_from_env().await;
+    match previous_auto_migrate {
+        Some(value) => std::env::set_var("SDKWORK_DATABASE_AUTO_MIGRATE", value),
+        None => std::env::remove_var("SDKWORK_DATABASE_AUTO_MIGRATE"),
+    }
+    result.map_err(|error| -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::other(format!(
+            "deploy database migration failed: {error}"
+        )))
+    })
 }
 
 async fn build_app_from_profile(

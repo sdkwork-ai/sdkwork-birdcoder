@@ -723,6 +723,11 @@ fn build_directory_snapshot(
 
 const DEFAULT_FS_READ_FILE_MAX_BYTES: usize = 8 * 1024 * 1024;
 const MAX_FS_IMAGE_PREVIEW_BYTES: usize = 8 * 1024 * 1024;
+/// Single-write ceiling for renderer-initiated mounted file writes. The read
+/// path is preview-bounded at 8 MiB; writes may legitimately target larger
+/// files, but an unbounded single IPC payload would let a buggy or hostile
+/// renderer stage arbitrarily large content in memory and disk.
+const MAX_FS_WRITE_FILE_BYTES: usize = 64 * 1024 * 1024;
 
 fn resolve_supported_image_mime_type(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
@@ -1013,7 +1018,19 @@ pub async fn fs_read_image_preview(
 pub async fn fs_read_external_image_preview(absolute_path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let file_path = resolve_external_preview_path(&absolute_path)?;
-        read_image_preview_data_url(&file_path, "external image")
+        let preview = read_image_preview_data_url(&file_path, "external image")?;
+        // TOCTOU defense: the path is re-resolved after the read. If a
+        // symlink or file was swapped between resolution and read, the second
+        // resolution differs (or fails) and the bytes are rejected instead of
+        // being returned under the caller's requested identity.
+        let resolved_after_read = resolve_external_preview_path(&absolute_path)?;
+        if resolved_after_read != file_path {
+            return Err(
+                "external image path changed while it was being read; refusing the preview"
+                    .to_string(),
+            );
+        }
+        Ok(preview)
     })
     .await
     .map_err(|error| format!("failed to join external image preview task: {error}"))?
@@ -1192,6 +1209,12 @@ pub async fn fs_write_file(
     relative_path: String,
     content: String,
 ) -> Result<(), String> {
+    if content.len() > MAX_FS_WRITE_FILE_BYTES {
+        return Err(format!(
+            "refusing to write '{}': content exceeds the {MAX_FS_WRITE_FILE_BYTES}-byte write limit",
+            relative_path.trim()
+        ));
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let file_path = resolve_and_validate_mutation_path(&root_path, &relative_path)?;
         fs::write(&file_path, content).map_err(|error| {

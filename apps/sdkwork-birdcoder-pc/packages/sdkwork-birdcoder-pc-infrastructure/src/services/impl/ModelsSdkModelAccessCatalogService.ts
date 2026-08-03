@@ -8,12 +8,22 @@ import type {
   IModelAccessCatalogService,
   LoadModelAccessCatalogOptions,
   ModelAccessCatalogChannel,
+  ModelAccessCatalogFilter,
   ModelAccessCatalogModel,
   ModelAccessCatalogSnapshot,
   UpsertModelAccessCatalogChannelInput,
   UpsertModelAccessCatalogChannelOptions,
 } from '../interfaces/IModelAccessCatalogService.ts';
+import { resolveModelAccessCatalogFilters } from '../interfaces/IModelAccessCatalogService.ts';
 const CATALOG_PAGE_SIZE = 100;
+
+/**
+ * Bounded catalog traversal: the model selector needs the full directory, so
+ * pages are walked on demand until the authority reports no more rows or the
+ * traversal ceiling is reached. The ceiling keeps work and memory bounded
+ * (O(pages x pageSize)) and never aggregates an unbounded catalog.
+ */
+const MAX_CATALOG_PAGES = 10;
 
 function nonBlank(value: string | null | undefined): string | undefined {
   const normalized = value?.trim();
@@ -85,6 +95,7 @@ function mapDatabaseModel(
     contextTokens: optionalPositiveInteger(item.contextTokens),
     maxOutputTokens: optionalPositiveInteger(item.maxOutputTokens),
     supportsTools: item.supportsTools,
+    capabilities: uniqueStrings(item.capabilities),
     inputModalities: uniqueStrings(item.inputModalities),
     modalities: uniqueStrings(item.modalities),
     outputModalities: uniqueStrings(item.outputModalities),
@@ -155,14 +166,55 @@ function fallbackModelMatchesQuery(
   return terms.every((term) => haystack.includes(term));
 }
 
+/**
+ * Legacy fallback rows (mainstream agent catalog, engine agents-catalog
+ * entries) carry no capability metadata by construction and are all LLM/chat
+ * models, so they satisfy the default chat-only constraint.
+ */
+function fallbackModelPassesFilter(
+  model: ModelAccessCatalogModel,
+  filter: ModelAccessCatalogFilter,
+): boolean {
+  const capabilities = filter.capabilities;
+  if (capabilities && capabilities.length > 0) {
+    const declared = (model.capabilities ?? [])
+      .map((capability) => capability.trim().toLowerCase())
+      .filter(Boolean);
+    if (declared.length > 0) {
+      if (!declared.some((capability) => capabilities.includes(capability))) {
+        return false;
+      }
+    } else if (!capabilities.includes('chat')) {
+      return false;
+    }
+  }
+  const modalities = filter.modalities;
+  if (modalities && modalities.length > 0) {
+    const declared = [
+      ...(model.modalities ?? []),
+      ...(model.inputModalities ?? []),
+      ...(model.outputModalities ?? []),
+    ]
+      .map((modality) => modality.trim().toLowerCase())
+      .filter(Boolean);
+    if (declared.length === 0
+      || !declared.some((modality) => modalities.includes(modality))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function fallbackSnapshot(
   fallbackModels: readonly ModelAccessCatalogModel[],
   accessChannels: ModelAccessCatalogChannel[] = [],
   query?: string,
+  filter: ModelAccessCatalogFilter = {},
 ): ModelAccessCatalogSnapshot {
   return {
     models: fallbackModels
       .filter((model) => fallbackModelMatchesQuery(model, query))
+      .filter((model) => fallbackModelPassesFilter(model, filter))
       .map((model) => ({ ...model, source: 'fallback' })),
     accessChannels,
     source: 'fallback',
@@ -187,30 +239,33 @@ implements IModelAccessCatalogService {
     options: LoadModelAccessCatalogOptions,
   ): Promise<ModelAccessCatalogSnapshot> {
     const query = nonBlank(options.query);
+    const filter = resolveModelAccessCatalogFilters(options);
     if (this.offline) {
-      return fallbackSnapshot(options.fallbackModels, [], query);
+      return fallbackSnapshot(options.fallbackModels, [], query, filter);
     }
     const [modelsResult, channelsResult] = await Promise.allSettled([
-      this.listModels(options),
+      this.listModels(options, filter),
       this.listAccessChannels(options),
     ]);
     const accessChannels = channelsResult.status === 'fulfilled'
       ? channelsResult.value
       : [];
     if (modelsResult.status === 'rejected') {
-      return fallbackSnapshot(options.fallbackModels, accessChannels, query);
+      return fallbackSnapshot(options.fallbackModels, accessChannels, query, filter);
     }
     if (modelsResult.value.length === 0) {
       // A filtered database query returning no rows is authoritative when the
       // underlying catalog is non-empty. Probe the unfiltered catalog only in
-      // this case so an empty database still gets the built-in fallback.
+      // this case so an empty database still gets the built-in fallback. The
+      // probe keeps the same capability/modality projection so a database
+      // without matching models degrades to the fallback catalog.
       if (query) {
         try {
           const authorityProbe = await this.listModels({
             ...options,
             query: undefined,
             pageSize: 1,
-          });
+          }, filter);
           if (authorityProbe.length > 0) {
             return {
               models: [],
@@ -222,7 +277,7 @@ implements IModelAccessCatalogService {
           // Treat an unavailable authority probe as an unavailable database.
         }
       }
-      return fallbackSnapshot(options.fallbackModels, accessChannels, query);
+      return fallbackSnapshot(options.fallbackModels, accessChannels, query, filter);
     }
     return {
       models: modelsResult.value,
@@ -264,17 +319,43 @@ implements IModelAccessCatalogService {
 
   private async listModels(
     options: LoadModelAccessCatalogOptions,
+    filter: ModelAccessCatalogFilter,
   ): Promise<ModelAccessCatalogModel[]> {
     const query = nonBlank(options.query);
-    const result = await this.client.ai.models.list(
-      {
-        page: 1,
-        pageSize: boundedPageSize(options.pageSize),
-        ...(query ? { q: query } : {}),
-      },
-      { signal: options.signal },
-    );
-    return result.items.map(mapDatabaseModel);
+    // The SDK omits empty arrays as an explicit "no constraint" projection;
+    // an empty capability set therefore asks for every catalog model.
+    const capabilities = filter.capabilities && filter.capabilities.length > 0
+      ? [...filter.capabilities]
+      : undefined;
+    const modalities = filter.modalities && filter.modalities.length > 0
+      ? [...filter.modalities]
+      : undefined;
+    const pageSize = boundedPageSize(options.pageSize);
+    const models = new Map<string, ModelAccessCatalogModel>();
+    for (let page = 1; page <= MAX_CATALOG_PAGES; page += 1) {
+      const result = await this.client.ai.models.list(
+        {
+          page,
+          pageSize,
+          ...(query ? { q: query } : {}),
+          ...(capabilities ? { capabilities } : {}),
+          ...(modalities ? { modalities } : {}),
+        },
+        { signal: options.signal },
+      );
+      for (const item of result.items) {
+        const model = mapDatabaseModel(item, models.size);
+        // A catalog may change between pages; deduplicate by stable identity
+        // so a shifted window never duplicates or drops a selection row.
+        models.set(model.id, model);
+      }
+      // The authority's hasMore flag drives traversal; an empty page is a
+      // defensive termination in case the flag is missing or stale.
+      if (!result.pageInfo?.hasMore || result.items.length === 0) {
+        break;
+      }
+    }
+    return [...models.values()];
   }
 
   private async listAccessChannels(
@@ -282,15 +363,26 @@ implements IModelAccessCatalogService {
   ): Promise<ModelAccessCatalogChannel[]> {
     const query = nonBlank(options.query);
     const agentProviderId = nonBlank(options.agentProviderId);
-    const result = await this.client.ai.modelAccessChannels.list(
-      {
-        page: 1,
-        pageSize: boundedPageSize(options.pageSize),
-        ...(query ? { q: query } : {}),
-        ...(agentProviderId ? { agentProviderId } : {}),
-      },
-      { signal: options.signal },
-    );
-    return result.items.map(mapDatabaseChannel);
+    const pageSize = boundedPageSize(options.pageSize);
+    const channels = new Map<string, ModelAccessCatalogChannel>();
+    for (let page = 1; page <= MAX_CATALOG_PAGES; page += 1) {
+      const result = await this.client.ai.modelAccessChannels.list(
+        {
+          page,
+          pageSize,
+          ...(query ? { q: query } : {}),
+          ...(agentProviderId ? { agentProviderId } : {}),
+        },
+        { signal: options.signal },
+      );
+      for (const item of result.items) {
+        const channel = mapDatabaseChannel(item);
+        channels.set(channel.id, channel);
+      }
+      if (!result.pageInfo?.hasMore || result.items.length < pageSize) {
+        break;
+      }
+    }
+    return [...channels.values()];
   }
 }

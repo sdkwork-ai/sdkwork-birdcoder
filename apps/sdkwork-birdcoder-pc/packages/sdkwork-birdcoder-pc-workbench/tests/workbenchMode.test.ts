@@ -6,6 +6,7 @@ import {
   listWorkbenchModeProviderAvailability,
   matchesWorkbenchModeEngineId,
   normalizeWorkbenchMode,
+  resolveWorkbenchModeConstrainedEngineId,
   resolveWorkbenchModeForEngineId,
 } from '../src/workbench/workbenchMode.ts';
 
@@ -99,5 +100,71 @@ describe('workbench mode provider contract', () => {
         installed: false,
       }),
     ]);
+  });
+
+  it('constrains a resolved engine to the active mode', () => {
+    const catalog = [
+      {
+        id: 'openclaw',
+        agentId: 'agent.intelligence.openclaw',
+        tier: 't2-autonomous',
+      },
+      {
+        id: 'hermes',
+        agentId: 'agent.intelligence.hermes',
+        tier: 't2-autonomous',
+      },
+      {
+        id: 'codex',
+        agentId: 'agent.intelligence.codex',
+        tier: 't1-code',
+      },
+      {
+        id: 'gemini',
+        agentId: 'agent.intelligence.gemini',
+        tier: 't1-code',
+      },
+    ];
+
+    expect(resolveWorkbenchModeConstrainedEngineId('work', 'openclaw', catalog)).toBe('openclaw');
+    expect(resolveWorkbenchModeConstrainedEngineId('work', 'HERMES', catalog)).toBe('hermes');
+    expect(resolveWorkbenchModeConstrainedEngineId('coding', 'codex', catalog)).toBe('codex');
+    expect(resolveWorkbenchModeConstrainedEngineId('coding', 'gemini', catalog)).toBe('gemini');
+  });
+
+  it('falls back to the first available engine of the mode when the resolved engine is outside it', () => {
+    const catalog = [
+      {
+        id: 'openclaw',
+        agentId: 'agent.intelligence.openclaw',
+        tier: 't2-autonomous',
+      },
+      {
+        id: 'hermes',
+        agentId: 'agent.intelligence.hermes',
+        tier: 't2-autonomous',
+      },
+      {
+        id: 'codex',
+        agentId: 'agent.intelligence.codex',
+        tier: 't1-code',
+      },
+    ];
+
+    expect(resolveWorkbenchModeConstrainedEngineId('work', 'codex', catalog)).toBe('openclaw');
+    expect(resolveWorkbenchModeConstrainedEngineId('coding', 'openclaw', catalog)).toBe('codex');
+  });
+
+  it('fails closed to null when no available engine matches the mode', () => {
+    const catalog = [
+      {
+        id: 'codex',
+        agentId: 'agent.intelligence.codex',
+        tier: 't1-code',
+      },
+    ];
+
+    expect(resolveWorkbenchModeConstrainedEngineId('work', 'codex', catalog)).toBeNull();
+    expect(resolveWorkbenchModeConstrainedEngineId('work', 'codex', [])).toBeNull();
   });
 });

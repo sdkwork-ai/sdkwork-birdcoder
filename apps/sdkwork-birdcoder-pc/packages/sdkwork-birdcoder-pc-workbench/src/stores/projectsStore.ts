@@ -97,6 +97,16 @@ export const PROJECT_STORE_MAX_SESSION_TOMBSTONES = 1_000;
 const PROJECT_STORE_MAX_SESSION_ITEM_ESTIMATE_NODES =
   AGENT_SESSION_ITEM_RETENTION_MAX_ESTIMATE_NODES;
 
+/**
+ * Global transcript item ceiling for one scope projection. Per-Session
+ * budgets bound a single transcript; this ceiling bounds the whole scope so
+ * many populated Sessions cannot accumulate unbounded transcript memory.
+ * 50,000 items x the 4 MiB per-Session ceiling keeps worst-case retained
+ * transcript memory inside a defensive single-digit-hundreds-of-MiB envelope
+ * while remaining far above realistic active transcript volume.
+ */
+const PROJECT_STORE_MAX_TOTAL_SESSION_ITEMS = 50_000;
+
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
 
 interface CachedSessionEntry {
@@ -131,6 +141,7 @@ function cachedSessionTimestamp(session: AgentSessionView): number {
 
 function selectCachedSessionKeys(
   projects: readonly AgentProjectView[],
+  limit = PROJECT_STORE_MAX_CACHED_SESSIONS,
 ): Set<string> {
   const heap: CachedSessionEntry[] = [];
   const compareEntries = (left: CachedSessionEntry, right: CachedSessionEntry): number => {
@@ -156,6 +167,7 @@ function selectCachedSessionKeys(
     }
   };
 
+  const capacity = Math.max(0, Math.min(limit, PROJECT_STORE_MAX_CACHED_SESSIONS));
   for (const project of projects) {
     for (const session of project.agentSessions) {
       const entry: CachedSessionEntry = {
@@ -163,7 +175,7 @@ function selectCachedSessionKeys(
         priority: cachedSessionPriority(session),
         timestamp: cachedSessionTimestamp(session),
       };
-      if (heap.length < PROJECT_STORE_MAX_CACHED_SESSIONS) {
+      if (heap.length < capacity) {
         heap.push(entry);
         let childIndex = heap.length - 1;
         while (childIndex > 0) {
@@ -216,22 +228,96 @@ export function trimProjectsStoreSessionCache(
     }
   }
 
-  return projects.map((project) => {
+  const trimmedProjects = projects.map((project) => {
     if (retainedProjectIds.has(project.projectId) || project.agentSessions.length === 0) {
       return project;
     }
-    if (
-      remainingCapacity === PROJECT_STORE_MAX_CACHED_SESSIONS
-      && project.agentSessions.length > PROJECT_STORE_MAX_CACHED_SESSIONS
-    ) {
-      const retainedKeys = selectCachedSessionKeys([project]);
+    if (remainingCapacity > 0) {
+      // Partial retention: a project too large for the remaining slots keeps
+      // its most valuable sessions instead of being dropped as a whole, so
+      // leftover capacity is never wasted and inventory does not vanish.
+      const retainedKeys = selectCachedSessionKeys([project], remainingCapacity);
       const agentSessions = project.agentSessions.filter((session) =>
         retainedKeys.has(`${project.projectId}\u0001${session.id}`),
       );
-      remainingCapacity = 0;
+      remainingCapacity -= agentSessions.length;
       return { ...project, agentSessionPageInfo: undefined, agentSessions };
     }
     return { ...project, agentSessionPageInfo: undefined, agentSessions: [] };
+  });
+
+  return enforceGlobalSessionItemBudget(trimmedProjects);
+}
+
+/**
+ * Global transcript item budget across every retained Session in the scope.
+ *
+ * Per-Session budgets bound a single transcript; this ceiling bounds the whole
+ * projection so a workspace with tens of thousands of populated Sessions can
+ * never accumulate unbounded transcript memory. The lowest-priority Sessions
+ * lose their transcript items first (their inventory row survives, so a later
+ * refresh restores the transcript from the owner SDK).
+ */
+function enforceGlobalSessionItemBudget(
+  projects: AgentProjectView[],
+): AgentProjectView[] {
+  let retainedItemCount = 0;
+  const populatedSessions: {
+    key: string;
+    priority: number;
+    timestamp: number;
+    itemCount: number;
+    projectIndex: number;
+    sessionIndex: number;
+  }[] = [];
+  projects.forEach((project, projectIndex) => {
+    project.agentSessions.forEach((session, sessionIndex) => {
+      retainedItemCount += session.items.length;
+      if (session.items.length > 0) {
+        populatedSessions.push({
+          key: `${project.projectId}\u0001${session.id}`,
+          priority: cachedSessionPriority(session),
+          timestamp: cachedSessionTimestamp(session),
+          itemCount: session.items.length,
+          projectIndex,
+          sessionIndex,
+        });
+      }
+    });
+  });
+  if (retainedItemCount <= PROJECT_STORE_MAX_TOTAL_SESSION_ITEMS) {
+    return projects;
+  }
+
+  populatedSessions.sort((left, right) => (
+    left.priority - right.priority
+    || left.timestamp - right.timestamp
+    || right.itemCount - left.itemCount
+    || left.key.localeCompare(right.key)
+  ));
+  let overflow = retainedItemCount - PROJECT_STORE_MAX_TOTAL_SESSION_ITEMS;
+  const clearedKeys = new Set<string>();
+  for (const candidate of populatedSessions) {
+    if (overflow <= 0) {
+      break;
+    }
+    clearedKeys.add(candidate.key);
+    overflow -= candidate.itemCount;
+  }
+  if (clearedKeys.size === 0) {
+    return projects;
+  }
+  return projects.map((project, projectIndex) => {
+    let changed = false;
+    const agentSessions = project.agentSessions.map((session, sessionIndex) => {
+      if (clearedKeys.has(`${project.projectId}\u0001${session.id}`)
+        && session.items.length > 0) {
+        changed = true;
+        return { ...session, items: [] };
+      }
+      return session;
+    });
+    return changed ? { ...project, agentSessions } : project;
   });
 }
 

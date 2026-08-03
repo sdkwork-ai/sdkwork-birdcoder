@@ -292,6 +292,7 @@ function createFakeServices() {
       return [];
     },
     async upsertEngineConfig() {},
+    async deleteEngineConfig() {},
     async listEngineSelections() {
       return [];
     },
@@ -299,6 +300,7 @@ function createFakeServices() {
       return null;
     },
     async upsertEngineSelection() {},
+    async deleteEngineSelection() {},
   };
   return { agentModelConfigurationService, userModelConfigService, applied, selected };
 }

@@ -67,7 +67,9 @@ export interface IUserModelConfigService {
   upsertApiKey(channelCode: string, apiKey: string): Promise<void>;
   listEngineConfigs(engineId?: string): Promise<UserModelEngineConfig[]>;
   upsertEngineConfig(config: UserModelEngineConfig): Promise<void>;
+  deleteEngineConfig(engineId: string, channelCode: string): Promise<void>;
   listEngineSelections(): Promise<UserModelEngineSelection[]>;
   getEngineSelection(engineId: string): Promise<UserModelEngineSelection | null>;
   upsertEngineSelection(selection: UserModelEngineSelection): Promise<void>;
+  deleteEngineSelection(engineId: string): Promise<void>;
 }

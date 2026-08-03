@@ -77,9 +77,7 @@
         }
       },
       "platform": [],
-      "metadata": {
-        "generatedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
-      }
+      "metadata": {}
     },
     "screenshots": [
       {
@@ -158,8 +156,7 @@
     "stores": [],
     "config": {
       "workspaceRoot": "apps/sdkwork-birdcoder-pc",
-      "framework": "react-tauri",
-      "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
+      "framework": "react-tauri"
     }
   },
   "artifacts": {

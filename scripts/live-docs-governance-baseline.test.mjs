@@ -60,7 +60,7 @@ assert.match(prd, /## 5\. Functional Requirements/u);
 assert.match(prd, /## 6\. Quality, Security, And Commercial Gates/u);
 assert.match(tech, /^# SDKWork BirdCoder Technical Architecture/m);
 assert.match(tech, /## 3\. Data And Lifecycle/u);
-assert.match(tech, /## 5\. Project, Composition, And Session Flow/u);
+assert.match(tech, /## 5\. Workspace, Project, Composition, And Session Flow/u);
 assert.match(tech, /## 8\. Deployment And Runtime Topology/u);
 assert.match(
   tech,

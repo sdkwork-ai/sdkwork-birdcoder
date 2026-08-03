@@ -6,6 +6,7 @@ import {
   getDefaultWorkbenchServerImplementedCodeEngineId,
   getWorkbenchCodeEngineLabel,
   isWorkbenchServerImplementedEngineId,
+  listWorkbenchServerImplementedCodeEngines,
   loadWorkbenchCodeEngineCatalog,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
@@ -13,6 +14,10 @@ import {
   resolveWorkbenchRuntimeBindingIdentity,
   useWorkbenchCodeEngineCatalog,
 } from '../workbench/codeEngineCatalog.ts';
+import {
+  normalizeWorkbenchMode,
+  resolveWorkbenchModeConstrainedEngineId,
+} from '../workbench/workbenchMode.ts';
 import { resolveBirdcoderWorkbenchHostMode } from '../terminal/runtimeTarget.ts';
 import type { AgentSessionExecutionTarget } from '../workbench/agentSessionCreation.ts';
 
@@ -158,7 +163,17 @@ export function useWorkbenchChatSelection({
         },
         preferences,
       );
-      const resolvedEngineId = preferredSelection.engineId;
+      // Fallback creation paths (tray new chat, keyboard shortcut) resolve the
+      // engine from preferences, which may point outside the active workbench
+      // mode. Constrain the resolved engine to the mode unless the caller
+      // explicitly requested one — UI surfaces already filter their options.
+      const resolvedEngineId = hasExplicitEngineSelection
+        ? preferredSelection.engineId
+        : resolveWorkbenchModeConstrainedEngineId(
+            normalizeWorkbenchMode(preferences.workbenchMode),
+            preferredSelection.engineId,
+            listWorkbenchServerImplementedCodeEngines(preferences),
+          ) ?? preferredSelection.engineId;
       const resolvedModelId = requestedModelId
         ? normalizeWorkbenchCodeModelId(
             resolvedEngineId,

@@ -16,6 +16,8 @@ pub use user_model_config::{
     apply_client_local_user_model_config_database_url,
     initialize_user_model_config_store,
     user_model_config_delete_channel,
+    user_model_config_delete_engine_config,
+    user_model_config_delete_engine_selection,
     user_model_config_get_api_key,
     user_model_config_get_channel,
     user_model_config_get_engine_selection,

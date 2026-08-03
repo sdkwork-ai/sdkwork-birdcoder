@@ -276,23 +276,34 @@ describe('OpenCode Session replay across cursor history and reconnect', () => {
       textDelta(2, ' world'),
     ];
     const synchronizeSessionItems = vi.fn(async () => ({
-      items: latestItems,
-      pageInfo: {
-        hasMore: true,
-        mode: 'cursor' as const,
-        nextCursor: 'older-page',
-        pageSize: 50,
-      },
+      importedItemCount: '0',
+      status: 'imported',
     }));
-    const listSessionItems = vi.fn(async () => ({
-      items: [textSnapshot(1, 'Hello')],
-      pageInfo: {
-        hasMore: false,
-        mode: 'cursor' as const,
-        nextCursor: null,
-        pageSize: 50,
-      },
-    }));
+    const listSessionItems = vi.fn(async (
+      _identity: unknown,
+      request: { cursor?: string },
+    ) => {
+      if (request?.cursor === undefined) {
+        return {
+          items: latestItems,
+          pageInfo: {
+            hasMore: true,
+            mode: 'cursor' as const,
+            nextCursor: 'older-page',
+            pageSize: 50,
+          },
+        };
+      }
+      return {
+        items: [textSnapshot(1, 'Hello')],
+        pageInfo: {
+          hasMore: false,
+          mode: 'cursor' as const,
+          nextCursor: null,
+          pageSize: 50,
+        },
+      };
+    });
     const agentSessionService = {
       getSession: vi.fn(async () => sessionRecord()),
       getSessionUserStates: vi.fn(async () => new Map()),
@@ -336,7 +347,7 @@ describe('OpenCode Session replay across cursor history and reconnect', () => {
 
     expect(latest.agentSession?.items).toHaveLength(8);
     expect(latest.agentSession?.items.some((item) => item.content.includes('world'))).toBe(false);
-    expect(dependencies.listSessionItems).not.toHaveBeenCalled();
+    expect(dependencies.listSessionItems).toHaveBeenCalledTimes(1);
 
     const history = await loadEarlierAgentSessionItems({
       agentSession: latest.agentSession!,

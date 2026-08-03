@@ -23,7 +23,8 @@ import type {
   AgentSessionActivityPageRequest,
   AgentSessionIdentity,
   AgentSessionItemPageRequest,
-  AgentSessionItemSynchronizationRequest,
+  AgentSessionItemSynchronizationStatus,
+  AgentSessionItemSynchronizationView,
   AgentSessionPageRequest,
   AgentSessionReadOptions,
   AgentTurnCompletion,
@@ -94,6 +95,12 @@ const AGENT_TURN_RUNTIME_EVENT_REDACTION_CLASSIFICATIONS = new Set([
 const AGENT_INTERACTION_MAX_REASON_CHARACTERS = 2_048;
 const AGENT_INTERACTION_MAX_ANSWER_CHARACTERS = 65_536;
 const AGENT_INTERACTION_MAX_OPTION_VALUE_CHARACTERS = 256;
+const AGENT_SESSION_ITEM_SYNCHRONIZATION_STATUSES = new Set<string>([
+  'engine-unavailable',
+  'imported',
+  'no-active-binding',
+  'not-provider-session',
+]);
 
 export interface BirdCoderAgentSessionServiceOptions {
   agentId?: string;
@@ -198,6 +205,37 @@ function toApiRequestOptions(options: AgentSessionReadOptions = {}) {
   return {
     signal: options.signal,
     timeout: options.timeoutMs,
+  };
+}
+
+/**
+ * Validates the provider transcript synchronization outcome returned by
+ * `agents.sessionItems.synchronize`. The generated SDK unwraps the command
+ * envelope, but the outcome is still checked defensively so a malformed
+ * status or count never reaches consumers as a trusted value.
+ */
+function readAgentSessionItemSynchronization(
+  response: unknown,
+): AgentSessionItemSynchronizationView {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
+    throw new Error('Agents Session Item synchronization returned an invalid outcome.');
+  }
+  const synchronization = response as {
+    importedItemCount?: unknown;
+    status?: unknown;
+  };
+  const { importedItemCount, status } = synchronization;
+  if (
+    typeof status !== 'string'
+    || !AGENT_SESSION_ITEM_SYNCHRONIZATION_STATUSES.has(status)
+    || typeof importedItemCount !== 'string'
+    || !/^[0-9]+$/u.test(importedItemCount)
+  ) {
+    throw new Error('Agents Session Item synchronization returned an invalid outcome.');
+  }
+  return {
+    importedItemCount,
+    status: status as AgentSessionItemSynchronizationStatus,
   };
 }
 
@@ -1298,18 +1336,15 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
 
   async synchronizeSessionItems(
     identity: AgentSessionIdentity,
-    request: AgentSessionItemSynchronizationRequest = {},
     options: AgentSessionReadOptions = {},
   ) {
     const normalizedIdentity = normalizeAgentSessionIdentity(identity);
-    const normalizedRequest = normalizeSessionItemPageRequest(request);
     const response = await this.client.ai.agents.sessionItems.synchronize(
       normalizedIdentity.agentId,
       normalizedIdentity.sessionId,
-      normalizedRequest,
       toApiRequestOptions(options),
     );
-    return normalizeSessionItemCursorPage(response, normalizedRequest);
+    return readAgentSessionItemSynchronization(response);
   }
 
   async listTurns(

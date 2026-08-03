@@ -97,6 +97,28 @@ fn resolve_listener_api_base_url(listener: &std::net::TcpListener) -> Result<Str
     Ok(format!("http://{local_address}"))
 }
 
+/// Declares an explicit IAM authentication path for the embedded loopback
+/// gateway before it starts serving protected routes.
+///
+/// An operator that configures `SDKWORK_IAM_DATABASE_URL` gets
+/// database-backed IAM sessions. Otherwise the local development
+/// authentication fallback is enabled (loopback local-login flow); an
+/// explicit operator disable is respected and then fails closed in the
+/// gateway with a diagnostic instead of silently returning 401 for every
+/// protected route.
+fn ensure_embedded_iam_authentication_path() -> Result<(), String> {
+    if std::env::var("SDKWORK_IAM_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty()) {
+        return Ok(());
+    }
+    if std::env::var_os("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK").is_none() {
+        std::env::set_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK", "1");
+        eprintln!(
+            "embedded BirdCoder gateway: local development authentication enabled for loopback local login; set SDKWORK_IAM_DATABASE_URL for database-backed sessions."
+        );
+    }
+    Ok(())
+}
+
 fn bind_embedded_api_listener() -> Result<(std::net::TcpListener, String), String> {
     let preferred_address = format!("{DEFAULT_EMBEDDED_API_HOST}:{DEFAULT_EMBEDDED_API_PORT}");
     match std::net::TcpListener::bind(&preferred_address) {
@@ -154,6 +176,7 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
         rate_limit_max_requests: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
+    ensure_embedded_iam_authentication_path()?;
     apply_client_local_sqlite_database_url(app)?;
     apply_client_local_models_catalog_root(app)?;
     // The models module manifest disables auto-migrate (production lifecycle

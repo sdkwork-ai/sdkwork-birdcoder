@@ -2,12 +2,46 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-23
-Specs: DEPLOYMENT_SPEC.md, CONFIG_SPEC.md, SOURCE_CONFIG_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
+Updated: 2026-08-03
+Specs: DEPLOYMENT_SPEC.md, SDKWORK_DEPLOY_SPEC.md, CONFIG_SPEC.md, SOURCE_CONFIG_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
 
 This guide covers the stateless BirdCoder gateway. BirdCoder owns the coding
 workbench composition and four System App API operations; it does not own
 Project, Session, Skill, human-message, or persistence lifecycles.
+
+## SDKWork Deploy Integration
+
+The gateway composes the SDKWork Deploy App API (`sdkwork-deployments`
+api-assembly) directly: `deploy_*` PostgreSQL tables are migrated at gateway
+startup, and the Deploy routes
+(`/app/v3/api/domain_zones`, `sites`, `certificates`, `upload_sessions`,
+`artifacts`) serve under the same web framework as every other owner. The
+publish pipeline (site/artifact/release records) and the Drive upload port run
+in-process, so no separate Deploy Server instance is needed. Development
+profiles use the in-memory Drive/content-provider ports; production-like
+profiles route Drive through the gateway's own Drive API facade
+(`SDKWORK_DRIVE_FACADE_URL`) with the remaining runtime values injected by the
+deployment platform (`etc/README.md`).
+
+Release publication runs through the `@sdkwork/deployments-app-sdk` application
+publisher (`pnpm release:publish`, see `first-governed-release.md`); deployment
+plans/rollouts run through the SDKWork Deploy framework:
+
+```bash
+pnpm deploy:validate                 # manifest V1–V20
+pnpm deploy:plan:standalone|cloud    # read-only plans per profile
+pnpm check:deploy-standard           # manifest + etc/ source-config identity
+```
+
+### Upload storage requirement
+
+The publish pipeline uploads the release archive through the Drive App API
+(multipart presigned parts). Drive's `local_filesystem` storage provider does
+not support presigned uploads, so a complete local end-to-end publish requires
+an S3-compatible object store bound to the active Drive storage provider for
+the target bucket (see `sdkwork-drive/deployments/docker-compose.minio-test.yml`
+for a MinIO reference). `pnpm release:publish:dry-run` validates the whole
+request without the upload step.
 
 ## Deployment Matrix
 
@@ -31,6 +65,11 @@ SDKWORK_BIRDCODER_SERVER_HOST=0.0.0.0
 SDKWORK_BIRDCODER_SERVER_PORT=10240
 SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
 ```
+
+Production-like profiles additionally require the SDKWork Deploy module runtime
+values (`SDKWORK_DEPLOY_ENVIRONMENT`, `SDKWORK_DRIVE_FACADE_URL`, and the
+platform-injected ingress/web-runtime secrets). The gateway fails closed at
+startup when a production-like Deploy profile is under-configured.
 
 Use an operator-managed source for private dependency credentials. Do not add
 BirdCoder database, migration, backup, runtime-location keyring, or desktop

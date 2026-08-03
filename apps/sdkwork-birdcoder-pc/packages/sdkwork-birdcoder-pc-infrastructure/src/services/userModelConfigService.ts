@@ -47,6 +47,10 @@ export class TauriUserModelConfigService implements IUserModelConfigService {
     return invoke<void>('user_model_config_upsert_engine_config', { config });
   }
 
+  deleteEngineConfig(engineId: string, channelCode: string): Promise<void> {
+    return invoke<void>('user_model_config_delete_engine_config', { engineId, channelCode });
+  }
+
   listEngineSelections(): Promise<UserModelEngineSelection[]> {
     return invoke<UserModelEngineSelection[]>('user_model_config_list_engine_selections');
   }
@@ -59,6 +63,10 @@ export class TauriUserModelConfigService implements IUserModelConfigService {
 
   upsertEngineSelection(selection: UserModelEngineSelection): Promise<void> {
     return invoke<void>('user_model_config_upsert_engine_selection', { selection });
+  }
+
+  deleteEngineSelection(engineId: string): Promise<void> {
+    return invoke<void>('user_model_config_delete_engine_selection', { engineId });
   }
 }
 
@@ -116,6 +124,10 @@ export class InMemoryUserModelConfigService implements IUserModelConfigService {
     this.engineConfigs.set(`${config.engineId}\u0000${config.channelCode}`, { ...config });
   }
 
+  async deleteEngineConfig(engineId: string, channelCode: string): Promise<void> {
+    this.engineConfigs.delete(`${engineId}\u0000${channelCode}`);
+  }
+
   async listEngineSelections(): Promise<UserModelEngineSelection[]> {
     return [...this.engineSelections.values()];
   }
@@ -126,5 +138,9 @@ export class InMemoryUserModelConfigService implements IUserModelConfigService {
 
   async upsertEngineSelection(selection: UserModelEngineSelection): Promise<void> {
     this.engineSelections.set(selection.engineId, { ...selection });
+  }
+
+  async deleteEngineSelection(engineId: string): Promise<void> {
+    this.engineSelections.delete(engineId);
   }
 }

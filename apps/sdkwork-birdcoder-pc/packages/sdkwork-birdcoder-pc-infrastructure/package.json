@@ -147,6 +147,10 @@
       "import": "./src/services/agentsModelConfigurationService.ts",
       "types": "./src/services/agentsModelConfigurationService.ts"
     },
+    "./services/modelManagementChannelSaving": {
+      "import": "./src/services/modelManagementChannelSaving.ts",
+      "types": "./src/services/modelManagementChannelSaving.ts"
+    },
     "./services/modelsAppSdkClient": {
       "import": "./src/services/modelsAppSdkClient.ts",
       "types": "./src/services/modelsAppSdkClient.ts"
@@ -229,6 +233,6 @@
     "vitest": "catalog:"
   },
   "scripts": {
-    "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts src/services/impl/ModelsSdkModelAccessCatalogService.test.ts"
+    "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts src/services/impl/ModelsSdkModelAccessCatalogService.test.ts src/services/modelManagementChannelSaving.test.ts src/services/agentsModelConfigurationService.test.ts"
   }
 }

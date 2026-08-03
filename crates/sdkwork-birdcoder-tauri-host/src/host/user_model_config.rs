@@ -161,6 +161,17 @@ pub async fn user_model_config_upsert_engine_config(
 }
 
 #[tauri::command]
+pub async fn user_model_config_delete_engine_config(
+    engine_id: String,
+    channel_code: String,
+) -> Result<(), String> {
+    store()?
+        .delete_engine_config(&engine_id, &channel_code)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn user_model_config_list_engine_selections(
 ) -> Result<Vec<UserModelEngineSelection>, String> {
     store()?
@@ -185,6 +196,14 @@ pub async fn user_model_config_upsert_engine_selection(
 ) -> Result<(), String> {
     store()?
         .upsert_engine_selection(&selection)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn user_model_config_delete_engine_selection(engine_id: String) -> Result<(), String> {
+    store()?
+        .delete_engine_selection(&engine_id)
         .await
         .map_err(|error| error.to_string())
 }

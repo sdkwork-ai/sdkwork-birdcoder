@@ -1285,7 +1285,7 @@ const requiredBlockerContracts = [
       taskRecordSha256:
         "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
       aiApiSha256:
-        "9c9606a5e3068344738456ece78248c3268bcb734058faca8e09aa9a6648a91b",
+        "fbffb795b5da7d1318f1a576b53fa0bb3b8fc3e8bce770d23640da3f0ad08973",
     },
     requiredContractExtensions: [
       "expose generated App SDK operations for user-visible Run reconciliation and recovery",
