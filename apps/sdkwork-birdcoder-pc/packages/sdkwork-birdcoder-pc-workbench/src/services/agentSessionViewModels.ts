@@ -749,6 +749,14 @@ export function toAgentSessionItemView(
         : {}),
       ...(feedbackRating ? { assistantRating: feedbackRating } : {}),
       ...(userContent?.source ? { providerUserMessageSource: userContent.source } : {}),
+      ...(userContent?.deliveryStatus ? { deliveryStatus: userContent.deliveryStatus } : {}),
+      ...(userContent?.blockedSources ? { blockedSources: userContent.blockedSources } : {}),
+      ...(userContent?.hookFeedback ? { hookFeedback: true } : {}),
+      ...(userContent?.referencesPriorConversation
+        ? { referencesPriorConversation: true }
+        : {}),
+      ...(userContent?.goal ? { goal: true } : {}),
+      ...(userContent?.hookStats ? { hookStats: userContent.hookStats } : {}),
       ...transcriptMetadata,
     },
     createdAt: item.createdAt,
@@ -827,6 +835,50 @@ function mergeCodexUserContentGroup(
   };
 }
 
+function mergePairedToolCallViews(
+  callView: AgentSessionItemView,
+  resultView: AgentSessionItemView,
+): AgentSessionItemView {
+  const callToolCalls = callView.tool_calls ?? [];
+  const resultToolCalls = resultView.tool_calls ?? [];
+  if (callToolCalls.length === 0 || resultToolCalls.length === 0) {
+    return resultView;
+  }
+  const mergedToolCalls = resultToolCalls.map((resultCallValue, index) => {
+    const callCallValue = callToolCalls[index];
+    const resultCall = (
+      typeof resultCallValue === 'object'
+      && resultCallValue !== null
+      && !Array.isArray(resultCallValue)
+    ) ? resultCallValue as Record<string, unknown> : null;
+    const callCall = (
+      typeof callCallValue === 'object'
+      && callCallValue !== null
+      && !Array.isArray(callCallValue)
+    ) ? callCallValue as Record<string, unknown> : null;
+    if (!resultCall || !callCall) {
+      return resultCallValue;
+    }
+    // OpenAI-shaped calls nest name/arguments inside `function`.
+    const callFunction = (
+      typeof callCall.function === 'object'
+      && callCall.function !== null
+      && !Array.isArray(callCall.function)
+    ) ? callCall.function as Record<string, unknown> : null;
+    const mergedName = resultCall.name ?? callCall.name ?? callFunction?.name;
+    const mergedArguments = resultCall.arguments ?? callCall.arguments ?? callFunction?.arguments;
+    return {
+      ...resultCall,
+      ...(mergedName !== undefined ? { name: mergedName } : {}),
+      ...(mergedArguments !== undefined ? { arguments: mergedArguments } : {}),
+    };
+  });
+  return {
+    ...resultView,
+    tool_calls: mergedToolCalls,
+  };
+}
+
 export function toAgentSessionTranscriptItemViews(
   items: readonly AgentSessionItemRecord[],
   providerIdentity?: AgentSessionUserContentProviderIdentity,
@@ -876,6 +928,41 @@ export function toAgentSessionTranscriptItemViews(
   };
   for (let index = 0; index < projectedItems.length;) {
     const item = projectedItems[index]!;
+    const pairedResultIndex = (
+      item.kind === 'tool_call'
+      && item.toolCallId?.trim()
+      && item.turnId?.trim()
+    )
+      ? projectedItems.findIndex(
+        (candidate, candidateIndex) => (
+          candidateIndex > index
+          && candidate.kind === 'tool_result'
+          && candidate.turnId === item.turnId
+          && (
+            candidate.toolCallId === item.toolCallId
+            || candidate.parentItemId === item.itemId
+          )
+        ),
+      )
+      : -1;
+    if (pairedResultIndex >= 0) {
+      // Codex live turns persist each tool call as a call item followed by
+      // a result item sharing the toolCallId. Render them as one row,
+      // carrying the call arguments when the result payload omits them.
+      const callView = toAgentSessionItemView(
+        item,
+        providerIdentity,
+        itemFeedback?.get(item.itemId),
+      );
+      const resultView = toAgentSessionItemView(
+        projectedItems[pairedResultIndex]!,
+        providerIdentity,
+        itemFeedback?.get(projectedItems[pairedResultIndex]!.itemId),
+      );
+      appendTranscriptView(mergePairedToolCallViews(callView, resultView));
+      index = pairedResultIndex + 1;
+      continue;
+    }
     if (!isCodexUserContentCarrier(item, providerIdentity)) {
       const view = toAgentSessionItemView(item, providerIdentity, itemFeedback?.get(item.itemId));
       appendTranscriptView(view);
@@ -933,6 +1020,7 @@ export function toAgentSessionView(
     id: session.sessionId,
     agentId: session.agentId,
     projectId,
+    parentSessionId: session.parentSessionId?.trim() || undefined,
     runtimeBindingId: context.runtimeBindingId?.trim() || undefined,
     runtimeLocationId: context.runtimeLocationId,
     title,
@@ -1408,7 +1496,11 @@ export async function loadProjectAgentSessionPage(
   const protectedSessions = project.agentSessions.filter((session) => session.items.length > 0);
   const baseSessions = resetWindow ? protectedSessions : project.agentSessions;
   let agentSessions = mergeAgentSessions(baseSessions, visibleSessions)
-    .filter((session) => !deletedSessionIds.has(session.id));
+    .filter((session) => !deletedSessionIds.has(session.id))
+    // Provider sub-agent sessions are synchronized with their full execution
+    // context but stay out of the top-level project Session list; they are
+    // reachable from the parent session's sub-agent activity instead.
+    .filter((session) => !session.parentSessionId?.trim());
   let windowShifted = resetWindow && project.agentSessionPageInfo?.hasNewer === true;
   if (agentSessions.length > PROJECT_STORE_MAX_CACHED_SESSIONS) {
     const protectedSessionsInWindow = agentSessions

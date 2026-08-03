@@ -90,3 +90,82 @@ export function hasLifecycleEventDetails(event: AgentSessionItemLifecycleEventVi
     || event.automatic !== undefined,
   );
 }
+
+/**
+ * Codex desktop elapsed-time format (`fMs`/`mMs` in the pinned bundle):
+ * `0s`, `42s`, `2m 30s`, `1h 5m`, `1d 2h` — seconds-based with zero units
+ * trimmed, unlike the millisecond format used inside tool rows.
+ */
+export function formatTurnDividerDuration(durationMs: number | undefined): string {
+  if (durationMs === undefined || !Number.isFinite(durationMs) || durationMs < 0) {
+    return '';
+  }
+  const totalSeconds = Math.floor(Math.max(durationMs, 0) / 1_000);
+  if (totalSeconds < 1) {
+    return '0s';
+  }
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+  const days = Math.floor(totalSeconds / (3_600 * 24));
+  const hours = Math.floor(totalSeconds / 3_600) % 24;
+  const minutes = Math.floor(totalSeconds % 3_600 / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || !days) parts.push(`${hours}h`);
+  if (minutes > 0 || (!days && !hours)) parts.push(`${minutes}m`);
+  if (seconds > 0 || (!days && !hours && !minutes)) parts.push(`${seconds}s`);
+  return parts.join(' ');
+}
+
+export interface TurnDividerPresentation {
+  /** Codex `f8c` divider status. */
+  status: 'working' | 'worked' | 'stopped';
+  label: string;
+}
+
+/**
+ * Maps lifecycle events onto the Codex desktop turn divider (`f8c`):
+ * `Working` / `Working for {time}` while in progress, `Worked for {time}`
+ * on completion, `You stopped after {time}` when the user interrupted.
+ * Events without a measurable duration keep their descriptive labels.
+ */
+export function resolveTurnDividerPresentation(
+  event: AgentSessionItemLifecycleEventView,
+  t?: ChatMessageTranslate,
+): TurnDividerPresentation | null {
+  const duration = formatTurnDividerDuration(event.durationMs);
+  if (event.kind === 'started') {
+    return {
+      status: 'working',
+      label: duration && duration !== '0s'
+        ? t?.('chat.turnDividerWorkingFor', { time: duration }) ?? `Working for ${duration}`
+        : t?.('chat.turnDividerWorking') ?? 'Working',
+    };
+  }
+  if (event.kind === 'completed') {
+    // Codex desktop always renders the worked divider before the final
+    // response (`f8c`); when the provider did not report a duration the
+    // divider keeps its descriptive completion label.
+    return duration && duration !== '0s'
+      ? {
+          status: 'worked',
+          label: t?.('chat.turnDividerWorkedFor', { time: duration }) ?? `Worked for ${duration}`,
+        }
+      : {
+          status: 'worked',
+          label: t?.('chat.lifecycleCompleted') ?? 'Turn completed',
+        };
+  }
+  if (event.kind === 'stopped' || event.kind === 'cancelled') {
+    return duration && duration !== '0s'
+      ? {
+          status: 'stopped',
+          label: t?.('chat.turnDividerUserStoppedAfter', { time: duration })
+            ?? `You stopped after ${duration}`,
+        }
+      : null;
+  }
+  return null;
+}

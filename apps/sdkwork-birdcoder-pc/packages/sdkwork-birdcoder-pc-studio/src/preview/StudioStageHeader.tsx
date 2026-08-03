@@ -262,7 +262,7 @@ export const StudioStageHeader = memo(function StudioStageHeader({
           style={{ animationDelay: '0ms' }}
           onClick={() => onTabChange('preview')}
         >
-          <div className={`w-2 h-2 rounded-full ${activeTab === 'preview' ? 'bg-white' : 'bg-gray-500'}`}></div>
+          <div className={`w-2 h-2 rounded-full ${activeTab === 'preview' ? 'bg-current' : 'bg-gray-500'}`}></div>
           {t('studio.preview')}
         </div>
         <div

@@ -37,6 +37,15 @@ export {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/sdkBaseUrls';
 
 export {
+  BIRDCODER_OFFICIAL_MODEL_RELAY_BASE_URL,
+  isKnownBirdCoderModelVendor,
+  resolveBirdCoderModelRelayApiKey,
+  resolveBirdCoderModelRelayBaseUrl,
+  resolveBirdCoderVendorProtocol,
+  type BirdCoderModelVendorProtocol,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/agentModelRelayConfig';
+
+export {
   resolveBirdCoderRuntimeTopology,
   type BirdCoderDeploymentProfile,
   type BirdCoderExecutionLocation,

@@ -72,8 +72,20 @@ import type {
 } from '@sdkwork/models-pc-picker';
 import {
   AgentModelConfigurationCredentialRequiredError,
+  resolveBirdCoderModelRelayApiKey,
+  resolveBirdCoderModelRelayBaseUrl,
+  resolveBirdCoderVendorProtocol,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
-import type { ModelAccessCatalogSnapshot } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
+import {
+  ensureWorkbenchEngineModelConfigurationApplied,
+  resolveWorkbenchEngineModelConfigTarget,
+  type EnsureWorkbenchEngineModelConfigurationResult,
+  type WorkbenchEngineModelConfigFingerprint,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
+import type {
+  ModelAccessCatalogSnapshot,
+  UserModelChannel,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import {
   buildDriveMediaResourceContentBlock,
   resolveBirdCoderChatAttachmentPreviewUrl,
@@ -142,7 +154,6 @@ import {
   toModelAccessCatalogChannel,
   toWorkbenchUnifiedCustomAgentModelDefinition,
 } from './workbenchAgentModelAccessSelectorAdapter';
-import type { UserModelChannel } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import {
   buildVisibleMessageActionTargets,
   ChatTranscriptMessage,
@@ -228,6 +239,8 @@ export interface UniversalChatComposerSelection {
 
 export interface UniversalChatComposerSubmission {
   driveRefs?: readonly WorkbenchAgentTurnDriveRef[];
+  /** Codex desktop referencesPriorConversation: keep the prior conversation context with the next turn. */
+  referencesPriorConversation?: boolean;
   queueExecution?: {
     accessModeId?: string;
     agentId: string;
@@ -921,6 +934,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           content={content}
           onOpenFile={messageEnvironment?.onOpenFile}
           onOpenUrl={messageEnvironment?.onOpenUrl}
+          resolveLocalImagePreviewUrl={messageEnvironment?.resolveLocalImagePreviewUrl}
           openFileLabel={messageEnvironment?.t('chat.openFileInEditor') ?? 'Open file in editor'}
           openUrlLabel={messageEnvironment?.t('chat.openLinkPreview') ?? 'Open link preview'}
           skills={messageEnvironment?.skills ?? []}
@@ -1202,6 +1216,11 @@ export const UniversalChat = memo(function UniversalChat({
   const [showAccessModeMenu, setShowAccessModeMenu] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
   const composerAttachmentsRef = useRef<ComposerAttachmentDraft[]>([]);
+  const [referencesPriorConversation, setReferencesPriorConversation] = useState(false);
+  const referencesPriorConversationRef = useRef(false);
+  if (referencesPriorConversationRef.current !== referencesPriorConversation) {
+    referencesPriorConversationRef.current = referencesPriorConversation;
+  }
   const composerAttachmentScopeRef = useRef('');
   const attachmentUploadSchedulerRef = useRef<ComposerAttachmentUploadScheduler | null>(null);
   if (!attachmentUploadSchedulerRef.current) {
@@ -1583,92 +1602,6 @@ export const UniversalChat = memo(function UniversalChat({
       active = false;
     };
   }, [preferences.unifiedCustomAgentModels, updatePreferences, userModelConfigService]);
-  // The agents runtime keeps configurations in memory only: after a restart
-  // (or when switching to another agent engine) the saved client-local
-  // selection is re-applied so the channel credential and model pairing stay
-  // active without reopening the picker. Best-effort, once per engine per boot.
-  const restoredEngineSelectionRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!localUserModelChannelsLoaded || !resolvedSelectedEngineId) {
-      return;
-    }
-    const engineId = resolvedSelectedEngineId;
-    if (restoredEngineSelectionRef.current.has(engineId)) {
-      return;
-    }
-    let active = true;
-    void (async () => {
-      try {
-        const selection = await userModelConfigService.getEngineSelection(engineId);
-        if (!selection) {
-          return;
-        }
-        const channel = localUserModelChannels.find((candidate) => (
-          candidate.code.trim().toLowerCase() === selection.channelCode.trim().toLowerCase()
-        ));
-        if (!channel) {
-          return;
-        }
-        const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
-          engineId,
-          preferences,
-        )?.trim().toLowerCase();
-        if (preferenceChannelId && preferenceChannelId !== selection.channelCode.trim().toLowerCase()) {
-          // The user picked another channel in a later session; keep that choice.
-          return;
-        }
-        type SelectionInput = Parameters<
-          typeof agentModelConfigurationService.applySelection
-        >[0];
-        const engineConfigs = await userModelConfigService.listEngineConfigs(engineId);
-        const engineConfig = engineConfigs.find(
-          (config) => config.channelCode === selection.channelCode,
-        );
-        if (engineConfig) {
-          const apiKey = await userModelConfigService.getApiKey(selection.channelCode);
-          await agentModelConfigurationService.apply({
-            configurationId: selection.channelCode,
-            engineId: engineId as SelectionInput['engineId'],
-            vendorCode: engineConfig.vendorCode,
-            baseUrl: engineConfig.baseUrl,
-            ...(apiKey ? { apiKey } : {}),
-            defaultModelId: engineConfig.defaultModelId,
-            supportedModelIds: engineConfig.supportedModelIds,
-            supportedProviderIds: engineConfig.supportedProviderIds as NonNullable<
-              SelectionInput['configuration']
-            >['supportedProviderIds'],
-            inputContextTokens: engineConfig.inputContextTokens ?? undefined,
-            outputContextTokens: engineConfig.outputContextTokens ?? undefined,
-            toolCallRounds: engineConfig.toolCallRounds ?? undefined,
-            supportsMultimodal: engineConfig.supportsMultimodal,
-          });
-        }
-        await agentModelConfigurationService.applySelection({
-          configurationId: selection.channelCode,
-          engineId: engineId as SelectionInput['engineId'],
-          modelId: selection.modelId,
-        });
-      } catch (error) {
-        // Restore is best-effort: a missing agents runtime (web mode, cold
-        // engine) must not break boot; the user can re-select in the picker.
-        console.warn('Failed to restore the client-local model configuration.', error);
-      } finally {
-        if (active) {
-          restoredEngineSelectionRef.current.add(engineId);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [
-    agentModelConfigurationService,
-    localUserModelChannels,
-    localUserModelChannelsLoaded,
-    preferences,
-    resolvedSelectedEngineId,
-    userModelConfigService,
-  ]);
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -1761,6 +1694,131 @@ export const UniversalChat = memo(function UniversalChat({
     })),
     [availableEngines],
   );
+  // The agents runtime keeps applied model configurations in memory only, so
+  // the workbench re-applies the engine's effective configuration whenever it
+  // may be stale: on boot, on engine switch, after a selection change, and
+  // right before a turn is dispatched. The fingerprint short-circuits the
+  // idempotent re-apply (no HTTP round-trip) until the channel, model, or
+  // auth token changes; the in-flight map collapses concurrent callers.
+  const engineModelConfigFingerprintRef = useRef<
+    Map<string, WorkbenchEngineModelConfigFingerprint>
+  >(new Map());
+  const engineModelConfigEnsureInFlightRef = useRef<Map<string, Promise<unknown>>>(new Map());
+  const runEngineModelConfigEnsure = useCallback(async (
+    engineId: string,
+  ): Promise<EnsureWorkbenchEngineModelConfigurationResult | null> => {
+    const normalizedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+      engineId,
+      preferences,
+    );
+    if (!normalizedEngineId) {
+      return null;
+    }
+    if (!agentModelConfigurationService || !userModelConfigService) {
+      return null;
+    }
+    const inFlight = engineModelConfigEnsureInFlightRef.current.get(normalizedEngineId);
+    if (inFlight) {
+      return inFlight as Promise<EnsureWorkbenchEngineModelConfigurationResult | null>;
+    }
+    const promise = (async () => {
+      try {
+        const engineDefinition = findWorkbenchCodeEngineDefinition(
+          normalizedEngineId,
+          preferences,
+        ) ?? getWorkbenchCodeEngineDefinition(normalizedEngineId, preferences);
+        const selectedModelId = resolveWorkbenchCodeEngineSelectedModelId(
+          normalizedEngineId,
+          preferences,
+        );
+        const selectedModel = engineDefinition.models.find(
+          (model) => model.id === selectedModelId,
+        ) ?? engineDefinition.models.find((model) => model.defaultForEngine);
+        const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+          normalizedEngineId,
+          preferences,
+        );
+        const storedSelection = preferenceChannelId?.trim()
+          ? undefined
+          : await userModelConfigService.getEngineSelection(normalizedEngineId);
+        const target = resolveWorkbenchEngineModelConfigTarget({
+          engineId: normalizedEngineId,
+          preferenceChannelId,
+          selectedModelId,
+          engineDefaultModelId: engineDefinition.defaultModelId,
+          engineModelIds: engineDefinition.modelIds,
+          engineVendorCode: selectedModel?.vendor === 'unknown'
+            ? 'openai'
+            : (selectedModel?.vendor ?? 'openai'),
+          localChannels: localUserModelChannels,
+          catalogChannels: effectiveModelAccessCatalogSnapshot.accessChannels,
+          storedSelection,
+          agentProviderIds: agentProviderOptions.map((provider) => provider.id),
+        });
+        const result = await ensureWorkbenchEngineModelConfigurationApplied({
+          agentModelConfigurationService,
+          userModelConfigService,
+          engineId: normalizedEngineId,
+          target,
+          previous: engineModelConfigFingerprintRef.current.get(normalizedEngineId),
+        });
+        if (result.status !== 'unchanged') {
+          engineModelConfigFingerprintRef.current.set(normalizedEngineId, result.fingerprint);
+        }
+        // Persist the engine selection row for the auto-default official
+        // relay so the settings page engine bindings reflect the active
+        // configuration and restarts restore the same pairing.
+        if (
+          result.status === 'applied'
+          && target.isOfficialRelayDefault
+        ) {
+          await userModelConfigService.upsertEngineSelection({
+            engineId: normalizedEngineId,
+            channelCode: target.channelCode,
+            modelId: target.modelId,
+          });
+        }
+        return result;
+      } catch (error) {
+        // Ensure is best-effort: a missing agents runtime (web mode, cold
+        // engine) or a credential-required relay must not break the boot or
+        // block sending; the user can re-select in the picker.
+        console.warn('Failed to ensure the engine model configuration.', error);
+        return null;
+      }
+    })();
+    engineModelConfigEnsureInFlightRef.current.set(normalizedEngineId, promise);
+    try {
+      return await promise;
+    } finally {
+      engineModelConfigEnsureInFlightRef.current.delete(normalizedEngineId);
+    }
+  }, [
+    agentModelConfigurationService,
+    agentProviderOptions,
+    effectiveModelAccessCatalogSnapshot,
+    localUserModelChannels,
+    preferences,
+    userModelConfigService,
+  ]);
+  useEffect(() => {
+    if (!localUserModelChannelsLoaded || !resolvedSelectedEngineId) {
+      return;
+    }
+    let active = true;
+    void runEngineModelConfigEnsure(resolvedSelectedEngineId).then(() => {
+      if (active) {
+        // The applied fingerprint stays in the ref; nothing else to seal.
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [
+    localUserModelChannelsLoaded,
+    resolvedSelectedEngineId,
+    runEngineModelConfigEnsure,
+  ]);
   const agentModelAccessSelectorCatalog = useMemo(
     () => createWorkbenchAgentModelAccessSelectorCatalog(
       effectiveModelAccessCatalogSnapshot,
@@ -1964,17 +2022,21 @@ export const UniversalChat = memo(function UniversalChat({
       typeof agentModelConfigurationService.applySelection
     >[0];
     const stableChannelCode = channel.code?.trim() || channel.id.trim();
-    // Platform-managed official channels (the built-in catalog) switch models
-    // directly: their credentials and endpoint are owned by the platform, so no
-    // client-side configuration is applied. Relay stations and custom official
-    // channels keep the apply-with-configuration flow so an existing saved
-    // credential is reused and a missing one surfaces as configuration-required.
-    const isPlatformManagedChannel = channel.kind === 'official'
+    const isOfficialPlatformChannel = channel.kind === 'official'
       && channel.isCustom !== true;
-    const channelConfigurationId = !isPlatformManagedChannel && channel.baseUrl?.trim()
+    // Official platform channels route through the BirdCoder relay
+    // (api.birdcoder.com) and authenticate with the current logged-in session
+    // auth token as the API key. Relay stations and custom official channels
+    // keep the apply-with-configuration flow so an existing saved credential
+    // is reused and a missing one surfaces as configuration-required.
+    const vendorProtocol = resolveBirdCoderVendorProtocol(offering.vendorCode);
+    const channelBaseUrl = isOfficialPlatformChannel
+      ? resolveBirdCoderModelRelayBaseUrl(vendorProtocol)
+      : channel.baseUrl?.trim() ?? '';
+    const shouldApplyPublicChannelConfiguration = Boolean(stableChannelCode && channelBaseUrl);
+    const channelConfigurationId = shouldApplyPublicChannelConfiguration
       ? stableChannelCode
       : undefined;
-    const shouldApplyPublicChannelConfiguration = Boolean(channelConfigurationId);
     const supportedModelIds = [...new Set(channel.offerings.flatMap(
       (channelOffering) => channelOffering.models.map((item) => item.model.trim()),
     ).filter(Boolean))];
@@ -2013,12 +2075,15 @@ export const UniversalChat = memo(function UniversalChat({
       ? channel.supportedAgentProviderIds
       : agentProviderOptions.map((provider) => provider.id);
     // The agents runtime keeps configurations in memory only, so an
-    // apply-with-configuration must carry the credential from the durable
-    // client-local store; otherwise a fresh configuration is rejected with
-    // "apiKey is required for a new model configuration".
-    const apiKey = shouldApplyPublicChannelConfiguration
-      ? (await userModelConfigService.getApiKey(stableChannelCode)) ?? undefined
-      : undefined;
+    // apply-with-configuration must carry the credential: the current session
+    // auth token for official platform channels, the durable client-local key
+    // for relay/custom channels; otherwise a fresh configuration is rejected
+    // with "apiKey is required for a new model configuration".
+    const apiKey = isOfficialPlatformChannel
+      ? resolveBirdCoderModelRelayApiKey()
+      : (shouldApplyPublicChannelConfiguration
+        ? (await userModelConfigService.getApiKey(stableChannelCode)) ?? undefined
+        : undefined);
     try {
       await agentModelConfigurationService.applySelection({
         configurationId: channelConfigurationId,
@@ -2027,7 +2092,7 @@ export const UniversalChat = memo(function UniversalChat({
         ...(shouldApplyPublicChannelConfiguration ? {
           configuration: {
             vendorCode: offering.vendorCode,
-            baseUrl: channel.baseUrl!.trim(),
+            baseUrl: channelBaseUrl,
             ...(apiKey ? { apiKey } : {}),
             defaultModelId: offeredModel.model,
             supportedModelIds,
@@ -2056,17 +2121,14 @@ export const UniversalChat = memo(function UniversalChat({
       resolvedSelectedEngineId,
       stableChannelCode,
     ));
-    // Persist the per-engine selection for client-local channels so restarts
-    // keep the same channel/model pairing without a server round-trip.
-    if (localUserModelChannels.some((localChannel) => (
-      localChannel.code.trim().toLowerCase() === stableChannelCode.trim().toLowerCase()
-    ))) {
-      await userModelConfigService.upsertEngineSelection({
-        engineId: resolvedSelectedEngineId,
-        channelCode: stableChannelCode,
-        modelId: offeredModel.model,
-      });
-    }
+    // Persist the per-engine selection for every channel kind (official,
+    // relay, custom) so restarts keep the same channel/model pairing without
+    // a server round-trip.
+    await userModelConfigService.upsertEngineSelection({
+      engineId: resolvedSelectedEngineId,
+      channelCode: stableChannelCode,
+      modelId: offeredModel.model,
+    });
     // The model id comes from the authoritative selector catalog (built-in
     // fallback, database, or custom), so it is adopted verbatim instead of
     // being clamped to the engine preset whitelist.
@@ -2076,7 +2138,6 @@ export const UniversalChat = memo(function UniversalChat({
     agentModelConfigurationService,
     agentProviderOptions,
     applyComposerSelection,
-    localUserModelChannels,
     modelAccessCatalogService,
     modelAccessFallbackModels,
     effectiveModelAccessCatalogSnapshot,
@@ -2298,8 +2359,10 @@ export const UniversalChat = memo(function UniversalChat({
       return changed ? { ...previousPreferences, codeEngineSettings: engineSettings } : previousPreferences;
     });
     // The deleted channel may still be bound in the agents runtime (its
-    // configuration is in-memory). Unbind it best-effort and fall back to the
-    // engine's default model so a deleted credential is never reused.
+    // configuration is in-memory). Re-ensure the engine configuration so the
+    // engine falls back to the official BirdCoder relay default (or the next
+    // stored selection) instead of the CLI's own config, and a deleted
+    // credential is never reused.
     const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
       resolvedSelectedEngineId,
       preferences,
@@ -2309,23 +2372,14 @@ export const UniversalChat = memo(function UniversalChat({
         resolvedSelectedEngineId,
         preferences,
       );
-      try {
-        await agentModelConfigurationService.applySelection({
-          engineId: resolvedSelectedEngineId as Parameters<
-            typeof agentModelConfigurationService.applySelection
-          >[0]['engineId'],
-          modelId: fallbackModelId,
-        });
-      } catch (error) {
-        console.warn('Failed to unbind the deleted model access channel.', error);
-      }
       applyComposerSelection(resolvedSelectedEngineId, fallbackModelId);
+      await runEngineModelConfigEnsure(resolvedSelectedEngineId);
     }
   }, [
-    agentModelConfigurationService,
     applyComposerSelection,
     preferences,
     resolvedSelectedEngineId,
+    runEngineModelConfigEnsure,
     updatePreferences,
     userModelConfigService,
   ]);
@@ -2463,11 +2517,18 @@ export const UniversalChat = memo(function UniversalChat({
       previousDraft: inputValueRef.current,
       scopeKey: normalizedTranscriptScopeKey,
     });
+    // Codex desktop keeps the prior-context pill while editing a message
+    // that referenced the previous conversation.
+    const sourceMessage = messages.find((message) => message.id === messageId);
+    setReferencesPriorConversation(
+      (sourceMessage?.metadata as Record<string, unknown> | undefined)
+        ?.referencesPriorConversation === true,
+    );
     setHistoryIndex(-1);
     setTempInput('');
     setInputValue(content);
     textareaRef.current?.focus();
-  }, [disabled, normalizedTranscriptScopeKey, onEditMessage, setInputValue]);
+  }, [disabled, messages, normalizedTranscriptScopeKey, onEditMessage, setInputValue]);
 
   const cancelEditingMessage = useCallback(() => {
     if (!editingMessage) {
@@ -3449,6 +3510,12 @@ export const UniversalChat = memo(function UniversalChat({
     isDispatchingMessageRef.current = true;
     setIsDispatchingMessage(true);
     try {
+      // The queued turn may be dispatched after a restart or engine switch,
+      // so ensure the engine's selected model configuration (channel, relay
+      // endpoint, and current auth token) is applied before delivery.
+      if (resolvedSelectedEngineId) {
+        await runEngineModelConfigEnsure(resolvedSelectedEngineId);
+      }
       try {
         await Promise.resolve(
           onSendMessage(
@@ -3465,6 +3532,9 @@ export const UniversalChat = memo(function UniversalChat({
             {
               ...(submittedAgentTurnInput.driveRefs.length > 0
                 ? { driveRefs: submittedAgentTurnInput.driveRefs }
+                : {}),
+              ...(referencesPriorConversationRef.current
+                ? { referencesPriorConversation: true }
                 : {}),
               queueExecution: {
                 ...(submittedAgentTurnInput.accessModeId
@@ -3513,6 +3583,8 @@ export const UniversalChat = memo(function UniversalChat({
     currentComposerSelection,
     disabled,
     onSendMessage,
+    resolvedSelectedEngineId,
+    runEngineModelConfigEnsure,
     t,
   ]);
 
@@ -3592,6 +3664,15 @@ export const UniversalChat = memo(function UniversalChat({
   const handleSend = async (textOverride?: string) => {
     if (disabled) {
       return;
+    }
+
+    // Every dispatched turn must run under the engine's selected model
+    // configuration. Ensure it (idempotently, with the latest auth token)
+    // before any send path — edit, pending answer, queue, or direct — so a
+    // brand-new session or a restart never falls back to the CLI's own
+    // config. Best-effort: a failure must not block the send.
+    if (resolvedSelectedEngineId) {
+      await runEngineModelConfigEnsure(resolvedSelectedEngineId);
     }
 
     const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
@@ -4056,7 +4137,7 @@ export const UniversalChat = memo(function UniversalChat({
       <style>{`
         .custom-scrollbar {
           scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+          scrollbar-color: var(--sdk-color-border-strong) transparent;
         }
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -4066,11 +4147,11 @@ export const UniversalChat = memo(function UniversalChat({
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
+          background: var(--sdk-color-border-default);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
+          background: var(--sdk-color-border-strong);
         }
       `}</style>
       <ChatActivityLiveAnnouncer
@@ -4509,6 +4590,8 @@ export const UniversalChat = memo(function UniversalChat({
                   disabled={disabled}
                   onRemove={removeComposerAttachment}
                   onRetry={retryComposerAttachment}
+                  referencesPriorConversation={referencesPriorConversation}
+                  onRemoveReferencesPriorConversation={() => setReferencesPriorConversation(false)}
                 />
               ) : null}
               {editingMessage ? (

@@ -698,7 +698,7 @@ test('Provider lifecycle protocols share one structured expandable presentation'
 
   await selectSessionByTitle(page, 'Claude architecture review');
   const claudeCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
-  await expect(claudeCompleted).toContainText('Turn completed');
+  await expect(claudeCompleted).toContainText(/Worked for|Turn completed/u);
   await expect(claudeCompleted).toContainText('650 tokens');
   await expect(claudeCompleted).toContainText('$0.041');
   await claudeCompleted.locator('[data-chat-lifecycle-toggle="true"]').click();
@@ -711,7 +711,7 @@ test('Provider lifecycle protocols share one structured expandable presentation'
     name: /(?:Worked for.*|Processed.*)Show execution process/u,
   }).click();
   const openCodeCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
-  await expect(openCodeCompleted).toContainText('Turn completed');
+  await expect(openCodeCompleted).toContainText(/Worked for|Turn completed/u);
   await expect(openCodeCompleted).toContainText('1.6k tokens');
   await expect(openCodeCompleted).toContainText('$0.012');
   const openCodeQuestion = transcript.locator(
@@ -769,7 +769,7 @@ test('Provider lifecycle protocols share one structured expandable presentation'
     { exact: true },
   )).toBeVisible();
   const codexCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
-  await expect(codexCompleted).toContainText('Turn completed');
+  await expect(codexCompleted).toContainText(/Worked for|Turn completed/u);
   await expect(codexCompleted).toContainText('2.3k tokens');
   await codexCompleted.locator('[data-chat-lifecycle-toggle="true"]').click();
   await expect(codexCompleted.locator('[data-chat-lifecycle-usage="true"]')).toContainText('Cache read');
@@ -1070,4 +1070,79 @@ test('Studio message resources switch the reusable right-side detail surface', a
   await expect(chatHeader).toBeVisible();
   await expect(stageHeader).toBeVisible();
   await expect(transcript).toBeVisible();
+});
+
+test('Codex hook-gated user message renders the blocked status and Hooks stats', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_200, height: 820 });
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expandProjectSessions(page);
+
+  const transcript = page.getByRole('region', { name: 'Conversation messages' });
+  await selectSessionByTitle(page, 'Codex implementation');
+
+  // The gated user message carries deliveryStatus 'not-sent' and shows the
+  // Codex desktop codex.userMessage.hookBlocked status below the bubble.
+  const blockedStatus = transcript.locator('[data-chat-user-message-hook-blocked="true"]');
+  await expect(blockedStatus).toBeVisible();
+  await expect(blockedStatus).toContainText('Hook blocked this message');
+  await expect(blockedStatus).toHaveAttribute(
+    'title',
+    /Hook blocked this message \u00b7 pre-message, pre-command/u,
+  );
+
+  // The Hooks affordance surfaces the aggregate hook run statistics.
+  const hookStatsButton = transcript.locator('[data-chat-hook-stats="true"]').first();
+  await expect(hookStatsButton).toBeVisible();
+  await expect(hookStatsButton).toHaveAttribute('aria-label', 'Hooks');
+  await expect(hookStatsButton).toHaveAttribute('title', /Hooks summary/u);
+  await expect(hookStatsButton).toHaveAttribute('title', /Ran: 4/u);
+  await expect(hookStatsButton).toHaveAttribute('title', /Blocked: 1/u);
+  await expect(hookStatsButton).toHaveAttribute('title', /Errors: 1/u);
+  await expect(hookStatsButton).toHaveAttribute(
+    'title',
+    /UserPromptSubmit \u00b7 pre-message/u,
+  );
+});
+
+test('Codex browser-use step chains collapse to a Used the browser row', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_200, height: 820 });
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expandProjectSessions(page);
+
+  const transcript = page.getByRole('region', { name: 'Conversation messages' });
+  await selectSessionByTitle(page, 'Codex implementation');
+
+  // The browser-use steps live inside the active turn process block, which
+  // starts expanded; the invocation collapses to a "Used the browser" row whose
+  // steps are grouped as children (pendingMcpToolCalls.usedBrowser).
+  const browserRow = transcript.getByRole('button', { name: /Used the browser/u }).first();
+  await expect(browserRow).toBeVisible();
+  await expect(browserRow).toContainText('Used the browser');
+
+  // Expanding the invocation reveals the grouped step rows.
+  await browserRow.click();
+  const stepRows = transcript.locator('[data-chat-tool-child="true"]');
+  await expect(stepRows).toHaveCount(2);
+  await expect(stepRows.first()).toContainText('Act');
+  await expect(transcript.locator('[data-chat-tool-children="true"]')).toBeVisible();
+
+  // Each step is independently expandable with its step input and output.
+  await stepRows.first().locator('button').first().click();
+  const firstStep = stepRows.first();
+  await expect(firstStep).toContainText('Output');
+  await expect(firstStep).toContainText(/Corrected working directory typo|Started browser background/u);
 });

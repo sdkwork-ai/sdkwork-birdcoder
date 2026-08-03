@@ -15,3 +15,22 @@ export type {
   ModelAccessCatalogSnapshot,
   UserModelChannel,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+export {
+  BIRDCODER_OFFICIAL_MODEL_RELAY_BASE_URL,
+  resolveBirdCoderModelRelayApiKey,
+  resolveBirdCoderModelRelayBaseUrl,
+  resolveBirdCoderVendorProtocol,
+  type BirdCoderModelVendorProtocol,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+export {
+  BIRDOODER_OFFICIAL_RELAY_CHANNEL_CODE,
+  ensureWorkbenchEngineModelConfigurationApplied,
+  isWorkbenchEngineModelConfigCurrent,
+  resolveWorkbenchEngineModelConfigFingerprint,
+  resolveWorkbenchEngineModelConfigTarget,
+  type EnsureWorkbenchEngineModelConfigurationOptions,
+  type EnsureWorkbenchEngineModelConfigurationResult,
+  type ResolveWorkbenchEngineModelConfigTargetInput,
+  type WorkbenchEngineModelConfigFingerprint,
+  type WorkbenchEngineModelConfigTarget,
+} from './agentModelConfigEnsure.ts';

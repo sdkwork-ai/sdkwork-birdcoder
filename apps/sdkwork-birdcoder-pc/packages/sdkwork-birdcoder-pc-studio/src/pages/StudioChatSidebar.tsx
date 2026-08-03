@@ -189,6 +189,7 @@ interface StudioChatSidebarProps {
   refreshingAgentSessionId: string | null;
   onOpenFile: (path: string) => void;
   onOpenUrl: (url: string) => void;
+  resolveLocalImagePreviewUrl?: (path: string) => Promise<string | undefined>;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
@@ -290,6 +291,7 @@ function areStudioChatSidebarPropsEqual(
     left.refreshingAgentSessionId === right.refreshingAgentSessionId &&
     left.onOpenFile === right.onOpenFile &&
     left.onOpenUrl === right.onOpenUrl &&
+    left.resolveLocalImagePreviewUrl === right.resolveLocalImagePreviewUrl &&
     left.onViewChanges === right.onViewChanges &&
     left.onEditMessage === right.onEditMessage &&
     left.onDeleteMessage === right.onDeleteMessage &&
@@ -349,6 +351,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   refreshingAgentSessionId,
   onOpenFile,
   onOpenUrl,
+  resolveLocalImagePreviewUrl,
   onViewChanges,
   onRateMessage,
   onForkMessage,
@@ -1189,6 +1192,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             layout="sidebar"
             onOpenFile={onOpenFile}
             onOpenUrl={onOpenUrl}
+            resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
             onViewChanges={onViewChanges}
             onRateMessage={onRateMessage}
             onForkMessage={onForkMessage}

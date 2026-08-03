@@ -3,16 +3,19 @@ import { defineLocaleModule } from '../resource.ts';
 export default defineLocaleModule('settings/model-management', {
   settings: {
     modelManagement: {
-      title: 'Model Management',
+      title: 'Model Configuration',
       description: 'Manage the BirdCoder official platform, relay stations, and custom model configurations.',
       officialSupplierLabel: 'BirdCoder',
-      officialSupplierDescription: 'Official platform suppliers managed by BirdCoder.',
+      officialSupplierDescription: 'The default relay station of the BirdCoder official platform.',
+      defaultSupplierTag: 'Default',
       relayStationsLabel: 'Relay Stations',
       customConfigsLabel: 'Custom Configurations',
       addRelayStation: 'Add relay station',
       addCustomConfig: 'Add custom configuration',
+      addOfficialSupplier: 'Add official supplier',
       emptyRelayStations: 'No relay stations yet.',
       emptyCustomConfigs: 'No custom configurations yet.',
+      emptyOfficialSuppliers: 'No official supplier configurations yet. Click + to add one.',
       officialVendorsLabel: 'Official Suppliers',
       officialVendorProtocol: 'Protocol',
       officialVendorDefaultModel: 'Default model',

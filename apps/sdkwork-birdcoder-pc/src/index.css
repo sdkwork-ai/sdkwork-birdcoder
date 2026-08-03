@@ -194,31 +194,111 @@
     background-color: var(--sdk-color-surface-field-disabled) !important;
   }
 
-  .birdcoder-app-shell .bg-\[\#0e0e11\],
-  .birdcoder-app-shell .bg-\[\#0d0d0d\],
-  .birdcoder-app-shell .bg-\[\#0b0d12\],
-  .birdcoder-app-shell .bg-\[\#0b0d10\],
-  .birdcoder-app-shell .bg-\[\#101014\],
-  .birdcoder-app-shell .bg-\[\#101114\] {
+  .birdcoder-app-shell [class*='bg-[#0a0a0c]'],
+  .birdcoder-app-shell [class*='bg-[#0e0e11]'],
+  .birdcoder-app-shell [class*='bg-[#0d0d0d]'],
+  .birdcoder-app-shell [class*='bg-[#0b0d12]'],
+  .birdcoder-app-shell [class*='bg-[#0b0d10]'],
+  .birdcoder-app-shell [class*='bg-[#101014]'],
+  .birdcoder-app-shell [class*='bg-[#101114]'] {
     background-color: var(--sdk-color-surface-canvas) !important;
   }
 
-  .birdcoder-app-shell .bg-\[\#18181b\],
-  .birdcoder-app-shell .bg-\[\#1b1b1f\],
-  .birdcoder-app-shell .bg-\[\#1b1d21\],
-  .birdcoder-app-shell .bg-\[\#15151a\],
-  .birdcoder-app-shell .bg-\[\#15161b\],
-  .birdcoder-app-shell .bg-\[\#17171b\],
-  .birdcoder-app-shell .bg-\[\#17181d\] {
+  .birdcoder-app-shell [class*='bg-[#111318]'],
+  .birdcoder-app-shell [class*='bg-[#14151a]'],
+  .birdcoder-app-shell [class*='bg-[#18181b]'],
+  .birdcoder-app-shell [class*='bg-[#18191d]'],
+  .birdcoder-app-shell [class*='bg-[#18191f]'],
+  .birdcoder-app-shell [class*='bg-[#1b1b1f]'],
+  .birdcoder-app-shell [class*='bg-[#1b1d21]'],
+  .birdcoder-app-shell [class*='bg-[#15151a]'],
+  .birdcoder-app-shell [class*='bg-[#151519]'],
+  .birdcoder-app-shell [class*='bg-[#15161b]'],
+  .birdcoder-app-shell [class*='bg-[#17171b]'],
+  .birdcoder-app-shell [class*='bg-[#17181d]'] {
     background-color: var(--sdk-color-surface-panel) !important;
   }
 
-  .birdcoder-app-shell .bg-\[\#242426\],
-  .birdcoder-app-shell .bg-\[\#242429\],
-  .birdcoder-app-shell .bg-\[\#252528\],
-  .birdcoder-app-shell .bg-\[\#29292c\],
-  .birdcoder-app-shell .bg-\[\#29292e\] {
+  .birdcoder-app-shell [class*='bg-[#242426]'],
+  .birdcoder-app-shell [class*='bg-[#242427]'],
+  .birdcoder-app-shell [class*='bg-[#242429]'],
+  .birdcoder-app-shell [class*='bg-[#252528]'],
+  .birdcoder-app-shell [class*='bg-[#27272a]'],
+  .birdcoder-app-shell [class*='bg-[#29292c]'],
+  .birdcoder-app-shell [class*='bg-[#29292e]'],
+  .birdcoder-app-shell [class*='bg-[#1c1f26]'],
+  .birdcoder-app-shell [class*='bg-[#2a2a2d]'],
+  .birdcoder-app-shell [class*='bg-[#2b2b2d]'],
+  .birdcoder-app-shell [class*='bg-[#161b22]'] {
     background-color: var(--sdk-color-surface-elevated) !important;
+  }
+
+  .birdcoder-app-shell [class*='bg-[#111114]'] {
+    background-color: var(--sdk-color-surface-canvas) !important;
+  }
+
+  .birdcoder-app-shell [class*='bg-[#10131a]'],
+  .birdcoder-app-shell [class*='bg-[#111319]'],
+  .birdcoder-app-shell [class*='bg-[#111827]'],
+  .birdcoder-app-shell [class*='bg-[#121318]'],
+  .birdcoder-app-shell [class*='bg-[#202024]'] {
+    background-color: var(--sdk-color-surface-panel) !important;
+  }
+
+  .birdcoder-app-shell [class*='bg-[#252526]'] {
+    background-color: var(--sdk-color-surface-elevated) !important;
+  }
+
+  .birdcoder-app-shell .ring-\[\#0e0e11\] {
+    --tw-ring-color: var(--sdk-color-surface-canvas) !important;
+  }
+
+  .birdcoder-app-shell .bg-white\/5,
+  .birdcoder-app-shell .bg-white\/7,
+  .birdcoder-app-shell .bg-white\/10,
+  .birdcoder-app-shell .bg-white\/15,
+  .birdcoder-app-shell .bg-white\/20,
+  .birdcoder-app-shell .bg-white\/\[0\.018\],
+  .birdcoder-app-shell .bg-white\/\[0\.025\],
+  .birdcoder-app-shell .bg-white\/\[0\.03\],
+  .birdcoder-app-shell .bg-white\/\[0\.035\],
+  .birdcoder-app-shell .bg-white\/\[0\.04\],
+  .birdcoder-app-shell .bg-white\/\[0\.045\],
+  .birdcoder-app-shell .bg-white\/\[0\.05\],
+  .birdcoder-app-shell .bg-white\/\[0\.055\],
+  .birdcoder-app-shell .bg-white\/\[0\.06\],
+  .birdcoder-app-shell .bg-white\/\[0\.065\],
+  .birdcoder-app-shell .bg-white\/\[0\.07\],
+  .birdcoder-app-shell .bg-white\/\[0\.075\],
+  .birdcoder-app-shell .bg-white\/\[0\.08\],
+  .birdcoder-app-shell .bg-white\/\[0\.09\],
+  .birdcoder-app-shell .bg-white\/\[0\.11\] {
+    background-color: var(--sdk-color-surface-panel-muted) !important;
+  }
+
+  .birdcoder-app-shell .bg-black\/20,
+  .birdcoder-app-shell .bg-black\/25,
+  .birdcoder-app-shell .bg-black\/30,
+  .birdcoder-app-shell .bg-black\/40 {
+    background-color: var(--sdk-color-surface-panel-muted) !important;
+  }
+
+  /* Solid light surfaces used as accent buttons (send/voice) must flip to the
+     brand color in light mode, mirroring the popup boundary below. */
+  .birdcoder-app-shell :is(
+    [class~='bg-zinc-100'][class~='text-zinc-900'],
+    [class~='bg-white'][class~='text-black'],
+    [class~='bg-white'][class~='text-gray-900']
+  ) {
+    background-color: var(--sdk-color-brand-primary) !important;
+    color: var(--sdk-color-text-inverse) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class*='hover:bg-white/'],
+    [class*='hover:bg-[#']
+  ):hover {
+    background-color: var(--sdk-color-surface-field-hover) !important;
   }
 
   html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
@@ -244,6 +324,52 @@
   }
 
   html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-zinc-100,
+    .text-zinc-200,
+    .text-slate-100,
+    .text-slate-200
+  ) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-zinc-300,
+    .text-zinc-400,
+    .text-slate-300,
+    .text-slate-400
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-zinc-500,
+    .text-zinc-600,
+    .text-slate-500,
+    .text-slate-600,
+    .text-slate-700,
+    .text-gray-400\/80,
+    .text-gray-700
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class*='hover:text-white'],
+    [class*='hover:text-gray-100'],
+    [class*='hover:text-gray-200']
+  ):hover {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell [class*='hover:border-white/']:hover {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell .ring-white\/10 {
+    --tw-ring-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
     .bg-blue-500,
     .bg-blue-600,
     .bg-red-500,
@@ -261,10 +387,40 @@
     border-color: var(--sdk-color-border-default) !important;
   }
 
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .border-white\/6,
+    .border-white\/7,
+    .border-white\/8,
+    .border-white\/25,
+    .border-white\/30,
+    [class~='border-white/[0.055]'],
+    [class~='border-white/[0.06]'],
+    [class~='border-white/[0.07]'],
+    [class~='border-white/[0.08]'],
+    [class~='border-white/[0.11]'],
+    .border-gray-600
+  ) {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell .divide-white > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .ring-white\/20,
+    .ring-white\/25,
+    .ring-white\/30,
+    .ring-white\/40
+  ) {
+    --tw-ring-color: var(--sdk-color-border-focus) !important;
+  }
+
   /* Popup surfaces are often portaled outside the app shell, so they need
      their own light-mode compatibility boundary for legacy dark utilities. */
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) {
@@ -275,6 +431,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
@@ -291,6 +448,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
@@ -305,6 +463,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
@@ -323,36 +482,38 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
-    [class~='bg-[#0d0d11]'],
-    [class~='bg-[#0e0e11]'],
-    [class~='bg-[#0e0e12]'],
-    [class~='bg-[#0f0f12]'],
-    [class~='bg-[#101014]'],
-    [class~='bg-[#111116]'],
-    [class~='bg-[#121214]'],
-    [class~='bg-[#141417]'],
-    [class~='bg-[#151519]'],
-    [class~='bg-[#15151a]'],
-    [class~='bg-[#15161a]'],
-    [class~='bg-[#15161b]'],
-    [class~='bg-[#16161b]'],
-    [class~='bg-[#171719]'],
-    [class~='bg-[#18181b]'],
-    [class~='bg-[#18181c]'],
-    [class~='bg-[#19191e]'],
-    [class~='bg-[#1a1b22]'],
-    [class~='bg-[#1b1b1f]'],
-    [class~='bg-[#1e1e22]'],
-    [class~='bg-[#202125]'],
-    [class~='bg-[#242424]'],
-    [class~='bg-[#242426]'],
-    [class~='bg-[#28282b]'],
-    [class~='bg-[#292929]'],
-    [class~='bg-[#29292c]'],
-    [class~='bg-[#2b2b2e]'],
+    [class*='bg-[#0d0d11]'],
+    [class*='bg-[#0e0e11]'],
+    [class*='bg-[#0e0e12]'],
+    [class*='bg-[#0f0f12]'],
+    [class*='bg-[#101014]'],
+    [class*='bg-[#111116]'],
+    [class*='bg-[#121214]'],
+    [class*='bg-[#141417]'],
+    [class*='bg-[#151519]'],
+    [class*='bg-[#15151a]'],
+    [class*='bg-[#15161a]'],
+    [class*='bg-[#15161b]'],
+    [class*='bg-[#16161b]'],
+    [class*='bg-[#171719]'],
+    [class*='bg-[#18181b]'],
+    [class*='bg-[#18181c]'],
+    [class*='bg-[#19191e]'],
+    [class*='bg-[#1a1b22]'],
+    [class*='bg-[#1b1b1f]'],
+    [class*='bg-[#1e1e22]'],
+    [class*='bg-[#202125]'],
+    [class*='bg-[#242424]'],
+    [class*='bg-[#242426]'],
+    [class*='bg-[#242427]'],
+    [class*='bg-[#28282b]'],
+    [class*='bg-[#292929]'],
+    [class*='bg-[#29292c]'],
+    [class*='bg-[#2b2b2e]'],
     [class~='bg-black/10'],
     [class~='bg-black/15'],
     [class~='bg-black/20'],
@@ -368,10 +529,12 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
     [class~='bg-white/5'],
+    [class~='bg-white/7'],
     [class~='bg-white/10'],
     [class~='bg-white/15'],
     [class~='bg-white/20'],
@@ -396,6 +559,48 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class*='bg-[#1c1f26]'],
+    [class*='bg-[#2a2a2d]'],
+    [class*='bg-[#2a2a2d]/95'],
+    [class*='bg-[#2b2b2d]']
+  ) {
+    background-color: var(--sdk-color-surface-elevated) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class*='bg-[#18191d]']
+  ) {
+    background-color: var(--sdk-color-surface-panel) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class*='bg-[#10131a]'],
+    [class*='bg-[#111319]'],
+    [class*='bg-[#111827]'],
+    [class*='bg-[#121318]'],
+    [class*='bg-[#202024]'],
+    [class*='bg-[#111114]']
+  ) {
+    background-color: var(--sdk-color-surface-panel) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
@@ -405,12 +610,14 @@
     [class~='border-white/15'],
     [class~='border-white/20'],
     [class~='border-white/25'],
+    [class~='border-white/30'],
     [class~='border-white/[0.045]'],
     [class~='border-white/[0.06]'],
     [class~='border-white/[0.07]'],
     [class~='border-white/[0.08]'],
     [class~='border-white/[0.09]'],
     [class~='border-white/[0.1]'],
+    [class~='border-white/[0.11]'],
     [class~='border-white/[0.12]'],
     .border-gray-600,
     [class~='border-zinc-700/70'],
@@ -422,6 +629,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(
@@ -434,6 +642,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) .bg-gradient-to-br .text-white {
@@ -442,6 +651,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(.text-amber-100, .text-amber-200, .text-amber-300) {
@@ -450,6 +660,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(.text-blue-200, .text-blue-300) {
@@ -458,6 +669,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(.text-green-200, .text-green-300, .text-green-400) {
@@ -466,6 +678,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(.text-red-200, .text-red-300, .text-red-400) {
@@ -474,6 +687,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is([class*='hover:bg-white/'], [class*='hover:bg-[#']):hover {
@@ -482,6 +696,7 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) [class*='hover:text-white']:hover {
@@ -490,10 +705,619 @@
 
   html[data-sdk-color-mode='light'] :where(
     [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
     [role='menu'],
     [data-birdcoder-popup-surface='true']
   ) :is(.bg-blue-500, .bg-blue-600, .bg-red-500, .bg-red-600).text-white {
     color: var(--sdk-color-text-inverse) !important;
+  }
+
+  /* The models-pc-picker composer model access selector ships dark-only
+     colors (trigger, hover panel, and menu internals); remap them to theme
+     tokens in light mode. */
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-trigger {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-trigger:hover,
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-trigger[aria-expanded='true'] {
+    background: var(--sdk-color-surface-field-hover) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) {
+    background: var(--sdk-color-surface-elevated) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+    box-shadow: var(--sdk-shadow-md) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(input, select, textarea) {
+    background-color: var(--sdk-color-surface-field) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) input::placeholder {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-section-title,
+    .sdkwork-model-access-more-models small,
+    .sdkwork-model-access-channel-copy > span:last-child,
+    .sdkwork-model-access-channel-edit,
+    .sdkwork-model-access-empty
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-model-option:hover,
+    .sdkwork-model-access-model-option[data-selected='true'],
+    .sdkwork-model-access-channel-entry[data-selected='true'],
+    .sdkwork-model-access-channel-entry-open:hover,
+    .sdkwork-model-access-channel-entry-open[data-active='true'],
+    .sdkwork-model-access-more-models:hover,
+    .sdkwork-model-access-offering-grid button:hover,
+    .sdkwork-model-access-offering-grid button[aria-pressed='true'],
+    .sdkwork-model-access-menu-footer button:hover,
+    .sdkwork-model-access-search button:hover,
+    .sdkwork-model-access-channel-edit:hover
+  ) {
+    background-color: var(--sdk-color-surface-field-hover) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) .sdkwork-model-access-channel-edit:hover {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-more-models,
+    .sdkwork-model-access-channel-entry[data-selected='true'],
+    .sdkwork-model-access-search,
+    .sdkwork-model-access-selection-error,
+    .sdkwork-model-access-menu-footer
+  ) {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-model-option > svg:last-child,
+    .sdkwork-model-access-channel-entry-check,
+    .sdkwork-model-access-offering-grid button > svg
+  ) {
+    color: var(--sdk-color-brand-primary) !important;
+  }
+
+  /* The model access configuration dialog, its backdrop, and the vendor
+     combobox popup carry the same dark-only palette. */
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog-backdrop {
+    background: var(--sdk-color-surface-overlay) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog {
+    background: var(--sdk-color-surface-panel) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+    box-shadow: var(--sdk-shadow-lg) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-dialog-header,
+    .sdkwork-model-access-dialog-footer,
+    .sdkwork-model-access-selection-error,
+    .sdkwork-model-access-official-summary
+  ) {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-icon-button,
+    .sdkwork-model-access-secret-toggle,
+    .sdkwork-model-access-field-inline-label,
+    .sdkwork-model-access-field-heading,
+    .sdkwork-model-access-kind-tabs button,
+    .sdkwork-model-access-offering-tabs button,
+    .sdkwork-model-access-model-column-labels,
+    .sdkwork-model-access-model-row-empty,
+    .sdkwork-model-access-vendor-combobox-name,
+    .sdkwork-model-access-offering-editor-heading,
+    .sdkwork-model-access-offering-editor-heading button,
+    .sdkwork-model-access-add-vendor-tab,
+    .sdkwork-model-access-model-editor-heading > span,
+    .sdkwork-model-access-model-add-controls select,
+    .sdkwork-model-access-dialog-footer button
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-kind-fieldset > legend,
+    .sdkwork-model-access-offerings-fieldset > legend,
+    .sdkwork-model-access-provider-fieldset > legend
+  ) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-field-inline select,
+    .sdkwork-model-access-field-inline input,
+    .sdkwork-model-access-model-row > input,
+    .sdkwork-model-access-model-add-controls select,
+    .sdkwork-model-access-model-add-controls button,
+    .sdkwork-model-access-kind-tabs,
+    .sdkwork-model-access-offering-editor,
+    .sdkwork-model-access-dialog-footer button
+  ) {
+    background-color: var(--sdk-color-surface-field) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog input::placeholder {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-kind-tabs button[aria-selected='true'],
+    .sdkwork-model-access-offering-tabs button[aria-selected='true']
+  ) {
+    background-color: var(--sdk-color-surface-field-hover) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-kind-tabs button:hover,
+    .sdkwork-model-access-offering-tabs button:hover,
+    .sdkwork-model-access-icon-button:hover,
+    .sdkwork-model-access-secret-toggle:hover,
+    .sdkwork-model-access-model-add-controls button:hover,
+    .sdkwork-model-access-model-row-actions button:hover:not(:disabled),
+    .sdkwork-model-access-offering-editor-heading button:hover,
+    .sdkwork-model-access-add-vendor-tab:hover:not(:disabled)
+  ) {
+    background-color: var(--sdk-color-surface-field-hover) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog-footer button:last-child {
+    background-color: var(--sdk-color-brand-primary) !important;
+    border-color: var(--sdk-color-brand-primary) !important;
+    color: var(--sdk-color-text-inverse) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog-footer .sdkwork-model-access-delete {
+    border-color: color-mix(in srgb, #b91c1c 40%, transparent) !important;
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog-footer .sdkwork-model-access-delete:hover {
+    background-color: color-mix(in srgb, #b91c1c 10%, transparent) !important;
+    border-color: color-mix(in srgb, #b91c1c 60%, transparent) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-vendor-combobox-popup {
+    background: var(--sdk-color-surface-elevated) !important;
+    border-color: var(--sdk-color-border-default) !important;
+    box-shadow: var(--sdk-shadow-sm) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-vendor-combobox-option {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-vendor-combobox-option[data-active='true'] {
+    background-color: var(--sdk-color-surface-field-hover) !important;
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-vendor-combobox-code {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-link-button
+  ) {
+    color: var(--sdk-color-brand-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-field-error,
+    .sdkwork-model-access-submit-error,
+    .sdkwork-model-access-selection-error,
+    .sdkwork-model-access-offerings-fieldset > small,
+    .sdkwork-model-access-provider-fieldset > small
+  ) {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-field-hint,
+    .sdkwork-model-access-official-summary p
+  ) {
+    color: #047857 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-model-heading small,
+    .sdkwork-model-access-submenu-title small,
+    .sdkwork-model-access-channel-heading small
+  ) {
+    background-color: color-mix(in srgb, var(--sdk-color-brand-primary) 12%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sdk-color-brand-primary) 30%, transparent) !important;
+    color: var(--sdk-color-brand-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-model-heading small[data-stage='preview'],
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-submenu-title small[data-kind='custom'] {
+    background-color: color-mix(in srgb, #7c3aed 12%, transparent) !important;
+    border-color: color-mix(in srgb, #7c3aed 30%, transparent) !important;
+    color: #6d28d9 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-submenu-title small[data-kind='relay'] {
+    background-color: color-mix(in srgb, var(--sdk-color-brand-primary) 12%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sdk-color-brand-primary) 30%, transparent) !important;
+    color: var(--sdk-color-brand-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-vendor-name,
+    .sdkwork-model-access-model-icon,
+    .sdkwork-model-access-more-models,
+    .sdkwork-model-access-search button
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) :is(
+    .sdkwork-model-access-more-models > svg,
+    .sdkwork-model-access-channel-entry-open > svg:last-child
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-menu-footer button {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-menu,
+    .sdkwork-model-access-popover
+  ) .sdkwork-model-access-selection-error {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-popover .sdkwork-model-access-detail-header {
+    border-color: var(--sdk-color-border-default) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :is(
+    .sdkwork-model-access-scroll,
+    .sdkwork-model-access-detail-scroll,
+    .sdkwork-model-access-dialog-body
+  ) {
+    scrollbar-color: var(--sdk-color-border-default) transparent !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-provider-grid label,
+    .sdkwork-model-access-model-row-actions button,
+    .sdkwork-model-access-offerings-fieldset > p,
+    .sdkwork-model-access-provider-fieldset > p
+  ) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog .sdkwork-model-access-official-summary dd {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-offering-tabs button small,
+    .sdkwork-model-access-vendor-combobox-chevron
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .sdkwork-model-access-dialog :is(
+    .sdkwork-model-access-field-inline-label strong,
+    .sdkwork-model-access-model-row-actions button:last-child:hover:not(:disabled)
+  ) {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-blue-100,
+    .text-blue-200\/60,
+    .text-blue-300\/80,
+    .text-blue-400,
+    .text-blue-400\/80,
+    .text-blue-400\/90,
+    .text-blue-500,
+    .text-sky-200,
+    .text-sky-200\/80,
+    .text-sky-400
+  ) {
+    color: #1d4ed8 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-red-400\/80,
+    .text-red-500\/80,
+    .text-rose-50,
+    .text-rose-100,
+    .text-rose-100\/75,
+    .text-rose-300
+  ) {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-emerald-50,
+    .text-emerald-300,
+    .text-green-400\/80
+  ) {
+    color: #047857 !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-yellow-400,
+    .text-yellow-400\/80
+  ) {
+    color: #92400e !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-purple-400\/80
+  ) {
+    color: #7c3aed !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    .text-white\/15,
+    .text-white\/20
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  /* Dialog inputs frequently hard-code pale text (text-white, text-[#e0e0e2],
+     placeholder:text-[#77787c], ...) for dark shells; force readable tokens
+     on every field inside popup surfaces and the app shell in light mode. */
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(input, textarea, select) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(input, textarea, select)::placeholder {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(input, textarea, select) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(input, textarea, select)::placeholder {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  /* Field backgrounds used by dialog inputs and toolbars that the shared
+     dark-palette list does not cover yet. */
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    [class*='bg-[#202022]'],
+    [class*='bg-[#222224]'],
+    [class*='bg-[#29292b]']
+  ) {
+    background-color: var(--sdk-color-surface-field) !important;
+  }
+
+  .birdcoder-app-shell [class*='bg-[#202022]'],
+  .birdcoder-app-shell [class*='bg-[#222224]'],
+  .birdcoder-app-shell [class*='bg-[#29292b]'] {
+    background-color: var(--sdk-color-surface-field) !important;
+  }
+
+  /* Popup-scope semantic status text (blue/red/green/amber/rose/sky) is
+     written in light pastel shades for dark shells; remap to readable dark
+     shades in light mode. */
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-blue-100,
+    .text-blue-200\/60,
+    .text-blue-300\/80,
+    .text-blue-400,
+    .text-blue-400\/80,
+    .text-blue-400\/90,
+    .text-blue-500,
+    .text-sky-200,
+    .text-sky-200\/80,
+    .text-sky-400
+  ) {
+    color: #1d4ed8 !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-red-400\/80,
+    .text-red-500\/80,
+    .text-rose-50,
+    .text-rose-100,
+    .text-rose-100\/75,
+    .text-rose-300
+  ) {
+    color: #b91c1c !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-emerald-50,
+    .text-emerald-300,
+    .text-green-400\/80
+  ) {
+    color: #047857 !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-yellow-400,
+    .text-yellow-400\/80
+  ) {
+    color: #92400e !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-purple-400\/80
+  ) {
+    color: #7c3aed !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .text-white\/15,
+    .text-white\/20
+  ) {
+    color: var(--sdk-color-text-muted) !important;
+  }
+
+  html[data-sdk-color-mode='light'] :where(
+    [role='dialog']:not([data-chat-image-preview-dialog='true']),
+    [role='alertdialog'],
+    [role='menu'],
+    [data-birdcoder-popup-surface='true']
+  ) :is(
+    .ring-white\/20,
+    .ring-white\/25,
+    .ring-white\/30,
+    .ring-white\/40
+  ) {
+    --tw-ring-color: var(--sdk-color-border-focus) !important;
+  }
+
+  /* Message bodies render with `prose-invert` (dark-shell defaults). Remap the
+     typography plugin's inverted tokens so chat content stays readable when the
+     shell flips to light mode. */
+  html[data-sdk-color-mode='light'] .prose-invert {
+    --tw-prose-invert-body: var(--sdk-color-text-primary);
+    --tw-prose-invert-headings: var(--sdk-color-text-primary);
+    --tw-prose-invert-lead: var(--sdk-color-text-secondary);
+    --tw-prose-invert-links: var(--sdk-color-brand-primary);
+    --tw-prose-invert-bold: var(--sdk-color-text-primary);
+    --tw-prose-invert-counters: var(--sdk-color-text-muted);
+    --tw-prose-invert-bullets: var(--sdk-color-text-muted);
+    --tw-prose-invert-hr: var(--sdk-color-border-default);
+    --tw-prose-invert-quotes: var(--sdk-color-text-secondary);
+    --tw-prose-invert-quote-borders: var(--sdk-color-border-default);
+    --tw-prose-invert-captions: var(--sdk-color-text-muted);
+    --tw-prose-invert-kbd: var(--sdk-color-text-primary);
+    --tw-prose-invert-kbd-shadows: var(--sdk-color-border-default);
+    --tw-prose-invert-code: var(--sdk-color-text-primary);
+    --tw-prose-invert-pre-code: var(--sdk-color-text-secondary);
+    --tw-prose-invert-pre-bg: var(--sdk-color-surface-panel);
+    --tw-prose-invert-th-borders: var(--sdk-color-border-default);
+    --tw-prose-invert-td-borders: var(--sdk-color-border-subtle);
+  }
+
+  /* Prose modifier utilities (prose-headings:*, prose-strong:*, prose-code:*)
+     used by chat message bodies also carry dark-shell colors. */
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class*='prose-headings:text-gray-'],
+    [class*='prose-headings:text-white'],
+    [class*='prose-strong:text-gray-'],
+    [class*='prose-strong:text-white'],
+    [class*='prose-code:text-gray-'],
+    [class*='prose-code:text-white']
+  ) :where(h1, h2, h3, h4, h5, h6, strong, code) {
+    color: var(--sdk-color-text-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class*='prose-p:text-gray-'],
+    [class*='prose-li:text-gray-'],
+    [class*='prose-td:text-gray-'],
+    [class*='prose-th:text-gray-'],
+    [class*='prose-blockquote:text-gray-']
+  ) :where(p, li, td, th, blockquote) {
+    color: var(--sdk-color-text-secondary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell :is(
+    [class*='prose-a:text-blue-']
+  ) :where(a) {
+    color: var(--sdk-color-brand-primary) !important;
+  }
+
+  html[data-sdk-color-mode='light'] .birdcoder-app-shell [class*='prose-code:bg-white/'] :where(code) {
+    background-color: var(--sdk-color-surface-panel-muted) !important;
   }
 
   .birdcoder-app-header {

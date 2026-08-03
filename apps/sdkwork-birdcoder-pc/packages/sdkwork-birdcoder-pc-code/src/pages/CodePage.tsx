@@ -1450,10 +1450,7 @@ function CodePageComponent({
     projects,
     hasMoreProjects,
     hasProjectsLoadError: Boolean(projectsLoadError && projects.length === 0),
-    hasMoreRemoteMessages: Boolean(
-      selectedAgentSession?.itemPageInfo?.hasMore
-      && selectedAgentSession.itemPageInfo.retentionLimitReached !== true,
-    ),
+    hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
     remoteMessagesLoadError: earlierAgentSessionItemsError,
     isChatBusy,
     isChatEngineBusy,

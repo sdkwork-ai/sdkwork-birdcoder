@@ -421,10 +421,7 @@ export function useSessionRefreshActions({
       normalizedAgentSessionId,
       normalizedProjectId,
     ) ?? null;
-    if (
-      !resolvedLocation?.agentSession.itemPageInfo?.hasMore
-      || resolvedLocation.agentSession.itemPageInfo.retentionLimitReached === true
-    ) {
+    if (!resolvedLocation?.agentSession.itemPageInfo?.hasMore) {
       return Promise.resolve();
     }
     const expectedTranscript = {
@@ -464,7 +461,7 @@ export function useSessionRefreshActions({
           return;
         }
         if (result.status === 'loaded') {
-          upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
+          const committed = upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged(
             result.projectId,
             result.agentSession,
             resolvedLocation.project.workspaceId,
@@ -472,6 +469,30 @@ export function useSessionRefreshActions({
             expectedTranscript,
             { itemMergeMode: 'ordered-window' },
           );
+          if (!committed) {
+            // The transcript advanced while the earlier page was loading (for
+            // example a streaming refresh advanced the page cursor), so the
+            // guarded commit was rejected. Rebase the loaded page onto the
+            // current Store session instead of silently dropping it: the
+            // ordered-window merge is idempotent, keeps transient user items,
+            // and the monotonic page info merge never regresses the cursor.
+            const currentSession = resolveAgentSessionLocation?.(
+              normalizedAgentSessionId,
+              normalizedProjectId,
+            )?.agentSession;
+            if (currentSession) {
+              upsertAgentSessionIntoProjectsStore(
+                result.projectId,
+                {
+                  ...result.agentSession,
+                  itemPageInfo: currentSession.itemPageInfo,
+                },
+                resolvedLocation.project.workspaceId,
+                userScope,
+                { itemMergeMode: 'ordered-window' },
+              );
+            }
+          }
         }
         setEarlierAgentSessionItemsErrorScope(null);
       } catch (error) {

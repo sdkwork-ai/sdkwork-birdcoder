@@ -874,20 +874,6 @@ function isTransientAgentSessionItem(item: AgentSessionItemView): boolean {
   return item.metadata?.transient === true;
 }
 
-function mergeResetAgentSessionItemWindow(
-  existingItems: readonly AgentSessionItemView[],
-  incomingItems: readonly AgentSessionItemView[],
-): AgentSessionItemView[] {
-  const mergedItems = mergeLatestAgentSessionItems(
-    existingItems.filter(isTransientAgentSessionItem),
-    incomingItems,
-  );
-  return [
-    ...mergedItems.filter((item) => !isTransientAgentSessionItem(item)),
-    ...mergedItems.filter(isTransientAgentSessionItem),
-  ];
-}
-
 export function mergeAgentSessionProjectionForStore(
   existing: AgentSessionView,
   incoming: AgentSessionView,
@@ -1022,13 +1008,11 @@ export function mergeAgentSessionProjectionForStore(
             existing.itemPageInfo,
             incoming.itemPageInfo,
           ),
-    items: options.itemMergeMode === 'authority-window-reset'
-      ? mergeResetAgentSessionItemWindow(existing.items, incoming.items)
-      : incoming.items.length === 0
-        ? existing.items
-        : options.itemMergeMode === 'ordered-window'
-          ? mergeOrderedAgentSessionItemWindow(existing.items, incoming.items)
-          : mergeLatestAgentSessionItems(existing.items, incoming.items),
+    items: incoming.items.length === 0
+      ? existing.items
+      : options.itemMergeMode === 'ordered-window'
+        ? mergeOrderedAgentSessionItemWindow(existing.items, incoming.items)
+        : mergeLatestAgentSessionItems(existing.items, incoming.items),
     sortTimestamp: String(Math.max(
       Number(existing.sortTimestamp) || 0,
       Number(incoming.sortTimestamp) || 0,

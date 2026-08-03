@@ -7,6 +7,7 @@ import {
   FileImage,
   FileText,
   FileVideo,
+  History,
   Loader2,
   RotateCw,
   X,
@@ -22,6 +23,13 @@ export interface ComposerAttachmentTrayProps {
   disabled?: boolean;
   onRemove: (attachmentId: string) => void;
   onRetry: (attachmentId: string) => void;
+  /**
+   * Codex desktop `referencesPriorConversation`: when true the composer shows
+   * a "Previous context" pill (`composer.priorContext.label`) that keeps the
+   * prior conversation context included with the next turn.
+   */
+  referencesPriorConversation?: boolean;
+  onRemoveReferencesPriorConversation?: () => void;
 }
 
 function resolveFileIcon(attachment: ComposerAttachmentDraft): ComponentType<LucideProps> {
@@ -55,10 +63,12 @@ export const ComposerAttachmentTray = memo(function ComposerAttachmentTray({
   disabled = false,
   onRemove,
   onRetry,
+  referencesPriorConversation = false,
+  onRemoveReferencesPriorConversation,
 }: ComposerAttachmentTrayProps) {
   const { i18n, t } = useTranslation();
 
-  if (attachments.length === 0) {
+  if (attachments.length === 0 && !referencesPriorConversation) {
     return null;
   }
 
@@ -69,6 +79,27 @@ export const ComposerAttachmentTray = memo(function ComposerAttachmentTray({
       data-composer-attachment-tray="true"
     >
       <ul className="flex min-w-max items-stretch gap-2" aria-live="polite">
+        {referencesPriorConversation ? (
+          <li
+            className="flex h-8 min-w-0 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 text-xs text-zinc-200"
+            data-composer-prior-context-pill="true"
+          >
+            <History aria-hidden="true" className="shrink-0 text-zinc-400" size={13} />
+            <span className="truncate">{t('chat.priorContextLabel')}</span>
+            {onRemoveReferencesPriorConversation ? (
+              <button
+                type="button"
+                aria-label={t('chat.priorContextRemoveAriaLabel')}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={disabled}
+                onClick={onRemoveReferencesPriorConversation}
+                title={t('chat.priorContextRemoveAriaLabel')}
+              >
+                <X aria-hidden="true" size={12} />
+              </button>
+            ) : null}
+          </li>
+        ) : null}
         {attachments.map((attachment) => {
           const AttachmentIcon = resolveFileIcon(attachment);
           const isFailed = attachment.status === 'failed';

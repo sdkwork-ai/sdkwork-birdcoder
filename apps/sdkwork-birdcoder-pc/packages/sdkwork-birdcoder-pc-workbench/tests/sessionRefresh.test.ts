@@ -633,8 +633,10 @@ describe('Agent Session transcript pagination', () => {
       nextCursor: 'cursor.head.8',
       pageSize: 50,
     });
-    expect(result.agentSession?.items.some((item) => item.id === 'item.stale')).toBe(false);
-    expect(result.agentSession?.items).toHaveLength(400);
+    // Loaded history is retained when the authority window cannot be joined;
+    // only the cursor/page info is replaced by the fresh window.
+    expect(result.agentSession?.items.some((item) => item.id === 'item.stale')).toBe(true);
+    expect(result.agentSession?.items).toHaveLength(401);
   });
 
   it('bounds duplicate-only history scans while committing cursor progress', async () => {
@@ -681,6 +683,236 @@ describe('Agent Session transcript pagination', () => {
       'cursor.duplicate.2',
       'cursor.duplicate.3',
     ]);
+  });
+
+  it('reaches every paginated item across the initial window and repeated earlier-page loads', async () => {
+    // 13 pages of 50 = 650 items. The initial refresh loads the newest page
+    // (the conversation-turn budget is met by its 50 user turns) and every
+    // scroll-to-top gesture walks exactly one earlier page until the end.
+    const listSessionItems = vi.fn(async (
+      _identity: unknown,
+      request: { cursor?: string },
+    ) => {
+      const pageIndex = request.cursor === undefined
+        ? 1
+        : Number(request.cursor.replace('cursor.page.', '')) + 1;
+      const high = 650 - (pageIndex - 1) * 50;
+      return {
+        items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(high - index)),
+        pageInfo: {
+          hasMore: pageIndex < 13,
+          mode: 'cursor' as const,
+          nextCursor: pageIndex < 13 ? `cursor.page.${pageIndex}` : null,
+          pageSize: 50,
+        },
+      };
+    });
+    const synchronizeSessionItems = vi.fn(async () => ({
+      items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(650 - index)),
+      pageInfo: {
+        hasMore: true,
+        mode: 'cursor' as const,
+        nextCursor: 'cursor.page.1',
+        pageSize: 50,
+      },
+    }));
+    const agentSessionService = transcriptService(
+      listSessionItems,
+      transcriptSessionRecord('650'),
+      synchronizeSessionItems,
+    );
+
+    const refreshed = await refreshAgentSessionItems({
+      agentSessionId: transcriptSessionId,
+      agentSessionService,
+      resolvedLocation: {
+        agentSession: transcriptSession(),
+        project: project(),
+      },
+    });
+    expect(refreshed.agentSession?.items).toHaveLength(50);
+    expect(refreshed.agentSession?.itemPageInfo?.nextCursor).toBe('cursor.page.1');
+
+    let agentSession = refreshed.agentSession!;
+    let loadedGestures = 0;
+    for (; agentSession.itemPageInfo?.hasMore === true; loadedGestures += 1) {
+      const result = await loadEarlierAgentSessionItems({
+        agentSession,
+        agentSessionService,
+      });
+      agentSession = result.agentSession;
+      expect(result.status).toBe('loaded');
+      expect(result.loadedItemCount).toBe(50);
+    }
+
+    expect(loadedGestures).toBe(12);
+    expect(agentSession.items).toHaveLength(650);
+    expect(agentSession.items.at(0)?.id).toBe('item.1');
+    expect(agentSession.items.at(-1)?.id).toBe('item.650');
+    expect(agentSession.itemPageInfo).toEqual({
+      hasMore: false,
+      nextCursor: null,
+      pageSize: 50,
+    });
+
+    const complete = await loadEarlierAgentSessionItems({
+      agentSession,
+      agentSessionService,
+    });
+    expect(complete.status).toBe('complete');
+    expect(complete.loadedItemCount).toBe(0);
+    expect(synchronizeSessionItems).toHaveBeenCalledTimes(1);
+    expect(listSessionItems).toHaveBeenCalledTimes(12);
+  });
+
+  it('skips an already-loaded duplicate page and commits the next page of progress', async () => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.dup.1',
+        pageSize: 50,
+      },
+      items: [{
+        content: 'message 100',
+        createdAt: transcriptCreatedAt,
+        id: 'item.100',
+        role: 'user',
+        sessionId: transcriptSessionId,
+      }],
+    });
+    const listSessionItems = vi.fn(async (
+      _identity: unknown,
+      request: { cursor?: string },
+    ) => {
+      const cursorIndex = Number(request.cursor?.split('.').at(-1));
+      if (cursorIndex === 1) {
+        // The page is already fully represented in the loaded transcript.
+        return {
+          items: [transcriptItemRecord(100)],
+          pageInfo: {
+            hasMore: true,
+            mode: 'cursor' as const,
+            nextCursor: 'cursor.dup.2',
+            pageSize: 50,
+          },
+        };
+      }
+      return {
+        items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(50 - index)),
+        pageInfo: {
+          hasMore: false,
+          mode: 'cursor' as const,
+          nextCursor: null,
+          pageSize: 50,
+        },
+      };
+    });
+
+    const result = await loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    });
+
+    expect(result.status).toBe('loaded');
+    expect(result.loadedItemCount).toBe(50);
+    expect(result.agentSession.items).toHaveLength(51);
+    expect(result.agentSession.items.at(0)?.id).toBe('item.1');
+    expect(result.agentSession.itemPageInfo).toEqual({
+      hasMore: false,
+      nextCursor: null,
+      pageSize: 50,
+    });
+    expect(listSessionItems.mock.calls.map(([, request]) => request.cursor)).toEqual([
+      'cursor.dup.1',
+      'cursor.dup.2',
+    ]);
+  });
+
+  it('keeps paginating earlier pages when the page info reports a retention cap', async () => {
+    const selectedSession = transcriptSession({
+      itemPageInfo: {
+        hasMore: true,
+        nextCursor: 'cursor.beyond-cap',
+        pageSize: 50,
+        retentionLimitReached: true,
+      },
+      items: [{
+        content: 'newest message',
+        createdAt: transcriptCreatedAt,
+        id: 'item.100',
+        role: 'user',
+        sessionId: transcriptSessionId,
+      }],
+    });
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(50 - index)),
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
+
+    const result = await loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    });
+
+    expect(result.status).toBe('loaded');
+    expect(result.loadedItemCount).toBe(50);
+    expect(result.agentSession.items).toHaveLength(51);
+    expect(result.agentSession.items.at(0)?.id).toBe('item.1');
+    expect(listSessionItems).toHaveBeenCalledWith(
+      { agentId: transcriptAgentId, sessionId: transcriptSessionId },
+      { cursor: 'cursor.beyond-cap', pageSize: 50, sort: '-sequence' },
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it('retains transient user items when earlier pages are merged over the source window', async () => {
+    const transientItem = {
+      id: `${transcriptSessionId}:optimistic:2026-07-27T10:00:01.000Z:token1`,
+      sessionId: transcriptSessionId,
+      turnId: 'turn.latest',
+      role: 'user' as const,
+      content: 'user input in flight',
+      createdAt: '2026-07-27T10:00:01.000Z',
+      timestamp: Date.parse('2026-07-27T10:00:01.000Z'),
+      metadata: { optimistic: true, transient: true },
+    };
+    const selectedSession = attachAgentSessionItemSourceWindow(
+      transcriptSession({
+        itemPageInfo: {
+          hasMore: true,
+          nextCursor: 'cursor.source-window',
+          pageSize: 50,
+        },
+        items: [transientItem],
+      }),
+      [transcriptItemRecord(100)],
+    );
+    const listSessionItems = vi.fn().mockResolvedValue({
+      items: Array.from({ length: 50 }, (_, index) => transcriptItemRecord(50 - index)),
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 50,
+      },
+    });
+
+    const result = await loadEarlierAgentSessionItems({
+      agentSession: selectedSession,
+      agentSessionService: transcriptService(listSessionItems),
+    });
+
+    // The in-flight user item survives the source-window merge and stays at
+    // the tail of the transcript instead of being superseded or dropped.
+    expect(result.agentSession.items.some((item) => item.id === transientItem.id)).toBe(true);
+    expect(result.agentSession.items.at(-1)?.id).toBe(transientItem.id);
+    expect(result.agentSession.items).toHaveLength(52);
+    expect(result.agentSession.items.at(0)?.id).toBe('item.1');
   });
 
   it.each([

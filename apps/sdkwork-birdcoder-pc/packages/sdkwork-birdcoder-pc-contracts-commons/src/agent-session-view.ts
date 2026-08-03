@@ -290,6 +290,16 @@ export interface AgentSessionItemToolCallView {
   processId?: string;
   workingDirectory?: string;
   parentExecutionId?: string;
+  /**
+   * Codex tree grouping: calls whose `parentExecutionId` points at another
+   * call in the same batch are attached as children of their parent row.
+   * `parentExecutionId` is synthesized from `commandExecution.commandActions`
+   * expansion (`<itemId>:<actionIndex>`) or read from the raw record
+   * (`parentExecutionId`/`commandExecutionItemId`), preserving the execution
+   * tree (command sub-actions, browser-use step chains) instead of flattening
+   * every step into a top-level row.
+   */
+  children?: readonly AgentSessionItemToolCallView[];
   commandAction?: AgentSessionCommandActionView;
   resultBlocks?: readonly AgentSessionItemToolResultBlockView[];
   interaction?: AgentSessionItemInteractionView;
@@ -329,6 +339,31 @@ export interface AgentSessionTaskProgressView {
   completed: number;
   items?: readonly AgentSessionTaskItemView[];
 }
+
+/**
+ * Codex desktop hook run entry (`hookStats` tooltip in the pinned bundle):
+ * a single hook execution summary with optional adjacent-run repeat count,
+ * status message and tone-tagged entries.
+ */
+export interface AgentSessionHookRunView {
+  eventName?: string;
+  source?: string;
+  count?: number;
+  statusMessage?: string;
+}
+
+/**
+ * Codex desktop hook statistics carried on user messages whose delivery was
+ * gated by hooks: aggregate counts plus per-run details used by the
+ * `assistantMessage.hookStats` "Hooks" affordance.
+ */
+export interface AgentSessionHookStatsView {
+  count: number;
+  blockedCount?: number;
+  errorCount?: number;
+  runs?: readonly AgentSessionHookRunView[];
+}
+
 
 export interface AgentSessionItemView {
   id: string;
@@ -377,6 +412,8 @@ export interface AgentSessionView {
   id: string;
   agentId: string;
   projectId: string;
+  /** Canonical parent Session id for provider sub-agent sessions; absent on root sessions. */
+  parentSessionId?: string;
   activity?: AgentSessionActivityView;
   runtimeBindingId?: string;
   runtimeLocationId?: string;

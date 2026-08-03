@@ -3,16 +3,19 @@ import { defineLocaleModule } from '../resource.ts';
 export default defineLocaleModule('settings/model-management', {
   settings: {
     modelManagement: {
-      title: '模型管理',
+      title: '模型配置',
       description: '管理 BirdCoder 官方平台、中转站与自定义模型配置。',
       officialSupplierLabel: 'BirdCoder',
-      officialSupplierDescription: '由 BirdCoder 管理的官方平台供应商。',
+      officialSupplierDescription: 'BirdCoder 官方平台的默认中转站。',
+      defaultSupplierTag: '默认',
       relayStationsLabel: '中转站',
       customConfigsLabel: '自定义配置',
       addRelayStation: '新增中转站',
       addCustomConfig: '新增自定义配置',
+      addOfficialSupplier: '新增官方供应商',
       emptyRelayStations: '暂无中转站。',
       emptyCustomConfigs: '暂无自定义配置。',
+      emptyOfficialSuppliers: '暂无官方供应商配置，点击 + 添加。',
       officialVendorsLabel: '官方供应商',
       officialVendorProtocol: '协议',
       officialVendorDefaultModel: '默认模型',

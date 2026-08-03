@@ -26,14 +26,14 @@ describe('tool call action presentation', () => {
       name: 'lookup_issue',
       serverName: 'linear',
       status: 'running',
-    }))).toEqual({ displayName: 'linear / Lookup issue', label: 'Calling' });
+    }))).toEqual({ displayName: 'linear / Lookup issue', label: '' });
 
     expect(resolveToolCallActionPresentation(createCall({
       kind: 'mcp',
       name: 'lookup_issue',
       serverName: 'linear',
       status: 'success',
-    }))).toEqual({ displayName: 'linear / Lookup issue', label: 'Called' });
+    }))).toEqual({ displayName: 'linear / Lookup issue', label: '' });
 
     expect(resolveToolCallActionPresentation(createCall({
       kind: 'mcp',
@@ -78,7 +78,7 @@ describe('tool call action presentation', () => {
       ['approval', 'Requesting approval', 'Requested approval', 'Failed to request approval'],
       ['command', 'Running command', 'Ran command', 'Command failed'],
       ['file', 'Editing', 'Edited', 'Failed to edit'],
-      ['mcp', 'Calling', 'Called', 'Failed to call'],
+      ['mcp', '', '', 'Failed to call'],
       ['media', 'Inspecting image', 'Inspected image', 'Failed to inspect image'],
       ['question', 'Asking a question', 'Asked a question', 'Failed to ask a question'],
       ['search', 'Searching code', 'Searched code', 'Search failed'],

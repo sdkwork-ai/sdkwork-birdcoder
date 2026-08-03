@@ -1,5 +1,6 @@
 import {
   MAX_AGENT_SESSION_ITEM_RESOURCES,
+  type AgentSessionHookStatsView,
   type AgentSessionItemResourceView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -50,6 +51,21 @@ export interface AgentSessionUserContentProjection {
   content: string;
   resources: AgentSessionItemResourceView[];
   source?: AgentSessionUserContentSourceView;
+  /**
+   * Codex desktop delivery gating: `'not-sent'` marks a user message that a
+   * hook blocked before it entered the conversation (`codex.userMessage.hookBlocked`).
+   */
+  deliveryStatus?: 'not-sent';
+  /** Hook identities that blocked the message, shown alongside the status link. */
+  blockedSources?: string[];
+  /** True when this message is merged hook feedback (`hookPrompt` fragments). */
+  hookFeedback?: boolean;
+  /** Codex desktop referencesPriorConversation: the message carries prior conversation context. */
+  referencesPriorConversation?: boolean;
+  /** Codex desktop `codex.userMessage.goal`: the message set the thread goal. */
+  goal?: boolean;
+  /** Aggregate hook run statistics for the `assistantMessage.hookStats` affordance. */
+  hookStats?: AgentSessionHookStatsView;
 }
 
 export interface AgentSessionUserContentProviderIdentity {
@@ -64,6 +80,13 @@ interface AgentSessionUserContentRecord {
   itemId: string;
   kind: string;
   providerId?: string | null;
+  /** Optional hook delivery metadata surfaced by providers that gate user input. */
+  deliveryStatus?: string | null;
+  blockedSources?: unknown;
+  hookFeedback?: boolean | null;
+  hookStats?: unknown;
+  referencesPriorConversation?: boolean | null;
+  goal?: boolean | null;
 }
 
 interface CodexTextProjection extends AgentSessionUserContentProjection {
@@ -766,6 +789,104 @@ function resolveCodexArtifactFallback(
   return undefined;
 }
 
+/**
+ * Reads optional hook delivery metadata off a user content record. Providers
+ * that gate user input may attach `deliveryStatus` (`'not-sent'`), the hook
+ * identities that blocked the message, and aggregate hook run statistics.
+ */
+function resolveHookDeliveryMetadata(
+  item: AgentSessionUserContentRecord,
+): Pick<
+  AgentSessionUserContentProjection,
+  | 'deliveryStatus'
+  | 'blockedSources'
+  | 'hookFeedback'
+  | 'hookStats'
+  | 'referencesPriorConversation'
+  | 'goal'
+> {
+  const metadata: Pick<
+    AgentSessionUserContentProjection,
+    | 'deliveryStatus'
+    | 'blockedSources'
+    | 'hookFeedback'
+    | 'hookStats'
+    | 'referencesPriorConversation'
+    | 'goal'
+  > = {};
+  if (item.deliveryStatus === 'not-sent') {
+    metadata.deliveryStatus = 'not-sent';
+    if (Array.isArray(item.blockedSources)) {
+      const sources = item.blockedSources
+        .filter((source): source is string => typeof source === 'string' && source.trim().length > 0)
+        .map((source) => source.trim());
+      if (sources.length > 0) {
+        metadata.blockedSources = sources;
+      }
+    }
+    // Codex desktop only surfaces hook statistics for messages whose delivery
+    // was gated (`hookStats:n.deliveryStatus==='not-sent'?j:null`).
+    if (item.hookStats !== undefined && item.hookStats !== null) {
+      const stats = resolveHookStatsRecord(item.hookStats);
+      if (stats) {
+        metadata.hookStats = stats;
+      }
+    }
+  }
+  if (item.hookFeedback === true) {
+    metadata.hookFeedback = true;
+  }
+  if (item.referencesPriorConversation === true) {
+    metadata.referencesPriorConversation = true;
+  }
+  if (item.goal === true) {
+    metadata.goal = true;
+  }
+  return metadata;
+}
+
+function resolveHookStatsRecord(value: unknown): AgentSessionHookStatsView | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const count = typeof value.count === 'number' && Number.isFinite(value.count)
+    ? value.count
+    : undefined;
+  if (count === undefined) {
+    return undefined;
+  }
+  const blockedCount = typeof value.blockedCount === 'number' && Number.isFinite(value.blockedCount)
+    ? value.blockedCount
+    : undefined;
+  const errorCount = typeof value.errorCount === 'number' && Number.isFinite(value.errorCount)
+    ? value.errorCount
+    : undefined;
+  const runs = Array.isArray(value.runs)
+    ? value.runs
+      .filter(isRecord)
+      .map((run) => {
+        const eventName = readNonEmptyString(run.eventName);
+        const source = readNonEmptyString(run.source);
+        const statusMessage = readNonEmptyString(run.statusMessage);
+        const runCount = typeof run.count === 'number' && Number.isFinite(run.count)
+          ? run.count
+          : undefined;
+        return {
+          ...(eventName ? { eventName } : {}),
+          ...(source ? { source } : {}),
+          ...(runCount !== undefined && runCount > 1 ? { count: runCount } : {}),
+          ...(statusMessage ? { statusMessage } : {}),
+        };
+      })
+    : undefined;
+  return {
+    count,
+    ...(blockedCount !== undefined ? { blockedCount } : {}),
+    ...(errorCount !== undefined ? { errorCount } : {}),
+    ...(runs !== undefined && runs.length > 0 ? { runs } : {}),
+  };
+}
+
 export function resolveAgentSessionUserContent(
   item: AgentSessionUserContentRecord,
   providerIdentity?: AgentSessionUserContentProviderIdentity,
@@ -783,6 +904,7 @@ export function resolveAgentSessionUserContent(
     : untrimmedContent.trim();
   const parsedContent = parseJsonContent(rawContent);
   const parts = readCodexContentParts(parsedContent);
+  const hookMetadata = resolveHookDeliveryMetadata(item);
   if (!parts) {
     if (item.kind === 'user_input') {
       const projection = resolveCodexTextProjection(rawContent, item.itemId, 0);
@@ -790,6 +912,7 @@ export function resolveAgentSessionUserContent(
         content: projection.content,
         resources: projection.resources,
         ...(projection.source ? { source: projection.source } : {}),
+        ...hookMetadata,
       };
     }
     const projection = resolveCodexTextProjection(rawContent, item.itemId, 0);
@@ -798,10 +921,13 @@ export function resolveAgentSessionUserContent(
         content: projection.content,
         resources: projection.resources,
         ...(projection.source ? { source: projection.source } : {}),
+        ...hookMetadata,
       };
     }
     const resource = resolveCodexArtifactFallback(item);
-    return resource ? { content: '', resources: [resource] } : null;
+    return resource
+      ? { content: '', resources: [resource], ...hookMetadata }
+      : null;
   }
 
   const textSegments: string[] = [];
@@ -837,15 +963,16 @@ export function resolveAgentSessionUserContent(
     const parsedRecord = isRecord(parsedContent) ? parsedContent : null;
     const parsedType = normalizeInputType(parsedRecord?.type);
     if (parsedType === 'usermessage' && Array.isArray(parsedRecord?.content)) {
-      return { content: '', resources: [] };
+      return { content: '', resources: [], ...hookMetadata };
     }
     return item.kind === 'user_input'
-      ? { content: rawContent, resources: [] }
+      ? { content: rawContent, resources: [], ...hookMetadata }
       : null;
   }
   return {
     content: textSegments.join('\n'),
     resources: coalesceCodexUserContentResources(resources),
     ...(contentSource ? { source: contentSource } : {}),
+    ...hookMetadata,
   };
 }

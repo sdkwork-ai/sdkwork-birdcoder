@@ -16,7 +16,7 @@ export default defineLocaleModule('settings/extra', {
         archive: '\u5df2\u5f52\u6863',
       },
       codeEngines: '代码引擎与模型',
-      modelManagement: '模型管理',
+      modelManagement: '模型配置',
       appearance: '外观',
       voice: '\u8bed\u97f3',
       shortcuts: '\u952e\u76d8\u5feb\u6377\u952e',

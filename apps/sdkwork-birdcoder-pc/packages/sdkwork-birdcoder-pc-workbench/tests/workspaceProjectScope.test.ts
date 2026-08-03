@@ -555,12 +555,64 @@ describe('Workspace-scoped project inventory', () => {
       const retained = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0];
       expect(retained?.items).toHaveLength(PROJECT_STORE_MAX_SESSION_ITEMS);
       expect(retained?.items[0]?.id).toBe('item-51');
-      expect(retained?.items.at(-1)?.id).toBe('item-550');
+      expect(retained?.items.at(-1)?.id).toBe(
+        `item-${50 + PROJECT_STORE_MAX_SESSION_ITEMS}`,
+      );
       expect(retained?.itemPageInfo).toEqual({
         hasMore: true,
         nextCursor: 'cursor.recoverable',
         pageSize: 50,
         retentionLimitReached: true,
+      });
+    } finally {
+      deleteProjectsStore(scopeKey);
+    }
+  });
+
+  it('retains loaded history and transient items when the authority window is reset', () => {
+    const userScope = '42::reset-retains-history';
+    const project = createProject('workspace-reset', 'project-reset');
+    const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+    const loadedItems = Array.from({ length: 3 }, (_, index) =>
+      createSessionItem(index + 1));
+    const transient = createSessionItem(0, { transient: true });
+    const refreshedWindow = Array.from({ length: 2 }, (_, index) =>
+      createSessionItem(index + 11));
+
+    try {
+      upsertProjectIntoProjectsStore(project, userScope);
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        {
+          ...createSession(project.projectId),
+          itemPageInfo: { hasMore: true, nextCursor: 'cursor.loaded', pageSize: 50 },
+          items: [...loadedItems, transient],
+        },
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'latest' },
+      );
+      upsertAgentSessionIntoProjectsStore(
+        project.projectId,
+        {
+          ...createSession(project.projectId),
+          itemPageInfo: { hasMore: true, nextCursor: 'cursor.fresh', pageSize: 50 },
+          items: refreshedWindow,
+        },
+        project.workspaceId,
+        userScope,
+        { itemMergeMode: 'authority-window-reset' },
+      );
+
+      const retained = getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0];
+      // Loaded pages and the in-flight user item survive the reset; only the
+      // page cursor is replaced by the fresh window.
+      expect(retained?.items.map((item) => item.id))
+        .toEqual(['item-1', 'item-2', 'item-3', 'item-0', 'item-11', 'item-12']);
+      expect(retained?.itemPageInfo).toEqual({
+        hasMore: true,
+        nextCursor: 'cursor.fresh',
+        pageSize: 50,
       });
     } finally {
       deleteProjectsStore(scopeKey);

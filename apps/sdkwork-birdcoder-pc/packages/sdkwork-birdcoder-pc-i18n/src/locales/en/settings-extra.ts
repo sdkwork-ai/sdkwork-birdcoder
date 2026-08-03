@@ -16,7 +16,7 @@ export default defineLocaleModule('settings/extra', {
         archive: 'Archived',
       },
       codeEngines: 'Code Engines & Models',
-      modelManagement: 'Model Management',
+      modelManagement: 'Model Configuration',
       appearance: 'Appearance',
       voice: 'Voice',
       shortcuts: 'Keyboard Shortcuts',

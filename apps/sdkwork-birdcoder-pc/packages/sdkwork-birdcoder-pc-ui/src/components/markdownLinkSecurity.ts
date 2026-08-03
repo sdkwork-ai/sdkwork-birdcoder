@@ -1,3 +1,5 @@
+import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
+
 interface ResolveSafeMarkdownHrefOptions {
   allowSkillLinks?: boolean;
 }
@@ -134,4 +136,50 @@ export function resolveSafeMarkdownHref(
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve a markdown image destination to a renderable `src`.
+ *
+ * react-markdown's default `urlTransform` blanks any URL whose first colon
+ * precedes the first slash and is not an allowlisted protocol, which drops
+ * Windows absolute paths (`C:/Users/...`), `file:` URLs and even `data:`
+ * images. This resolver keeps safe inline media sources and local file
+ * paths while still rejecting dangerous protocols.
+ */
+export function resolveSafeMarkdownImageSrc(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const mediaSource = resolveAgentSessionItemMediaSource(value, 'image');
+  if (mediaSource) {
+    return mediaSource;
+  }
+
+  return resolveMarkdownFilePath(value);
+}
+
+/**
+ * Resolve a markdown link destination without blanking local file paths.
+ *
+ * The default react-markdown `urlTransform` would blank `skill://...` and
+ * Windows absolute file paths (`E:/...`, `file:///...`) before the custom
+ * `a` renderer can turn them into file-open buttons or skill chips.
+ */
+export function resolveSafeMarkdownHrefOrPath(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedHref = value.trim();
+  if (!normalizedHref) {
+    return null;
+  }
+
+  if (resolveMarkdownFilePath(normalizedHref) !== null) {
+    return normalizedHref;
+  }
+
+  return resolveSafeMarkdownHref(normalizedHref, { allowSkillLinks: true });
 }

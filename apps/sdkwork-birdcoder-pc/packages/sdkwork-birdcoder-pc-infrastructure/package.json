@@ -127,6 +127,10 @@
       "import": "./src/services/sdkBaseUrls.ts",
       "types": "./src/services/sdkBaseUrls.ts"
     },
+    "./services/agentModelRelayConfig": {
+      "import": "./src/services/agentModelRelayConfig.ts",
+      "types": "./src/services/agentModelRelayConfig.ts"
+    },
     "./services/appSessionEvents": {
       "import": "./src/services/appSessionEvents.ts",
       "types": "./src/services/appSessionEvents.ts"

@@ -154,5 +154,6 @@ declare module 'react-syntax-highlighter/dist/esm/styles/prism' {
     [selector: string]: React.CSSProperties;
   }
 
+  export const oneLight: SyntaxHighlighterStyleMap;
   export const vscDarkPlus: SyntaxHighlighterStyleMap;
 }

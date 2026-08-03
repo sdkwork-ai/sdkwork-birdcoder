@@ -406,12 +406,10 @@ export function mergeRefreshedAgentSessionIntoCurrent(
           current.itemPageInfo,
           refreshed.itemPageInfo,
         ),
-    items: options.replaceLoadedAuthorityWindow
-      ? mergeResetSessionItemWindow(
-          retainTransientSessionItems(current.items),
-          refreshed.items,
-        )
-      : mergeLatestAgentSessionItems(current.items, refreshed.items),
+    // Loaded earlier pages and transient user items are always retained;
+    // an authority window that cannot be joined appends the fresh window to
+    // the loaded history instead of wiping it.
+    items: mergeLatestAgentSessionItems(current.items, refreshed.items),
   };
 }
 
@@ -1027,10 +1025,11 @@ async function refreshAgentSessionItemsWithoutTimeout({
     signal,
     existingAgentSession,
   );
+  // Loaded earlier pages are retained even when the authority window cannot
+  // be joined; only the cursor/page info is replaced by the fresh window so
+  // that further earlier-page pagination continues from the new window.
   const retainedExistingItems = existingAgentSession
-    ? latestItemWindow.replaceLoadedAuthorityWindow
-      ? retainTransientSessionItems(existingAgentSession.items)
-      : existingAgentSession.items
+    ? existingAgentSession.items
     : [];
   const itemPageInfo = latestItemWindow.replaceLoadedAuthorityWindow
     ? latestItemWindow.itemPageInfo
@@ -1053,34 +1052,28 @@ async function refreshAgentSessionItemsWithoutTimeout({
       || !hasUntrackedExistingAuthority
     );
   const combinedSourceRecords = canReprojectSourceWindow
-    ? latestItemWindow.replaceLoadedAuthorityWindow || existingSourceRecords === undefined
-      ? refreshedSourceRecords
-      : mergeAgentSessionItemSourceRecords(
+    ? existingSourceRecords
+      ? mergeAgentSessionItemSourceRecords(
           existingSourceRecords,
           refreshedSourceRecords,
           normalizedSessionId,
         )
+      : refreshedSourceRecords
     : undefined;
   const sourceWindowItems = combinedSourceRecords
-    ? mergeResetSessionItemWindow(
-        retainTransientSessionItems(existingAgentSession?.items ?? []),
-        normalizeSessionItemRecords(combinedSourceRecords, refreshedAgentSession),
-      )
+    ? normalizeSessionItemRecords(combinedSourceRecords, refreshedAgentSession)
     : undefined;
   const nextAgentSession = existingAgentSession
     ? {
         ...refreshedAgentSession,
         itemPageInfo,
-        items: sourceWindowItems
-          ?? (latestItemWindow.replaceLoadedAuthorityWindow
-            ? mergeResetSessionItemWindow(
-                retainedExistingItems,
-                refreshedAgentSession.items,
-              )
-            : mergeLatestAgentSessionItems(
-                retainedExistingItems,
-                refreshedAgentSession.items,
-              )),
+        // Loaded history and transient user items are always retained as the
+        // merge base, even when a disconnected authority window is replaced;
+        // the fresh window (or its source-window projection) is appended.
+        items: mergeLatestAgentSessionItems(
+          retainedExistingItems,
+          sourceWindowItems ?? refreshedAgentSession.items,
+        ),
       }
     : refreshedAgentSession;
   const agentSession = combinedSourceRecords
@@ -1126,11 +1119,7 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
   const identity = { agentId, sessionId: normalizedSessionId };
 
   const currentPageInfo = agentSession.itemPageInfo;
-  if (
-    !currentPageInfo
-    || !currentPageInfo.hasMore
-    || currentPageInfo.retentionLimitReached === true
-  ) {
+  if (!currentPageInfo || !currentPageInfo.hasMore) {
     return {
       agentSession,
       loadedItemCount: 0,
@@ -1191,6 +1180,9 @@ async function loadEarlierAgentSessionItemsWithoutTimeout({
       : nextAgentSession;
     const pageMadeProgress = addedItemCount > 0 || addedSourceItemCount > 0;
     duplicateOnlyPageCount = pageMadeProgress ? 0 : duplicateOnlyPageCount + 1;
+    // One page of new history per scroll-to-top gesture: stop as soon as the
+    // page made progress; only duplicate-only pages are walked further (up to
+    // the duplicate limit) to catch up with a shifted provider window.
     if (
       pageMadeProgress
       || !itemPage.pageInfo.hasMore

@@ -740,30 +740,30 @@ fn resolve_supported_image_mime_type(bytes: &[u8]) -> Option<&'static str> {
     None
 }
 
-fn read_mounted_image_preview_data_url(file_path: &Path) -> Result<String, String> {
+fn read_image_preview_data_url(file_path: &Path, subject: &str) -> Result<String, String> {
     use std::io::Read;
 
     let file = fs::File::open(file_path).map_err(|error| {
         format!(
-            "failed to open mounted image '{}': {error}",
+            "failed to open {subject} '{}': {error}",
             file_path.display()
         )
     })?;
     let metadata = file.metadata().map_err(|error| {
         format!(
-            "failed to inspect mounted image '{}': {error}",
+            "failed to inspect {subject} '{}': {error}",
             file_path.display()
         )
     })?;
     if !metadata.is_file() {
         return Err(format!(
-            "mounted image path must be a file: {}",
+            "{subject} path must be a file: {}",
             file_path.display()
         ));
     }
     if metadata.len() > MAX_FS_IMAGE_PREVIEW_BYTES as u64 {
         return Err(format!(
-            "mounted image '{}' is {} bytes and exceeds the {} byte image preview limit",
+            "{subject} '{}' is {} bytes and exceeds the {} byte image preview limit",
             file_path.display(),
             metadata.len(),
             MAX_FS_IMAGE_PREVIEW_BYTES
@@ -775,23 +775,64 @@ fn read_mounted_image_preview_data_url(file_path: &Path) -> Result<String, Strin
         .read_to_end(&mut bytes)
         .map_err(|error| {
             format!(
-                "failed to read mounted image '{}': {error}",
+                "failed to read {subject} '{}': {error}",
                 file_path.display()
             )
         })?;
     if bytes.len() > MAX_FS_IMAGE_PREVIEW_BYTES {
         return Err(format!(
-            "mounted image '{}' exceeds the {} byte image preview limit",
+            "{subject} '{}' exceeds the {} byte image preview limit",
             file_path.display(),
             MAX_FS_IMAGE_PREVIEW_BYTES
         ));
     }
     let mime_type = resolve_supported_image_mime_type(&bytes)
-        .ok_or_else(|| "mounted image must contain PNG, JPEG, GIF, or WebP data".to_string())?;
+        .ok_or_else(|| format!("{subject} must contain PNG, JPEG, GIF, or WebP data"))?;
     Ok(format!(
         "data:{mime_type};base64,{}",
         BASE64_STANDARD.encode(bytes)
     ))
+}
+
+/// Resolve an absolute local path for the bounded external image preview
+/// command. The path must be absolute, must not contain parent traversal,
+/// must exist, and must resolve to a regular file. Symlinks are resolved
+/// through canonicalization so the bytes actually read are the bytes the
+/// caller requested.
+fn resolve_external_preview_path(absolute_path: &str) -> Result<PathBuf, String> {
+    let normalized_path = absolute_path.trim();
+    if normalized_path.is_empty() {
+        return Err("external image path must not be empty".to_string());
+    }
+    let requested_path = PathBuf::from(normalized_path);
+    if !requested_path.is_absolute() {
+        return Err(format!(
+            "external image path must be absolute: {}",
+            requested_path.display()
+        ));
+    }
+    if requested_path
+        .components()
+        .any(|component| component == Component::ParentDir)
+    {
+        return Err(format!(
+            "external image path must not contain parent traversal: {}",
+            requested_path.display()
+        ));
+    }
+    let canonical_path = fs::canonicalize(&requested_path).map_err(|error| {
+        format!(
+            "external image path '{}' is not accessible: {error}",
+            requested_path.display()
+        )
+    })?;
+    if !canonical_path.is_file() {
+        return Err(format!(
+            "external image path must be a file: {}",
+            canonical_path.display()
+        ));
+    }
+    Ok(canonical_path)
 }
 
 fn read_mounted_file_to_string(
@@ -956,10 +997,26 @@ pub async fn fs_read_image_preview(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let file_path = resolve_scoped_path(&root_path, &relative_path)?;
-        read_mounted_image_preview_data_url(&file_path)
+        read_image_preview_data_url(&file_path, "mounted image")
     })
     .await
     .map_err(|error| format!("failed to join mounted image preview task: {error}"))?
+}
+
+/// Bounded, format-verified image preview for absolute local paths that are
+/// outside any mounted project root (for example agent-generated
+/// visualization files under the user home directory). Reads are read-only,
+/// capped at the image preview byte limit, and only ever returned as a
+/// magic-byte-verified `data:` URL — arbitrary file content is never
+/// disclosed to the webview.
+#[tauri::command]
+pub async fn fs_read_external_image_preview(absolute_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_external_preview_path(&absolute_path)?;
+        read_image_preview_data_url(&file_path, "external image")
+    })
+    .await
+    .map_err(|error| format!("failed to join external image preview task: {error}"))?
 }
 
 #[tauri::command]
@@ -1685,6 +1742,94 @@ mod tests {
         assert!(error.contains("must not traverse outside"));
         fs::remove_dir_all(root).expect("filesystem command test root must be removed");
         fs::remove_dir_all(outside).expect("outside fixture root must be removed");
+    }
+
+    #[tokio::test]
+    async fn external_image_preview_reads_absolute_local_paths() {
+        let root = create_filesystem_command_test_root("external-image-preview-png");
+        let bytes = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
+        fs::write(root.join("preview.bin"), bytes)
+            .expect("external image preview fixture must be written");
+
+        let preview =
+            fs_read_external_image_preview(root.join("preview.bin").to_string_lossy().into_owned())
+                .await
+                .expect("an absolute local image path must produce a preview data URL");
+
+        assert_eq!(
+            preview,
+            format!("data:image/png;base64,{}", BASE64_STANDARD.encode(bytes))
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn external_image_preview_rejects_relative_paths() {
+        let root = create_filesystem_command_test_root("external-image-preview-relative");
+        fs::write(
+            root.join("preview.bin"),
+            [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a],
+        )
+        .expect("external image preview fixture must be written");
+
+        let error = fs_read_external_image_preview("preview.bin".to_string())
+            .await
+            .expect_err("a relative external image path must be rejected");
+
+        assert!(error.contains("must be absolute"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn external_image_preview_rejects_parent_traversal() {
+        let root = create_filesystem_command_test_root("external-image-preview-traversal");
+        fs::write(
+            root.join("preview.bin"),
+            [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a],
+        )
+        .expect("external image preview fixture must be written");
+
+        let traversal = root
+            .join("nested")
+            .join("..")
+            .join("preview.bin")
+            .to_string_lossy()
+            .into_owned();
+        let error = fs_read_external_image_preview(traversal)
+            .await
+            .expect_err("a parent-traversal external image path must be rejected");
+
+        assert!(error.contains("must not contain parent traversal"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn external_image_preview_rejects_missing_paths() {
+        let root = create_filesystem_command_test_root("external-image-preview-missing");
+
+        let error =
+            fs_read_external_image_preview(root.join("missing.png").to_string_lossy().into_owned())
+                .await
+                .expect_err("a missing external image path must be rejected");
+
+        assert!(error.contains("is not accessible"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn external_image_preview_rejects_extension_disguised_text() {
+        let root = create_filesystem_command_test_root("external-image-preview-disguised");
+        fs::write(root.join("not-an-image.png"), b"plain text")
+            .expect("disguised external image fixture must be written");
+
+        let error = fs_read_external_image_preview(
+            root.join("not-an-image.png").to_string_lossy().into_owned(),
+        )
+        .await
+        .expect_err("an extension-only external image must be rejected");
+
+        assert!(error.contains("must contain PNG, JPEG, GIF, or WebP data"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
     }
 
     #[tokio::test]

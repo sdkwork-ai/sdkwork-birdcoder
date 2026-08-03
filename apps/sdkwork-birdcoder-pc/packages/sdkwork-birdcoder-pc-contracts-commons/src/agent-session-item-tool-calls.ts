@@ -2342,7 +2342,7 @@ export function normalizeAgentSessionItemToolCalls(
     return [];
   }
 
-  return toolCalls.flatMap((toolCall, index) => {
+  const normalized = toolCalls.flatMap((toolCall, index) => {
     return expandCodexCommandExecutionRecords(toolCall, index).flatMap((expandedToolCall) => {
       const normalizedToolCall = normalizeAgentSessionItemToolCall(
         expandedToolCall,
@@ -2352,4 +2352,26 @@ export function normalizeAgentSessionItemToolCalls(
       return normalizedToolCall ? [normalizedToolCall] : [];
     });
   });
+
+  // Calls that carry a `parentExecutionId` pointing at another call in the
+  // same batch (command sub-actions, browser-use step chains) are grouped as
+  // children of their parent row, preserving the execution tree instead of
+  // flattening every step into a top-level row.
+  const byId = new Map<string, AgentSessionItemToolCallView>();
+  for (const call of normalized) {
+    if (call.id) {
+      byId.set(call.id, call);
+    }
+  }
+  const roots: AgentSessionItemToolCallView[] = [];
+  for (const call of normalized) {
+    const parentId = call.parentExecutionId?.trim();
+    const parent = parentId ? byId.get(parentId) : undefined;
+    if (parent && parent !== call) {
+      parent.children = [...(parent.children ?? []), call];
+    } else {
+      roots.push(call);
+    }
+  }
+  return roots;
 }

@@ -598,10 +598,83 @@ const sessionItemsBySessionId = new Map([
   ],
   [
     'e2e-codex-session',
-    Array.from({ length: 119 }, (_, index) => {
-      const sequence = 119 - index;
+    Array.from({ length: 123 }, (_, index) => {
+      const sequence = 123 - index;
       const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
-      if (sequence === 112) {
+      if (sequence === 120) {
+        // Codex desktop delivery gating: a user message blocked by a hook
+        // before it entered the conversation carries `deliveryStatus:
+        // 'not-sent'`, `blockedSources` and aggregate hook run statistics.
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-hook-blocked-1',
+          turnId: 'e2e-codex-turn-1',
+          kind: 'user_input',
+          status: 'completed',
+          sequence: '120',
+          content: 'This message was gated by the pre-message safety hook.',
+          contentType: 'text/plain',
+          providerId: 'openai',
+          deliveryStatus: 'not-sent',
+          blockedSources: ['pre-message', 'pre-command'],
+          hookStats: {
+            count: 4,
+            blockedCount: 1,
+            errorCount: 1,
+            runs: [
+              {
+                eventName: 'UserPromptSubmit',
+                source: 'pre-message',
+                statusMessage: 'Blocked by policy',
+              },
+              {
+                eventName: 'PreToolUse',
+                source: 'pre-command',
+                count: 2,
+                statusMessage: 'Blocked risky command',
+              },
+              { eventName: 'PostToolUse', source: 'logger', statusMessage: 'Logged 3 tool calls' },
+            ],
+          },
+          createdAt,
+        };
+      }
+      if (sequence >= 121) {
+        const isParent = sequence === 123;
+        const step = 123 - sequence;
+        const statusTexts = ['Started browser background', 'Corrected working directory typo', 'Navigated browser tab to target URL'];
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: isParent ? 'e2e-codex-browser-nav' : `e2e-codex-browser-step-${step}`,
+          turnId: 'e2e-codex-turn-1',
+          kind: 'tool_result',
+          status: 'completed',
+          sequence: String(sequence),
+          content: null,
+          contentType: 'application/json',
+          toolName: 'provider_event',
+          toolCallId: isParent ? 'e2e-codex-browser-nav' : `e2e-codex-browser-step-${step}`,
+          toolResult: {
+            id: isParent ? 'e2e-codex-browser-nav' : `e2e-codex-browser-step-${step}`,
+            type: 'mcp_tool_call',
+            server: 'browser-use',
+            tool: isParent ? 'navigate' : 'act',
+            arguments: isParent
+              ? { url: 'https://example.com/target' }
+              : { action: step === 1 ? 'start' : step === 2 ? 'fix_cwd' : 'goto', detail: statusTexts[step - 1] },
+            status: 'completed',
+            durationMs: 800 + step * 120,
+            ...(isParent ? {} : { parentExecutionId: 'e2e-codex-browser-nav' }),
+            result: {
+              content: [
+                { type: 'text', text: statusTexts[step - 1] },
+              ],
+            },
+          },
+          createdAt,
+        };
+      }
+            if (sequence === 112) {
         return {
           sessionId: 'e2e-codex-session',
           itemId: 'e2e-codex-item-112',

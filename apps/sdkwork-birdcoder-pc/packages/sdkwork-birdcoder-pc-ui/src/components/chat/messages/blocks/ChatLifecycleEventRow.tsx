@@ -20,6 +20,7 @@ import {
   hasLifecycleEventDetails,
   resolveLifecycleEventLabel,
   resolveLifecycleEventMeta,
+  resolveTurnDividerPresentation,
 } from './lifecycleEventPresentation.ts';
 
 interface ChatLifecycleEventRowProps {
@@ -60,6 +61,68 @@ export function ChatLifecycleEventRow({
   const expandLabel = t?.('chat.lifecycleExpand') ?? 'Show execution details';
   const collapseLabel = t?.('chat.lifecycleCollapse') ?? 'Hide execution details';
   const detailPreview = event.detail?.replace(/\s+/gu, ' ').trim() ?? '';
+  const divider = resolveTurnDividerPresentation(event, t);
+
+  if (divider) {
+    // Codex desktop turn divider (`f8c`): centered secondary text above a
+    // hairline border separating agent activity from the final response.
+    // When the event carries lifecycle details (token usage etc.) the row
+    // stays expandable so those details remain reachable.
+    const inner = (
+      <>
+        <span className="min-w-0 truncate">{divider.label}</span>
+        {meta.length > 0 ? (
+          <span className="shrink-0 truncate font-mono text-[10px] tabular-nums text-gray-400/80">
+            {meta.join(' / ')}
+          </span>
+        ) : null}
+        <span className="h-px min-w-0 flex-1 bg-white/[0.08]" aria-hidden="true" />
+        {hasDetails ? (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-gray-400/80">
+            {isExpanded
+              ? <ChevronDown size={13} aria-hidden="true" />
+              : <ChevronRight size={13} aria-hidden="true" />}
+          </span>
+        ) : null}
+      </>
+    );
+    const content = (
+      <div
+        className="flex min-h-7 w-full min-w-0 items-center gap-2 px-1.5 py-1 text-[11px] text-gray-500"
+        data-chat-lifecycle-event={event.kind}
+        data-chat-turn-divider={divider.status}
+      >
+        {hasDetails ? (
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+            data-chat-lifecycle-toggle="true"
+            aria-expanded={isExpanded}
+            aria-controls={detailsId}
+            aria-label={`${isExpanded ? collapseLabel : expandLabel}: ${divider.label}`}
+            title={isExpanded ? collapseLabel : expandLabel}
+            onClick={() => {
+              onToggle();
+              if (!isExpanded) revealChatDisclosureDetails(detailsId);
+            }}
+          >
+            {inner}
+          </button>
+        ) : (
+          inner
+        )}
+        {hasDetails && isExpanded ? (
+          <ChatLifecycleEventDetails
+            copyMessageToClipboard={copyMessageToClipboard}
+            detailsId={detailsId}
+            event={event}
+            t={t}
+          />
+        ) : null}
+      </div>
+    );
+    return content;
+  }
 
   const content = (
     <>

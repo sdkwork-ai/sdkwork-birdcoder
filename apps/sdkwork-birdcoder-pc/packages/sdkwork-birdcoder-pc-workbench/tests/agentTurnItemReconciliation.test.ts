@@ -251,7 +251,7 @@ describe('Agent turn item reconciliation', () => {
     ).toEqual({ hasMore: false, nextCursor: null, pageSize: 20 });
   });
 
-  it('does not restore a disconnected authority tail when the latest window resets', () => {
+  it('retains loaded history and transient items when the latest window resets', () => {
     const current = session({
       itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
       items: [
@@ -277,9 +277,12 @@ describe('Agent turn item reconciliation', () => {
       nextCursor: 'cursor.reset.5',
       pageSize: 50,
     });
+    // The disconnected loaded tail and the in-flight user item survive the
+    // reset; only the cursor is replaced by the fresh window.
     expect(refreshedMerge.items.map((entry) => entry.id)).toEqual([
-      'item.authority',
+      'item.stale',
       'item.concurrent',
+      'item.authority',
     ]);
     const storeMerge = mergeAgentSessionProjectionForStore(
       current,
@@ -292,8 +295,9 @@ describe('Agent turn item reconciliation', () => {
       pageSize: 50,
     });
     expect(storeMerge.items.map((entry) => entry.id)).toEqual([
-      'item.authority',
+      'item.stale',
       'item.concurrent',
+      'item.authority',
     ]);
     const emptyStoreMerge = mergeAgentSessionProjectionForStore(
       current,
@@ -301,7 +305,10 @@ describe('Agent turn item reconciliation', () => {
       { itemMergeMode: 'authority-window-reset' },
     );
     expect(emptyStoreMerge.itemPageInfo).toBeUndefined();
-    expect(emptyStoreMerge.items.map((entry) => entry.id)).toEqual(['item.concurrent']);
+    expect(emptyStoreMerge.items.map((entry) => entry.id)).toEqual([
+      'item.stale',
+      'item.concurrent',
+    ]);
   });
 
   it('preserves items appended while an older non-empty transcript refresh is committing', () => {

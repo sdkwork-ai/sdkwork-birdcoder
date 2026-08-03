@@ -105,6 +105,36 @@ an already-bound Session is a conflict, not an implicit remap.
 
 The rollout reader must preserve all stable response items and selected durable lifecycle events. High-volume output deltas are not separate history messages; they update the corresponding item.
 
+### Session List Parameters
+
+The Kernel session list carries the generic SPI filter set and maps it onto
+`ThreadListParams` without loss: `sourceKinds` (normalized to
+`ThreadSourceKind`, e.g. `"subagent"`, `"sub_agent_review"`, `"vscode"`),
+`sectionId`, `archived`, `searchTerm`, `sortKey` (normalized to
+`ThreadSortKey`), `sortDirection` (`asc`/`desc`), and `modelProviders`. A
+provider that cannot express a filter leaves the corresponding protocol field
+untouched instead of failing the whole list, so Claude Code, OpenCode, Gemini,
+OpenClaw, Hermes, and Rig keep a provider-neutral contract.
+
+### Turn Execution Parameters
+
+Every SPI execution option the Codex app-server protocol can express is
+forwarded on `thread/start` / `thread/resume`: `approvalPolicy`,
+`approvalsReviewer`, `sandbox`, and `ephemeral` (`fullAuto` falls back to
+`on-failure` approval plus `workspace-write` sandbox). The protocol boundary is
+explicit, never invented:
+
+- `temperature` / `topP` / `maxTokens` have no `turn/start` wire field in the
+  Codex app-server protocol; they are accepted by the SPI for providers that
+  support them and ignored by Codex.
+- `personality`, `effort`, instruction overrides (`baseInstructions` /
+  `developerInstructions`), `serviceTier`, `modelProvider`, and `historyMode`
+  are valid `thread/start` / `turn/start` fields but have no upstream input in
+  the SDKWork turn chain yet (neither session configuration nor turn commands
+  expose them) — they are extension points, not lossy mappings.
+- `skipGitRepoCheck` and `requireLiveProvider` are kernel-side routing
+  concerns, not app-server parameters.
+
 ## Item Lifecycle
 
 `item/started` contains the initial full item. Item-specific delta notifications update text, reasoning, command output, patches, and similar channels. `item/completed` contains the authoritative final full item. Consumers replace/merge by the item ID, not by array position.
@@ -202,6 +232,76 @@ Automatic approval review, errors, task progress, and steering user content
 remain conditional on their renderer filters; the other listed synthetic items
 are visible presentation entries.
 
+## Item Tree And Protocol Data Integrity
+
+The Codex protocol is flat at the item level: `ThreadItem` entries are an
+ordered list and carry no parent/child fields. Tree relationships exist at the
+meta layers and are projected onto canonical Session data as follows:
+
+| Tree/relationship | Protocol evidence | Canonical projection |
+| --- | --- | --- |
+| Sub-agent thread tree | `Thread.parentThreadId` (sub-agent threads), `Thread.forkedFromId` (forks), shared `sessionId` | Session `parentSessionId` / `providerParentSessionId` with `SessionKind::Subagent`; child session ids retained on the kernel session |
+| Fork lineage | `Thread.forkedFromId` | Kernel session metadata `codex.forked_from_id` → `providerForkedFromSessionId` on the runtime binding, so a forked thread keeps its origin identity beyond the canonical parent link |
+| Sub-agent identity | `Thread.agentNickname` / `Thread.agentRole` (AgentControl-spawned) | Kernel session metadata `codex.agent_nickname` / `codex.agent_role` on the session record |
+| Session tree identity | `Thread.sessionId` (shared by threads of one session tree) | Kernel session metadata `codex.session_id` |
+| Sub-agent execution context | Each sub-agent thread owns its own full `Turn`/`ThreadItem` history | The Agents history reconciler enumerates direct sub-agent threads (`thread/list` with `parentThreadId`) while syncing a parent transcript and recursively synchronizes every spawned sub-agent session with its canonical parent edge intact |
+| Sub-agent activity | `subAgentActivity` (kind, agent thread id, agent path) | Status-notice text plus structured `codex.sub_agent.*` metadata and the raw typed item JSON |
+| Sub-agent collaboration | `collabAgentToolCall` (receiver thread ids, prompt/model, per-agent live state incl. final message) | Structured `collab_agent_tool_result` result part + tool-call row; receiver sub-agent sessions are individually synchronized |
+| Tool call → result | `call_id`/item `id` correlation | Kernel output/result parts carry `codex.tool_call_id`; the Agents history reconciler pairs by `tool_call_id` and persists `parentItemId` on the result item |
+| Command sub-actions | `commandExecution.commandActions` array | BirdCoder expands multi-action commands into a parent row plus child rows via `parentExecutionId` (`<itemId>:<actionIndex>`); call rows remain tree-grouped in `AgentSessionItemToolCallView.children` |
+| Context-window chain | `CompactedItem.windowId`/`previousWindowId` (rollout layer) | Not exposed by the app-server v2 API; kernel retains a `compressionCount` session metric instead |
+
+Protocol data is preserved without loss through two mechanisms:
+
+- The Kernel Codex adapter appends a raw item part (`codex.app-server.v2.ThreadItem`
+  schema) to every provider message so the full typed `ThreadItem` JSON survives
+  in kernel history.
+- The Agents session item record persists the full raw provider item JSON in
+  `providerPayload` (DB column `provider_payload_json`) for every projected
+  item, on both the live turn projection and the provider-history
+  reconciliation paths. Redacted (`Secret`/`Regulated`) terminal items do not
+  preserve raw payloads.
+
+Item classification is identical on both projection paths and across
+providers: Codex reasoning parts (`reasoning_summary` / `reasoning_content`)
+classify as `Reasoning` exactly like Claude Code `thinking` and Gemini
+`reasoning`, and every provider's tool-result content type (`mcp_tool_result`,
+`bash_code_execution_tool_result`, `function_call_output`,
+`custom_tool_call_output`, `web_search_tool_result`, ...) classifies as
+`ToolResult`, so the history reconciliation never diverges from the live turn
+projection.
+
+Tool results are emitted as explicit structured result parts
+(`mcp_tool_result`, `tool_result`, `web_search_tool_result`, or the
+`tool_output` text part) that carry the originating `codex.tool_call_id`, so
+the downstream reconciler always builds the call → result parent chain
+regardless of live-stream or history-sync delivery.
+
+Every `ThreadItem` protocol field survives into the canonical Session item:
+the tool payloads (`toolArguments`/`toolResult`) carry the full typed item
+JSON (command `cwd`/`processId`/`exitCode`/`durationMs`/`commandActions`,
+MCP `appContext`/`mcpAppResourceUri`/`pluginId`/`readOnlyHint`/`result`,
+dynamic tool content, web search results, sub-agent collaboration state,
+etc.), not a reduced subset. The live turn projection and the
+provider-history reconciliation path are field-for-field identical, and every
+item type (`dynamicToolCall`, `collabAgentToolCall`, `sleep`,
+`imageGeneration`, `imageView`, `plan`, `hookPrompt`, `userMessage`,
+`subAgentActivity`, `contextCompaction`, review mode, and future variants)
+projects to its canonical kind instead of falling back to a generic notice.
+
+Beyond the raw item JSON, the structured parts carry every field that has a
+dedicated projection as `codex.*` metadata: `AgentMessage.phase` /
+`memoryCitation` (`codex.message.phase` / `codex.message.memory_citation`),
+`UserMessage.clientId` (`codex.client_message_id`),
+`CommandExecution.cwd`/`processId`/`exitCode`/`durationMs`/`source`/`pluginId`
+(`codex.command.*`), `McpToolCall.durationMs` (`codex.mcp.duration_ms`),
+`DynamicToolCall.namespace`/`durationMs` (`codex.tool.namespace` /
+`codex.tool.duration_ms`), `CollabAgentToolCall.reasoningEffort` (included in
+the `collab_agent_tool_result` payload), `WebSearch.action`
+(`codex.web_search.action`), and `ImageGeneration.revisedPrompt`/`savedPath`
+(`codex.image_generation.*`). Consumers read them without re-parsing the raw
+payload, and the raw payload remains available as the authoritative copy.
+
 Marker copy is aligned with the pinned renderer: `modelChanged` renders
 "Model changed from {fromModel} to {toModel}." and `personalityChanged`
 renders "Personality changed to {personality}." as information notices, and
@@ -214,6 +314,17 @@ Remote Connections (CDB-004) and cross-Session navigation land; the marker
 text never fabricates navigation the host cannot honor.
 
 `item/completed` is authoritative for the final item even if `item/started` contained partial fields. Deltas for agent text, plan text, reasoning, command output, file changes, and terminal interaction update their correlated identity only.
+
+### Live Event Name Convention
+
+`provider_stream_event.v1` frames forward the raw JSON-RPC notification method
+verbatim (`item/started`, `item/completed`). The Agents live projection
+normalizes both the slashed method form and the legacy dotted spelling
+(`item.started`) before matching, so terminal item persistence is
+convention-agnostic and never silently skipped. Server-initiated requests are
+covered fail-closed: `currentTime/read` is answered, the six user-mediated
+request types forward to the host interaction path, and unsupported requests
+are rejected explicitly instead of hanging the app-server.
 
 ## Notification Classification
 
@@ -708,6 +819,15 @@ the raw name attribute.
   re-normalized view passes through `adaptCodexToolRecord` again, so
   `collab_agent_tool_call` and `sub_agent_activity` identities survive the
   compose write-back / render loop.
+
+### Live-Turn Pair Reconciliation
+
+Codex live turns persist every tool call as a `tool_call` item followed by a
+`tool_result` item that shares the `toolCallId` (the result item carries the
+full raw `ThreadItem` payload). `toAgentSessionTranscriptItemViews` skips the
+call row when a same-turn result item exists, so each MCP, command, web,
+image, or collaboration tool renders as exactly one row instead of a
+duplicated pair. Unpaired in-flight calls still render their own row.
 
 ## History Reconciliation
 

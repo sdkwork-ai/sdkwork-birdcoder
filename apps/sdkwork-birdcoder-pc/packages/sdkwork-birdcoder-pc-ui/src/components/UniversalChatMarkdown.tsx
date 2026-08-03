@@ -1,19 +1,23 @@
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { Suspense, lazy, memo, useEffect, useMemo, useState } from 'react';
 import { FileCode2, Hexagon, RefreshCw, Workflow } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import type { ChatSkill } from './UniversalChat';
 import { resolveChatCodeFenceLanguage } from './chatMarkdownHeuristics';
 import {
   resolveMarkdownFilePath,
   resolveSafeMarkdownHref,
+  resolveSafeMarkdownHrefOrPath,
+  resolveSafeMarkdownImageSrc,
 } from './markdownLinkSecurity';
 
 export interface UniversalChatMarkdownProps {
   content: string;
   onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
+  resolveLocalImagePreviewUrl?: (path: string) => Promise<string | undefined>;
   openFileLabel?: string;
   openUrlLabel?: string;
   skills?: readonly ChatSkill[];
@@ -37,6 +41,74 @@ const EMPTY_MARKDOWN_SKILLS: readonly ChatSkill[] = [];
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
+
+/**
+ * URL transform shared by both markdown render modes.
+ *
+ * react-markdown's default transform blanks any URL whose first colon
+ * precedes the first slash and is not an allowlisted protocol, which drops
+ * Windows absolute image paths (`C:/Users/...`), `file:` URLs and `data:`
+ * images. Local file paths must survive so the `img`/`a` renderers below
+ * can render or open them.
+ */
+function transformChatMarkdownUrl(value: string, key: string): string {
+  if (key === 'src') {
+    return resolveSafeMarkdownImageSrc(value) ?? '';
+  }
+  return resolveSafeMarkdownHrefOrPath(value) ?? '';
+}
+
+const MarkdownImage = memo(function MarkdownImage({
+  alt,
+  resolveLocalImagePreviewUrl,
+  src,
+  title,
+}: {
+  alt?: string;
+  resolveLocalImagePreviewUrl?: (path: string) => Promise<string | undefined>;
+  src: string;
+  title?: string;
+}) {
+  const localPath = useMemo(() => resolveMarkdownFilePath(src), [src]);
+  const [previewSource, setPreviewSource] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!localPath || !resolveLocalImagePreviewUrl) {
+      setPreviewSource(undefined);
+      return;
+    }
+
+    let isCurrent = true;
+    void resolveLocalImagePreviewUrl(localPath)
+      .then((candidate) => {
+        if (!isCurrent) {
+          return;
+        }
+        const source = resolveAgentSessionItemMediaSource(candidate, 'image');
+        if (source) {
+          setPreviewSource(source);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      isCurrent = false;
+    };
+  }, [localPath, resolveLocalImagePreviewUrl]);
+
+  if (!src) {
+    return null;
+  }
+
+  return (
+    <img
+      src={previewSource ?? src}
+      alt={alt ?? ''}
+      loading="lazy"
+      className="my-2 max-h-[24rem] max-w-full rounded-md border border-white/10 object-contain"
+      title={title ?? localPath ?? undefined}
+    />
+  );
+});
 
 function processContent(content: string, skills: readonly ChatSkill[]) {
   const skillNames = skills
@@ -166,6 +238,7 @@ export function UniversalChatMarkdown({
   content,
   onOpenFile,
   onOpenUrl,
+  resolveLocalImagePreviewUrl,
   openFileLabel = 'Open file in editor',
   openUrlLabel = 'Open link preview',
   skills = EMPTY_MARKDOWN_SKILLS,
@@ -251,6 +324,14 @@ export function UniversalChatMarkdown({
         </a>
       );
     },
+    img: ({ node: _node, src, alt, title }: any) => (
+      <MarkdownImage
+        alt={alt}
+        resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
+        src={src}
+        title={title}
+      />
+    ),
     table: ({ node, children, ...props }: any) => (
       <div
         className="my-3 max-w-full overflow-x-auto rounded-md border border-white/10 custom-scrollbar"
@@ -307,6 +388,7 @@ export function UniversalChatMarkdown({
     onOpenUrl,
     openFileLabel,
     openUrlLabel,
+    resolveLocalImagePreviewUrl,
     skills,
     unknownSkillDescription,
   ]);
@@ -333,6 +415,7 @@ export function UniversalChatMarkdown({
       <ReactMarkdown
         components={basicMarkdownComponents}
         remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+        urlTransform={transformChatMarkdownUrl}
       >
         {content}
       </ReactMarkdown>
@@ -343,6 +426,7 @@ export function UniversalChatMarkdown({
     <ReactMarkdown
       components={richMarkdownComponents}
       remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+      urlTransform={transformChatMarkdownUrl}
     >
       {processedContent}
     </ReactMarkdown>

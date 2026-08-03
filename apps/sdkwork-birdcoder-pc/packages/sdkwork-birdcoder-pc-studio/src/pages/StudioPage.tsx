@@ -117,6 +117,7 @@ function StudioPageComponent({
   });
   const {
     agentSessionService,
+    fileSystemService,
     projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
@@ -213,6 +214,12 @@ function StudioPageComponent({
   const normalizedInitialAgentSessionId = initialAgentSessionId?.trim() || '';
   const currentProjectId =
     normalizedSessionProjectId || normalizedSelectedSessionProjectId || normalizedProjectId;
+  const resolveLocalImagePreviewUrl = useCallback((path: string) => {
+    if (!currentProjectId) {
+      return Promise.resolve(undefined);
+    }
+    return fileSystemService.resolveProjectImagePreviewUrl(currentProjectId, path);
+  }, [currentProjectId, fileSystemService]);
   const { runConfigurations, saveRunConfiguration } = useProjectRunConfigurations(currentProjectId || null);
   const selectedSession = selectedAgentSessionLocation?.agentSession;
   const {
@@ -1431,10 +1438,7 @@ function StudioPageComponent({
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
-        hasMoreRemoteMessages={Boolean(
-          selectedSession?.itemPageInfo?.hasMore
-          && selectedSession.itemPageInfo.retentionLimitReached !== true
-        )}
+        hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
         isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
         remoteMessagesLoadError={earlierAgentSessionItemsError}
         pendingApprovals={pendingApprovals}
@@ -1470,6 +1474,7 @@ function StudioPageComponent({
         refreshingAgentSessionId={refreshingAgentSessionId}
         onOpenFile={handleStudioOpenMessageFile}
         onOpenUrl={handleStudioOpenUrl}
+        resolveLocalImagePreviewUrl={resolveLocalImagePreviewUrl}
         onViewChanges={handleStudioViewChanges}
         onEditMessage={handleStudioEditMessage}
         onDeleteMessage={handleStudioDeleteMessage}

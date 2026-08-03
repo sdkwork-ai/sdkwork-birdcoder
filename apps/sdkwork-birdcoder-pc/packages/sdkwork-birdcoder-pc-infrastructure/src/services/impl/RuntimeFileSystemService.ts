@@ -911,6 +911,61 @@ export function resolveTauriImagePreviewMountedPath(
   return normalizeMountedVirtualPath(`${normalizedRootVirtualPath}/${normalizedRequestedPath}`);
 }
 
+function normalizeExternalImagePreviewPath(value: string): string {
+  const trimmedPath = value.trim();
+  if (!/^file:\/\//iu.test(trimmedPath)) {
+    return trimmedPath;
+  }
+
+  try {
+    const fileUrl = new URL(trimmedPath);
+    if (fileUrl.protocol.toLowerCase() !== 'file:') {
+      return trimmedPath;
+    }
+    const pathname = decodeURIComponent(fileUrl.pathname);
+    return /^\/[A-Za-z]:\//u.test(pathname) ? pathname.slice(1) : pathname;
+  } catch {
+    return trimmedPath;
+  }
+}
+
+/**
+ * Decide whether a local path is eligible for the bounded external image
+ * preview bridge. Eligible paths are absolute local system paths that do not
+ * belong to any registered project virtual namespace:
+ *
+ * - Windows drive paths (`C:/...`, `C:\...`) can never collide with virtual
+ *   mount paths, so they are always eligible.
+ * - POSIX absolute paths (`/Users/...`) are eligible unless they fall under a
+ *   registered root virtual path (e.g. `/project`), which would make them
+ *   virtual project paths that must stay confined to their mount scope.
+ *
+ * Relative paths and project virtual paths are never eligible.
+ */
+export function isAbsoluteExternalImagePreviewPath(
+  value: string,
+  registeredRootVirtualPaths: readonly string[],
+): boolean {
+  const normalizedPath = value.trim().replace(/\\/gu, '/');
+  if (!normalizedPath) {
+    return false;
+  }
+
+  if (/^[a-z]:\//iu.test(normalizedPath)) {
+    return true;
+  }
+  if (!normalizedPath.startsWith('/')) {
+    return false;
+  }
+
+  const registeredRoots = registeredRootVirtualPaths
+    .map((rootVirtualPath) => normalizeMountedVirtualPath(rootVirtualPath))
+    .filter((root): root is string => root !== null);
+  return !registeredRoots.some((root) => (
+    normalizedPath === root || normalizedPath.startsWith(`${root}/`)
+  ));
+}
+
 export class RuntimeFileSystemService implements IFileSystemService {
   private readonly projectBrowserMounts: Record<string, BrowserMountState> = {};
   private readonly projectTauriMounts: Record<string, TauriMountState> = {};
@@ -1291,10 +1346,6 @@ export class RuntimeFileSystemService implements IFileSystemService {
     path: string,
   ): Promise<string | undefined> {
     const scope = await this.reconcileMountedProjectSubject();
-    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
-      return undefined;
-    }
-
     const mount = this.projectTauriMounts[projectId];
     const mountedPath = mount
       ? resolveTauriImagePreviewMountedPath(
@@ -1303,18 +1354,33 @@ export class RuntimeFileSystemService implements IFileSystemService {
           path,
         )
       : null;
-    if (!mount || !mountedPath) {
+    if (mount && mountedPath) {
+      if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+        return undefined;
+      }
+
+      try {
+        const previewUrl = await this.tauriRuntime.readImagePreview(
+          mount.rootSystemPath,
+          mount.rootVirtualPath,
+          mountedPath,
+        );
+        await this.assertMountedProjectSubjectScopeCurrent(scope);
+        return previewUrl;
+      } catch {
+        return undefined;
+      }
+    }
+
+    const normalizedExternalPath = normalizeExternalImagePreviewPath(path);
+    const registeredRootVirtualPaths = Object.values(this.projectTauriMounts)
+      .map((entry) => entry.rootVirtualPath);
+    if (!isAbsoluteExternalImagePreviewPath(normalizedExternalPath, registeredRootVirtualPaths)) {
       return undefined;
     }
 
     try {
-      const previewUrl = await this.tauriRuntime.readImagePreview(
-        mount.rootSystemPath,
-        mount.rootVirtualPath,
-        mountedPath,
-      );
-      await this.assertMountedProjectSubjectScopeCurrent(scope);
-      return previewUrl;
+      return await this.tauriRuntime.readExternalImagePreview(normalizedExternalPath);
     } catch {
       return undefined;
     }

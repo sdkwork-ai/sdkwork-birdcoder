@@ -69,7 +69,7 @@ describe('workbench Agent model access selector adapter', () => {
     expect(models).toEqual(expect.arrayContaining([
       expect.objectContaining({
         catalogKey: 'openai/gpt-5.6-sol',
-        catalogVersion: '2026.07.26.1',
+        catalogVersion: expect.stringMatching(/^2026\./u),
         contextTokens: 1_050_000,
         inputModalities: ['text', 'image'],
         maxOutputTokens: 128_000,

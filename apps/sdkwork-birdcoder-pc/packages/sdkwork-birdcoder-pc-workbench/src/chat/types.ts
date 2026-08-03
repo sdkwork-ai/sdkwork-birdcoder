@@ -24,6 +24,8 @@ export type {
   AgentSessionTaskItemStatus,
   AgentSessionTaskItemView,
   AgentSessionTaskProgressView,
+  AgentSessionHookRunView,
+  AgentSessionHookStatsView,
   AgentTurnActivityPresentation,
   AgentSessionItemViewSource,
   FileChange,

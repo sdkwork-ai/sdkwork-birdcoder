@@ -1,4 +1,4 @@
-import React, { memo, useId, useMemo } from 'react';
+import React, { memo, useId, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Ban,
@@ -149,6 +149,22 @@ function resolveToolCallStatusLabel(
     // "{displayName} started working / updated / interrupted" line.
     return null;
   }
+  if (call.kind === 'command') {
+    // Codex desktop command footer (`execFooter`): success shows "Success",
+    // failures show the exit code, interrupted commands show "Stopped".
+    if (call.status === 'success') {
+      return t?.('chat.commandStatusSuccess') ?? 'Success';
+    }
+    if (call.status === 'error') {
+      return typeof call.exitCode === 'number' && Number.isFinite(call.exitCode)
+        ? t?.('chat.commandStatusExitCode', { code: call.exitCode })
+          ?? `Exit code ${call.exitCode}`
+        : t?.('chat.toolStatusError') ?? 'Failed';
+    }
+    if (call.status === 'cancelled') {
+      return t?.('chat.commandStatusStopped') ?? 'Stopped';
+    }
+  }
   const labels = {
     cancelled: t?.('chat.toolStatusCancelled') ?? 'Cancelled',
     error: t?.('chat.toolStatusError') ?? 'Failed',
@@ -185,8 +201,12 @@ function renderToolCallStatus(call: AgentSessionItemToolCallView, statusLabel: s
     statusIcon = <CircleDashed size={12} className="text-amber-300/75" aria-hidden="true" />;
   }
 
+  // Codex desktop shows the "Success" label next to the check icon on
+  // command rows (`execFooter.success`); other tool kinds keep the icon-only
+  // success state.
+  const isCommandSuccess = status === 'success' && call.kind === 'command';
   const statusTextClassName = status === 'success'
-    ? 'sr-only'
+    ? isCommandSuccess ? 'text-emerald-300' : 'sr-only'
     : status === 'error'
       ? 'text-red-300'
       : status === 'running'
@@ -221,6 +241,96 @@ function formatToolCallDuration(durationMs: number | undefined): string {
   return `${Math.floor(durationMs / 60_000)}m ${Math.round((durationMs % 60_000) / 1000)}s`;
 }
 
+/**
+ * Codex desktop step rows inside a grouped tool-call tree (browser-use
+ * steps): each child renders as its own expandable row with the tool name,
+ * status and output preview, matching the parent's affordance.
+ */
+function ToolCallChildRow({
+  call,
+  compact,
+  copyMessageToClipboard,
+  t,
+}: {
+  call: AgentSessionItemToolCallView;
+  compact: boolean;
+  copyMessageToClipboard: (content: string) => void;
+  t?: ChatMessageTranslate;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const actionPresentation = resolveToolCallActionPresentation(call, t);
+  const statusLabel = resolveToolCallStatusLabel(call, t);
+  const durationLabel = formatToolCallDuration(call.durationMs);
+  const outputPreview = buildToolCallDetailPreview(isExpanded ? call.output ?? '' : '');
+  const childLabel = actionPresentation.displayName || actionPresentation.label || call.name;
+  const detailLabel = isExpanded
+    ? t?.('chat.toolDetailsHide') ?? 'Hide tool details'
+    : t?.('chat.toolDetailsShow') ?? 'Show tool details';
+  const outputLabel = t?.('chat.toolOutput') ?? 'Output';
+
+  return (
+    <div className="min-w-0" data-chat-tool-child="true" data-chat-tool-child-kind={call.kind ?? 'other'}>
+      <button
+        type="button"
+        className="flex min-h-6 w-full min-w-0 items-center gap-2 rounded-md py-0.5 text-left transition-colors hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+        title={detailLabel}
+        aria-label={`${childLabel}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((value) => !value)}
+      >
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500">
+          {renderToolCallIcon(call, compact ? 11 : 12)}
+        </span>
+        <span className="min-w-0 shrink truncate text-[12px] text-gray-400">{childLabel}</span>
+        {durationLabel ? (
+          <span className="shrink-0 font-mono text-[10px] text-gray-600">{durationLabel}</span>
+        ) : null}
+        {statusLabel ? renderToolCallStatus(call, statusLabel) : null}
+        <span className="shrink-0 text-gray-600">
+          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </span>
+      </button>
+      {isExpanded ? (
+        <div className="ml-3 space-y-1.5 border-l border-white/[0.07] pb-1 pl-3 pt-0.5">
+          {call.arguments.trim() ? (
+            <ToolInputDetails
+              argumentsText={call.arguments}
+              compact={compact}
+              inputLabel={t?.('chat.toolInput') ?? 'Input'}
+              t={t}
+            />
+          ) : null}
+          {outputPreview.text ? (
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-gray-500">
+                <span>{outputLabel}</span>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                  title={t?.('chat.toolCopyOutput') ?? 'Copy tool output'}
+                  aria-label={t?.('chat.toolCopyOutput') ?? 'Copy tool output'}
+                  onClick={() => copyMessageToClipboard(call.output ?? '')}
+                >
+                  <Copy size={11} />
+                </button>
+              </div>
+              <pre className="overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap custom-scrollbar max-h-28">
+                {outputPreview.text}
+              </pre>
+              {outputPreview.isTruncated ? (
+                <div className="pt-1 text-[10px] text-gray-400/80">
+                  {t?.('chat.toolDetailTruncated')
+                    ?? 'Preview truncated. Copy to inspect the full content.'}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export const ToolCallCard = memo(function ToolCallCard({
   call,
   compact,
@@ -249,11 +359,24 @@ export const ToolCallCard = memo(function ToolCallCard({
     || call.status === 'waiting';
   const actionPresentation = resolveToolCallActionPresentation(call, t);
   const isCommandCall = call.kind === 'command';
+  // Codex desktop recognises browser-use / computer-use MCP servers and
+  // collapses their step chains to a "Used the browser" activity row
+  // (`localConversation.pendingMcpToolCalls.usedBrowser`) with the steps
+  // grouped as children of the invocation.
+  const isBrowserUseCall = call.kind === 'mcp'
+    && (
+      call.serverName?.trim().toLowerCase() === 'browser-use'
+      || call.serverName?.trim().toLowerCase() === 'computer-use'
+      || /^browser_/u.test(call.name.trim())
+      || /^computer_/u.test(call.name.trim())
+    );
   const toolLabel = contextCategory
     ? resolveContextToolCallLabel(contextCategory, t)
     : isCommandCall
       ? t?.('chat.toolCommandPrompt') ?? '$'
-      : actionPresentation.label;
+      : isBrowserUseCall
+        ? t?.('chat.browserUseLabel') ?? 'Used the browser'
+        : actionPresentation.label;
   const statusLabel = resolveToolCallStatusLabel(call, t);
   const durationLabel = formatToolCallDuration(call.durationMs);
   const rowDisplayName = truncateToolCallArgumentSummary(
@@ -284,11 +407,11 @@ export const ToolCallCard = memo(function ToolCallCard({
 
   return (
     <div
-      className={`w-full overflow-hidden ${
-        isCommandCall
-          ? 'group/command rounded-lg border border-white/10 bg-white/[0.02]'
-          : ''
-      }`}
+      className={isCommandCall
+        ? isExpanded
+          ? 'group/command w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]'
+          : 'group/command w-full min-w-0'
+        : 'w-full min-w-0 overflow-hidden'}
       data-chat-tool-kind={call.kind ?? 'other'}
       data-chat-tool-name={call.name ?? 'tool'}
     >
@@ -356,7 +479,24 @@ export const ToolCallCard = memo(function ToolCallCard({
         ) : null}
       </div>
       {isExpanded ? (
-        <div id={detailsId} className="ml-2 space-y-2 border-l border-white/[0.07] pb-2 pl-5 pr-1 pt-2">
+        <div
+          id={detailsId}
+          className={isCommandCall
+            ? 'space-y-2 px-2.5 pb-2 pt-1.5'
+            : 'ml-2 space-y-2 border-l border-white/[0.07] pb-2 pl-5 pr-1 pt-2'}
+        >
+          {call.children && call.children.length > 0 ? (
+            <div className="flex flex-col gap-1" data-chat-tool-children="true">
+              {call.children.map((child) => (
+                <ToolCallChildRow
+                  call={child}
+                  compact={compact}
+                  copyMessageToClipboard={copyMessageToClipboard}
+                  t={t}
+                />
+              ))}
+            </div>
+          ) : null}
           {call.arguments.trim() && !isCommandCall ? (
             <div>
               <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-gray-500">

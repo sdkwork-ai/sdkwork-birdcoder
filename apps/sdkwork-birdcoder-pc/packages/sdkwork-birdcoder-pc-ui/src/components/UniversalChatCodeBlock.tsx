@@ -28,9 +28,10 @@ import toml from 'react-syntax-highlighter/dist/esm/languages/prism/toml';
 import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { useBirdcoderTheme } from '@sdkwork/birdcoder-pc-workbench/theme/birdcoderTheme';
 import { copyTextToClipboard } from './clipboard';
 
 export interface UniversalChatCodeBlockProps extends Record<string, unknown> {
@@ -141,6 +142,7 @@ export function UniversalChatCodeBlock({
   ...props
 }: UniversalChatCodeBlockProps) {
   const { t } = useTranslation();
+  const { colorMode } = useBirdcoderTheme();
   const [copied, setCopied] = useState(false);
   const copyFeedbackTimeoutRef = useRef<number | null>(null);
 
@@ -195,7 +197,7 @@ export function UniversalChatCodeBlock({
       <div className="overflow-x-auto custom-scrollbar text-[13px] leading-relaxed font-mono">
         <SyntaxHighlighterComponent
           language={resolveLanguage(language || 'text')}
-          style={vscDarkPlus}
+          style={colorMode === 'dark' ? vscDarkPlus : oneLight}
           customStyle={{
             margin: 0,
             padding: '1rem',

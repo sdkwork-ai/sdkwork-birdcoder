@@ -46,6 +46,7 @@ permissions = [
   "allow-desktop-runtime-config",
   "allow-desktop-runtime-location-install-identity",
   "allow-desktop-runtime-location-create-root-locator",
+  "allow-local-plugin-catalog-discover",
 
   # Local store commands
   "allow-local-store-get",
@@ -82,6 +83,7 @@ permissions = [
   "allow-fs-snapshot-folder",
   "allow-fs-read-file",
   "allow-fs-read-image-preview",
+  "allow-fs-read-external-image-preview",
   "allow-fs-get-file-revision",
   "allow-fs-get-file-revisions",
   "allow-fs-get-directory-revisions",

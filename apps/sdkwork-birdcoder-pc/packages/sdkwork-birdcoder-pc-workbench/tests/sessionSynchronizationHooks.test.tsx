@@ -372,6 +372,69 @@ describe('useSessionRefreshActions request lifecycle', () => {
       );
   });
 
+  it('rebases a loaded history page onto the current Store session when the guarded commit is rejected', async () => {
+    const project = createProject('project-a');
+    const agentSession = {
+      ...createSession(project.projectId),
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.3', pageSize: 50 },
+    };
+    const loadedSession = {
+      ...agentSession,
+      itemPageInfo: { hasMore: false, nextCursor: null, pageSize: 50 },
+    };
+    const currentSession = {
+      ...agentSession,
+      itemPageInfo: { hasMore: true, nextCursor: 'cursor.4', pageSize: 50 },
+    };
+    mocks.getAgentSessionTranscriptRevision.mockReturnValueOnce(17);
+    mocks.loadEarlierAgentSessionItems.mockResolvedValueOnce({
+      agentSession: loadedSession,
+      loadedItemCount: 1,
+      projectId: project.projectId,
+      source: 'agents',
+      status: 'loaded',
+    });
+    mocks.upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged.mockReturnValueOnce(false);
+    const resolveAgentSessionLocation = vi.fn(() => ({
+      agentSession: currentSession,
+      project,
+    }));
+    const { result } = renderHook(() => useSessionRefreshActions({
+      addToast: vi.fn(),
+      agentSessionService,
+      getPreservedSelection: () => ({
+        agentSessionId: agentSession.id,
+        projectId: project.projectId,
+      }),
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionLocation,
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: vi.fn(),
+      refreshProjectSessionInventory: mocks.refreshProjectSessionInventory,
+    }));
+
+    await act(async () => {
+      await result.current.handleLoadEarlierAgentSessionItems(
+        agentSession.id,
+        project.projectId,
+      );
+    });
+
+    expect(mocks.upsertAgentSessionIntoProjectsStoreIfTranscriptUnchanged)
+      .toHaveBeenCalledTimes(1);
+    // The rejected guarded commit is rebased onto the current Store session:
+    // loaded items merge via ordered-window and the current cursor is kept.
+    expect(mocks.upsertAgentSessionIntoProjectsStore).toHaveBeenCalledWith(
+      project.projectId,
+      { ...loadedSession, itemPageInfo: currentSession.itemPageInfo },
+      project.workspaceId,
+      'user-a::session:0',
+      { itemMergeMode: 'ordered-window' },
+    );
+  });
+
   it('keeps a scoped history error visible until a retry succeeds', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const addToast = vi.fn();

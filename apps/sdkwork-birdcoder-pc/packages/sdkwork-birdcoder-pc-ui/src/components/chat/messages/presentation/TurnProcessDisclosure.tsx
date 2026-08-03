@@ -71,9 +71,6 @@ export const TurnProcessDisclosure = memo(function TurnProcessDisclosure({
   const processedLabel = context.environment?.t('chat.turnProcessed') ?? 'Processed';
   const expandLabel = context.environment?.t('chat.turnProcessExpand') ?? 'Show execution process';
   const collapseLabel = context.environment?.t('chat.turnProcessCollapse') ?? 'Hide execution process';
-  const stepsLabel = context.environment?.t('chat.turnProcessSteps', {
-    count: presentation.processBlockCount,
-  }) ?? `${presentation.processBlockCount} steps`;
   const title = !duration
     ? (presentation.isActive ? workingLabel : processedLabel)
     : presentation.isActive
@@ -90,9 +87,9 @@ export const TurnProcessDisclosure = memo(function TurnProcessDisclosure({
     >
       <button
         type="button"
-        className="group/activity-header inline-flex min-w-0 max-w-full self-start items-center gap-1 p-0 text-left text-[13px] text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+        className="group/activity-header inline-flex min-w-0 max-w-full self-start items-center gap-1 rounded-md border border-transparent p-0 text-left text-[13px] text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         aria-expanded={isExpanded}
-        aria-label={`${title}${duration ? `, ${duration}` : ''}. ${actionLabel}`}
+        aria-label={`${title}. ${actionLabel}`}
         title={actionLabel}
         onClick={() => {
           if (presentation.isActive && !isExplicitlyExpanded) {
@@ -103,8 +100,7 @@ export const TurnProcessDisclosure = memo(function TurnProcessDisclosure({
         }}
       >
         <span className="min-w-0 truncate text-gray-400 group-hover/activity-header:text-gray-200">{title}</span>
-        <span className="shrink-0 text-gray-500">{stepsLabel}</span>
-        <span className="flex size-4 shrink-0 items-center justify-center text-gray-500 opacity-0 transition-opacity group-hover/activity-header:opacity-100 group-focus-visible/activity-header:opacity-100">
+        <span className="flex size-4 shrink-0 items-center justify-center text-gray-500">
           <ChevronRight
             size={12}
             aria-hidden="true"

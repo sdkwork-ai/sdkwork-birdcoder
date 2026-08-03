@@ -26,7 +26,30 @@ const OPENCODE_ALIGNED_ACTIVITY_PRESENTATION = Object.freeze({
   tools: 'compact-disclosure',
 } as const);
 
-export const OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY = Object.freeze({
+export interface ChatTranscriptActiveTailPolicy {
+  fallbackLabel: string;
+  labelKey: string;
+}
+
+export interface ChatTranscriptPresentationPolicy {
+  activeTail: ChatTranscriptActiveTailPolicy;
+  activityPresentation: Readonly<{
+    lifecycle: 'inline';
+    reasoning: 'summary-disclosure';
+    tools: 'compact-disclosure';
+  }>;
+  density: 'comfortable';
+  providerIdentity: Readonly<{
+    main: 'hidden';
+    sidebar: 'authored-markdown';
+  }>;
+  transcriptStyle: string;
+  tools: Readonly<{
+    context: 'grouped-disclosure';
+  }>;
+}
+
+export const OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY: ChatTranscriptPresentationPolicy = Object.freeze({
   activeTail: Object.freeze({
     fallbackLabel: 'Working',
     labelKey: 'chat.providerWorking',
@@ -41,10 +64,20 @@ export const OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY = Object.freeze({
   tools: Object.freeze({
     context: 'grouped-disclosure',
   } as const),
-} as const);
+});
 
-export type ChatTranscriptPresentationPolicy =
-  typeof OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY;
+/**
+ * Gemini surfaces a "Thinking" streaming tail instead of the default
+ * "Working" used by Codex-aligned providers, mirroring Gemini's product
+ * language while keeping the transcript structure identical.
+ */
+export const GEMINI_CHAT_TRANSCRIPT_POLICY: ChatTranscriptPresentationPolicy = Object.freeze({
+  ...OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+  activeTail: Object.freeze({
+    fallbackLabel: 'Thinking',
+    labelKey: 'chat.providerThinking',
+  } as const),
+});
 
 export interface ChatProviderPresentationProfile {
   engineId: ChatProviderEngineId;
@@ -75,7 +108,7 @@ export const CHAT_PROVIDER_PRESENTATION_PROFILES:
   }),
   Object.freeze({
     engineId: 'gemini',
-    presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
+    presentation: GEMINI_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.gemini,
     surfaceLabel: 'Gemini',
   }),

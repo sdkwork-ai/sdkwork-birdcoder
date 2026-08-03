@@ -89,6 +89,7 @@ export interface BirdCoderTauriFileSystemRuntime {
     rootVirtualPath: string,
     mountedPath: string,
   ): Promise<string>;
+  readExternalImagePreview(absolutePath: string): Promise<string>;
   getFileRevision(
     rootSystemPath: string,
     rootVirtualPath: string,
@@ -423,6 +424,11 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
       return invokeTauriFileSystemCommand<string>('fs_read_image_preview', {
         rootPath: rootSystemPath,
         relativePath: toMountedRelativePath(rootVirtualPath, mountedPath),
+      });
+    },
+    async readExternalImagePreview(absolutePath) {
+      return invokeTauriFileSystemCommand<string>('fs_read_external_image_preview', {
+        absolutePath,
       });
     },
     async getFileRevision(rootSystemPath, rootVirtualPath, mountedPath) {

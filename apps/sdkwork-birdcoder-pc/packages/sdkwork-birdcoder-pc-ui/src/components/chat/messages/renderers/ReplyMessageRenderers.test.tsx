@@ -122,11 +122,23 @@ describe('AssistantReplyMessageRenderer', () => {
       />,
     );
 
+    // Codex desktop opens the feedback reason dialog after the thumbs
+    // selection; the rating is committed when the dialog is submitted.
     fireEvent.click(screen.getByRole('button', { name: 'Good response' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'chat.turnRatingSolvedMyTask' }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.turnRatingSubmit' }));
+    expect(ratings).toEqual(['thumbs_up']);
+
     fireEvent.click(screen.getByRole('button', { name: 'Bad response' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'chat.turnRatingIncorrectOrIncomplete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.turnRatingSubmit' }));
     expect(ratings).toEqual(['thumbs_up', 'thumbs_down']);
+
+    // Re-selecting the active rating clears it without opening the dialog.
     fireEvent.click(screen.getByRole('button', { name: 'Bad response' }));
     expect(ratings).toEqual(['thumbs_up', 'thumbs_down', null]);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('button', { name: 'Bad response' }).getAttribute('aria-pressed')).toBe('false');
   });
 
