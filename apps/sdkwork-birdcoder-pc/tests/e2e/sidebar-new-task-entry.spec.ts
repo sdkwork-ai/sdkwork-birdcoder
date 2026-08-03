@@ -83,9 +83,9 @@ test('sidebar new-task entry matches the navigation-row interaction', async ({
     '[data-session-row-variant="pinned"][data-agent-session-id="e2e-claude-session"]',
   );
   await expect(pinnedSessionRow).toBeVisible();
-  await expect(pinnedSessionRow.locator('[data-session-provider-badge="leading"]')).toHaveCount(0);
+  await expect(pinnedSessionRow.locator('[data-session-provider-badge="leading"]')).toHaveCount(1);
   await expect(pinnedSessionRow.locator('.lucide-pin')).toHaveCount(0);
-  await expect(pinnedSessionRow.locator('[data-session-trailing-metadata="true"]')).toHaveCount(0);
+  await expect(pinnedSessionRow.locator('[data-session-trailing-metadata="true"]')).toHaveCount(1);
   const projectsHeader = page.locator('[data-sidebar-projects-header="true"]');
   await expect(projectsHeader).toContainText('Projects');
   const addProjectTrigger = projectsHeader.locator('[data-sidebar-add-project-trigger="true"]');

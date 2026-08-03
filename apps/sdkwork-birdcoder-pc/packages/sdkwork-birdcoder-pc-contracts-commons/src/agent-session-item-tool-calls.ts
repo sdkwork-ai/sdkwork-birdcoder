@@ -642,7 +642,10 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
     };
   }
   if (type === 'sub_agent_activity') {
-    const activityKind = normalizeToolCallName(readNonEmptyString(source.kind));
+    // A re-normalized view (written back by composeAgentSessionTranscriptActivity)
+    // carries the resolved name (`subagent_started`) but not the raw `kind`.
+    const activityKind = normalizeToolCallName(readNonEmptyString(source.kind))
+      || (/^subagent_(.+)$/u.exec(readNonEmptyString(source.name) ?? '')?.[1] ?? '');
     const sourceWithoutProtocolWrapper = { ...source };
     const agentSessionId = source.agentSessionId ?? source.agentThreadId;
     delete sourceWithoutProtocolWrapper.agentThreadId;
@@ -650,13 +653,15 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
     delete sourceWithoutProtocolWrapper.kind;
     return {
       ...sourceWithoutProtocolWrapper,
-      name: activityKind ? `subagent_${activityKind}` : 'subagent_activity',
+      name: activityKind ? `subagent_${activityKind}` : readNonEmptyString(source.name) || 'subagent_activity',
       type: 'agent',
-      arguments: {
-        kind: activityKind,
-        agentSessionId,
-        agentPath: source.agentPath,
-      },
+      arguments: typeof source.arguments === 'string'
+        ? source.arguments
+        : {
+            kind: activityKind,
+            agentSessionId,
+            agentPath: source.agentPath,
+          },
       target: source.agentPath ?? agentSessionId,
       status: activityKind === 'interrupted'
         ? 'cancelled'
@@ -720,7 +725,9 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
   if (type === 'dynamic_tool_call') {
     return {
       ...source,
-      name: readNonEmptyString(source.tool) || 'tool',
+      name: readNonEmptyString(source.tool)
+        || readNonEmptyString(source.name)
+        || 'tool',
       output: source.contentItems ?? source.content_items,
       status: source.success === false ? 'failed' : source.status,
     };
@@ -773,17 +780,23 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
     delete sourceWithoutProviderSessionAliases.senderThreadId;
     return {
       ...sourceWithoutProviderSessionAliases,
-      name: readNonEmptyString(source.tool) || 'agent',
-      arguments: {
-        senderSessionId,
-        receiverSessionIds,
-        prompt: source.prompt,
-        model: source.model,
-        reasoningEffort: source.reasoningEffort,
-      },
+      // A re-normalized view (written back by composeAgentSessionTranscriptActivity)
+      // carries the resolved tool name but not the raw `tool` field.
+      name: readNonEmptyString(source.tool)
+        || readNonEmptyString(source.name)
+        || 'agent',
+      arguments: typeof source.arguments === 'string'
+        ? source.arguments
+        : {
+            senderSessionId,
+            receiverSessionIds,
+            prompt: source.prompt,
+            model: source.model,
+            reasoningEffort: source.reasoningEffort,
+          },
       title: receiverSessionIds.length > 0
         ? `${receiverSessionIds.length} agent${receiverSessionIds.length === 1 ? '' : 's'}`
-        : undefined,
+        : source.title,
     };
   }
 

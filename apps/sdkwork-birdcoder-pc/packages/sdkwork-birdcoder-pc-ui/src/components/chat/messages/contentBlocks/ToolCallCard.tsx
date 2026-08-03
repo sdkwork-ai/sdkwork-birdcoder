@@ -9,6 +9,7 @@ import {
   CircleDashed,
   Copy,
   FileCode2,
+  FolderGit2,
   Globe2,
   Image,
   ListTodo,
@@ -143,6 +144,11 @@ function resolveToolCallStatusLabel(
   call: AgentSessionItemToolCallView,
   t?: ChatMessageTranslate,
 ): string | null {
+  if (call.kind === 'agent' && call.name.trim().toLowerCase().startsWith('subagent_')) {
+    // Codex desktop renders sub-agent activity as a bare
+    // "{displayName} started working / updated / interrupted" line.
+    return null;
+  }
   const labels = {
     cancelled: t?.('chat.toolStatusCancelled') ?? 'Cancelled',
     error: t?.('chat.toolStatusError') ?? 'Failed',
@@ -254,6 +260,8 @@ export const ToolCallCard = memo(function ToolCallCard({
     contextCategory ? argumentSummary : actionPresentation.displayName,
   );
   const rowArgumentSummary = contextCategory
+    || isCommandCall
+    || (call.kind === 'agent' && call.name.trim().toLowerCase().startsWith('subagent_'))
     || !argumentSummary
     || argumentSummary === rowDisplayName
     ? ''
@@ -264,56 +272,92 @@ export const ToolCallCard = memo(function ToolCallCard({
   const inputLabel = t?.('chat.toolInput') ?? 'Input';
   const outputLabel = t?.('chat.toolOutput') ?? 'Output';
   const noInputLabel = t?.('chat.toolNoInput') ?? 'No input';
-  const noOutputLabel = t?.('chat.toolNoOutput') ?? 'No output';
+  const noOutputLabel = call.kind === 'mcp'
+    ? t?.('chat.toolMcpNoResult') ?? 'Tool returned no content'
+    : t?.('chat.toolNoOutput') ?? 'No output';
   const pendingOutputLabel = t?.('chat.toolOutputPending') ?? 'Waiting for output.';
   const copyInputLabel = t?.('chat.toolCopyInput') ?? 'Copy tool input';
   const copyOutputLabel = t?.('chat.toolCopyOutput') ?? 'Copy tool output';
+  const copyCommandLabel = t?.('chat.toolCopyCommand') ?? 'Copy command';
   const truncatedLabel = t?.('chat.toolDetailTruncated')
     ?? 'Preview truncated. Copy to inspect the full content.';
 
   return (
-    <div className="w-full overflow-hidden" data-chat-tool-kind={call.kind ?? 'other'}>
-      <button
-        type="button"
-        data-chat-tool-disclosure="true"
-        className="flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
-        title={detailLabel}
-        aria-label={`${toolLabel}${rowDisplayName ? `: ${rowDisplayName}` : ''}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
-        aria-expanded={isExpanded}
-        aria-controls={detailsId}
-        onClick={onToggle}
-      >
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500">
-          {renderToolCallIcon(call, compact ? 12 : 13)}
-        </span>
-        <span className="shrink-0 text-[13px] font-medium text-gray-300">{toolLabel}</span>
-        {rowDisplayName ? (
-          <span
-            className={`min-w-0 shrink truncate text-[13px] ${isCommandCall ? 'font-mono text-gray-400' : 'text-gray-500'}`}
-          >
-            {rowDisplayName}
+    <div
+      className={`w-full overflow-hidden ${
+        isCommandCall
+          ? 'group/command rounded-lg border border-white/10 bg-white/[0.02]'
+          : ''
+      }`}
+      data-chat-tool-kind={call.kind ?? 'other'}
+      data-chat-tool-name={call.name ?? 'tool'}
+    >
+      <div className="flex w-full min-w-0 items-center gap-1">
+        <button
+          type="button"
+          data-chat-tool-disclosure="true"
+          className="flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+          title={detailLabel}
+          aria-label={`${toolLabel}${rowDisplayName ? `: ${rowDisplayName}` : ''}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
+          onClick={onToggle}
+        >
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500">
+            {renderToolCallIcon(call, compact ? 12 : 13)}
+          </span>
+          <span className="shrink-0 text-[13px] font-medium text-gray-300">{toolLabel}</span>
+          {rowDisplayName ? (
+            <span
+              className={`min-w-0 shrink truncate text-[13px] ${isCommandCall ? 'font-mono text-gray-400' : 'text-gray-500'}`}
+              title={isCommandCall ? rowDisplayName : undefined}
+            >
+              {rowDisplayName}
+            </span>
+          ) : null}
+          {rowArgumentSummary ? (
+            <span className="min-w-0 flex-1 truncate text-[12px] text-gray-600 max-[760px]:hidden">
+              {rowArgumentSummary}
+            </span>
+          ) : call.arguments.trim() ? (
+            <span className="min-w-0 flex-1" aria-hidden="true" />
+          ) : (
+            <span className="min-w-0 flex-1 text-[11px] text-gray-400/80">{noInputLabel}</span>
+          )}
+          {durationLabel ? (
+            <span className="shrink-0 font-mono text-[10px] text-gray-600">{durationLabel}</span>
+          ) : null}
+          {statusLabel ? renderToolCallStatus(call, statusLabel) : null}
+          <span className="shrink-0 text-gray-600">
+            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </span>
+        </button>
+        {isCommandCall ? (
+          <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/command:opacity-100 group-focus-within/command:opacity-100 max-[420px]:hidden">
+            {call.workingDirectory?.trim() ? (
+              <span
+                className="hidden cursor-help items-center rounded px-1 text-[10px] text-gray-600 hover:text-gray-400 md:inline-flex"
+                title={`cwd: ${call.workingDirectory}`}
+                data-chat-command-cwd="true"
+              >
+                <FolderGit2 size={11} aria-hidden="true" />
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+              title={copyCommandLabel}
+              aria-label={copyCommandLabel}
+              onClick={() => copyMessageToClipboard(rowDisplayName || call.command || '')}
+            >
+              <Copy size={11} />
+            </button>
           </span>
         ) : null}
-        {rowArgumentSummary ? (
-          <span className="min-w-0 flex-1 truncate text-[12px] text-gray-600 max-[760px]:hidden">
-            {rowArgumentSummary}
-          </span>
-        ) : call.arguments.trim() ? (
-          <span className="min-w-0 flex-1" aria-hidden="true" />
-        ) : (
-          <span className="min-w-0 flex-1 text-[11px] text-gray-400/80">{noInputLabel}</span>
-        )}
-        {durationLabel ? (
-          <span className="shrink-0 font-mono text-[10px] text-gray-600">{durationLabel}</span>
-        ) : null}
-        {statusLabel ? renderToolCallStatus(call, statusLabel) : null}
-        <span className="shrink-0 text-gray-600">
-          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        </span>
-      </button>
+      </div>
       {isExpanded ? (
         <div id={detailsId} className="ml-2 space-y-2 border-l border-white/[0.07] pb-2 pl-5 pr-1 pt-2">
-          {call.arguments.trim() ? (
+          {call.arguments.trim() && !isCommandCall ? (
             <div>
               <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-gray-500">
                 <span>{inputLabel}</span>
@@ -367,14 +411,22 @@ export const ToolCallCard = memo(function ToolCallCard({
                   t={t}
                 />
               ) : (
-                <pre
-                  className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap custom-scrollbar ${compact ? 'max-h-28' : 'max-h-36'}`}
-                  role="region"
-                  aria-label={outputLabel}
-                  tabIndex={0}
-                >
-                  {outputPreview.text}
-                </pre>
+                <div className="relative">
+                  <pre
+                    className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap custom-scrollbar ${compact ? 'max-h-28' : 'max-h-36'}`}
+                    role="region"
+                    aria-label={outputLabel}
+                    tabIndex={0}
+                  >
+                    {outputPreview.text}
+                  </pre>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-5 rounded-b-md"
+                    style={{ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.45), transparent)' }}
+                    data-chat-tool-output-fade="true"
+                  />
+                </div>
               )
             ) : (
               <div

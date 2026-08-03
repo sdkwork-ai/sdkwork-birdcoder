@@ -500,7 +500,7 @@ assert.match(
 );
 assert.match(
   codexSessionParitySpec,
-  /data-chat-message-resource=["']image["']/u,
+  /data-chat-inspected-images=["']true["']/u,
   'PC Codex parity e2e must verify image grouping presentation.',
 );
 assert.match(

@@ -177,7 +177,7 @@ describe('Codex provider Session item routing', () => {
     const visibleView = toAgentSessionItemView(visibleItem);
 
     expect(visibleView.role).toBe('user');
-    expect(visibleView.content).toBe('Hook validation failed.\nUpdate the affected file.');
+    expect(visibleView.content).toBe('Hook validation failed. | Update the affected file.');
     expect(toAgentSessionTranscriptItemViews([visibleItem])).toHaveLength(1);
 
     const emptyItem = createProviderSessionItem('codex-hook-prompt-empty', {

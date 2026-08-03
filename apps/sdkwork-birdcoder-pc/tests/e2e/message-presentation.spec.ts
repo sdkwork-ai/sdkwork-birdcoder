@@ -384,6 +384,35 @@ test('Conversation messages render rich content and expandable command evidence'
   const turnFileChanges = transcript.locator('[data-chat-turn-file-changes="true"]');
   await expect(turnFileChanges).toHaveCount(0);
 
+  // Codex desktop parity: the command shell block and the edited-files list
+  // are visible without expanding the activity summary.
+  const commandCard = transcript.locator('[data-chat-tool-kind="command"]').first();
+  await expect(commandCard).toBeVisible();
+  await expect(commandCard).toContainText('pnpm typecheck');
+  const inlineFileChanges = activitySummary.locator('[data-chat-file-change-row="inline"]');
+  await expect(inlineFileChanges).toHaveCount(5);
+  await expect(activitySummary.getByText('Edited 5 files', { exact: true })).toBeVisible();
+  const commandCardDisclosure = commandCard.locator('[data-chat-tool-disclosure="true"]');
+  await expect(commandCardDisclosure).toHaveAttribute('aria-expanded', 'false');
+  const copyCommandButton = commandCard.locator('button[aria-label="Copy command"]');
+  await expect(copyCommandButton).toHaveCount(1);
+  await commandCardDisclosure.click();
+  await expect(commandCardDisclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect(commandCard).toContainText('TypeScript check passed.');
+  await expect.poll(() => commandCard.evaluate((element) => {
+    const transcriptRegion = element.closest('[role="region"]');
+    if (!transcriptRegion) {
+      return false;
+    }
+    const cardRect = element.getBoundingClientRect();
+    const transcriptRect = transcriptRegion.getBoundingClientRect();
+    return cardRect.top >= transcriptRect.top - 1
+      && cardRect.bottom <= transcriptRect.bottom + 1;
+  })).toBe(true);
+  await commandCardDisclosure.click();
+  await expect(commandCardDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await captureVisualEvidenceScreenshot(page, 'message-command-and-file-changes-900x800');
+
   await expect(finalReply).toBeVisible();
   const inlineCode = transcript.locator('code').filter({ hasText: 'sdkwork-agents' });
   await expect(inlineCode).toHaveCount(1);
@@ -401,7 +430,6 @@ test('Conversation messages render rich content and expandable command evidence'
   await activityDisclosure.click();
   await expect(activityDisclosure).toHaveAttribute('aria-expanded', 'true');
   await expect(activitySummary.locator('[data-chat-activity-details="true"]')).toBeVisible();
-  const inlineFileChanges = activitySummary.locator('[data-chat-file-change-row="inline"]');
   await expect(inlineFileChanges).toHaveCount(5);
   await expect(activitySummary.locator('[data-chat-file-open="true"]').first()).toHaveAccessibleName(
     'Open file in editor: apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
@@ -920,8 +948,8 @@ test('OpenClaw and Hermes durable histories render merged natural tool activity'
 
   const hermesMcpCall = transcript.locator('[data-chat-tool-kind="mcp"]');
   await expect(hermesMcpCall).toHaveCount(1);
-  await expect(hermesMcpCall).toContainText('Called');
   await expect(hermesMcpCall).toContainText('filesystem / Read file');
+  await expect(hermesMcpCall).not.toContainText('Called');
   await expect(hermesMcpCall.locator('[data-chat-tool-status="success"]')).toHaveCount(1);
   await hermesMcpCall.locator('[data-chat-tool-disclosure="true"]').click();
   await expect(hermesMcpCall.locator('[data-chat-tool-input-fields="true"]')).toContainText(

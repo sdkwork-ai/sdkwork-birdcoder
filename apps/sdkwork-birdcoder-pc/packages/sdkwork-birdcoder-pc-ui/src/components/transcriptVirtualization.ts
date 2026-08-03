@@ -4,6 +4,10 @@ import {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export const MIN_VIRTUALIZED_MESSAGE_COUNT = 96;
+// Hard render budget for high-variance transcripts: below this count the list
+// renders fully for fidelity; at or above it the window always virtualizes so
+// a single long coding session cannot hold hundreds of full rows in the DOM.
+export const MAX_NON_VIRTUALIZED_MESSAGE_COUNT = 200;
 export const VIRTUALIZED_OVERSCAN_PX = 720;
 
 export interface TranscriptHeightEstimateOptions {
@@ -500,6 +504,7 @@ export function resolveVirtualizedTranscriptWindow({
   isActive,
   messages,
   minVirtualizedMessageCount = MIN_VIRTUALIZED_MESSAGE_COUNT,
+  maxNonVirtualizedMessageCount = MAX_NON_VIRTUALIZED_MESSAGE_COUNT,
   overscanPx = VIRTUALIZED_OVERSCAN_PX,
   prefixHeights,
   viewport,
@@ -507,6 +512,7 @@ export function resolveVirtualizedTranscriptWindow({
   isActive: boolean;
   messages: readonly AgentSessionItemView[];
   minVirtualizedMessageCount?: number;
+  maxNonVirtualizedMessageCount?: number;
   overscanPx?: number;
   prefixHeights: readonly number[];
   viewport: TranscriptViewport;
@@ -520,9 +526,24 @@ export function resolveVirtualizedTranscriptWindow({
     };
   }
 
+  if (messages.length <= minVirtualizedMessageCount) {
+    return {
+      paddingBottom: 0,
+      paddingTop: 0,
+      visibleMessages: messages,
+      visibleStartIndex: 0,
+    };
+  }
+
+  // High-variance rows (tool calls, commands, reasoning, ...) are the norm in
+  // coding sessions, so a content-based gate disabled virtualization for
+  // nearly every long transcript and rendered hundreds of rows fully (H3).
+  // Short lists still render fully for the best fidelity; once the list
+  // exceeds the hard budget the window virtualizes regardless of row shape,
+  // using the estimated-height + measured-height cache for stability.
   if (
-    messages.length <= minVirtualizedMessageCount
-    || messages.some(hasHighVarianceTranscriptLayout)
+    messages.length <= maxNonVirtualizedMessageCount
+    && messages.some(hasHighVarianceTranscriptLayout)
   ) {
     return {
       paddingBottom: 0,

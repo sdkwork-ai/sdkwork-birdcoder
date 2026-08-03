@@ -137,7 +137,7 @@ async function run() {
 
     // Open the Claude session so the transcript renders.
     const opened = await page
-      .locator('.birdcoder-session-row[data-agent-session-id="e2e-claude-session"]')
+      .locator('.birdcoder-session-row[data-agent-session-id="e2e-codex-session"]')
       .first()
       .click({ timeout: 10_000 })
       .then(() => true, () => false);
@@ -188,6 +188,256 @@ async function run() {
     console.log(transcriptText.slice(3_000, 8_000));
     console.log('--- transcript text tail ---');
     console.log(transcriptText.slice(-1_500));
+    const commandCard = await page.evaluate(() => {
+      const card = document.querySelector('[data-chat-tool-kind="command"]');
+      if (!card) return null;
+      const disclosure = card.querySelector('[data-chat-tool-disclosure="true"]');
+      const copyBtn = Array.from(card.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'Copy command');
+      const cwd = card.querySelector('[data-chat-command-cwd="true"]');
+      disclosure?.click();
+      return {
+        rowText: (disclosure?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 80),
+        hasCopyButton: Boolean(copyBtn),
+        hasCwd: Boolean(cwd),
+        outputFade: Boolean(card.querySelector('[data-chat-tool-output-fade="true"]')),
+        outputText: (card.querySelector('pre')?.textContent ?? '').slice(0, 60),
+        noInputSection: !card.textContent?.includes('Input'),
+      };
+    });
+    const toolRows = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('[data-chat-tool-kind]'));
+      return rows.map((row) => ({
+        kind: row.getAttribute('data-chat-tool-kind'),
+        text: (row.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 110),
+      }));
+    });
+    const rawItems = await page.evaluate(async () => {
+      const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+      const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+      const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const body = await res.json();
+      const items = body?.data?.items ?? [];
+      const byId = new Map(items.map((i) => [i.itemId, i]));
+      return {
+        status: res.status,
+        count: items.length,
+        dynamic: byId.get('e2e-codex-item-97')?.toolResult ?? null,
+        web: byId.get('e2e-codex-item-96')?.toolResult ?? null,
+      };
+    });
+    console.log('=== RAW DYNAMIC/WEB ITEMS ===');
+    console.log(JSON.stringify(rawItems, null, 1));
+    const browserNormalize = await page.evaluate(async () => {
+      try {
+        const mod = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts');
+        const record = { id: 't1', type: 'dynamicToolCall', namespace: 'codex', tool: 'update_plan', arguments: { plan: 'x' }, status: 'completed', success: true, durationMs: 18 };
+        const call = mod.normalizeAgentSessionItemToolCall(record, 0, { engineId: 'codex' });
+        return { ok: true, name: call?.name, kind: call?.kind };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 200) };
+      }
+    });
+    const fullChain = await page.evaluate(async () => {
+      try {
+        const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+        const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        });
+        const body = await res.json();
+        const items = body?.data?.items ?? [];
+        const item97 = items.find((i) => i.itemId === 'e2e-codex-item-97');
+        const vm = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts');
+        const tc = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts');
+        const view = vm.toAgentSessionItemView(item97);
+        return { ok: true, toolCalls: view.tool_calls, normalized: tc.normalizeAgentSessionItemToolCalls(view.tool_calls, { engineId: 'codex' }).map((c) => ({ name: c.name, kind: c.kind })) };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    console.log('=== FULL CHAIN ===');
+    console.log(JSON.stringify(fullChain, null, 1));
+    const toolRowDetail = await page.evaluate(async () => {
+      const rows = Array.from(document.querySelectorAll('[data-chat-tool-kind="task"]'));
+      const target = rows.find((r) => r.textContent?.includes('Verify the provider-neutral'));
+      if (!target) return { found: false };
+      const disclosure = target.querySelector('[data-chat-tool-disclosure="true"]');
+      disclosure?.click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        found: true,
+        text: (target.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
+        inputFields: Array.from(target.querySelectorAll('[data-chat-tool-input-fields="true"] *, pre'))
+          .map((e) => (e.textContent ?? '').trim()).filter(Boolean).slice(0, 3),
+      };
+    });
+    console.log('=== TOOL ROW DETAIL ===');
+    console.log(JSON.stringify(toolRowDetail, null, 1));
+    const presentationCheck = await page.evaluate(async () => {
+      try {
+        const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+        const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        });
+        const body = await res.json();
+        const items = body?.data?.items ?? [];
+        const item97 = items.find((i) => i.itemId === 'e2e-codex-item-97');
+        const vm = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts');
+        const pres = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/types.ts');
+        const view = vm.toAgentSessionItemView(item97);
+        const presentation = pres.resolveAgentSessionItemPresentation(view, { engineId: 'codex', layout: 'main' });
+        const block = presentation.blocks.find((b) => b.type === 'tool-calls');
+        return {
+          ok: true,
+          viewToolCalls: view.tool_calls,
+          blockType: block?.type ?? null,
+          calls: block?.type === 'tool-calls' ? block.calls.map((c) => ({ name: c.name, kind: c.kind })) : null,
+        };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    console.log('=== PRESENTATION CHECK ===');
+    console.log(JSON.stringify(presentationCheck, null, 1));
+    const turnProcessCheck = await page.evaluate(async () => {
+      try {
+        const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+        const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        });
+        const body = await res.json();
+        const items = body?.data?.items ?? [];
+        const vm = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts');
+        const tp = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/turnProcessPresentation.ts');
+        const views = vm.toAgentSessionTranscriptItemViews(items);
+        const presentations = tp.resolveChatTurnProcessPresentations(views, { engineId: 'codex', isLive: false });
+        const process = presentations.find((p) => p.process?.key?.includes('e2e-codex-turn-1'))?.process;
+        const toolCallsInProcess = process?.items?.flatMap((item) => item.view.blocks
+          .filter((b) => b.type === 'tool-calls')
+          .flatMap((b) => b.type === 'tool-calls' ? b.calls.map((c) => ({ name: c.name, kind: c.kind })) : [])) ?? [];
+        return { ok: true, processKeys: presentations.map((p) => p.process?.key).filter(Boolean), itemCount: process?.itemCount ?? null, toolCallsInProcess };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    const composeCheck = await page.evaluate(async () => {
+      try {
+        const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+        const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        });
+        const body = await res.json();
+        const items = body?.data?.items ?? [];
+        const vm = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts');
+        const act = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts');
+        const views = vm.toAgentSessionTranscriptItemViews(items);
+        const composed = act.composeAgentSessionTranscriptActivity(views, { engineId: 'codex' });
+        const item97 = composed.find((v) => v.id === 'e2e-codex-item-97');
+        return { ok: true, toolCalls: item97?.tool_calls ?? null };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    console.log('=== COMPOSE CHECK ===');
+    console.log(JSON.stringify(composeCheck, null, 1));
+    const moduleUrls = await page.evaluate(() => {
+      const urls = performance.getEntriesByType('resource').map((e) => e.name);
+      return urls.filter((u) => u.includes('agent-session-item-tool-calls') || u.includes('contracts-commons') || u.includes('agentSessionViewModels')).slice(0, 8);
+    });
+    const reexportCheck = await page.evaluate(async () => {
+      try {
+        const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
+        const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
+        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        });
+        const body = await res.json();
+        const items = body?.data?.items ?? [];
+        const item97 = items.find((i) => i.itemId === 'e2e-codex-item-97');
+        const vm = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts');
+        const view = vm.toAgentSessionItemView(item97);
+        // Use the same re-export the UI uses
+        const chatTypes = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/types.ts');
+        const calls = chatTypes.normalizeAgentSessionItemToolCalls(view.tool_calls, {});
+        return { ok: true, calls: calls.map((c) => ({ name: c.name, kind: c.kind, type: c.type })) };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    console.log('=== REEXPORT CHECK ===');
+    console.log(JSON.stringify(reexportCheck, null, 1));
+    const storeCheck = await page.evaluate(async () => {
+      try {
+        const store = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts');
+        const tc = await import('/@fs/E:/sdkwork-space/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts');
+        const found = [];
+        const keys = Object.keys(store);
+        let storeSnapshot = null;
+        if (typeof store.getProjectsStore === 'function') {
+          try { storeSnapshot = store.getProjectsStore('user:0:workspace.e2e-default'); } catch {}
+        }
+        // try to find any session with e2e-codex-session
+        const sessions = [];
+        const candidates = [storeSnapshot?.snapshot?.projects ?? []];
+        for (const project of candidates.flat()) {
+          for (const s of project.agentSessions ?? []) {
+            if (s.id === 'e2e-codex-session' && Array.isArray(s.items)) {
+              const item97 = s.items.find((i) => i.id === 'e2e-codex-item-97');
+              if (item97) {
+                found.push({
+                  name: 'store-session',
+                  toolCalls: item97.tool_calls,
+                  normalized: tc.normalizeAgentSessionItemToolCalls(item97.tool_calls, { engineId: 'codex' }).map((c) => ({ name: c.name, kind: c.kind })),
+                });
+              }
+            }
+          }
+        }
+        return { ok: true, storeKeys: keys.slice(0, 10), found };
+      } catch (error) {
+        return { ok: false, error: String(error).slice(0, 300) };
+      }
+    });
+    console.log('=== STORE CHECK ===');
+    console.log(JSON.stringify(storeCheck, null, 1));
+    console.log('=== MODULE URLS ===');
+    for (const u of moduleUrls) console.log(u);
+    console.log('=== TURN PROCESS CHECK ===');
+    console.log(JSON.stringify(turnProcessCheck, null, 1));
+    console.log('=== BROWSER NORMALIZE ===');
+    console.log(JSON.stringify(browserNormalize));
+    // Re-select another session then back to codex to force a fresh render pass.
+    await page.locator('.birdcoder-session-row[data-agent-session-id="e2e-claude-session"]').first().click({ timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(4000);
+    await page.locator('.birdcoder-session-row[data-agent-session-id="e2e-codex-session"]').first().click({ timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(6000);
+    const toolRowsAfterReselect = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('[data-chat-tool-kind]'));
+      return rows.map((row) => ({
+        kind: row.getAttribute('data-chat-tool-kind'),
+        text: (row.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 80),
+      }));
+    });
+    console.log('=== TOOL ROWS AFTER RESELECT ===');
+    for (const row of toolRowsAfterReselect) console.log(JSON.stringify(row));
+    console.log('=== TOOL ROWS (codex) ===');
+    for (const row of toolRows) console.log(JSON.stringify(row));
+    console.log('=== COMMAND CARD ===');
+    console.log(JSON.stringify(commandCard, null, 2));
     console.log('=== SESSION ITEM API ===');
     const itemResponses = sessionApiBodies.filter((entry) => (
       /\/items/u.test(entry.url) || /\/item_pages/u.test(entry.url)

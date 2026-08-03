@@ -3956,7 +3956,7 @@ export const UniversalChat = memo(function UniversalChat({
     !isDispatchingMessage &&
     !isSubmittingPendingInteraction &&
     !editingMessage &&
-    hasActiveRuntimeBindingProjection &&
+    (hasActiveRuntimeBindingProjection || !normalizedSessionId) &&
     (
       agentTurnInputQueue.length > 0
       || (hasComposerSubmissionContent && !isComposerAttachmentSubmissionBlocked)

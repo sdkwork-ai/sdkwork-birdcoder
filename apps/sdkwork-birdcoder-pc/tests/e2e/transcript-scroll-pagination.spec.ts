@@ -139,10 +139,10 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   await expect(transcript).toBeFocused();
 
   const middleConversationTurn = page.getByRole('button', {
-    name: /Go to conversation turn \d+: Codex historical message 65$/u,
+    name: /Go to conversation turn \d+: Codex historical message 71$/u,
   });
   await middleConversationTurn.click();
-  await expect(transcript.getByText('Codex historical message 65', { exact: true })).toBeVisible();
+  await expect(transcript.getByText('Codex historical message 71', { exact: true })).toBeVisible();
   await expect(jumpToLatestMessage).toBeVisible();
   await page.waitForTimeout(500);
   await expect.poll(async () => transcript.evaluate((element) => (

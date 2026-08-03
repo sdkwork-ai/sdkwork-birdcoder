@@ -260,6 +260,117 @@ test('Codex canonical Session presents history and completes a streamed Turn', a
     ];
   })).toEqual(['codex', 'codex.item']);
 
+  // Codex dynamicToolCall (update_plan) and webSearch project to typed tool
+  // rows once the earlier item page is loaded.
+  await transcript.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  const loadEarlier = transcript.getByRole('button', {
+    name: 'Load earlier messages',
+    exact: true,
+  });
+  await expect(loadEarlier).toBeVisible({ timeout: 15_000 });
+  await loadEarlier.click();
+  const dynamicToolCall = transcript.locator(
+    '[data-chat-tool-kind="task"][data-chat-tool-name="update_plan"]',
+  );
+  for (let attempt = 0; attempt < 8 && await dynamicToolCall.count() === 0; attempt += 1) {
+    await transcript.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(500);
+  }
+  await expect(dynamicToolCall).toHaveCount(1);
+  await expect(dynamicToolCall).toContainText('Updated task');
+  const webSearchRow = transcript.locator('[data-chat-tool-kind="web"]');
+  await expect(webSearchRow).toHaveCount(1);
+  await expect(webSearchRow).toContainText('Searched the web');
+  await expect(webSearchRow).toContainText('SDKWork BirdCoder provider protocol');
+
+  // Codex collabAgentToolCall spawns an agent row and subAgentActivity
+  // renders the bare "{displayName} started working" line.
+  const collabAgentRow = transcript.locator(
+    '[data-chat-tool-kind="agent"][data-chat-tool-name="spawnAgent"]',
+  );
+  for (let attempt = 0; attempt < 8 && await collabAgentRow.count() === 0; attempt += 1) {
+    await transcript.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(500);
+  }
+  await expect(collabAgentRow).toHaveCount(1);
+  await expect(collabAgentRow).toContainText('Created');
+  await expect(collabAgentRow).toContainText('1 agent');
+  const subagentActivityRow = transcript.locator('[data-chat-tool-kind="agent"]').filter({
+    hasText: 'Code reviewer started working',
+  });
+  for (let attempt = 0; attempt < 8 && await subagentActivityRow.count() === 0; attempt += 1) {
+    await transcript.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(500);
+  }
+  await expect(subagentActivityRow).toHaveCount(1);
+  await expect(subagentActivityRow).not.toContainText('Running');
+
+  // Codex imageGeneration renders a media row labeled `Generated image`
+  // with the generated picture as result evidence; `sleep` never renders a
+  // transcript row; hookPrompt merges its non-empty fragments into one
+  // hook-feedback user message.
+  const generatedImageRow = transcript.locator(
+    '[data-chat-tool-kind="media"][data-chat-tool-name="image_generation"]',
+  );
+  for (let attempt = 0; attempt < 8 && await generatedImageRow.count() === 0; attempt += 1) {
+    await transcript.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(500);
+  }
+  await expect(generatedImageRow).toHaveCount(1);
+  await expect(generatedImageRow).toContainText('Generated image');
+  await generatedImageRow.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(generatedImageRow.locator('[data-chat-tool-result-blocks="true"] img')).toHaveCount(1);
+  await expect(generatedImageRow.locator('[data-chat-tool-result-blocks="true"] img')).toHaveAttribute(
+    'src',
+    /^data:image\/png;base64,/u,
+  );
+  await expect(transcript.getByText(/sleep/iu)).toHaveCount(0);
+  await expect(transcript.locator('[data-chat-user-text="true"]').filter({
+    hasText: 'Codex hook prompt feedback | second fragment',
+  })).toHaveCount(1);
+
+  // Codex mcpToolCall failure renders the explicit "Failed to call" verb,
+  // the `server / tool` identity, and the bounded error evidence.
+  const failedMcpRow = transcript.locator(
+    '[data-chat-tool-kind="mcp"][data-chat-tool-name="get_issue"]',
+  );
+  for (let attempt = 0; attempt < 8 && await failedMcpRow.count() === 0; attempt += 1) {
+    await transcript.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(500);
+  }
+  await expect(failedMcpRow).toHaveCount(1);
+  await expect(failedMcpRow).toContainText('Failed to call');
+  await expect(failedMcpRow).toContainText('github / Get issue');
+  await expect(failedMcpRow.locator('[data-chat-tool-status="error"]')).toHaveCount(1);
+  await failedMcpRow.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(failedMcpRow).toContainText('API rate limit exceeded');
+
+  // Codex reasoning items render their non-empty summary inside the turn
+  // execution process, and `plan` text renders as durable assistant
+  // content in the transcript.
+  await expect(transcript).toContainText('Checked the provider-neutral presentation surfaces');
+  await expect(transcript).toContainText(
+    'Verify every transcript surface renders the provider-neutral presentation.',
+  );
+
   const message = `Codex Session parity send ${Date.now()}`;
   const assistantResponse = `Mock assistant response to: ${message}`;
   const firstAssistantDelta = assistantResponse.slice(

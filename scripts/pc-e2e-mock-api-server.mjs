@@ -141,10 +141,10 @@ const sessions = [
     sessionId: 'e2e-codex-session',
     agentId: 'agent.intelligence.codex',
     title: 'Codex implementation',
-    itemCount: '112',
-    lastItemSequence: '112',
+    itemCount: '119',
+    lastItemSequence: '119',
     lastItemAt: '2026-01-01T00:20:00.000Z',
-    version: '112',
+    version: '119',
     updatedAt: '2026-01-01T00:20:00.000Z',
   }),
   createAgentSessionFixture({
@@ -598,8 +598,8 @@ const sessionItemsBySessionId = new Map([
   ],
   [
     'e2e-codex-session',
-    Array.from({ length: 112 }, (_, index) => {
-      const sequence = 112 - index;
+    Array.from({ length: 119 }, (_, index) => {
+      const sequence = 119 - index;
       const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
       if (sequence === 112) {
         return {
@@ -629,6 +629,66 @@ const sessionItemsBySessionId = new Map([
         };
       }
       const providerItemBySequence = {
+        119: {
+          id: 'e2e-codex-plan-1',
+          type: 'plan',
+          text: '1. Verify every transcript surface renders the provider-neutral presentation.',
+        },
+        118: {
+          id: 'e2e-codex-reasoning-1',
+          type: 'reasoning',
+          summary: ['Checked the provider-neutral presentation surfaces'],
+        },
+        117: {
+          id: 'e2e-codex-mcp-failed-1',
+          type: 'mcpToolCall',
+          server: 'github',
+          tool: 'get_issue',
+          arguments: {
+            owner: 'sdkwork',
+            repo: 'birdcoder',
+            issueNumber: 42,
+          },
+          status: 'failed',
+          error: 'API rate limit exceeded',
+          durationMs: 210,
+        },
+        116: {
+          id: 'e2e-codex-hook-prompt-1',
+          type: 'hookPrompt',
+          fragments: [
+            { text: 'Codex hook prompt feedback' },
+            { text: '' },
+            { text: 'second fragment' },
+          ],
+        },
+        115: {
+          id: 'e2e-codex-image-generation-1',
+          type: 'imageGeneration',
+          result: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
+          revisedPrompt: 'A diagram of the provider-neutral presentation surfaces',
+        },
+        114: {
+          id: 'e2e-codex-subagent-activity-1',
+          type: 'subAgentActivity',
+          kind: 'started',
+          agentPath: 'sdkwork-birdcoder/subagents/code-reviewer',
+          agentThreadId: 'e2e-codex-collab-thread-1',
+        },
+        113: {
+          id: 'e2e-codex-collab-agent-1',
+          type: 'collabAgentToolCall',
+          tool: 'spawnAgent',
+          status: 'completed',
+          senderThreadId: 'e2e-codex-session',
+          receiverThreadIds: ['e2e-codex-collab-thread-1'],
+          prompt: 'Review the provider-neutral file presentation',
+          model: 'gpt-5.2-codex',
+          reasoningEffort: 'high',
+          agentsStates: [
+            { agentThreadId: 'e2e-codex-collab-thread-1', state: 'completed' },
+          ],
+        },
         111: {
           id: 'e2e-codex-context-compaction-1',
           type: 'contextCompaction',
@@ -676,6 +736,34 @@ const sessionItemsBySessionId = new Map([
           aggregatedOutput: 'TypeScript check passed.\nAll focused tests passed.',
           exitCode: 0,
           durationMs: 42,
+        },
+        97: {
+          id: 'e2e-codex-dynamic-tool-1',
+          type: 'dynamicToolCall',
+          namespace: 'codex',
+          tool: 'update_plan',
+          toolName: 'update_plan',
+          arguments: {
+            plan: 'Verify the provider-neutral presentation across all surfaces.',
+          },
+          status: 'completed',
+          contentItems: null,
+          success: true,
+          durationMs: 18,
+        },
+        96: {
+          id: 'e2e-codex-web-search-1',
+          type: 'webSearch',
+          query: 'SDKWork BirdCoder provider protocol',
+          action: 'search',
+          results: [
+            {
+              type: 'text',
+              title: 'SDKWork BirdCoder documentation',
+              url: 'https://example.test/sdkwork-birdcoder',
+              description: 'Canonical SDKWork BirdCoder provider protocol reference.',
+            },
+          ],
         },
       }[sequence];
       if (providerItemBySequence) {

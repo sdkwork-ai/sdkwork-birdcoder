@@ -224,7 +224,7 @@ export function ComposerAccessModeControl({
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label={t('chat.accessModeControl', { mode: selectedLabel })}
-        className={`flex h-7 min-w-0 max-w-full items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex h-7 min-w-0 max-w-full items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 max-[420px]:w-8 max-[420px]:justify-center max-[420px]:px-0 ${
           isUnrestricted
             ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 hover:text-orange-300'
             : 'text-zinc-300 hover:bg-white/10 hover:text-white'
@@ -237,7 +237,7 @@ export function ComposerAccessModeControl({
         title={selectedLabel}
       >
         <SelectedIcon aria-hidden="true" className="shrink-0" size={15} />
-        <span className="min-w-0 truncate">{selectedLabel}</span>
+        <span className="min-w-0 truncate max-[420px]:hidden">{selectedLabel}</span>
       </button>
 
       {isOpen ? (

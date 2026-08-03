@@ -644,6 +644,71 @@ The rollout adapter preserves `mcp_tool_call_end`, `plan_update`, `exec_command_
 
 MCP result payloads use a success/error wrapper. On success the inner result is the display output; on error the error settles the call as failed. Keeping the wrapper as raw output produces noisy `Ok(...)`/`Err(...)` UI and loses status. Command arrays are joined into readable commands for display while their original JSON remains in provider data.
 
+## Desktop Command And Diff Presentation
+
+The pinned renderer shows commands and edited files inline, without requiring
+the activity summary to be expanded:
+
+- The shell block (`commandExecution` projection) renders a bordered card with
+  a header row (command icon, `cwd` tooltip, copy-shell, expand/collapse), a
+  command line `$ {command}` (`codex.shell.commandLine` / `codex.shell.prompt`
+  = `$`), and an output region capped at `max-h-36` with
+  `vertical-scroll-fade-mask` and `flex-col-reverse` so the latest output stays
+  visible; empty output renders `No output` (`codex.shell.noOutput`). The
+  command line is clamped to two lines (`line-clamp-2`) and expands on click.
+- The edited-files list (`fileChange` projection and turn-level TurnDiff card)
+  renders a title `{fileCount, plural, one {# file changed} other {# files
+  changed}}` (`codex.unifiedDiff.filesChanged`) followed by one row per file
+  with path and `+linesAdded/-linesDeleted` counts; a single file renders
+  `Edited {filename}` (`codex.unifiedDiff.editedFile`). Completed turns add an
+  aggregate card with an undo/reapply action.
+
+BirdCoder renders the command card from the normalized `shell_command`
+tool-call row (ToolCallCard `$` prompt, bounded `max-h-36` output, `No output`
+placeholder) and the edited-files list from the session item file changes
+(ChatActivitySummary "Edited N files" section) so both are visible by
+default in the transcript. The turn-level aggregate card is deferred until
+the turn reaches a terminal lifecycle event so an in-flight turn does not
+show a stale summary.
+
+### Plan And Web Tool Rows
+
+`dynamicToolCall` items (for example `update_plan`) project to a `task` kind
+tool row (ToolCallCard `Updated task` label with the plan arguments), and
+`webSearch` items project to a `web` kind row (`Searched the web` with the
+query). Normalized views written back by
+`composeAgentSessionTranscriptActivity` are re-normalized on every render;
+the Codex adapter (`adaptCodexToolRecord`) therefore falls back to
+`source.name` when the raw `tool` field is absent so a re-normalized view
+keeps its resolved tool name (`update_plan`) instead of degrading to the
+generic `tool` label. ToolCallCard exposes `data-chat-tool-kind` and
+`data-chat-tool-name` for stable assertions; the rendered label is
+prettified (`Update plan`) to match the pinned bundle, while tests assert on
+the raw name attribute.
+
+### MCP, Sub-agent, And Collaboration Rows
+
+- `mcpToolCall` rows show the bare `{tool}` collapsed label (Codex desktop
+  `codex.mcpTool.collapsedLabel.toolOnly`; server identity is carried by the
+  leading icon), the `server / tool` display name when a server is known,
+  and `Tool returned no content` (`codex.mcpTool.noResult`) instead of
+  `No output` when the call produced no content; only failed calls prefix an
+  explicit verb.
+- `subAgentActivity` renders as a bare `{displayName} started working /
+  updated / interrupted` line (Codex
+  `localConversation.subagentActivity.summary.*`), where `displayName` is
+  the last non-`root` segment of `agentPath` with separators replaced by
+  spaces (`u1n`), falling back to `Agent`. No status badge is shown.
+- `collabAgentToolCall` (non-`wait` actions) renders as an `agent` tool row
+  with the Codex header verb (`Created` / `Messaged` / `Resumed` / `Closed`
+  per `localConversation.multiAgentAction.header.*`), the agent count title
+  (`1 agent`), and the prompt under the expandable Input section
+  (`localConversation.multiAgentAction.meta.prompt`).
+- The adapter keeps `source.name` and string `arguments` intact when a
+  re-normalized view passes through `adaptCodexToolRecord` again, so
+  `collab_agent_tool_call` and `sub_agent_activity` identities survive the
+  compose write-back / render loop.
+
 ## History Reconciliation
 
 `thread/read(includeTurns: true)` is a durable snapshot. `thread/turns/list` and `thread/items/list` use opaque cursors when enabled. The local rollout reader instead walks session JSONL in source order and uses stable rollout/item IDs. These sources must not be concatenated blindly.

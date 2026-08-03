@@ -327,7 +327,7 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
     name: 'Load earlier messages',
     exact: true,
   });
-  await expect(transcript.getByText('Codex historical message 56', { exact: true })).toBeVisible();
+  await expect(transcript.getByText('Codex historical message 71', { exact: true })).toBeVisible();
   await expect(loadEarlierMessages).toBeVisible();
   const secondItemPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -341,6 +341,7 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   const secondItemPagePayload = await secondItemPage.json() as {
     data: { pageInfo: { hasMore: boolean; nextCursor: string | null } };
   };
+  await expect(transcript.getByText('Codex historical message 56', { exact: true })).toBeVisible();
   const secondEarlierCursor = secondItemPagePayload.data.pageInfo.nextCursor;
   expect(secondItemPage.ok()).toBe(true);
   expect(secondItemPagePayload.data.pageInfo.hasMore).toBe(true);

@@ -115,10 +115,14 @@ function compareProviderDirectoryEntries(left: AgentSessionView, right: AgentSes
     );
   }
   return (
-    Number(Boolean(right.providerPinned)) - Number(Boolean(left.providerPinned)) ||
+    Number(Boolean(right.pinned) || Boolean(right.providerPinned))
+      - Number(Boolean(left.pinned) || Boolean(left.providerPinned)) ||
+    Number(resolveAgentSessionAttentionLevel(right) === 'attention')
+      - Number(resolveAgentSessionAttentionLevel(left) === 'attention') ||
     resolveProviderRecencyTimestamp(right) - resolveProviderRecencyTimestamp(left) ||
-    left.engineId.localeCompare(right.engineId) ||
     (left.providerSortKey ?? '').localeCompare(right.providerSortKey ?? '') ||
+    resolveAgentSessionActivityTimestamp(right) - resolveAgentSessionActivityTimestamp(left) ||
+    left.engineId.localeCompare(right.engineId) ||
     left.id.localeCompare(right.id)
   );
 }

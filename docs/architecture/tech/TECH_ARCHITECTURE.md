@@ -281,8 +281,12 @@ null cursor and never invoke provider synchronization. The explicit local
 folder import or re-import command is the only BirdCoder workflow that calls
 the generated Agents App SDK `projectSessions.synchronize` operation. Its
 partial result retains successful reconciliation while reporting bounded
-skipped/failed issue aggregates. An activity cursor is not a durable
-change-feed watermark.
+skipped/failed issue aggregates. Reconciliation is intentionally
+per-session atomic rather than batch-transactional: inventory rows and
+transcript items upsert idempotently by stable keys, so an interrupted or
+partially failed run converges on the next pass; a single malformed item can
+never block the whole batch from converging. An activity cursor is not a
+durable change-feed watermark.
 Head eligibility and ordering come from Agents-managed Session, Turn,
 Interaction, Runtime Binding, and Session user-state facts. Query-time provider
 observation may enrich only rows already selected in the current page;
@@ -536,7 +540,13 @@ cloud, `platform.api-gateway` or an explicit owner override serves dependency
 SDKs while BirdCoder APIs remain on the application ingress. Missing required
 topology or a dependency assembly initialization failure stops bootstrap.
 Server and container profiles contain no BirdCoder database or PC device-state
-setting.
+setting. The SQLite boundary is one-directional and enforced by
+`SDKWORK_DATABASE_SPEC.md` §8: client-local SQLite (`SDKWORK_DATABASE_SQLITE_URL`,
+rusqlite plus sqlx-sqlite in the Tauri host) holds device state only, while the
+authoritative Agents PostgreSQL profile is the only persistence authority.
+Server and container processes must never set the SQLite URL, and the Agents
+service deliberately has no SQLite adapter: implementing a second service-side
+engine would duplicate the PostgreSQL contract without a product or spec basis.
 
 ## 9. Architecture Decision Index
 

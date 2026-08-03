@@ -1235,15 +1235,21 @@ export async function loadAgentSessionView(
       signal,
       tolerateFailure,
     ),
-    loadAgentSessionAuxiliaryMetadata(
-      'item feedback',
-      () => agentSessionService.listSessionItemFeedback({
-        agentId: session.agentId,
-        sessionId: session.sessionId,
-      }),
-      signal,
-      tolerateFailure,
-    ),
+    // Item feedback is a pure enhancement: a service without the capability
+    // (or a contract stub that omits it) is treated as having no feedback
+    // rather than logging a spurious "load failed" warning. Real request
+    // failures on capable services still surface through the loader.
+    typeof agentSessionService.listSessionItemFeedback === 'function'
+      ? loadAgentSessionAuxiliaryMetadata(
+          'item feedback',
+          () => agentSessionService.listSessionItemFeedback({
+            agentId: session.agentId,
+            sessionId: session.sessionId,
+          }),
+          signal,
+          tolerateFailure,
+        )
+      : Promise.resolve({ failed: true, value: null }),
   ]);
   const itemFeedback = feedbackResult.value
     ? new Map(feedbackResult.value.map((entry) => [entry.itemId, entry.rating] as const))

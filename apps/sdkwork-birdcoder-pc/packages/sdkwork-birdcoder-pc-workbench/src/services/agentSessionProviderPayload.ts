@@ -731,7 +731,7 @@ function readHookPromptText(record: Record<string, unknown>): string {
       );
       return text ? [text] : [];
     })
-    .join('\n')
+    .join(' | ')
     .slice(0, MAX_PROVIDER_TEXT_CHARACTERS);
 }
 
