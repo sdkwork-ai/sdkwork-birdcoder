@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { sha256File, sha256Value } from "./sdkwork-utils-digest.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -157,23 +158,7 @@ function parseArguments(argv) {
 }
 
 function sha256Buffer(buffer) {
-  return crypto.createHash("sha256").update(buffer).digest("hex");
-}
-
-function sha256File(filePath) {
-  const hash = crypto.createHash("sha256");
-  const descriptor = fs.openSync(filePath, "r");
-  const buffer = Buffer.allocUnsafe(1024 * 1024);
-  try {
-    let bytesRead = 0;
-    do {
-      bytesRead = fs.readSync(descriptor, buffer, 0, buffer.length, null);
-      if (bytesRead > 0) hash.update(buffer.subarray(0, bytesRead));
-    } while (bytesRead > 0);
-  } finally {
-    fs.closeSync(descriptor);
-  }
-  return hash.digest("hex");
+  return sha256Value(buffer);
 }
 
 function walkAsarFiles(node, parent = "", output = []) {

@@ -249,7 +249,7 @@ assertSourceIncludes(lifecycleSource, /smoke-desktop-packaged-launch\.mjs/u);
 assertSourceIncludes(lifecycleSource, /run-birdcoder-server-build\.mjs/u);
 assert.doesNotMatch(
   lifecycleSource,
-  /run-claw-server-build|coding-server-openapi-export|provider-runtime/u,
+  /run-cloud-server-build|coding-server-openapi-export|provider-runtime/u,
   'Release lifecycle must build the BirdCoder gateway and must not restore retired coding-server or provider-runtime authorities.',
 );
 assertSourceIncludes(lifecycleSource, /package-release-assets\.mjs[\s\S]*server/u);
@@ -422,8 +422,8 @@ assert.match(releaseFlowCommandsJoined, /write-attestation-evidence\.test\.mjs/)
 assert.match(releaseFlowCommandsJoined, /assert-release-readiness\.test\.mjs/);
 assert.doesNotMatch(
   releaseFlowCommandsJoined,
-  /claw-release-parity-contract\.test\.mjs/,
-  'release-flow must not keep the retired copied Claw workflow parity contract after sdkwork-github-workflow integration.',
+  /cloud-release-parity-contract\.test\.mjs/,
+  'release-flow must not keep the retired copied Cloud workflow parity contract after sdkwork-github-workflow integration.',
 );
 
 assert.equal(rootPackageJson.scripts['check:release-flow'], 'node scripts/run-release-flow-check.mjs');

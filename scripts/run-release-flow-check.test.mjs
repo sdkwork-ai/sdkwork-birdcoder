@@ -53,7 +53,7 @@ for (const command of requiredCommands) {
   );
 }
 
-const retiredAuthorityPattern = /coding-server|coding-session-projection|template-instantiation|prompt-skill-template|kernel-bridge|provider-sdk|run-claw-server|birdcoder-agents-integration|project-agent-project-composition|composed-sdk-project-runtime-location-registration/iu;
+const retiredAuthorityPattern = /coding-server|coding-session-projection|template-instantiation|prompt-skill-template|kernel-bridge|provider-sdk|run-cloud-server|birdcoder-agents-integration|project-agent-project-composition|composed-sdk-project-runtime-location-registration/iu;
 for (const command of RELEASE_FLOW_CHECK_COMMANDS) {
   assert.doesNotMatch(command, retiredAuthorityPattern);
 

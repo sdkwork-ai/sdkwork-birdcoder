@@ -22,18 +22,20 @@
     "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/iam-credential-entry": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-distribution": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
+    "@sdkwork/iam-credential-entry": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
     "qrcode": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router": "catalog:",
     "react-router-dom": "catalog:",
-    "tailwindcss": "catalog:",
-    "@tailwindcss/vite": "catalog:"
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

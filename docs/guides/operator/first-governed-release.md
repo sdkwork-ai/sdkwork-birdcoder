@@ -50,11 +50,19 @@ pnpm release:smoke:kubernetes
 pnpm release:smoke:web
 pnpm release:finalize
 pnpm release:smoke:finalized
+pnpm release:write-attestation-evidence
 pnpm release:assert-ready
 ```
 
 Enable publication only after immutable checksums, signatures, SBOM,
 attestations, rollback evidence, and every stop-ship gate are verified.
+
+Rollback planning is a separate evidence step that records the immutable prior
+artifact and the approved rollback target before promotion:
+
+```bash
+pnpm release:rollback:plan -- --release-tag <release-tag> --rollout-stage <stage>
+```
 
 ## Publishing Through SDKWork Deploy
 

@@ -83,7 +83,7 @@ const EXECUTION_PROVIDER_VISUAL_IDENTITIES: readonly KnownProviderVisualIdentity
   },
   {
     abbreviation: 'CL',
-    aliases: ['openclaw', 'open-claw'],
+    aliases: ['openclaw', 'open-cloud'],
     id: 'openclaw',
     label: 'OpenClaw',
     tone: 'teal',

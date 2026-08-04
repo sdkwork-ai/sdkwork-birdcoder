@@ -44,7 +44,7 @@ for (const relativePath of releaseScriptPaths) {
     assert.doesNotMatch(
       source,
       pattern,
-      `${relativePath} must not reference retired Claw-era release paths.`,
+      `${relativePath} must not reference retired Cloud-era release paths.`,
     );
   }
 }

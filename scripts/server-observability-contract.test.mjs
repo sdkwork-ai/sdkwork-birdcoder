@@ -68,7 +68,7 @@ assert.doesNotMatch(
 for (const componentSource of [gatewayComponent, assemblyComponent]) {
   assert.doesNotMatch(
     componentSource,
-    /DATABASE_(?:FRAMEWORK_)?SPEC|SDKWORK_(?:BIRDCODER|CLAW)_DATABASE|sharedDatabasePool|databasePolicy/iu,
+    /DATABASE_(?:FRAMEWORK_)?SPEC|SDKWORK_(?:BIRDCODER|CLOUD)_DATABASE|sharedDatabasePool|databasePolicy/iu,
     'Gateway and assembly component contracts must not declare BirdCoder database ownership.',
   );
 }
@@ -80,7 +80,7 @@ const serverConfigRoots = [
   'deployments/docker',
   'deployments/kubernetes',
 ];
-const forbiddenRuntimePattern = /SDKWORK_(?:BIRDCODER|CLAW)_DATABASE|SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION|SDKWORK_BIRDCODER_DEVICE_STATE_FILE|\[database\]|\bpostgres(?:ql)?\b|\bsqlite\b/iu;
+const forbiddenRuntimePattern = /SDKWORK_(?:BIRDCODER|CLOUD)_DATABASE|SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION|SDKWORK_BIRDCODER_DEVICE_STATE_FILE|\[database\]|\bpostgres(?:ql)?\b|\bsqlite\b/iu;
 for (const configRoot of serverConfigRoots) {
   for (const absolutePath of collectFiles(configRoot)) {
     const source = fs.readFileSync(absolutePath, 'utf8');
@@ -116,7 +116,7 @@ assert.doesNotMatch(compose, /^volumes:/mu);
 assert.doesNotMatch(values, /^(?:database|persistence|backup):/mu);
 assert.doesNotMatch(
   configMap,
-  /SDKWORK_(?:BIRDCODER|CLAW)_DATABASE|SDKWORK_BIRDCODER_DEVICE_STATE/iu,
+  /SDKWORK_(?:BIRDCODER|CLOUD)_DATABASE|SDKWORK_BIRDCODER_DEVICE_STATE/iu,
 );
 assert.doesNotMatch(deployment, /persistentVolumeClaim|mountPath:\s*\/var\/lib\/sdkwork-birdcoder/iu);
 assert.match(values, /path: \/healthz/u);

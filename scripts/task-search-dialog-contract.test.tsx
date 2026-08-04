@@ -60,7 +60,7 @@ const projects = [
     createSession('older', 'Repair release flow', '2026-07-28T08:00:00.000Z'),
     createSession('newer', 'Improve task search', '2026-07-28T10:00:00.000Z'),
   ]),
-  createProject('project-2', 'ClawRouter', [
+  createProject('project-2', 'CloudRouter', [
     createSession('router', 'Fix upstream list', '2026-07-28T09:00:00.000Z', {
       engineId: 'claude-code',
       modelId: 'claude-sonnet-4',
@@ -75,7 +75,7 @@ assert.deepEqual(
   'Task search must show the most recently active loaded tasks first.',
 );
 assert.deepEqual(
-  buildTaskSearchEntries(projects, 'clawrouter').map((entry) => entry.session.id),
+  buildTaskSearchEntries(projects, 'cloudrouter').map((entry) => entry.session.id),
   ['router'],
   'Task search must match project names.',
 );

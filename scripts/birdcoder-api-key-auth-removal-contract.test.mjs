@@ -16,9 +16,9 @@ for (const file of forbiddenRuntimeFiles) {
 
 const governedSources = [
   'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/routers.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/routeCatalog.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiOperationDefinitions.ts',
+  'crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs',
+  'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell/src/routes/routeCatalog.ts',
+  'apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-shell/src/routes/routeCatalog.ts',
 ];
 
 for (const file of governedSources) {

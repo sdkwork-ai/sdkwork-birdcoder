@@ -30,8 +30,10 @@
   "dependencies": {
     "@sdkwork/birdcoder-pc-distribution": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/iam-credential-entry": "workspace:*",
     "@tauri-apps/api": "catalog:",
     "react": "catalog:",

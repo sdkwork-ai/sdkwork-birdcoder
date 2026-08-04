@@ -180,7 +180,7 @@ export function validateGovernanceRegressionCheckTopology({
     if (packageScript && !rootPackage.scripts?.[packageScript]) {
       messages.push(`missing package script: ${packageScript}`);
     }
-    if (/coding-server|coding-session-projection|kernel-bridge|provider-sdk|run-claw-server/iu.test(check?.command ?? '')) {
+    if (/coding-server|coding-session-projection|kernel-bridge|provider-sdk|run-cloud-server/iu.test(check?.command ?? '')) {
       messages.push(`retired authority command: ${check.command}`);
     }
     if (messages.length > 0) {

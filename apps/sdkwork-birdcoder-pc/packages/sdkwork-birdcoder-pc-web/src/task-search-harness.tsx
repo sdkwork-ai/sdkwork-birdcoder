@@ -28,7 +28,7 @@ const sessions = taskSeeds.map(([id, title, runtimeStatus], index) => ({
   id,
   items: [],
   modelId: index === 3 ? 'claude-sonnet-4-5' : 'gpt-5-codex',
-  projectId: index === 3 || index === 4 ? 'project-clawrouter' : 'project-birdcoder',
+  projectId: index === 3 || index === 4 ? 'project-cloudrouter' : 'project-birdcoder',
   providerId: index === 3 ? 'anthropic' : 'openai',
   runtimeStatus,
   status: 'active',
@@ -43,9 +43,9 @@ const projects = [
     agentSessions: sessions.filter((session) => session.projectId === 'project-birdcoder'),
   },
   {
-    projectId: 'project-clawrouter',
-    name: 'sdkwork-clawrouter',
-    agentSessions: sessions.filter((session) => session.projectId === 'project-clawrouter'),
+    projectId: 'project-cloudrouter',
+    name: 'sdkwork-cloudrouter',
+    agentSessions: sessions.filter((session) => session.projectId === 'project-cloudrouter'),
   },
 ] as AgentProjectView[];
 

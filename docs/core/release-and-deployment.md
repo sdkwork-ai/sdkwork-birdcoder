@@ -81,24 +81,65 @@ pnpm.cmd release:smoke:kubernetes
 pnpm.cmd release:smoke:web
 pnpm.cmd release:finalize
 pnpm.cmd release:smoke:finalized
+pnpm.cmd release:write-attestation-evidence
 pnpm.cmd release:assert-ready
+
+pnpm release:publish:dry-run -- --family web
+pnpm release:publish -- --family web
+
+pnpm.cmd deploy:validate
+pnpm.cmd deploy:plan:standalone
+pnpm.cmd deploy:plan:cloud
+pnpm.cmd deploy:apply -- --profile <profile>.<environment> --artifact-id <id> --artifact-digest sha256:<digest> --rollback-target <target> --approval-ref <ref>
 ```
 
 The exact package set comes from the application manifest and release plan.
 Publication stops on incomplete ownership, generated-contract drift, missing
-artifact trust, or any unresolved architecture gate.
+artifact trust, or any unresolved architecture gate. `release:publish:dry-run`
+validates the publish request without remote side effects; the real
+`release:publish` records the finalized release in the SDKWork Deploy control
+plane only after every stop-ship gate is clear.
+
+## Publishing Through SDKWork Deploy
+
+Finalized releases are recorded through the
+`@sdkwork/deployments-app-sdk` application publisher (resolve-or-create site →
+upload immutable archive to Drive → register artifact with SHA-256 → record
+release), the same pipeline the studio publish UI uses. The Deploy App API base
+URL is resolved from `etc/sdkwork.deployment.config.json` (development targets
+the local gateway at `http://127.0.0.1:10240`). Dual-token credentials come
+from `--access-token`/`--auth-token` or `SDKWORK_CLI_ACCESS_TOKEN`/
+`SDKWORK_CLI_AUTH_TOKEN`. Publish evidence is written to
+`artifacts/release/publish-evidence.json`.
+
+## Deployment
+
+Deploying a published release is a separate, side-effecting step that always
+selects an explicit lifecycle environment and immutable artifact identity.
+`deploy:validate` and `deploy:plan` are read-only; `deploy:apply` requires
+`--artifact-id`, `--artifact-digest`, `--rollback-target`, and `--approval-ref`.
+The standalone profile uses the local nginx deployctl executor; cloud
+(kubernetes) side-effecting deployment runs through the approved
+`sdkwork-github-workflow` lifecycle adapter (CI + GitHub Environments) and is
+disabled until promotion approval.
 
 Post-release operations and writeback:
 
+- Monitoring: `/healthz`, `/readyz`, `/metrics`, and the six required
+  alerts (including `BirdCoderReleaseDrift`) per the monitoring runbook.
 - Rollback entry: record the immutable prior artifact and compatible configuration.
 - Writeback targets: update the release registry, release note, artifact index, and approved deployment record from verified evidence only.
 
 ## Rollback And Recovery
 
 Rollback redeploys the previous immutable artifact and compatible configuration
-or stops promotion. There is no BirdCoder server data restore. Agents, Skills,
-IAM, IM, and other owner-domain recovery follows their own release and backup
-procedures. Lost PC mounts require explicit local reselection.
+or stops promotion. Plan the rollback with `release:rollback:plan` and execute
+it with `deploy:rollback` (nginx driver) or the approved cloud deployment
+lifecycle; the default rollback runbook is
+`docs/guides/operator/incident-response.md`. There is no BirdCoder server data
+restore. Agents, Skills, IAM, IM, and other owner-domain recovery follows their
+own release and backup procedures. Lost PC mounts require explicit local
+reselection.
 
 See [deployment operations](../guides/operator/deployment-operations.md) and
 [the pre-launch release checklist](../guides/operator/first-governed-release.md).

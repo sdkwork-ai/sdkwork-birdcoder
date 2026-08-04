@@ -79,8 +79,8 @@ const service = new AgentsDocumentsProjectDocumentService({
 });
 const page = await service.getDocuments({
   projectId: ` ${projectId} `,
-  page: 0,
-  pageSize: 500,
+  page: 1,
+  pageSize: 200,
 });
 
 assert.deepEqual(page, {
@@ -99,12 +99,25 @@ assert.deepEqual(page, {
   pageInfo,
 });
 assert.equal(listedProjectId, projectId);
-assert.equal(listedPage, 1, 'composition reads must normalize page to the API minimum.');
-assert.equal(listedPageSize, 200, 'composition reads must enforce the API page-size limit.');
+assert.equal(listedPage, 1, 'composition reads must forward the requested page.');
+assert.equal(listedPageSize, 200, 'composition reads must forward the requested page size.');
 assert.equal(listedSlotKind, 'document');
 assert.equal(listedEnabled, true);
 assert.equal(documentsClientResolutionCount, 1);
 assert.deepEqual(retrievedDocumentIds, [documentId]);
+
+// PAGINATION_SPEC §10.1 rejection semantics: out-of-bounds caller input must
+// fail loudly instead of being silently clamped by the composition client.
+await assert.rejects(
+  service.getDocuments({ projectId, page: 0, pageSize: 200 }),
+  /positive integer/u,
+  'page below 1 must be rejected, not silently clamped.',
+);
+await assert.rejects(
+  service.getDocuments({ projectId, page: 1, pageSize: 500 }),
+  /page_size must be an integer/u,
+  'page size above the declared maximum must be rejected, not silently clamped.',
+);
 
 let emptyPageClientResolved = false;
 const emptyPageService = new AgentsDocumentsProjectDocumentService({

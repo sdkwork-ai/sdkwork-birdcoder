@@ -8,11 +8,12 @@
 // Run through tsx (node scripts/run-local-tsx.mjs scripts/release/publish-release.ts ...)
 // because the SDK packages export TypeScript sources directly.
 
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+import { sha256Value } from '../sdkwork-utils-digest.mjs';
 
 import { createClient as createDeployAppClient } from '@sdkwork/deployments-app-sdk';
 import {
@@ -233,7 +234,7 @@ function resolveArchivePath(options: PublishOptions, manifest: ReleaseFamilyMani
 }
 
 function sha256Buffer(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
+  return sha256Value(buffer);
 }
 
 interface DeploymentIndex {

@@ -91,16 +91,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@tauri-apps/api": "catalog:",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-i18n": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
-    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
-    "@sdkwork/utils": "workspace:*",
     "@sdkwork/drive-pc-sandbox-contracts": "workspace:*",
+    "@sdkwork/terminal-pc-desktop": "workspace:*",
     "@sdkwork/terminal-pc-infrastructure": "workspace:*",
     "@sdkwork/terminal-pc-shell": "workspace:*",
-    "@sdkwork/terminal-pc-desktop": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
+    "@tauri-apps/api": "catalog:",
     "lucide-react": "catalog:"
   },
   "devDependencies": {

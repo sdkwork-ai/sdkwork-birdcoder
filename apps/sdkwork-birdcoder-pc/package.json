@@ -34,7 +34,13 @@
     "clean": "node -e \"require('node:fs').rmSync('packages/sdkwork-birdcoder-pc-web/dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@sdkwork/birdcoder-pc-auth": "workspace:*",
+    "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/iam-credential-entry": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "tailwindcss": "catalog:"
   },

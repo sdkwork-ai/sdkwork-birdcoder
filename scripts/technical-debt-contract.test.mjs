@@ -122,8 +122,8 @@ const forbiddenFiles = [
   'scripts/workspaces-pagination-error-contract.test.mjs',
   'scripts/workbench-coding-session-creation-actions-contract.test.mjs',
   'scripts/workspace-realtime-coding-session-engine-model-contract.test.ts',
-  'scripts/claw-release-parity-baseline.mjs',
-  'scripts/claw-release-parity-contract.test.mjs',
+  'scripts/cloud-release-parity-baseline.mjs',
+  'scripts/cloud-release-parity-contract.test.mjs',
   'crates/sdkwork-birdcoder-errors/src/tenant_scope.rs',
   'crates/sdkwork-birdcoder-tauri-host/src/commands/terminal_commands.rs',
 ];
@@ -149,7 +149,7 @@ const governedCommandFiles = [
   'scripts/release/sdkwork-workflow-lifecycle.mjs',
   'scripts/release/write-package-sbom-evidence.mjs',
 ];
-const retiredCommandPattern = /sdkwork-birdcoder-(?:coding-sessions|chat|skill-packages|kernel-bridge)|run-claw-server|coding-server-openapi|provider-runtime|test:birdcoder-agents-integration|coding-session-prompt-history|flutter-mobile-chat-api|check:data-kernel|appRuntimeTransport|ProviderBackedProjectService|auth-workspace-loading-gating|project-agent-project-composition|workspace-realtime-browser-auth|code-local-folder-import-workspace|composed-sdk-project-runtime-location-registration|createWorkspaceFixture|createProjectFixture|ProjectRuntimeLocationPreference|ProjectGitOverviewFixture|\/app\/v3\/api\/(?:workspaces|projects)/iu;
+const retiredCommandPattern = /sdkwork-birdcoder-(?:coding-sessions|chat|skill-packages|kernel-bridge)|run-cloud-server|coding-server-openapi|provider-runtime|test:birdcoder-agents-integration|coding-session-prompt-history|flutter-mobile-chat-api|check:data-kernel|appRuntimeTransport|ProviderBackedProjectService|auth-workspace-loading-gating|project-agent-project-composition|workspace-realtime-browser-auth|code-local-folder-import-workspace|composed-sdk-project-runtime-location-registration|createWorkspaceFixture|createProjectFixture|ProjectRuntimeLocationPreference|ProjectGitOverviewFixture|\/app\/v3\/api\/(?:workspaces|projects)/iu;
 const commandViolations = governedCommandFiles.flatMap((relativePath) => {
   const source = fs.readFileSync(resolvePath(relativePath), 'utf8');
   return retiredCommandPattern.test(source) ? [relativePath] : [];
