@@ -109,13 +109,13 @@ fn assert_embedded_iam_authentication_path(config: &BirdServerConfig) -> Result<
         return Ok(());
     }
     let database_backed = installed_iam_database_pool_for_process().is_some()
-        || std::env::var("SDKWORK_IAM_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty());
+        || std::env::var("SDKWORK_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty());
     if database_backed || allows_dev_authentication_fallback() {
         return Ok(());
     }
     Err(
         "embedded gateway IAM authentication path is not ready: configure \
-         SDKWORK_IAM_DATABASE_URL or explicitly enable the local development \
+         SDKWORK_DATABASE_URL or explicitly enable the local development \
          authentication fallback (SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK=1); refusing \
          to serve protected routes in a silently-unauthenticated state"
             .to_owned(),

@@ -527,7 +527,7 @@ preserved.
 
 The embedded desktop gateway asserts an explicit IAM authentication path
 before serving protected routes: an operator-configured
-`SDKWORK_IAM_DATABASE_URL` selects database-backed sessions, otherwise the
+`SDKWORK_DATABASE_URL` selects database-backed sessions, otherwise the
 local development authentication fallback is enabled for loopback local
 login, and a state with neither fails closed with a diagnostic instead of
 silently returning 401 on every protected route. The desktop WebView also

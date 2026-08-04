@@ -100,20 +100,20 @@ fn resolve_listener_api_base_url(listener: &std::net::TcpListener) -> Result<Str
 /// Declares an explicit IAM authentication path for the embedded loopback
 /// gateway before it starts serving protected routes.
 ///
-/// An operator that configures `SDKWORK_IAM_DATABASE_URL` gets
+/// An operator that configures `SDKWORK_DATABASE_URL` gets
 /// database-backed IAM sessions. Otherwise the local development
 /// authentication fallback is enabled (loopback local-login flow); an
 /// explicit operator disable is respected and then fails closed in the
 /// gateway with a diagnostic instead of silently returning 401 for every
 /// protected route.
 fn ensure_embedded_iam_authentication_path() -> Result<(), String> {
-    if std::env::var("SDKWORK_IAM_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty()) {
+    if std::env::var("SDKWORK_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty()) {
         return Ok(());
     }
     if std::env::var_os("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK").is_none() {
         std::env::set_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK", "1");
         eprintln!(
-            "embedded BirdCoder gateway: local development authentication enabled for loopback local login; set SDKWORK_IAM_DATABASE_URL for database-backed sessions."
+            "embedded BirdCoder gateway: local development authentication enabled for loopback local login; set SDKWORK_DATABASE_URL for database-backed sessions."
         );
     }
     Ok(())
