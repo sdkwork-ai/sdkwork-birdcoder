@@ -21,7 +21,7 @@ const runtimeStatusLabels = {
 function createPinnedSession(): AgentSessionView {
   return {
     id: 'session.pinned-attention',
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     archived: true,
     createdAt: '2026-07-31T00:00:00.000Z',
     displayTime: 'Just now',
@@ -31,7 +31,7 @@ function createPinnedSession(): AgentSessionView {
     modelId: 'gpt-5-codex',
     pinned: true,
     projectId: 'project.birdcoder',
-    providerId: 'provider.model.codex',
+    providerId: 'provider.codex',
     runtimeStatus: 'awaiting_approval',
     status: 'active',
     title: 'Review workspace command',

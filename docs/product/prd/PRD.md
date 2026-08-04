@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-07-31
+Updated: 2026-08-04
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Background And Problem
@@ -116,13 +116,23 @@ Non-goals:
    Project inventory, creation, and import require the selected `workspaceId`.
 4. PC AI workflows use canonical Agents Sessions and Session Items without a
    local Session or transcript authority.
-5. Project, Session, and Session Activity refreshes are read-only generated
-   Agents App SDK calls and never invoke provider inventory synchronization.
-   Provider Session reconciliation runs only in the explicit folder import or
-   re-import workflow through `projectSessions.synchronize`. That command
-   returns synchronized, skipped, and failed counts plus bounded aggregate
-   issues, so malformed provider records do not discard valid imports.
-   The Session Activity read endpoint is side-effect free.
+5. Project and Session Activity refreshes use the generated Agents App SDK.
+   The Session Activity read endpoint is side-effect free; the Workspace
+   Session Inbox periodically reads its cursor snapshot to converge the
+   list with the managed authority head. To keep the list consistent with
+   provider-owned Sessions (Codex, Claude Code, OpenCode, Gemini threads),
+   the inbox also issues bounded `projectSessions.synchronize` calls for the
+   projects it has loaded: per-project provider inventory synchronization is
+   deduplicated by a shared cache, limited by a per-cycle time budget, and
+   never blocks the activity read. The backend serves repeat synchronize
+   outcomes from a process-local refresh cache aligned with the client-side
+   deduplication TTL, so the background loop never re-scans the provider
+   session store in steady state; a manual project refresh treats the import
+   as best-effort and continues with the persisted inventory when the import
+   fails or exceeds its budget, so a slow provider store scan never fails the
+   refresh. The command returns synchronized, skipped, and failed counts plus
+   bounded aggregate issues, so malformed provider records do not discard
+   valid imports and incomplete inventories stay observable.
    The disposable in-memory projection incorporates Turn, Interaction, Runtime
    Binding, user-state, provider identity, activity fact-version, and freshness
    changes even when the Session version is unchanged. Browser and desktop
@@ -252,10 +262,15 @@ following owner operational evidence in
 
 - bounded indexed PostgreSQL P1 Session Activity head projection;
 - live PostgreSQL migration and query-plan evidence for the owner-scoped
-  provider identity constraint and activity projection;
+  provider identity constraint and activity projection (the baseline has never
+  run against a live database, and the head query orders by a computed
+  `activity_at` column that cannot use the lateral indexes);
 - Project deletion tombstone and pagination semantics;
-- durable distributed runtime routing and synchronization-job ownership for
-  multi-node availability; and
+- durable distributed runtime routing and synchronization-job ownership
+  (the model-configuration profile store is a node-local SQLite file, so
+  multi-node configuration is node-local; `projectSessions.synchronize` runs
+  synchronously inside the HTTP request with provider discovery and the
+  reconciliation sweeps outside the time budget); and
 - a persisted server-monotonic aggregate activity revision if the contract
   requires one.
 
@@ -278,3 +293,18 @@ placement/provider binding separation, Kernel/Sandbox ports and fencing,
 cloud Workspace byte authority, isolation provider, quotas, SLOs, topology,
 migration, and release evidence. These questions block cloud implementation
 and commercial readiness claims.
+
+BirdCoder-side reliability hardening completed during the pre-launch audit is
+closed and covered by tests: git subprocess timeouts and bounded output,
+bounded host commands (config read/write, listings, revision probes),
+transactional installation identity, repository-bounded git exclude writes,
+the five-scope Projects Store cache ceiling under active listeners, bounded
+tool-content stringification, queue position validation, offset-list page
+rejection semantics, web-mode refresh-token non-persistence, removal of
+unwired stub exports and dead native shells, and the implemented stateless
+gateway profile without a Deploy database configuration (the gateway remains
+a non-database-owning process and deliberately does not enable the SDKWork
+process-shared pool, per `scripts/server-observability-contract.test.mjs`).
+The Flutter mobile surface has migrated its chat page from IM semantics to the
+canonical Agents Session Item contract in code; it still does not constitute
+release evidence for this Rust-and-PC cutover per Section 7.

@@ -9,6 +9,7 @@ import {
   importProjectProviderSessions as importProjectProviderSessionsFromAuthority,
   refreshImportedProjectFromAuthority,
   type ImportedProjectSessionInventoryResult,
+  type RefreshImportedProjectFromAuthorityOptions,
 } from '../workbench/importedProjectHydration.ts';
 import {
   buildProjectsStoreScopeKey,
@@ -127,12 +128,16 @@ export function useImportedProjectSessionInventory({
 
     try {
       const result = await coordinatorRef.current.synchronize(scope, async ({ signal }) => {
-        const request = {
+        const request: RefreshImportedProjectFromAuthorityOptions = {
           agentSessionService,
           knownProjects,
           projectId: scope.projectId,
           projectService,
           signal,
+          // An explicit provider Session import must surface import
+          // failures; a plain refresh degrades to the persisted inventory
+          // when the provider store scan is slow or unavailable.
+          synchronizeMode: options.importProviderSessions ? 'required' : 'best-effort',
           userScope: scope.userScope,
           workspaceId: scope.workspaceId,
         };

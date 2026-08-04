@@ -25,10 +25,10 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
     entry,
     {
       engineId: 'codex',
-      agentId: 'agent.code-engine.codex',
+      agentId: 'agent.codex',
       displayName: 'codex',
       providerId: 'provider.codex',
-      bindingId: 'binding.agent-provider.codex',
+      bindingId: 'binding.codex',
       healthy: true,
       defaultModelId: 'codex-1',
       tier: 'official-sdk',
@@ -51,7 +51,7 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
           label: 'Codex 1',
           description: 'codex',
           providerId: 'provider.codex',
-          bindingId: 'binding.agent-provider.codex',
+          bindingId: 'binding.codex',
           defaultForEngine: true,
         },
       ],
@@ -65,8 +65,8 @@ const catalog = await listBirdCoderCodeEngineCatalog(
     engines: [
       {
         engineKey: 'codex',
-        agentId: 'agent.code-engine.codex',
-        bindingId: 'binding.agent-provider.codex',
+        agentId: 'agent.codex',
+        bindingId: 'binding.codex',
         tier: 'official-sdk',
         defaultAccessModeId: 'ask_for_approval',
         accessModes: [
@@ -88,7 +88,7 @@ const catalog = await listBirdCoderCodeEngineCatalog(
             label: 'Codex 1',
             description: 'codex',
             providerId: 'provider.codex',
-            bindingId: 'binding.agent-provider.codex',
+            bindingId: 'binding.codex',
             defaultForEngine: true,
           },
         ],

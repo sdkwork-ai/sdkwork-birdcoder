@@ -20,6 +20,14 @@ export class SecureStorageHostError extends Error {
 
 export interface SecureStorageHostAdapter {
   readonly available: boolean;
+  /**
+   * Whether this host may persist long-lived credentials (the rotating
+   * refresh token). Browser session storage is readable by any script in
+   * the page, so a web adapter must return `false` and the session bridge
+   * will keep the refresh token in memory only; reload then requires
+   * re-authentication, mirroring the PC web posture.
+   */
+  readonly supportsLongLivedCredentials: boolean;
   read(key: string): Promise<string | null>;
   write(key: string, value: string): Promise<void>;
   remove(key: string): Promise<void>;
@@ -39,6 +47,7 @@ function assertBrowserSessionStorage(): Storage {
 export function createBrowserSecureStorageAdapter(): SecureStorageHostAdapter {
   return {
     available: typeof window !== 'undefined' && !!window.sessionStorage,
+    supportsLongLivedCredentials: false,
     async read(key) {
       return assertBrowserSessionStorage().getItem(key);
     },

@@ -1,22 +1,14 @@
 import { useState } from 'react';
 import { resolveBirdCoderLegalLinks } from '@sdkwork/birdcoder-h5-commons';
 import {
-  BIRDCODER_H5_ENGINE_OPTIONS,
   BIRDCODER_H5_LANGUAGE_OPTIONS,
   BIRDCODER_H5_THEME_OPTIONS,
   useBirdCoderSettings,
-  type BirdCoderEnginePreference,
   type BirdCoderLanguagePreference,
   type BirdCoderThemePreference,
 } from '../state/settingsState';
 
 const BIRDCODER_H5_APP_VERSION = '0.1.0';
-
-const ENGINE_LABELS: Record<BirdCoderEnginePreference, string> = {
-  webview: 'WebView',
-  servo: 'Servo',
-  cef: 'CEF',
-};
 
 const THEME_LABELS: Record<BirdCoderThemePreference, string> = {
   system: 'System',
@@ -86,7 +78,7 @@ export interface SettingsPageProps {
 }
 
 function SettingsContent({ onLogout }: SettingsPageProps) {
-  const { state, setEngine, setTheme, setLanguage, reset } = useBirdCoderSettings();
+  const { state, setTheme, setLanguage, reset } = useBirdCoderSettings();
   const legal = resolveBirdCoderLegalLinks();
   const [cacheCleared, setCacheCleared] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -110,26 +102,9 @@ function SettingsContent({ onLogout }: SettingsPageProps) {
       <div>
         <h2 className="text-base font-semibold">Settings</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage rendering engine, appearance, language, and account preferences.
+          Manage appearance, language, and account preferences.
         </p>
       </div>
-
-      <SettingsSection
-        title="Engine"
-        description="Select the rendering engine used to load the BirdCoder workspace."
-      >
-        <div className="divide-y divide-border">
-          {BIRDCODER_H5_ENGINE_OPTIONS.map((option) => (
-            <OptionRow
-              key={option}
-              label={ENGINE_LABELS[option]}
-              value={option}
-              current={state.engine}
-              onSelect={setEngine}
-            />
-          ))}
-        </div>
-      </SettingsSection>
 
       <SettingsSection
         title="Theme"

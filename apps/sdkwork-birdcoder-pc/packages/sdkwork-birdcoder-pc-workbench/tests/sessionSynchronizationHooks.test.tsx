@@ -123,7 +123,7 @@ function createProject(projectId: string, workspaceId = 'workspace-a'): AgentPro
 function createSession(
   projectId: string,
   sessionId = 'session-a',
-  agentId = 'agent.intelligence.codex',
+  agentId = 'agent.codex',
 ): AgentProjectView['agentSessions'][number] {
   return {
     agentId,
@@ -1108,11 +1108,11 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const firstSession = createSession(
       selectedProject.projectId,
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     const correctedSession = {
       ...firstSession,
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
     };
     const failedResult = {
       agentSessionId: firstSession.id,
@@ -1145,7 +1145,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     await waitFor(() => expect(mocks.refreshAgentSessionItems).toHaveBeenCalledTimes(2));
     expect(firstSignal.aborted).toBe(true);
     expect(mocks.refreshAgentSessionItems.mock.calls[1]?.[0].resolvedLocation?.agentSession.agentId)
-      .toBe('agent.intelligence.codex');
+      .toBe('agent.codex');
 
     await act(async () => {
       firstRefresh.resolve({
@@ -1495,11 +1495,11 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const selectedAgentSession = createSession(
       'project-a',
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     const correctedSession = {
       ...selectedAgentSession,
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
     };
     const selectedProject = {
       ...createProject('project-a'),
@@ -1554,7 +1554,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const selectedAgentSession = createSession(
       'project-a',
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     const selectedProject = {
       ...createProject('project-a'),
@@ -1593,7 +1593,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       'user-a::session:0\u0001workspace-a',
       'project-a',
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     expect(onAgentSessionUnavailable).toHaveBeenCalledOnce();
     expect(onAgentSessionUnavailable).toHaveBeenCalledWith('session-a', 'project-a');
@@ -1636,7 +1636,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       'user-a::session:0\u0001workspace-a',
       'project-a',
       'session-a',
-      'agent.intelligence.codex',
+      'agent.codex',
     );
     expect(onAgentSessionUnavailable).toHaveBeenCalledWith('session-a', 'project-a');
   });
@@ -1645,7 +1645,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const selectedAgentSession = createSession(
       'project-a',
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     const selectedProject = {
       ...createProject('project-a'),
@@ -1681,7 +1681,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       'user-a::session:0\u0001workspace-a',
       'project-a',
       'session-a',
-      'agent.intelligence.stale',
+      'agent.stale',
     );
     expect(onAgentSessionUnavailable).not.toHaveBeenCalled();
   });
@@ -1775,7 +1775,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
       'user-a::session:0\u0001workspace-a',
       'project-a',
       'session-a',
-      'agent.intelligence.codex',
+      'agent.codex',
     );
     expect(onAgentSessionUnavailable).toHaveBeenCalledWith('session-a', 'project-a');
   });
@@ -1785,7 +1785,7 @@ describe('useSelectedAgentSessionItems background refresh', () => {
     const recoveredSession = createSession(
       selectedProject.projectId,
       'session.outside-head',
-      'agent.intelligence.codex',
+      'agent.codex',
     );
     const sessionRecord = {
       agentId: recoveredSession.agentId,

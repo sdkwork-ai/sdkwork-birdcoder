@@ -8,7 +8,7 @@ import type {
   SdkworkDocumentsAppClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import { chunk } from '@sdkwork/utils/collection';
-import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+import { normalizeOffsetListPageRequest } from '../paginationValidation.ts';
 
 import type {
   DocumentListOptions,
@@ -105,14 +105,14 @@ export class AgentsDocumentsProjectDocumentService implements IDocumentService {
 
   async getDocuments(options: DocumentListOptions): Promise<ProjectDocumentPage> {
     const projectId = requireProjectId(options.projectId);
-    const pagination = normalizeOffsetListQuery({
+    const pagination = normalizeOffsetListPageRequest({
       page: options.page,
-      page_size: options.pageSize,
+      pageSize: options.pageSize,
     });
     const compositionPage = await this.projectCompositionSlots.list(projectId, {
       enabled: true,
       page: pagination.page,
-      pageSize: pagination.page_size,
+      pageSize: pagination.pageSize,
       slotKind: 'document',
     });
     const slots = (compositionPage.items as AgentProjectCompositionSlotRecord[])

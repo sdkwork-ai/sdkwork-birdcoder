@@ -8,8 +8,8 @@ import { projectBirdCoderMiniProgramRoutes } from '../scripts/project-routes.mjs
 
 test('route contribution deterministically projects the native app.json page', () => {
   const { appJson, content, route } = projectBirdCoderMiniProgramRoutes({ write: false });
-  assert.equal(route.id, 'app.im.chat.index');
-  assert.equal(route.titleKey, 'route.chat');
+  assert.equal(route.id, 'app.workbench.index');
+  assert.equal(route.titleKey, 'route.workbench');
   assert.equal(route.permissionHint, 'birdcoder.system-descriptor.read');
   assert.deepEqual(appJson.pages, ['pages/__generated__/workbench/index']);
   assert.equal(

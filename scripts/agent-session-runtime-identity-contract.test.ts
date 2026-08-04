@@ -10,12 +10,7 @@ import {
   resolveBirdcoderWorkbenchHostMode,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtimeTarget.ts';
 
-const engines = [
-  ['codex', 'openai'],
-  ['claude-code', 'anthropic'],
-  ['opencode', 'opencode'],
-  ['gemini-cli', 'google'],
-] as const;
+const engines = ['codex', 'claude-code', 'opencode', 'gemini'] as const;
 
 const testAccessModeCatalog = {
   accessModes: [{
@@ -32,33 +27,33 @@ const testAccessModeCatalog = {
   tier: 'official-sdk',
 };
 
-replaceWorkbenchCodeEngineCatalogForTesting(engines.map(([engineId, provider]) => ({
+replaceWorkbenchCodeEngineCatalogForTesting(engines.map((engineId) => ({
   ...testAccessModeCatalog,
-  agentId: `agent.code-engine.${engineId}`,
-  bindingId: `binding.agent.${engineId}`,
+  agentId: `agent.${engineId}`,
+  bindingId: `binding.${engineId}`,
   defaultModelId: `${engineId}-default`,
   displayName: engineId,
   engineId,
   healthy: true,
   models: [{
-    bindingId: `binding.provider.${engineId}`,
+    bindingId: `binding.${engineId}`,
     defaultForEngine: true,
     description: `${engineId} default model`,
     label: `${engineId} default`,
     modelId: `${engineId}-default`,
-    providerId: `provider.${provider}`,
+    providerId: `provider.${engineId}`,
   }],
-  providerId: `provider.${provider}`,
+  providerId: `provider.${engineId}`,
 })));
 
-for (const [engineId, provider] of engines) {
+for (const engineId of engines) {
   const identity = resolveWorkbenchRuntimeBindingIdentity(engineId, `${engineId}-default`);
   assert.deepEqual(identity, {
-    agentId: `agent.code-engine.${engineId}`,
+    agentId: `agent.${engineId}`,
     engineId,
     modelId: `${engineId}-default`,
-    providerBindingId: `binding.provider.${engineId}`,
-    providerId: `provider.${provider}`,
+    providerBindingId: `binding.${engineId}`,
+    providerId: `provider.${engineId}`,
   });
   assert.equal(
     resolveWorkbenchCodeEngineForRuntimeBinding({
@@ -73,59 +68,59 @@ for (const [engineId, provider] of engines) {
 }
 
 replaceWorkbenchCodeEngineCatalogForTesting([
-  ...engines.map(([engineId, provider]) => ({
+  ...engines.map((engineId) => ({
     ...testAccessModeCatalog,
-    agentId: `agent.code-engine.${engineId}`,
-    bindingId: `binding.agent.${engineId}`,
+    agentId: `agent.${engineId}`,
+    bindingId: `binding.${engineId}`,
     defaultModelId: `${engineId}-default`,
     displayName: engineId,
     engineId,
     healthy: true,
     models: [{
-      bindingId: `binding.provider.${engineId}`,
+      bindingId: `binding.${engineId}`,
       defaultForEngine: true,
       description: `${engineId} default model`,
       label: `${engineId} default`,
       modelId: `${engineId}-default`,
-      providerId: `provider.${provider}`,
+      providerId: `provider.${engineId}`,
     }],
-    providerId: `provider.${provider}`,
+    providerId: `provider.${engineId}`,
   })),
   {
     ...testAccessModeCatalog,
-    agentId: 'agent.code-engine.codex-enterprise',
-    bindingId: 'binding.agent.codex-enterprise',
+    agentId: 'agent.codex-enterprise',
+    bindingId: 'binding.codex-enterprise',
     defaultModelId: 'codex-default',
     displayName: 'codex-enterprise',
     engineId: 'codex-enterprise',
     healthy: true,
     models: [{
-      bindingId: 'binding.provider.codex-enterprise',
+      bindingId: 'binding.codex-enterprise',
       defaultForEngine: true,
       description: 'Enterprise Codex',
       label: 'Enterprise Codex',
       modelId: 'codex-default',
-      providerId: 'provider.openai',
+      providerId: 'provider.codex',
     }],
-    providerId: 'provider.openai',
+    providerId: 'provider.codex',
   },
 ]);
 
 assert.equal(
   resolveWorkbenchCodeEngineForRuntimeBinding({
     modelId: 'codex-default',
-    providerId: 'provider.openai',
+    providerId: 'provider.codex',
   }),
   null,
   'Ambiguous provider/model lookup must fail closed when more than one engine matches.',
 );
 assert.equal(
   resolveWorkbenchCodeEngineForRuntimeBinding({
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     engineId: 'codex',
     modelId: 'codex-default',
-    providerBindingId: 'binding.provider.codex',
-    providerId: 'provider.openai',
+    providerBindingId: 'binding.codex',
+    providerId: 'provider.codex',
   })?.id,
   'codex',
 );

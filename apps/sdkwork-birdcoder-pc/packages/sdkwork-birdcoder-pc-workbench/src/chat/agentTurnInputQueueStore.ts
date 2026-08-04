@@ -149,6 +149,23 @@ interface NormalizedProjection {
   storedBytes: number;
 }
 
+const QUEUE_POSITION_PATTERN = /^[0-9]+$/;
+
+/**
+ * Parses a server-provided queue position as a non-negative integer. The
+ * position is an untrusted owner-side field; a malformed value must fail
+ * loudly as data corruption instead of letting `BigInt()` throw an opaque
+ * exception inside a projection update.
+ */
+function parseQueuePosition(position: string): bigint {
+  if (!QUEUE_POSITION_PATTERN.test(position)) {
+    throw new Error(
+      `Agent Turn input queue entry has an invalid position: ${JSON.stringify(position)}`,
+    );
+  }
+  return BigInt(position);
+}
+
 function normalizeProjection(
   inputs: readonly WorkbenchQueuedAgentTurnInput[],
   previousProjection: readonly WorkbenchQueuedAgentTurnInput[],
@@ -172,6 +189,7 @@ function normalizeProjection(
       throw new Error('Agent Turn input queue projection contains an invalid or duplicate entry ID.');
     }
     queueEntryIds.add(queueEntryId);
+    parseQueuePosition(input.position);
     storedBytes += countStoredBytes(input);
     if (storedBytes > MAX_QUEUED_AGENT_TURN_INPUT_STORED_BYTES_PER_SCOPE) {
       throw new RangeError('Agent Turn input queue projection exceeds its Session UTF-8 byte budget.');
@@ -294,8 +312,8 @@ export function upsertWorkbenchQueuedAgentTurnInput(
     nextProjection.push(entry);
   }
   nextProjection.sort((first, second) => {
-    const firstPosition = BigInt(first.position);
-    const secondPosition = BigInt(second.position);
+    const firstPosition = parseQueuePosition(first.position);
+    const secondPosition = parseQueuePosition(second.position);
     return firstPosition < secondPosition ? -1 : firstPosition > secondPosition ? 1 : 0;
   });
   return setWorkbenchQueuedAgentTurnInputs(normalizedKey, nextProjection);

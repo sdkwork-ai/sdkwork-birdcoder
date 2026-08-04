@@ -33,7 +33,7 @@ describe('Agent Session user-state updates', () => {
     const service = {
       async getSessionUserStates(identities: readonly unknown[]) {
         expect(identities).toEqual([{
-          agentId: 'agent.provider.codex',
+          agentId: 'agent.codex',
           sessionId: 'session.alpha',
         }]);
         return new Map([['session.alpha', existingState]]);
@@ -49,14 +49,14 @@ describe('Agent Session user-state updates', () => {
 
     const updated = await updateAgentSessionUserState(
       service,
-      { agentId: 'agent.provider.codex', sessionId: 'session.alpha' },
+      { agentId: 'agent.codex', sessionId: 'session.alpha' },
       { lastItemSequence: '3' },
       { pinned: false },
     );
 
     expect(requests).toEqual([{
       identity: {
-        agentId: 'agent.provider.codex',
+        agentId: 'agent.codex',
         sessionId: 'session.alpha',
       },
       request: {

@@ -13,7 +13,7 @@ import { useCodePageSessionSelection } from '../src/pages/useCodePageSessionSele
 
 function session(projectId: string, id: string): AgentSessionView {
   return {
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     createdAt: '2026-07-30T00:00:00.000Z',
     displayTime: 'now',
     engineId: 'codex',

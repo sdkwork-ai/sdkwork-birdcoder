@@ -252,7 +252,7 @@ function createFakeServices() {
         configurationId: input.configurationId,
         profileId: 'profile.test',
         engineId: input.engineId,
-        agentId: 'agent.code-engine.codex',
+        agentId: 'agent.codex',
         providerScope: 'codex',
         vendorCode: input.vendorCode,
         baseUrl: input.baseUrl,
@@ -269,7 +269,7 @@ function createFakeServices() {
         configurationId: input.configurationId,
         profileId: 'profile.test',
         engineId: input.engineId,
-        agentId: 'agent.code-engine.codex',
+        agentId: 'agent.codex',
         providerScope: 'codex',
         modelId: input.modelId,
       };

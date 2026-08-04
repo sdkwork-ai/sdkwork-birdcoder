@@ -1,5 +1,5 @@
 export const BIRDCODER_MP_WORKBENCH_ZH_CN = {
-  'route.chat': 'BirdCoder',
+  'route.workbench': 'BirdCoder',
   'workbench.loading': '正在初始化 BirdCoder 工作台...',
   'workbench.empty': '工作台能力正在接入',
   'workbench.permissionDenied': '没有访问工作台的权限',

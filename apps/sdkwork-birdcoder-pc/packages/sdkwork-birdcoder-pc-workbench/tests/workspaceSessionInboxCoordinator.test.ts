@@ -16,7 +16,10 @@ import {
   getProjectsStore,
   upsertProjectIntoProjectsStore,
 } from '../src/stores/projectsStore.ts';
-import { subscribeWorkspaceSessionInboxSynchronization } from '../src/workbench/workspaceSessionInboxCoordinator.ts';
+import {
+  subscribeWorkspaceSessionInboxSynchronization,
+} from '../src/workbench/workspaceSessionInboxCoordinator.ts';
+import { WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS } from '../src/workbench/workspaceSessionInboxSync.ts';
 
 const userScope = 'user.session-inbox';
 const workspaceId = 'workspace.session-inbox';
@@ -53,9 +56,9 @@ function session(
   };
 }
 
-function project(initialSessions: AgentSessionView[] = []): AgentProjectView {
+function project(initialSessions: AgentSessionView[] = [], targetProjectId = projectId): AgentProjectView {
   return {
-    projectId,
+    projectId: targetProjectId,
     workspaceId,
     tenantId,
     organizationId,
@@ -75,6 +78,7 @@ function summary(
   sessionId: string,
   version: string,
   updatedAt: string,
+  targetProjectId = projectId,
 ): ActivitySummary {
   return {
     session: {
@@ -84,7 +88,7 @@ function summary(
       organizationId,
       agentId: `agent.${sessionId}`,
       ownerUserId,
-      projectId,
+      projectId: targetProjectId,
       sessionKind: 'coding',
       entrySurface: 'pc',
       title: sessionId,
@@ -151,10 +155,13 @@ function page(
   };
 }
 
-function installProject(initialSessions: AgentSessionView[] = []): string {
+function installProject(
+  initialSessions: AgentSessionView[] = [],
+  targetProjectId = projectId,
+): string {
   const scopeKey = buildProjectsStoreScopeKey(userScope, workspaceId);
   deleteProjectsStore(scopeKey);
-  upsertProjectIntoProjectsStore(project(initialSessions), userScope);
+  upsertProjectIntoProjectsStore(project(initialSessions, targetProjectId), userScope);
   return scopeKey;
 }
 
@@ -166,6 +173,19 @@ function serviceWith(
 ): IAgentSessionService {
   return {
     listSessionActivitySummaries: vi.fn(implementation),
+  } as unknown as IAgentSessionService;
+}
+
+function providerSynchronizingServiceWith(
+  implementation: (
+    request: AgentSessionActivityPageRequest,
+    options?: AgentSessionReadOptions,
+  ) => ReturnType<IAgentSessionService['listSessionActivitySummaries']>,
+  providerSynchronization: () => Promise<{ projectId: string }>,
+): IAgentSessionService {
+  return {
+    listSessionActivitySummaries: vi.fn(implementation),
+    synchronizeProjectSessions: vi.fn(providerSynchronization),
   } as unknown as IAgentSessionService;
 }
 
@@ -296,4 +316,295 @@ describe('Workspace Session Inbox coordinator', () => {
     secondSubscription.dispose();
     deleteProjectsStore(scopeKey);
   });
+
+  it('synchronizes provider Session inventories before reading the activity snapshot', async () => {
+    const synchronizedProjectId = 'project.session-inbox-sync';
+    const scopeKey = installProject([], synchronizedProjectId);
+    const synchronizeProjectSessions = vi.fn(async () => ({
+      failedSessionCount: '0',
+      issues: [],
+      projectId: synchronizedProjectId,
+      skippedSessionCount: '0',
+      synchronizedSessionCount: '1',
+    }));
+    const listSessionActivitySummaries = vi.fn(async () => page([
+      summary('session.provider-synced', '1', '2026-07-27T00:00:01.000Z', synchronizedProjectId),
+    ]));
+    const service = providerSynchronizingServiceWith(
+      listSessionActivitySummaries,
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.waitFor(() => expect(synchronizeProjectSessions).toHaveBeenCalledWith(
+      synchronizedProjectId,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    await vi.waitFor(() => expect(listSessionActivitySummaries).toHaveBeenCalled());
+    await vi.waitFor(() => expect(
+      getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.id,
+    ).toBe('session.provider-synced'));
+
+    subscription.dispose();
+    deleteProjectsStore(scopeKey);
+  });
+
+  it('deduplicates provider Session inventory synchronization within the cache TTL', async () => {
+    const synchronizedProjectId = 'project.session-inbox-dedupe';
+    const scopeKey = installProject([], synchronizedProjectId);
+    const synchronizeProjectSessions = vi.fn(async () => ({
+      failedSessionCount: '0',
+      issues: [],
+      projectId: synchronizedProjectId,
+      skippedSessionCount: '0',
+      synchronizedSessionCount: '1',
+    }));
+    const service = providerSynchronizingServiceWith(
+      async () => page([]),
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.waitFor(() => expect(synchronizeProjectSessions).toHaveBeenCalledTimes(1));
+    await subscription.invalidate({ broadcast: false });
+    await vi.waitFor(() => expect(
+      synchronizeProjectSessions.mock.calls.length,
+    ).toBeGreaterThanOrEqual(1));
+    // The forced refresh stays within the 60s TTL, so the provider inventory
+    // pass must not issue a second backend synchronization for the project.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+
+    subscription.dispose();
+    deleteProjectsStore(scopeKey);
+  });
+
+  it('keeps reading the activity snapshot when provider inventory synchronization fails', async () => {
+    const synchronizedProjectId = 'project.session-inbox-failure';
+    const scopeKey = installProject([], synchronizedProjectId);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const synchronizeProjectSessions = vi.fn(async () => {
+      throw new Error('Provider inventory unavailable.');
+    });
+    const service = providerSynchronizingServiceWith(
+      async () => page([
+        summary('session.feed-still-read', '1', '2026-07-27T00:00:01.000Z', synchronizedProjectId),
+      ]),
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.waitFor(() => expect(
+      getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions[0]?.id,
+    ).toBe('session.feed-still-read'));
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to synchronize some Agents project provider Session inventories',
+      expect.arrayContaining([expect.objectContaining({ projectId: synchronizedProjectId })]),
+    );
+
+    subscription.dispose();
+    errorSpy.mockRestore();
+    deleteProjectsStore(scopeKey);
+  });
+
+  it('logs incomplete provider inventory synchronization outcomes for diagnosis', async () => {
+    const synchronizedProjectId = 'project.session-inbox-issues';
+    const scopeKey = installProject([], synchronizedProjectId);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const synchronizeProjectSessions = vi.fn(async () => ({
+      failedSessionCount: '1',
+      issues: [{
+        code: 'synchronization_time_budget_exceeded',
+        count: '1',
+        disposition: 'failed',
+      }],
+      projectId: synchronizedProjectId,
+      skippedSessionCount: '0',
+      synchronizedSessionCount: '12',
+    }));
+    const service = providerSynchronizingServiceWith(
+      async () => page([]),
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.waitFor(() => expect(synchronizeProjectSessions).toHaveBeenCalledTimes(1));
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Agents project provider Session inventory synchronization reported issues',
+      expect.objectContaining({
+        failedSessionCount: '1',
+        issues: expect.arrayContaining([
+          expect.objectContaining({ code: 'synchronization_time_budget_exceeded' }),
+        ]),
+        projectId: synchronizedProjectId,
+      }),
+    );
+
+    subscription.dispose();
+    warnSpy.mockRestore();
+    deleteProjectsStore(scopeKey);
+  });
+
+  it('stops dispatching provider inventory synchronization after the cycle budget and still reads the snapshot', async () => {
+    vi.useFakeTimers();
+    const budgetedProjects = [
+      'project.session-inbox-budget-1',
+      'project.session-inbox-budget-2',
+      'project.session-inbox-budget-3',
+    ];
+    for (const targetProjectId of budgetedProjects) {
+      upsertProjectIntoProjectsStore(project([], targetProjectId), userScope);
+    }
+    const scopeKey = buildProjectsStoreScopeKey(userScope, workspaceId);
+    const synchronizeProjectSessions = vi.fn(async (targetProjectId?: string) => {
+      const resolvedProjectId = targetProjectId ?? '';
+      // The first two projects reconcile slowly; the third would be next in
+      // the dispatch queue only after the 10s cycle budget has expired.
+      await new Promise((resolve) => setTimeout(resolve, resolvedProjectId === budgetedProjects[0]
+        || resolvedProjectId === budgetedProjects[1]
+        ? 12_000
+        : 0));
+      return {
+        failedSessionCount: '0',
+        issues: [],
+        projectId: resolvedProjectId,
+        skippedSessionCount: '0',
+        synchronizedSessionCount: '1',
+      };
+    });
+    const listSessionActivitySummaries = vi.fn(async () => page([]));
+    const service = providerSynchronizingServiceWith(
+      listSessionActivitySummaries,
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    // Dispatch the first two projects, then let the slow reconciles finish
+    // past the 10s budget: the third project must not be dispatched in this
+    // cycle, and the activity snapshot read must still run.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(synchronizeProjectSessions).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(synchronizeProjectSessions).toHaveBeenCalledTimes(2);
+    expect(synchronizeProjectSessions.mock.calls.map(([projectId]) => projectId)).toEqual([
+      budgetedProjects[0],
+      budgetedProjects[1],
+    ]);
+    expect(listSessionActivitySummaries).toHaveBeenCalledTimes(1);
+    expect(getProjectsStore(scopeKey).snapshot.projects.length).toBe(3);
+
+    subscription.dispose();
+    deleteProjectsStore(scopeKey);
+    vi.useRealTimers();
+  });
+
+  it('synchronizes provider inventories for every loaded project beyond a fixed per-cycle cap', async () => {
+    vi.useFakeTimers();
+    const manyProjectIds = Array.from({ length: 205 }, (_, index) =>
+      `project.session-inbox-many-${index}`);
+    for (const targetProjectId of manyProjectIds) {
+      upsertProjectIntoProjectsStore(project([], targetProjectId), userScope);
+    }
+    const scopeKey = buildProjectsStoreScopeKey(userScope, workspaceId);
+    const synchronizeProjectSessions = vi.fn(async (targetProjectId?: string) => ({
+      failedSessionCount: '0',
+      issues: [],
+      projectId: targetProjectId ?? '',
+      skippedSessionCount: '0',
+      synchronizedSessionCount: '1',
+    }));
+    const service = providerSynchronizingServiceWith(
+      async () => page([]),
+      synchronizeProjectSessions,
+    );
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+    // Every project must be reached within the cycle budget; a fixed
+    // per-cycle project cap would starve the tail of a large inventory.
+    expect(synchronizeProjectSessions).toHaveBeenCalledTimes(205);
+    expect(new Set(synchronizeProjectSessions.mock.calls.map(([projectId]) => projectId)).size)
+      .toBe(205);
+
+    subscription.dispose();
+    deleteProjectsStore(scopeKey);
+    vi.useRealTimers();
+  });
+
+  it('truncates the workspace snapshot at the cache cap instead of failing the synchronization', async () => {
+    // Ten thousand Sessions spread over one hundred projects keep the store
+    // commit cost linear while exercising the full cap traversal.
+    const capProjects = Array.from({ length: 100 }, (_, index) =>
+      `project.session-inbox-cap-${index}`);
+    for (const targetProjectId of capProjects) {
+      upsertProjectIntoProjectsStore(project([], targetProjectId), userScope);
+    }
+    const scopeKey = buildProjectsStoreScopeKey(userScope, workspaceId);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let pageIndex = 0;
+    const listSessionActivitySummaries = vi.fn(async () => {
+      const offset = pageIndex * 100;
+      pageIndex += 1;
+      return page(
+        Array.from({ length: 100 }, (_, index) => {
+          const globalIndex = offset + index;
+          return summary(
+            `session.cap.${String(globalIndex).padStart(7, '0')}`,
+            '1',
+            '2026-07-27T00:00:00.000Z',
+            capProjects[globalIndex % capProjects.length],
+          );
+        }),
+        { hasMore: true, nextCursor: `cursor.${pageIndex}` },
+      );
+    });
+    const service = serviceWith(listSessionActivitySummaries);
+    const subscription = subscribeWorkspaceSessionInboxSynchronization(
+      service,
+      { userScope, workspaceId },
+    );
+
+    // The traversal stops once the cumulative page size reaches the cache
+    // cap (100 pages of 100): no further page is requested, the truncation
+    // is announced, and the synchronization does not fail.
+    await vi.waitFor(() => expect(
+      listSessionActivitySummaries,
+    ).toHaveBeenCalledTimes(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS / 100));
+    expect(warnSpy).toHaveBeenCalledWith(
+      `Agents Workspace Session activity snapshot truncated at ${WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS} Sessions.`,
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(listSessionActivitySummaries).toHaveBeenCalledTimes(
+      WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS / 100,
+    );
+    await vi.waitFor(() => expect(
+      getProjectsStore(scopeKey).snapshot.projects[0]?.agentSessions.length,
+    ).toBe(WORKSPACE_SESSION_INBOX_MAX_CACHED_SESSIONS / capProjects.length));
+
+    subscription.dispose();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+    deleteProjectsStore(scopeKey);
+  }, 30_000);
 });

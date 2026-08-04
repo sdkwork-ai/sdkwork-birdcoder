@@ -21,25 +21,25 @@ export const WORKBENCH_MODE_PROVIDERS: Readonly<
   coding: [
     {
       engineId: 'codex',
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       displayName: 'Codex',
       tier: 't1-code',
     },
     {
       engineId: 'claude-code',
-      agentId: 'agent.intelligence.claude-code',
+      agentId: 'agent.claude-code',
       displayName: 'Claude Code',
       tier: 't1-code',
     },
     {
       engineId: 'gemini',
-      agentId: 'agent.intelligence.gemini',
+      agentId: 'agent.gemini',
       displayName: 'Gemini',
       tier: 't1-code',
     },
     {
       engineId: 'opencode',
-      agentId: 'agent.intelligence.opencode',
+      agentId: 'agent.opencode',
       displayName: 'OpenCode',
       tier: 't1-code',
     },
@@ -47,13 +47,13 @@ export const WORKBENCH_MODE_PROVIDERS: Readonly<
   work: [
     {
       engineId: 'openclaw',
-      agentId: 'agent.intelligence.openclaw',
+      agentId: 'agent.openclaw',
       displayName: 'OpenClaw',
       tier: 't2-autonomous',
     },
     {
       engineId: 'hermes',
-      agentId: 'agent.intelligence.hermes',
+      agentId: 'agent.hermes',
       displayName: 'Hermes Agent',
       tier: 't2-autonomous',
     },
@@ -83,6 +83,22 @@ export function matchesWorkbenchModeEngineId(
   return WORKBENCH_MODE_PROVIDERS[mode].some(
     (provider) => provider.engineId === normalizedEngineId,
   );
+}
+
+/**
+ * Decides whether a Session row may be shown in the given workbench mode.
+ *
+ * Only engines that are *known* to belong to another mode are hidden; a
+ * Session whose engine could not be classified (e.g. the client could not
+ * resolve its engine and stamped the raw provider id) stays visible instead
+ * of silently vanishing from the inbox.
+ */
+export function isSessionVisibleInWorkbenchMode(
+  mode: WorkbenchMode,
+  engineId: unknown,
+): boolean {
+  const resolvedMode = resolveWorkbenchModeForEngineId(engineId);
+  return resolvedMode === null || resolvedMode === mode;
 }
 
 export function resolveWorkbenchModeForEngineId(engineId: unknown): WorkbenchMode | null {

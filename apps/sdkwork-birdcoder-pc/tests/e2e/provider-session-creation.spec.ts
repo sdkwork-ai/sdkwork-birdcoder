@@ -447,21 +447,21 @@ test('browser cloud providers fail closed before creating Agent Sessions without
 
   const providers = [
     {
-      agentId: 'agent.intelligence.claude-code',
+      agentId: 'agent.claude-code',
       menuName: /Claude Code.*Claude Sonnet 4\.5/iu,
       modelId: 'claude-sonnet-4-5',
       providerBindingId: 'claude-code',
       providerId: 'anthropic',
     },
     {
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       menuName: /Codex.*GPT-5 Codex/iu,
       modelId: 'gpt-5-codex',
       providerBindingId: 'codex',
       providerId: 'openai',
     },
     {
-      agentId: 'agent.intelligence.opencode',
+      agentId: 'agent.opencode',
       menuName: /Opencode.*Automatic/iu,
       modelId: 'auto',
       providerBindingId: 'opencode',

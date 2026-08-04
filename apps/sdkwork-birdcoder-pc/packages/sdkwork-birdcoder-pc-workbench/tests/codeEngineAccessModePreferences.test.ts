@@ -45,7 +45,7 @@ const catalogEntry = {
       workspaceAccess: 'full_access' as const,
     },
   ],
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   bindingId: 'binding.agent.codex',
   defaultAccessModeId: 'ask_for_approval',
   defaultModelId: 'codex-default',

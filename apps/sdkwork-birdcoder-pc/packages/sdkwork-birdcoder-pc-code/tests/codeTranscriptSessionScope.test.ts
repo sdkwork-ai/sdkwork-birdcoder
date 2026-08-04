@@ -12,7 +12,7 @@ describe('Code transcript session scope', () => {
     };
     const enrichedSession = {
       ...initialSession,
-      agentId: 'agent.code-engine.codex',
+      agentId: 'agent.codex',
       providerId: 'provider.openai',
     };
 

@@ -161,10 +161,10 @@ assert.deepEqual(spec.workbenchModes, {
     coding: {
       tier: 't1-code',
       providers: [
-        { engineId: 'codex', agentId: 'agent.intelligence.codex' },
-        { engineId: 'claude-code', agentId: 'agent.intelligence.claude-code' },
-        { engineId: 'gemini', agentId: 'agent.intelligence.gemini' },
-        { engineId: 'opencode', agentId: 'agent.intelligence.opencode' },
+        { engineId: 'codex', agentId: 'agent.codex' },
+        { engineId: 'claude-code', agentId: 'agent.claude-code' },
+        { engineId: 'gemini', agentId: 'agent.gemini' },
+        { engineId: 'opencode', agentId: 'agent.opencode' },
       ],
     },
     work: {
@@ -183,7 +183,7 @@ assert.deepEqual(spec.workbenchModes, {
       providers: [
         {
           engineId: 'openclaw',
-          agentId: 'agent.intelligence.openclaw',
+          agentId: 'agent.openclaw',
           displayName: 'OpenClaw',
           installation: {
             baseline: '2026.7.2',
@@ -195,7 +195,7 @@ assert.deepEqual(spec.workbenchModes, {
         },
         {
           engineId: 'hermes',
-          agentId: 'agent.intelligence.hermes',
+          agentId: 'agent.hermes',
           displayName: 'Hermes Agent',
           installation: {
             baseline: 'cff9728587da4f3c0beed0786f9bea528e489f13',

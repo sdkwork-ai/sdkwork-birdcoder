@@ -63,7 +63,7 @@ const sessions = {
     requestOptions: { signal?: AbortSignal; timeout?: number },
   ) {
     sessionRetrieveCalls.push([agentId, sessionId, requestOptions]);
-    if (agentId !== 'agent.code-engine.codex' || sessionId !== 'session.recovery-target') {
+    if (agentId !== 'agent.codex' || sessionId !== 'session.recovery-target') {
       throw Object.assign(new Error('Resource lookup failed.'), { httpStatus: 404 });
     }
     return {
@@ -123,7 +123,7 @@ const client = {
             engines: [
               { agentId: 'agent.birdcoder', engineKey: 'birdcoder', bindingId: '', models: [] },
               {
-                agentId: 'agent.code-engine.codex',
+                agentId: 'agent.codex',
                 engineKey: 'codex',
                 bindingId: 'codex',
                 models: [],
@@ -142,7 +142,7 @@ const client = {
           return {
             items: [{
               session: {
-                agentId: 'agent.code-engine.codex',
+                agentId: 'agent.codex',
                 sessionId: 'session.activity-contract',
               },
             }],
@@ -269,7 +269,7 @@ assert.equal(createCalls[0]?.[1].agentId, 'agent.birdcoder');
 assert.equal('projectId' in (createCalls[0]?.[1] ?? {}), false);
 
 const providerSession = await service.createSession({
-  agentId: ' agent.code-engine.codex ',
+  agentId: ' agent.codex ',
   projectId: 'project.contract',
   title: 'Codex session',
 });
@@ -282,9 +282,9 @@ const createdSessionIdentity = {
   sessionId: created.sessionId,
 };
 await service.listRuntimeBindings(providerSessionIdentity);
-assert.equal(createCalls[1]?.[1].agentId, 'agent.code-engine.codex');
+assert.equal(createCalls[1]?.[1].agentId, 'agent.codex');
 assert.deepEqual(runtimeBindingListCalls[0], [
-  'agent.code-engine.codex',
+  'agent.codex',
   providerSession.sessionId,
 ]);
 
@@ -300,7 +300,7 @@ const userStates = await service.getSessionUserStates([
 assert.equal(userStates.get(providerSession.sessionId)?.resourceId, providerSession.sessionId);
 assert.equal(userStates.get(created.sessionId)?.resourceId, created.sessionId);
 assert.deepEqual(sessionUserStateListCalls, [[
-  'agent.code-engine.codex',
+  'agent.codex',
   {
     page: 1,
     pageSize: 1,
@@ -327,10 +327,10 @@ missingSessionUserStateIds.clear();
 createdSessionAgentIdOverride = 'agent.unexpected';
 await assert.rejects(
   service.createSession({
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     projectId: 'project.contract',
   }),
-  /instead of requested Agent "agent\.code-engine\.codex"/u,
+  /instead of requested Agent "agent\.codex"/u,
 );
 createdSessionAgentIdOverride = '';
 await service.listRuntimeBindings({
@@ -345,7 +345,7 @@ assert.deepEqual(runtimeBindingListCalls[1], [
 createdSessionProjectIdOverride = 'project.unexpected';
 await assert.rejects(
   service.createSession({
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     projectId: 'project.contract',
   }),
   /instead of requested Project "project\.contract"/u,
@@ -366,7 +366,7 @@ const createdRuntimeBinding = await service.createRuntimeBinding(
 );
 assert.match(createdRuntimeBinding.runtimeBindingId, /^runtime_binding\.[0-9a-f-]+$/u);
 assert.deepEqual(runtimeBindingCreateCalls[0]?.slice(0, 2), [
-  'agent.code-engine.codex',
+  'agent.codex',
   providerSession.sessionId,
 ]);
 assert.equal(
@@ -391,7 +391,7 @@ const replayedRuntimeBinding = await service.createRuntimeBinding(
 );
 assert.equal(replayedRuntimeBinding.runtimeBindingId, 'runtime_binding.recovered-contract');
 assert.deepEqual(runtimeBindingRetrieveCalls[0], [
-  'agent.code-engine.codex',
+  'agent.codex',
   providerSession.sessionId,
   'runtime_binding.recovered-contract',
 ]);
@@ -488,7 +488,7 @@ assert.deepEqual(workspaceListCalls, [[
 
 const activityAbortController = new AbortController();
 const activityPage = await service.listSessionActivitySummaries({
-  agentId: ' agent.code-engine.codex ',
+  agentId: ' agent.codex ',
   cursor: ' cursor.activity ',
   pageSize: 200,
   projectId: ' project.contract ',
@@ -500,7 +500,7 @@ const activityPage = await service.listSessionActivitySummaries({
 assert.equal(activityPage.items[0]?.session.sessionId, 'session.activity-contract');
 assert.deepEqual(sessionActivityListCalls, [[
   {
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     cursor: 'cursor.activity',
     pageSize: 200,
     projectId: 'project.contract',
@@ -561,23 +561,23 @@ await assert.rejects(
 
 const recoveryReadController = new AbortController();
 const recoveryIdentity = {
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   sessionId: 'session.recovery-target',
 };
 const recoveredSession = await service.getSession(recoveryIdentity, {
   signal: recoveryReadController.signal,
   timeoutMs: 2_000,
 });
-assert.equal(recoveredSession.agentId, 'agent.code-engine.codex');
+assert.equal(recoveredSession.agentId, 'agent.codex');
 assert.deepEqual(sessionRetrieveCalls, [[
-  'agent.code-engine.codex',
+  'agent.codex',
   'session.recovery-target',
   { signal: recoveryReadController.signal, timeout: 2_000 },
 ]]);
 assert.deepEqual(codeEngineListCalls, []);
 await service.listRuntimeBindings(recoveryIdentity);
 assert.deepEqual(runtimeBindingListCalls.at(-1), [
-  'agent.code-engine.codex',
+  'agent.codex',
   recoveredSession.sessionId,
 ]);
 

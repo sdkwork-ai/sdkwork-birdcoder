@@ -5,7 +5,7 @@ import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/agents-a
 import { BirdCoderAgentSessionService } from './agentsSessionService.ts';
 
 const identity = {
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   sessionId: 'session.queue-hydration',
 };
 

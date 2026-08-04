@@ -33,6 +33,7 @@ export function createCapacitorSecureStorageAdapter(options: {
 
   return {
     available: true,
+    supportsLongLivedCredentials: true,
     async read(key) {
       return secureStorage.getItem(key);
     },

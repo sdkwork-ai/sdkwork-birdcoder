@@ -24,9 +24,13 @@ are not regenerated into the BirdCoder SDK family.
 ## Data And Message Semantics
 
 H5 persists no BirdCoder business database. Browser session storage is limited
-to governed IAM credential state. AI transcript items are Agents Session Items,
-while human Conversation and Message facts belong to IM. The H5 assistant route
-does not create an IM persistence or projection boundary.
+to governed IAM credential state and never persists the rotating refresh
+token — web hosts keep long-lived credentials in memory only (browser storage
+is readable by any script in the page), while Capacitor native hosts persist
+them through OS keychain/keystore-backed storage. AI transcript items are
+Agents Session Items, while human Conversation and Message facts belong to IM.
+The H5 assistant route does not create an IM persistence or projection
+boundary.
 
 ## Security And Runtime
 

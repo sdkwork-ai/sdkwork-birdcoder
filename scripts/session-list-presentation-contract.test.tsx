@@ -215,8 +215,8 @@ for (const identityId of [
   'model.codex',
   'provider.codex',
   'agent.codex',
-  'agent.intelligence.codex',
-  'agent.code-engine.codex',
+  'agent.codex',
+  'agent.codex',
 ]) {
   const presentation = resolveSessionProviderPresentation({ engineId: identityId });
   assert.equal(presentation.abbreviation, 'CX');
@@ -241,8 +241,8 @@ assert.equal(explicitEnginePresentation.abbreviation, 'CC');
 assert.equal(explicitEnginePresentation.label, 'Claude Code');
 
 for (const [identity, expectedAbbreviation, expectedLabel] of [
-  [{ engineId: 'agent.code-engine.claude-code' }, 'CC', 'Claude Code'],
-  [{ agentId: 'agent.intelligence.gemini-cli' }, 'GM', 'Gemini'],
+  [{ engineId: 'agent.claude-code' }, 'CC', 'Claude Code'],
+  [{ agentId: 'agent.gemini-cli' }, 'GM', 'Gemini'],
   [{ providerId: 'provider.opencode' }, 'OC', 'OpenCode'],
 ] as const) {
   const presentation = resolveSessionProviderPresentation(identity);

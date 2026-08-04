@@ -53,7 +53,16 @@ impl ReadinessCheck for DeployServiceReadinessCheck {
 /// provider from the environment, and the route crate exposes the bare router
 /// plus its route manifest so the gateway composes it under the single shared
 /// web framework layer.
-async fn assemble_deployments_contribution() -> Result<OwnerApiContribution, String> {
+///
+/// Returns `None` for the documented stateless profile: without an explicit
+/// workspace PostgreSQL profile the Deployments module is not mounted, so a
+/// gateway without Deploy database configuration serves without inventing a
+/// development database.
+async fn assemble_deployments_contribution(
+) -> Result<Option<OwnerApiContribution>, String> {
+    if !crate::workspace_postgres_profile_configured() {
+        return Ok(None);
+    }
     let host = sdkwork_deploy_service_host::bootstrap_deploy_service_host_from_env()
         .await
         .map_err(|error| format!("assemble Deployments owner App API failed: {error}"))?;
@@ -66,7 +75,7 @@ async fn assemble_deployments_contribution() -> Result<OwnerApiContribution, Str
         route_manifest.routes(),
     );
 
-    Ok(OwnerApiContribution {
+    Ok(Some(OwnerApiContribution {
         owner: "sdkwork-deployments",
         router,
         route_manifest,
@@ -76,7 +85,7 @@ async fn assemble_deployments_contribution() -> Result<OwnerApiContribution, Str
         readiness_check: Arc::new(DeployServiceReadinessCheck {
             service: host.service,
         }),
-    })
+    }))
 }
 
 /// Assembles the exact standalone HTTP unit from owner assembly entrypoints.
@@ -123,11 +132,7 @@ pub(crate) async fn assemble_standalone_profile(
     let models = sdkwork_api_models_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Models owner App API failed: {error}"))?;
-    let deployments = assemble_deployments_contribution()
-        .await
-        .map_err(|error| format!("assemble Deployments owner App API failed: {error:#}"))?;
-
-    compose_owner_contributions(vec![
+    let mut contributions = vec![
         OwnerApiContribution {
             owner: "sdkwork-birdcoder",
             router: birdcoder.router,
@@ -218,16 +223,18 @@ pub(crate) async fn assemble_standalone_profile(
             domain_context_injectors: models.domain_context_injectors,
             readiness_check: models.readiness_check,
         },
-        OwnerApiContribution {
-            owner: "sdkwork-deployments",
-            router: deployments.router,
-            route_manifest: deployments.route_manifest,
-            openapi: deployments.openapi,
-            permission_catalog: deployments.permission_catalog,
-            domain_context_injectors: deployments.domain_context_injectors,
-            readiness_check: deployments.readiness_check,
-        },
-    ])
+    ];
+    // The Deployments owner contribution is optional: it mounts only when an
+    // explicit workspace PostgreSQL profile is configured (stateless profile
+    // otherwise).
+    if let Some(deployments) = assemble_deployments_contribution()
+        .await
+        .map_err(|error| format!("assemble Deployments owner App API failed: {error:#}"))?
+    {
+        contributions.push(deployments);
+    }
+
+    compose_owner_contributions(contributions)
 }
 
 fn compose_owner_contributions(

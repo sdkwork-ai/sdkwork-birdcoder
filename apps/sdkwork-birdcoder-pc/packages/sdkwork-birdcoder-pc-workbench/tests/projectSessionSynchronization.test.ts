@@ -65,7 +65,7 @@ describe('project session synchronization coordinator', () => {
     expect(task).toHaveBeenCalledTimes(3);
   });
 
-  it('aborts and suppresses a stale task when a forced refresh starts', async () => {
+  it('joins an in-flight refresh instead of superseding it when forced', async () => {
     const coordinator = createProjectSessionSynchronizationCoordinator<number>();
     let firstSignal: AbortSignal | undefined;
     let resolveFirst: ((value: number) => void) | undefined;
@@ -77,18 +77,17 @@ describe('project session synchronization coordinator', () => {
     });
     await Promise.resolve();
 
-    const second = coordinator.synchronize(scope, async ({ signal }) => {
-      expect(signal.aborted).toBe(false);
-      return 2;
-    }, { force: true });
+    const supersededTask = vi.fn(async () => 2);
+    const second = coordinator.synchronize(scope, supersededTask, { force: true });
     resolveFirst?.(1);
 
-    expect(firstSignal?.aborted).toBe(true);
-    await expect(first).resolves.toBeNull();
-    await expect(second).resolves.toBe(2);
+    expect(firstSignal?.aborted).toBe(false);
+    await expect(first).resolves.toBe(1);
+    await expect(second).resolves.toBe(1);
+    expect(supersededTask).not.toHaveBeenCalled();
   });
 
-  it('treats a task rejection caused by superseding abort as a neutral result', async () => {
+  it('treats a task rejection caused by superseding invalidation as a neutral result', async () => {
     const coordinator = createProjectSessionSynchronizationCoordinator<number>();
     let firstSignal: AbortSignal | undefined;
     const first = coordinator.synchronize(scope, ({ signal }) => {
@@ -99,11 +98,10 @@ describe('project session synchronization coordinator', () => {
     });
     await Promise.resolve();
 
-    const second = coordinator.synchronize(scope, async () => 2, { force: true });
+    coordinator.invalidate(scope);
 
     expect(firstSignal?.aborted).toBe(true);
     await expect(first).resolves.toBeNull();
-    await expect(second).resolves.toBe(2);
   });
 
   it('expires successful cache entries after the configured TTL', async () => {

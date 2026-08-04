@@ -75,7 +75,16 @@ export async function writeBirdCoderSessionRecord(
   record: BirdCoderSessionRecord,
   secureStorage: SecureStorageHostAdapter = getBirdCoderSecureStorageAdapter(),
 ): Promise<void> {
-  await secureStorage.write(APP_SESSION_STORAGE_KEY, JSON.stringify(record));
+  const persisted = secureStorage.supportsLongLivedCredentials
+    ? record
+    : {
+        ...record,
+        // The rotating refresh token never leaves memory on a web host;
+        // session storage is readable by any script in the page. Reload
+        // falls back to re-authentication instead of exposing the token.
+        refreshToken: undefined,
+      };
+  await secureStorage.write(APP_SESSION_STORAGE_KEY, JSON.stringify(persisted));
 }
 
 export async function clearBirdCoderSessionRecord(

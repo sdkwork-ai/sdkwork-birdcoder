@@ -4,7 +4,7 @@ import {
   BirdCoderAgentSessionService,
 } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService';
 
-const agentId = 'agent.code-engine.codex';
+const agentId = 'agent.codex';
 const sessionId = 'session.cancel';
 const turnId = 'turn.cancel';
 const requestedAt = '2026-07-31T00:00:00.000Z';

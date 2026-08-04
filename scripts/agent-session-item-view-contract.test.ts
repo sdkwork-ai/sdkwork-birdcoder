@@ -53,7 +53,7 @@ const canonicalItem: AgentSessionItemRecord = {
   inputTokens: '11',
   outputTokens: '23',
   modelId: 'gpt-5',
-  providerId: 'openai',
+  providerId: 'provider.codex',
   turnId: 'agent-turn-1',
   driveRefs: [],
   createdBy: '3001',
@@ -113,7 +113,7 @@ const codexUserTextItem: AgentSessionItemRecord = {
   kind: 'user_input',
   content: 'Inspect the attached screenshot and README.',
   contentType: 'text/plain',
-  providerId: 'openai',
+  providerId: 'provider.codex',
   sequence: '20',
   createdAt: codexUserMessageCreatedAt,
 };
@@ -140,7 +140,7 @@ const codexUserMentionItem: AgentSessionItemRecord = {
     path: 'E:\\workspace\\README.md',
   }),
   contentType: 'application/json',
-  providerId: 'openai',
+  providerId: 'provider.codex',
   sequence: '22',
   createdAt: '2026-07-23T08:00:02.002Z',
 };
@@ -150,8 +150,8 @@ const codexUserMessageViews = toAgentSessionTranscriptItemViews([
   codexUserMentionItem,
 ], {
   engineId: 'codex',
-  providerBindingId: 'codex',
-  providerId: 'openai',
+  providerBindingId: 'binding.codex',
+  providerId: 'provider.codex',
 });
 assert.equal(
   codexUserMessageViews.length,
@@ -193,7 +193,7 @@ const codexEnvelopeItem: AgentSessionItemRecord = {
     ],
   }),
   contentType: 'application/json',
-  providerId: 'provider.model.codex',
+  providerId: 'provider.codex',
   sequence: '23',
 };
 const codexEnvelopeView = toAgentSessionItemView(codexEnvelopeItem);
@@ -240,13 +240,13 @@ const codexRolloutResponseItem: AgentSessionItemRecord = {
     },
   }),
   contentType: 'application/json',
-  providerId: 'openai',
+  providerId: 'provider.codex',
   sequence: '24',
 };
 const codexRolloutResponseView = toAgentSessionItemView(codexRolloutResponseItem, {
   engineId: 'codex',
-  providerBindingId: 'codex',
-  providerId: 'openai',
+  providerBindingId: 'binding.codex',
+  providerId: 'provider.codex',
 });
 assert.equal(
   codexRolloutResponseView.content,
@@ -288,7 +288,7 @@ const codexLossyAnnotatedTextView = toAgentSessionItemView({
   contentType: 'text/plain',
 }, {
   engineId: 'codex',
-  providerId: 'openai',
+  providerId: 'provider.codex',
 });
 assert.equal(codexLossyAnnotatedTextView.content, codexRolloutResponseView.content);
 assert.deepEqual(
@@ -350,7 +350,7 @@ const boundedMentionedFilesView = toAgentSessionItemView({
   contentType: 'text/plain',
 }, {
   engineId: 'codex',
-  providerId: 'openai',
+  providerId: 'provider.codex',
 });
 assert.equal(boundedMentionedFilesView.content, 'Bound the file list.');
 assert.equal(
@@ -371,12 +371,12 @@ const codexLegacyEnvelopeItem: AgentSessionItemRecord = {
     local_audio: ['E:\\workspace\\legacy.wav'],
   }),
   contentType: 'application/json',
-  providerId: 'openai',
+  providerId: 'provider.codex',
   sequence: '25',
 };
 const codexLegacyEnvelopeView = toAgentSessionItemView(codexLegacyEnvelopeItem, {
   engineId: 'openai-codex',
-  providerId: 'openai',
+  providerId: 'provider.codex',
 });
 assert.equal(
   codexLegacyEnvelopeView.content,
@@ -402,7 +402,7 @@ const unrelatedJsonUserItem: AgentSessionItemRecord = {
   kind: 'user_input',
   content: '{"type":"input_image","image_url":"https://example.test/image.png"}',
   contentType: 'application/json',
-  providerId: 'openai',
+  providerId: 'provider.opencode',
 };
 assert.equal(
   toAgentSessionItemView(unrelatedJsonUserItem).content,
@@ -413,7 +413,7 @@ assert.equal(
   toAgentSessionItemView(unrelatedJsonUserItem, {
     engineId: 'openai',
     providerBindingId: 'openai',
-    providerId: 'openai',
+    providerId: 'provider.opencode',
   }).content,
   unrelatedJsonUserItem.content,
   'OpenAI provider context alone must not activate the Codex protocol adapter.',

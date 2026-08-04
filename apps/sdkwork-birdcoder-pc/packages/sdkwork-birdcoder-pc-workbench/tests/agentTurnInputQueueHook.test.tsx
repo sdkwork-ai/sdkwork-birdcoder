@@ -21,7 +21,7 @@ vi.mock('../src/context/ideServices.ts', () => ({
   useIDEServices: () => mocks.ideServices,
 }));
 
-const agentId = 'agent.code-engine.codex';
+const agentId = 'agent.codex';
 const sessionId = 'session.queue.hook';
 const requestedAt = '2026-07-31T00:00:00.000Z';
 type QueueDispatch = (

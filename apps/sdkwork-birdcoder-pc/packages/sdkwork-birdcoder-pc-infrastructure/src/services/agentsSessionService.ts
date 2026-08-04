@@ -14,7 +14,7 @@ import {
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import { sha256Hash } from '@sdkwork/utils/crypto';
 import { uuid } from '@sdkwork/utils/id';
-import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+import { normalizeOffsetListPageRequest } from './paginationValidation.ts';
 
 import type {
   AgentInteractionPageRequest,
@@ -118,9 +118,9 @@ function hashPayload(value: unknown): string {
 }
 
 function normalizePageRequest(request: AgentSessionPageRequest = {}) {
-  const { page, page_size: pageSize } = normalizeOffsetListQuery({
+  const { page, pageSize } = normalizeOffsetListPageRequest({
     page: request.page,
-    page_size: request.pageSize,
+    pageSize: request.pageSize,
   });
   return { page, pageSize };
 }

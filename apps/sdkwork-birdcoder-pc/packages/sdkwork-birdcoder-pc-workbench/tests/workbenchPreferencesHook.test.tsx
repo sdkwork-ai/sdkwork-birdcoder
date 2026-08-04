@@ -11,7 +11,7 @@ import {
 
 const catalogEntry = {
   accessModes: [],
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   bindingId: 'binding.agent.codex',
   defaultAccessModeId: '',
   defaultModelId: 'codex-default',

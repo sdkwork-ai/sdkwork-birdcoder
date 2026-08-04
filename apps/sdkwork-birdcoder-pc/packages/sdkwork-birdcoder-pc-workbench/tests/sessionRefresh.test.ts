@@ -206,10 +206,89 @@ describe('manual Project Session refresh', () => {
       'session.gemini',
     ]);
   });
+
+  it('keeps a fast best-effort Provider synchronization in the refresh result', async () => {
+    const dependencies = services(project(), cursorPage([summary('session.codex')]));
+
+    const result = await refreshProjectSessions({
+      agentSessionService: dependencies.agentSessionService,
+      projectId: PROJECT_ID,
+      projectService: dependencies.projectService,
+      synchronizeMode: 'best-effort',
+    });
+
+    expect(result.status).toBe('refreshed');
+    expect(result.providerSynchronization).toEqual({
+      projectId: PROJECT_ID,
+      synchronizedSessionCount: '2',
+    });
+    expect(dependencies.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
+  });
+
+  it('degrades to the persisted inventory when the best-effort Provider synchronization fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const dependencies = services(project(), cursorPage([summary('session.codex')]));
+    dependencies.synchronizeProjectSessions.mockRejectedValue(
+      new Error('provider engine unavailable'),
+    );
+
+    const result = await refreshProjectSessions({
+      agentSessionService: dependencies.agentSessionService,
+      projectId: PROJECT_ID,
+      projectService: dependencies.projectService,
+      synchronizeMode: 'best-effort',
+    });
+
+    expect(result.status).toBe('refreshed');
+    expect(result.providerSynchronization).toBeUndefined();
+    expect(result.sessionIds).toEqual(['session.codex']);
+    expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('continues with the persisted inventory when the best-effort Provider synchronization exceeds its budget', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.useFakeTimers();
+    try {
+      const dependencies = services(project(), cursorPage([summary('session.codex')]));
+      dependencies.synchronizeProjectSessions.mockImplementation(
+        () => new Promise(() => {}),
+      );
+      const pending = refreshProjectSessions({
+        agentSessionService: dependencies.agentSessionService,
+        projectId: PROJECT_ID,
+        projectService: dependencies.projectService,
+        synchronizeMode: 'best-effort',
+        syncTimeoutMs: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(1_000);
+      const result = await pending;
+      expect(result.status).toBe('refreshed');
+      expect(result.providerSynchronization).toBeUndefined();
+      expect(result.sessionIds).toEqual(['session.codex']);
+      expect(dependencies.listSessionActivitySummaries).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      warn.mockRestore();
+    }
+  });
+
+  it('fails the refresh when the required Provider synchronization fails', async () => {
+    const dependencies = services(project(), cursorPage([summary('session.codex')]));
+    dependencies.synchronizeProjectSessions.mockRejectedValue(new Error('provider import failed'));
+
+    await expect(refreshProjectSessions({
+      agentSessionService: dependencies.agentSessionService,
+      projectId: PROJECT_ID,
+      projectService: dependencies.projectService,
+      synchronizeMode: 'required',
+    })).rejects.toThrow('provider import failed');
+    expect(dependencies.listSessionActivitySummaries).not.toHaveBeenCalled();
+  });
 });
 
 describe('Agent Session transcript pagination', () => {
-  const transcriptAgentId = 'agent.intelligence.cursor';
+  const transcriptAgentId = 'agent.cursor';
   const transcriptSessionId = 'session.cursor.test';
   const transcriptCreatedAt = '2026-07-27T08:00:00.000Z';
 
@@ -288,8 +367,8 @@ describe('Agent Session transcript pagination', () => {
   }
 
   it('loads the latest 50 items first and reaches all 105 items through upward pagination', async () => {
-    const agentId = 'agent.intelligence.codex';
-    const sessionId = 'session.provider.codex.test';
+    const agentId = 'agent.codex';
+    const sessionId = 'session.codex.test';
     const createdAt = '2026-07-27T08:00:00.000Z';
     const updatedAt = '2026-07-27T10:00:00.000Z';
     const selectedSession: AgentSessionView = {
@@ -944,8 +1023,8 @@ describe('Agent Session transcript pagination', () => {
 
 describe('Agent Session transcript refresh errors', () => {
   function createRefreshHarness() {
-    const agentId = 'agent.intelligence.codex';
-    const sessionId = 'session.provider.codex.not-found';
+    const agentId = 'agent.codex';
+    const sessionId = 'session.codex.not-found';
     const createdAt = '2026-07-27T08:00:00.000Z';
     const updatedAt = '2026-07-27T10:00:00.000Z';
     const agentSession: AgentSessionView = {

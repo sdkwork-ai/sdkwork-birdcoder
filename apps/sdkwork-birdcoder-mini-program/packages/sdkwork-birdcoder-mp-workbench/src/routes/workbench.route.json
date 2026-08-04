@@ -1,6 +1,6 @@
 {
-  "id": "app.im.chat.index",
-  "titleKey": "route.chat",
+  "id": "app.workbench.index",
+  "titleKey": "route.workbench",
   "auth": "required",
   "permissionHint": "birdcoder.system-descriptor.read",
   "placement": {

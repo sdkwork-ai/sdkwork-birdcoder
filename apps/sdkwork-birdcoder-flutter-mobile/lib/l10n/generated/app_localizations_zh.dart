@@ -129,21 +129,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_register_success => '注册成功，请登录。';
 
   @override
-  String get settings_engine => '引擎';
-
-  @override
-  String get settings_engine_description => '选择用于加载 BirdCoder 工作区的渲染引擎。';
-
-  @override
-  String get settings_engine_webview => 'WebView';
-
-  @override
-  String get settings_engine_servo => 'Servo';
-
-  @override
-  String get settings_engine_cef => 'CEF';
-
-  @override
   String get settings_theme => '主题';
 
   @override
@@ -250,6 +235,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get error_server => '服务器错误，请稍后重试。';
+
+  @override
+  String get agent_session_load_failed => '加载会话记录失败。';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -377,21 +365,6 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get auth_register_success => '註冊成功，請登入。';
 
   @override
-  String get settings_engine => '引擎';
-
-  @override
-  String get settings_engine_description => '選擇用於載入 BirdCoder 工作區的渲染引擎。';
-
-  @override
-  String get settings_engine_webview => 'WebView';
-
-  @override
-  String get settings_engine_servo => 'Servo';
-
-  @override
-  String get settings_engine_cef => 'CEF';
-
-  @override
   String get settings_theme => '主題';
 
   @override
@@ -498,4 +471,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get error_server => '伺服器錯誤，請稍後重試。';
+
+  @override
+  String get agent_session_load_failed => '載入會話記錄失敗。';
 }

@@ -88,14 +88,14 @@ describe('resolveProjectTerminalRuntimeLocationId', () => {
     });
 
     await expect(resolveProjectTerminalRuntimeLocationId(service, {
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       agentSessionId: 'session.selected',
       projectId: 'project.one',
     })).resolves.toBe('runtime.selected');
     expect(listSessionsByProject).not.toHaveBeenCalled();
     expect(listRuntimeBindings).toHaveBeenCalledWith(
       {
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         sessionId: 'session.selected',
       },
       { page: 1, pageSize: 20 },
@@ -170,7 +170,7 @@ describe('resolveProjectTerminalRuntimeLocationId', () => {
     });
 
     await expect(resolveProjectTerminalRuntimeLocationId(service, {
-      agentId: 'agent.intelligence.opencode',
+      agentId: 'agent.opencode',
       agentSessionId: 'session.selected',
       projectId: 'project.one',
     })).resolves.toBeNull();

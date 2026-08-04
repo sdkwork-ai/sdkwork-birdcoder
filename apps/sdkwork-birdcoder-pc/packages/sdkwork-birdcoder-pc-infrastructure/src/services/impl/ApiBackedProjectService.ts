@@ -5,7 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
-import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+import { normalizeOffsetListPageRequest } from '../paginationValidation.ts';
 
 import type {
   AgentProjectPageRequest,
@@ -167,13 +167,13 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async getProjectsPage(request: AgentProjectPageRequest): Promise<AgentProjectViewPage> {
-    const pagination = normalizeOffsetListQuery({
+    const pagination = normalizeOffsetListPageRequest({
       page: request.page,
-      page_size: request.pageSize,
+      pageSize: request.pageSize,
     });
     const response = await this.projects.list({
       page: pagination.page,
-      pageSize: pagination.page_size,
+      pageSize: pagination.pageSize,
       ...(request.workspaceId?.trim()
         ? { workspaceId: request.workspaceId.trim() }
         : {}),

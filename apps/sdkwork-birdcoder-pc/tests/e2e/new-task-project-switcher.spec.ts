@@ -198,7 +198,7 @@ async function installSecondProject(page: Page): Promise<void> {
       await route.fulfill({
         json: {
           code: 0,
-          data: createSwitchSession('agent.intelligence.claude-code'),
+          data: createSwitchSession('agent.claude-code'),
           traceId: 'new-task-project-switcher-project-session-detail',
         },
       });

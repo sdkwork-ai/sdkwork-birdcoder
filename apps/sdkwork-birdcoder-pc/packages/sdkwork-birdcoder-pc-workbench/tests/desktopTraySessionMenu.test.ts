@@ -34,7 +34,7 @@ function session({
   updatedAt: string;
 } & Partial<AgentSessionView>): AgentSessionView {
   return {
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     createdAt: updatedAt,
     displayTime: 'now',
     engineId: 'codex',

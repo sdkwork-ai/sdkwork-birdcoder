@@ -12,7 +12,7 @@ import {
 type AgentInteraction = Parameters<typeof mapAgentSessionPendingInteractions>[0][number];
 
 const sessionIdentity = {
-  agentId: 'agent.intelligence.codex',
+  agentId: 'agent.codex',
   sessionId: 'agent-session-interactions-contract',
 } as const;
 

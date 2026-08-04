@@ -3,7 +3,7 @@ import type {
   AgentsAppSdkClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { AgentWorkspaceView } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+import { normalizeOffsetListPageRequest } from '../paginationValidation.ts';
 
 import type {
   AgentWorkspacePageRequest,
@@ -107,13 +107,13 @@ export class AgentsSdkWorkspaceService implements IAgentWorkspaceService {
   async getWorkspacesPage(
     request: AgentWorkspacePageRequest,
   ): Promise<AgentWorkspaceViewPage> {
-    const pagination = normalizeOffsetListQuery({
+    const pagination = normalizeOffsetListPageRequest({
       page: request.page,
-      page_size: request.pageSize,
+      pageSize: request.pageSize,
     });
     const response = await this.workspaces.list({
       page: pagination.page,
-      pageSize: pagination.page_size,
+      pageSize: pagination.pageSize,
       ...(request.status ? { status: request.status } : {}),
       ...(request.includeDeleted === undefined
         ? {}

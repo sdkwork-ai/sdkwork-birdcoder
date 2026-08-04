@@ -21,6 +21,12 @@ const DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX: &str = "desktop-root:";
 const PROJECT_DEVICE_MOUNTS_SCOPE: &str = "project-device-mounts";
 const PROJECT_DEVICE_MOUNT_KEY_HEX_LENGTH: usize = 64;
 const MAX_DEVICE_STATE_VALUE_BYTES: usize = 256 * 1024;
+/// Cap on entries returned by an enumerable local-store list and on rows
+/// scanned while resolving a runtime location; the device-state table is
+/// device-local but a corrupted or hostile store must not force an unbounded
+/// in-memory materialization.
+const MAX_LOCAL_STORE_LIST_ENTRIES: usize = 10_000;
+const MAX_PROJECT_DEVICE_MOUNT_SCAN_ROWS: usize = 10_000;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -133,7 +139,14 @@ fn read_project_device_mount_by_identity(
     let mut matched_paths = BTreeSet::new();
     let mut stale_owner_entry = None;
     let mut stale_owner_paths = BTreeSet::new();
+    let mut scanned_rows = 0usize;
     for row in rows {
+        scanned_rows += 1;
+        if scanned_rows > MAX_PROJECT_DEVICE_MOUNT_SCAN_ROWS {
+            return Err(
+                "project mount recovery store is too large; fail closed".to_string()
+            );
+        }
         let (key, value) =
             row.map_err(|error| format!("failed to decode project mount recovery row: {error}"))?;
         let Ok(mount) = serde_json::from_str::<StoredProjectDeviceMountIdentity>(&value) else {
@@ -399,6 +412,9 @@ pub async fn local_store_list(
                 continue;
             }
             entries.push(entry);
+            if entries.len() >= MAX_LOCAL_STORE_LIST_ENTRIES {
+                break;
+            }
         }
         Ok(entries)
     })
@@ -414,8 +430,14 @@ pub async fn desktop_runtime_location_install_identity(
     app: AppHandle,
 ) -> Result<DesktopRuntimeLocationInstallIdentity, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let connection = open_device_state(&app)?;
-        let existing = connection
+        let mut connection = open_device_state(&app)?;
+        // The read-then-write path runs inside one transaction so two
+        // concurrent callers can never create two different installation
+        // identities (last-writer-wins would silently rotate the id).
+        let transaction = connection
+            .transaction()
+            .map_err(|error| format!("failed to begin installation identity transaction: {error}"))?;
+        let existing = transaction
             .query_row(
                 "SELECT value FROM device_state_entry WHERE scope = ?1 AND key = ?2",
                 params![
@@ -433,7 +455,7 @@ pub async fn desktop_runtime_location_install_identity(
             .filter(|value| is_valid_prefixed_uuid(value, DESKTOP_RUNTIME_TARGET_ID_PREFIX))
             .unwrap_or_else(|| create_prefixed_uuid(DESKTOP_RUNTIME_TARGET_ID_PREFIX));
 
-        connection
+        transaction
             .execute(
                 r#"
                 INSERT INTO device_state_entry (scope, key, value, updated_at)
@@ -450,6 +472,9 @@ pub async fn desktop_runtime_location_install_identity(
             .map_err(|error| {
                 format!("failed to persist desktop runtime-location installation identity: {error}")
             })?;
+        transaction.commit().map_err(|error| {
+            format!("failed to commit desktop runtime-location installation identity: {error}")
+        })?;
 
         Ok(DesktopRuntimeLocationInstallIdentity { runtime_target_id })
     })
@@ -498,7 +523,12 @@ pub(crate) fn resolve_desktop_runtime_location_root(
 
     let mut matching_paths = BTreeSet::new();
     let mut selected_path = None;
+    let mut scanned_rows = 0usize;
     for row in rows {
+        scanned_rows += 1;
+        if scanned_rows > MAX_PROJECT_DEVICE_MOUNT_SCAN_ROWS {
+            return Err("desktop runtime location store is too large".to_string());
+        }
         let value = row.map_err(|_| "desktop runtime location store is unavailable".to_string())?;
         let Ok(mount) = serde_json::from_str::<StoredProjectDeviceMountIdentity>(&value) else {
             continue;

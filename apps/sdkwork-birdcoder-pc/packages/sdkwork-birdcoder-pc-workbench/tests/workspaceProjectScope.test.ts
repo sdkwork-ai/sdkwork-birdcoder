@@ -65,7 +65,7 @@ function createProject(workspaceId: string, projectId: string): AgentProjectView
 function createSession(projectId: string): AgentSessionView {
   return {
     id: 'session-1',
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     projectId,
     title: 'Session 1',
     status: 'active',
@@ -487,7 +487,7 @@ describe('Workspace-scoped project inventory', () => {
       );
 
       expect(commit(
-        { ...historyPage, agentId: 'agent.code-engine.stale' },
+        { ...historyPage, agentId: 'agent.stale' },
       )).toBe(false);
       expect(commit({ ...historyPage, projectId: 'project-stale' })).toBe(false);
       expect(commit({
@@ -502,7 +502,7 @@ describe('Workspace-scoped project inventory', () => {
         ...historyPage,
         itemPageInfo: { ...historyPage.itemPageInfo, pageSize: 20 },
       })).toBe(false);
-      expect(commit(historyPage, { ...expected, agentId: 'agent.code-engine.stale' }))
+      expect(commit(historyPage, { ...expected, agentId: 'agent.stale' }))
         .toBe(false);
       expect(commit(historyPage, { ...expected, hasMore: false })).toBe(false);
       expect(commit(historyPage, { ...expected, nextCursor: 'cursor.stale' })).toBe(false);

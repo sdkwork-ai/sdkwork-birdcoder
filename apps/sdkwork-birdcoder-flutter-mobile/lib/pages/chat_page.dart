@@ -76,12 +76,15 @@ class _ChatPageState extends State<ChatPage> {
         _isLoadingHistory = false;
       });
       _scrollToBottom();
-    } catch (_) {
+    } catch (error) {
+      debugPrint(
+        'ChatPage._loadHistory failed: $error',
+      );
       if (!mounted) {
         return;
       }
       setState(() {
-        _lastError = 'Failed to load chat history.';
+        _lastError = AppLocalizations.of(context)!.agent_session_load_failed;
         _isLoadingHistory = false;
       });
     }
@@ -138,7 +141,8 @@ class _ChatPageState extends State<ChatPage> {
               .toDouble(),
         );
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('ChatPage._loadEarlier failed: $error');
       if (!mounted || sessionId != _sessionId || cursor != _nextCursor) {
         return;
       }
@@ -167,11 +171,7 @@ class _ChatPageState extends State<ChatPage> {
     _inputFocusNode.requestFocus();
 
     try {
-<<<<<<< Updated upstream
       final completedItems = await submitBirdCoderAssistantTurn(
-=======
-      await sendBirdCoderMobileChatMessage(
->>>>>>> Stashed changes
         _sdkClients,
         sessionId,
         text,
@@ -209,7 +209,6 @@ class _ChatPageState extends State<ChatPage> {
           _scrollToBottom();
         },
       );
-      final history = await listBirdCoderMobileChatMessages(_sdkClients, conversationId);
       if (!mounted) {
         return;
       }
@@ -218,22 +217,17 @@ class _ChatPageState extends State<ChatPage> {
           : _sessionItems.where((item) => item.itemId != _streamingItemId);
       final mergedItems = _mergeSessionItems(completedBase, completedItems);
       setState(() {
-<<<<<<< Updated upstream
         _sessionItems
           ..removeWhere((item) => item.itemId == _streamingItemId)
           ..clear()
           ..addAll(mergedItems);
         _streamingItemId = null;
         _streamingContent = '';
-=======
-        _messages
-          ..clear()
-          ..addAll(history.map(_toChatMessage));
->>>>>>> Stashed changes
         _isSending = false;
       });
       _scrollToBottom();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('ChatPage._sendTurn failed: $error');
       if (!mounted) {
         return;
       }

@@ -10,7 +10,7 @@ const projectId = 'project.sidebar';
 
 function session(id: string, overrides: Partial<AgentSessionView> = {}): AgentSessionView {
   return {
-    agentId: 'agent.intelligence.codex',
+    agentId: 'agent.codex',
     createdAt: '2026-08-01T00:00:00.000Z',
     displayTime: 'now',
     engineId: 'codex',

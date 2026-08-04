@@ -209,7 +209,7 @@ const missingUserStateService = {
           ...activeSummary,
           session: {
             ...activeSummary.session,
-            agentId: 'agent.code-engine.codex',
+            agentId: 'agent.codex',
             title: 'State-free active session',
           },
         },
@@ -217,7 +217,7 @@ const missingUserStateService = {
           ...archivedSummary,
           session: {
             ...archivedSummary.session,
-            agentId: 'agent.code-engine.codex',
+            agentId: 'agent.codex',
             status: 'archived',
             title: 'State-free archived session',
           },
@@ -745,7 +745,12 @@ const recentConversationService = {
   ) {
     const { sessionId } = identity;
     assert.equal(identity.agentId, AGENT_ID);
-    recentConversationPageRequests.push(request);
+    // The synchronization command is forwarded through the same list slot by
+    // the fixture, but only cursor list requests are page evidence: the
+    // forwarded synchronize request carries only an abort signal.
+    if ('pageSize' in request) {
+      recentConversationPageRequests.push(request);
+    }
     const page = request.cursor === undefined ? 1 : Number(request.cursor.split('.').at(-1)) + 1;
     const newestSequence = 200 - ((page - 1) * 50);
     const items = Array.from({ length: 50 }, (_, index) => {
@@ -1036,7 +1041,11 @@ const headReconciliationService = {
     const { sessionId } = identity;
     assert.equal(identity.agentId, staleHeadSession.agentId);
     const page = request?.cursor === undefined ? 1 : 2;
-    headReconciliationRequests.push(request?.cursor);
+    // The forwarded synchronization command carries only an abort signal and
+    // is not cursor page evidence for the head-reconciliation walk.
+    if (request && 'pageSize' in request) {
+      headReconciliationRequests.push(request.cursor);
+    }
     const pageItems = page === 1
       ? [8, 7, 6]
       : page === 2
@@ -1161,7 +1170,11 @@ const boundedHeadService = {
     const page = request?.cursor === undefined
       ? 1
       : Number(request.cursor.split('.').at(-1)) + 1;
-    boundedHeadRequests.push(request?.cursor);
+    // The forwarded synchronization command carries only an abort signal and
+    // is not cursor page evidence for the bounded head walk.
+    if (request && 'pageSize' in request) {
+      boundedHeadRequests.push(request.cursor);
+    }
     const sequences = Array.from(
       { length: 20 },
       (_, index) => 200 - ((page - 1) * 20) - index,

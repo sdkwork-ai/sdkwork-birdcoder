@@ -15,7 +15,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts';
 
 const requestedAt = '2026-07-31T00:00:00.000Z';
-const agentId = 'agent.code-engine.codex';
+const agentId = 'agent.codex';
 const sessionId = 'session.queue-contract';
 
 function createQueueEntry(

@@ -464,6 +464,17 @@ function parseTimestamp(value: string | null | undefined): number {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+/**
+ * Caches per-Session activity timestamp resolution. Store collections are
+ * immutable (every merge creates a new Session object and never mutates an
+ * existing one), so a resolved value stays valid for the object's lifetime
+ * while the same object is compared repeatedly — typically thousands of times
+ * inside one inbox commit. Without the cache, every comparison parses up to
+ * eight timestamp fields, which dominates the commit of large Session
+ * collections.
+ */
+const agentSessionSortTimestampCache = new WeakMap<object, number>();
+
 export function resolveAgentSessionViewSortTimestamp(
   session: Pick<
     AgentSessionView,
@@ -478,8 +489,16 @@ export function resolveAgentSessionViewSortTimestamp(
     | 'createdAt'
   >,
 ): number {
+  const cached = agentSessionSortTimestampCache.get(session);
+  if (cached !== undefined) {
+    return cached;
+  }
   const explicit = Number(session.sortTimestamp);
-  return Math.max(
+  // The explicit `sortTimestamp` can be stale relative to the activity
+  // fields (activity evidence may arrive after the snapshot it was derived
+  // from), so the resolved value is always the maximum of every meaningful
+  // activity timestamp.
+  const resolved = Math.max(
     Number.isFinite(explicit) && explicit > 0 ? explicit : 0,
     parseTimestamp(session.lastMessageAt),
     parseTimestamp(session.lastRuntimeEventAt),
@@ -490,6 +509,8 @@ export function resolveAgentSessionViewSortTimestamp(
     parseTimestamp(session.updatedAt),
     parseTimestamp(session.createdAt),
   );
+  agentSessionSortTimestampCache.set(session, resolved);
+  return resolved;
 }
 
 export function compareAgentSessionViewsByActivity(
@@ -533,6 +554,26 @@ export function compareAgentSessionViewSortTimestamps(
   right: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
 ): number {
   return resolveAgentSessionViewSortTimestamp(left) - resolveAgentSessionViewSortTimestamp(right);
+}
+
+/**
+ * Ranks how authoritative a Session row title is, so a merged snapshot can
+ * never downgrade a good name to a weaker fallback.
+ *
+ * - 3: user-level title (custom user-state title or a user-renamed canonical
+ *   title) — the title differs from an existing provider title;
+ * - 2: provider-defined name (`providerTitle` from the provider thread);
+ * - 1: fallback text (canonical auto title — commonly the first message —
+ *   or a fabricated placeholder).
+ */
+export function resolveAgentSessionViewTitleAuthority(
+  session: Pick<AgentSessionView, 'providerTitle' | 'title'>,
+): number {
+  const providerTitle = session.providerTitle?.trim();
+  if (!providerTitle) {
+    return 1;
+  }
+  return session.title === providerTitle ? 2 : 3;
 }
 
 export function buildAgentSessionViewSynchronizationVersion(

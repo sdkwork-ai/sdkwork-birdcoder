@@ -7,9 +7,6 @@ import '../l10n/l10n.dart';
 import '../providers/app_provider.dart';
 import '../providers/theme_controller.dart';
 
-/// Rendering engine preference surfaced in the mobile settings screen.
-enum BirdCoderEnginePreference { webview, servo, cef }
-
 /// Language preference aligned with the mobile i18n catalog.
 enum BirdCoderLanguagePreference { en, zhHans, zhHant }
 
@@ -30,7 +27,7 @@ const String _kSupportUrl = 'https://sdkwork.com/support';
 
 /// Mobile settings surface wired through the canonical Flutter route catalog.
 ///
-/// Preferences (rendering engine, theme, language) are persisted with
+/// Preferences (theme, language) are persisted with
 /// [SharedPreferences] and translated through [AppL10n]. The page also exposes
 /// account actions (sign out, clear cache) and an about section linking to
 /// official, privacy, terms, and support resources.
@@ -42,7 +39,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  BirdCoderEnginePreference _engine = BirdCoderEnginePreference.webview;
   BirdCoderLanguagePreference _language = BirdCoderLanguagePreference.en;
   String _version = '0.1.0';
   bool _cacheCleared = false;
@@ -63,7 +59,6 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
-        _engine = _decodeEngine(prefs.getString('engine')) ?? _engine;
         _language = _decodeLanguage(prefs.getString('language')) ?? _language;
         _prefsLoaded = true;
       });
@@ -96,11 +91,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _setEngine(BirdCoderEnginePreference engine) async {
-    setState(() => _engine = engine);
-    await _persistPreference('engine', engine.name);
-  }
-
   Future<void> _setTheme(BirdCoderThemePreference theme) async {
     // Delegate to ThemeController so the global MaterialApp rebuilds with
     // the new ThemeMode immediately. The controller persists the value.
@@ -125,7 +115,6 @@ class _SettingsPageState extends State<SettingsPage> {
       // Best-effort cache clearing; surface no error to the user.
     }
     setState(() {
-      _engine = BirdCoderEnginePreference.webview;
       _language = BirdCoderLanguagePreference.en;
       _cacheCleared = true;
     });
@@ -157,12 +146,6 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         Text(l10n.nav_settings, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 16),
-        _buildSection(
-          context,
-          title: l10n.settings_engine,
-          description: l10n.settings_engine_description,
-          child: _buildEngineDropdown(context),
-        ),
         _buildSection(
           context,
           title: l10n.settings_theme,
@@ -224,24 +207,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildEngineDropdown(BuildContext context) {
-    final l10n = AppL10n.tr(context);
-    return _SettingsDropdown<BirdCoderEnginePreference>(
-      value: _engine,
-      items: const {
-        BirdCoderEnginePreference.webview: null,
-        BirdCoderEnginePreference.servo: null,
-        BirdCoderEnginePreference.cef: null,
-      },
-      labelOf: (engine) => switch (engine) {
-        BirdCoderEnginePreference.webview => l10n.settings_engine_webview,
-        BirdCoderEnginePreference.servo => l10n.settings_engine_servo,
-        BirdCoderEnginePreference.cef => l10n.settings_engine_cef,
-      },
-      onChanged: _prefsLoaded ? _setEngine : null,
     );
   }
 
@@ -381,19 +346,6 @@ class _SettingsDropdown<T extends Enum> extends StatelessWidget {
               }
             },
     );
-  }
-}
-
-BirdCoderEnginePreference? _decodeEngine(String? value) {
-  switch (value) {
-    case 'webview':
-      return BirdCoderEnginePreference.webview;
-    case 'servo':
-      return BirdCoderEnginePreference.servo;
-    case 'cef':
-      return BirdCoderEnginePreference.cef;
-    default:
-      return null;
   }
 }
 

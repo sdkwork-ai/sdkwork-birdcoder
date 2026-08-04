@@ -129,7 +129,7 @@ const projectDriveFileContents = new Map([
 const sessions = [
   createAgentSessionFixture({
     sessionId: 'e2e-claude-session',
-    agentId: 'agent.intelligence.claude-code',
+    agentId: 'agent.claude-code',
     title: 'Claude architecture review',
     itemCount: '8',
     lastItemSequence: '8',
@@ -139,7 +139,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-codex-session',
-    agentId: 'agent.intelligence.codex',
+    agentId: 'agent.codex',
     title: 'Codex implementation',
     itemCount: '119',
     lastItemSequence: '119',
@@ -149,7 +149,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-opencode-session',
-    agentId: 'agent.intelligence.opencode',
+    agentId: 'agent.opencode',
     title: 'OpenCode verification',
     itemCount: '6',
     lastItemSequence: '6',
@@ -159,7 +159,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-gemini-session',
-    agentId: 'agent.intelligence.gemini',
+    agentId: 'agent.gemini',
     title: 'Gemini failure triage',
     itemCount: '3',
     lastItemSequence: '3',
@@ -169,7 +169,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-openclaw-session',
-    agentId: 'agent.intelligence.openclaw',
+    agentId: 'agent.openclaw',
     title: 'OpenClaw operations plan',
     itemCount: '4',
     lastItemSequence: '4',
@@ -179,7 +179,7 @@ const sessions = [
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-hermes-session',
-    agentId: 'agent.intelligence.hermes',
+    agentId: 'agent.hermes',
     title: 'Hermes research brief',
     itemCount: '2',
     lastItemSequence: '2',
@@ -192,7 +192,7 @@ const sessions = [
     const updatedAt = new Date(Date.UTC(2025, 11, 31, 23, 59 - index)).toISOString();
     return createAgentSessionFixture({
       sessionId: `e2e-history-session-${historyNumber}`,
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       title: index === 17
         ? 'History page two session'
         : index === 37
@@ -614,7 +614,7 @@ const sessionItemsBySessionId = new Map([
           sequence: '120',
           content: 'This message was gated by the pre-message safety hook.',
           contentType: 'text/plain',
-          providerId: 'openai',
+          providerId: 'provider.codex',
           deliveryStatus: 'not-sent',
           blockedSources: ['pre-message', 'pre-command'],
           hookStats: {
@@ -955,7 +955,7 @@ const sessionItemsBySessionId = new Map([
             'Inspect this Codex screenshot and the attached protocol notes.',
           ].join('\n'),
           contentType: 'text/plain',
-          providerId: 'openai',
+          providerId: 'provider.codex',
           createdAt: '2026-01-01T00:00:42.004Z',
         };
       }
@@ -969,7 +969,7 @@ const sessionItemsBySessionId = new Map([
           sequence: '101',
           content: '<image name=[Image #1] path="C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png">',
           contentType: 'text/plain',
-          providerId: 'openai',
+          providerId: 'provider.codex',
           createdAt: '2026-01-01T00:00:42.003Z',
         };
       }
@@ -1381,39 +1381,39 @@ function resetMutableFixtureState() {
 
 function createSessionRuntimeBinding(session) {
   const runtimeByAgentId = {
-    'agent.intelligence.claude-code': {
+    'agent.claude-code': {
       modelId: 'claude-sonnet-4-5',
       providerBindingId: 'claude-code',
       providerId: 'anthropic',
     },
-    'agent.intelligence.codex': {
+    'agent.codex': {
       modelId: 'gpt-5-codex',
-      providerBindingId: 'codex',
-      providerId: 'openai',
+      providerBindingId: 'binding.codex',
+      providerId: 'provider.codex',
     },
-    'agent.intelligence.opencode': {
+    'agent.opencode': {
       modelId: 'auto',
       providerBindingId: 'opencode',
       providerId: 'opencode',
     },
-    'agent.intelligence.gemini': {
+    'agent.gemini': {
       modelId: 'gemini-2.5-pro',
       providerBindingId: 'gemini-cli',
       providerId: 'google',
     },
-    'agent.intelligence.openclaw': {
+    'agent.openclaw': {
       modelId: 'openclaw-default',
-      providerBindingId: 'binding.agent-provider.openclaw',
-      providerId: 'provider.model.openclaw',
+      providerBindingId: 'binding.openclaw',
+      providerId: 'provider.openclaw',
     },
-    'agent.intelligence.hermes': {
+    'agent.hermes': {
       modelId: 'hermes-runtime-default',
-      providerBindingId: 'binding.agent-provider.hermes',
-      providerId: 'provider.model.hermes',
+      providerBindingId: 'binding.hermes',
+      providerId: 'provider.hermes',
     },
   };
   const runtime = runtimeByAgentId[session.agentId]
-    ?? runtimeByAgentId['agent.intelligence.codex'];
+    ?? runtimeByAgentId['agent.codex'];
   return {
     runtimeBindingId: `runtime-binding.${session.sessionId}`,
     tenantId: session.tenantId,
@@ -1527,7 +1527,7 @@ function createSessionActivitySummary(session) {
     runtimeBinding,
     presentation.turnStatus,
   );
-  const pendingInteraction = session.agentId === 'agent.intelligence.opencode'
+  const pendingInteraction = session.agentId === 'agent.opencode'
     ? createSessionActivityInteraction(session, runtimeBinding)
     : null;
   const isUnknownPresentation = presentation.phase === 'unknown';
@@ -1592,7 +1592,7 @@ function createSessionUserState(session) {
     userId: session.ownerUserId,
     resourceType: 'session',
     resourceId: session.sessionId,
-    pinnedAt: session.agentId === 'agent.intelligence.claude-code'
+    pinnedAt: session.agentId === 'agent.claude-code'
       ? session.updatedAt
       : undefined,
     lastOpenedAt: session.updatedAt,

@@ -13,7 +13,7 @@ import {
   upsertWorkbenchQueuedAgentTurnInput,
 } from '../src/chat/agentTurnInputQueueStore';
 
-const agentId = 'agent.code-engine.codex';
+const agentId = 'agent.codex';
 const sessionId = 'session.queue';
 const identity = { agentId, sessionId };
 const requestedAt = '2026-07-31T00:00:00.000Z';

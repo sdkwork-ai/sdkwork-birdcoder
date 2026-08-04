@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   WORKBENCH_MODE_PROVIDERS,
   filterWorkbenchModeCatalogEngines,
+  isSessionVisibleInWorkbenchMode,
   listWorkbenchModeProviderAvailability,
   matchesWorkbenchModeEngineId,
   normalizeWorkbenchMode,
@@ -15,13 +16,13 @@ describe('workbench mode provider contract', () => {
     expect(WORKBENCH_MODE_PROVIDERS.work).toEqual([
       {
         engineId: 'openclaw',
-        agentId: 'agent.intelligence.openclaw',
+        agentId: 'agent.openclaw',
         displayName: 'OpenClaw',
         tier: 't2-autonomous',
       },
       {
         engineId: 'hermes',
-        agentId: 'agent.intelligence.hermes',
+        agentId: 'agent.hermes',
         displayName: 'Hermes Agent',
         tier: 't2-autonomous',
       },
@@ -32,32 +33,32 @@ describe('workbench mode provider contract', () => {
     const catalog = [
       {
         id: 'openclaw',
-        agentId: 'agent.intelligence.openclaw',
+        agentId: 'agent.openclaw',
         tier: 't2-autonomous',
       },
       {
         id: 'hermes',
-        agentId: 'agent.intelligence.hermes',
+        agentId: 'agent.hermes',
         tier: 't2-autonomous',
       },
       {
         id: 'codex',
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         tier: 't1-code',
       },
       {
         id: 'openclaw',
-        agentId: 'agent.intelligence.openclaw',
+        agentId: 'agent.openclaw',
         tier: 't1-code',
       },
       {
         id: 'openclaw',
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         tier: 't2-autonomous',
       },
       {
         id: 'future-agent',
-        agentId: 'agent.intelligence.future-agent',
+        agentId: 'agent.future-agent',
         tier: 't2-autonomous',
       },
     ];
@@ -79,6 +80,18 @@ describe('workbench mode provider contract', () => {
     expect(resolveWorkbenchModeForEngineId('openclaw')).toBe('work');
     expect(resolveWorkbenchModeForEngineId(' hermes ')).toBe('work');
     expect(resolveWorkbenchModeForEngineId('future-agent')).toBeNull();
+  });
+
+  it('hides only engines known to belong to another mode from the inbox', () => {
+    expect(isSessionVisibleInWorkbenchMode('coding', 'codex')).toBe(true);
+    expect(isSessionVisibleInWorkbenchMode('coding', 'openclaw')).toBe(false);
+    expect(isSessionVisibleInWorkbenchMode('work', 'openclaw')).toBe(true);
+    expect(isSessionVisibleInWorkbenchMode('work', 'codex')).toBe(false);
+    // Sessions whose engine could not be classified (provider-id fallback)
+    // must stay visible instead of silently vanishing from the list.
+    expect(isSessionVisibleInWorkbenchMode('coding', 'provider.openai')).toBe(true);
+    expect(isSessionVisibleInWorkbenchMode('work', 'provider.openai')).toBe(true);
+    expect(isSessionVisibleInWorkbenchMode('coding', 'future-agent')).toBe(true);
   });
 
   it('keeps every declared Work Provider visible when the Agents catalog is empty', () => {
@@ -106,22 +119,22 @@ describe('workbench mode provider contract', () => {
     const catalog = [
       {
         id: 'openclaw',
-        agentId: 'agent.intelligence.openclaw',
+        agentId: 'agent.openclaw',
         tier: 't2-autonomous',
       },
       {
         id: 'hermes',
-        agentId: 'agent.intelligence.hermes',
+        agentId: 'agent.hermes',
         tier: 't2-autonomous',
       },
       {
         id: 'codex',
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         tier: 't1-code',
       },
       {
         id: 'gemini',
-        agentId: 'agent.intelligence.gemini',
+        agentId: 'agent.gemini',
         tier: 't1-code',
       },
     ];
@@ -136,17 +149,17 @@ describe('workbench mode provider contract', () => {
     const catalog = [
       {
         id: 'openclaw',
-        agentId: 'agent.intelligence.openclaw',
+        agentId: 'agent.openclaw',
         tier: 't2-autonomous',
       },
       {
         id: 'hermes',
-        agentId: 'agent.intelligence.hermes',
+        agentId: 'agent.hermes',
         tier: 't2-autonomous',
       },
       {
         id: 'codex',
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         tier: 't1-code',
       },
     ];
@@ -159,7 +172,7 @@ describe('workbench mode provider contract', () => {
     const catalog = [
       {
         id: 'codex',
-        agentId: 'agent.intelligence.codex',
+        agentId: 'agent.codex',
         tier: 't1-code',
       },
     ];

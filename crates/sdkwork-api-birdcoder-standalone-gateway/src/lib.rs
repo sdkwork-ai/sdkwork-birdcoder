@@ -27,7 +27,14 @@ pub async fn build_app_with_provider_session_cwd_resolver(
         std::sync::Arc<dyn sdkwork_agents_runtime_facade::ProviderSessionProjectCwdResolver>,
     >,
 ) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
-    migrate_deployments_database().await?;
+    if workspace_postgres_profile_configured() {
+        migrate_deployments_database().await?;
+    } else {
+        tracing::info!(
+            "no workspace PostgreSQL profile configured; serving the stateless gateway \
+             without the Deployments database lifecycle"
+        );
+    }
     let selected_profile = profile::assemble_standalone_profile(config, resolver)
         .await
         .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> {
@@ -36,11 +43,40 @@ pub async fn build_app_with_provider_session_cwd_resolver(
     build_app_from_profile(config, selected_profile).await
 }
 
+/// Whether the process explicitly provides a workspace PostgreSQL profile.
+///
+/// Mirrors `sdkwork_database_config::workspace_postgres_env_is_configured`:
+/// `SDKWORK_DATABASE_URL` or any structured database field selects a profile,
+/// while the client-local SQLite URL (`SDKWORK_DATABASE_SQLITE_URL`) is an
+/// independent identity and does not count. Without an explicit profile the
+/// gateway serves the documented stateless profile instead of letting the
+/// Deployments module fall back to an invented development URL.
+pub(crate) fn workspace_postgres_profile_configured() -> bool {
+    const STRUCTURED_DATABASE_ENV_KEYS: &[&str] = &[
+        "SDKWORK_DATABASE_ENGINE",
+        "SDKWORK_DATABASE_HOST",
+        "SDKWORK_DATABASE_PORT",
+        "SDKWORK_DATABASE_NAME",
+        "SDKWORK_DATABASE_SCHEMA",
+        "SDKWORK_DATABASE_SCHEMA_FALLBACK_PUBLIC",
+        "SDKWORK_DATABASE_USERNAME",
+        "SDKWORK_DATABASE_PASSWORD",
+        "SDKWORK_DATABASE_PASSWORD_FILE",
+        "SDKWORK_DATABASE_SSL_MODE",
+    ];
+    std::env::var_os("SDKWORK_DATABASE_URL").is_some()
+        || STRUCTURED_DATABASE_ENV_KEYS
+            .iter()
+            .any(|key| std::env::var_os(key).is_some())
+}
+
 /// Bootstraps the SDKWork Deploy module database (baseline + versioned
 /// migrations + drift gate) before owner contributions are assembled. The
 /// migration helper flips the process-wide `SDKWORK_DATABASE_AUTO_MIGRATE`
 /// switch to `true`; the previous value is restored afterwards so the other
-/// owner modules keep their configured startup behavior.
+/// owner modules keep their configured startup behavior. Only reached when a
+/// workspace PostgreSQL profile is configured; the stateless profile skips
+/// this entirely (see `workspace_postgres_profile_configured`).
 async fn migrate_deployments_database() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let previous_auto_migrate = std::env::var("SDKWORK_DATABASE_AUTO_MIGRATE").ok();
     let result = sdkwork_api_deployments_assembly::migrate_database_from_env().await;

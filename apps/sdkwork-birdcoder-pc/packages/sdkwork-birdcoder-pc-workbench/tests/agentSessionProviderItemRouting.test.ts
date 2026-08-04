@@ -50,7 +50,7 @@ function createProviderUserSessionItem(
     ...createProviderSessionItem(itemId, providerItem),
     kind: 'user_input',
     content: JSON.stringify(providerItem),
-    providerId: 'provider.model.codex',
+    providerId: 'provider.codex',
     toolName: null,
     toolCallId: null,
     toolResult: undefined,

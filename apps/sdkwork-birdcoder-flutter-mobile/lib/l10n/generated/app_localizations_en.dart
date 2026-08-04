@@ -134,22 +134,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Registration successful. Please sign in.';
 
   @override
-  String get settings_engine => 'Engine';
-
-  @override
-  String get settings_engine_description =>
-      'Select the rendering engine used to load the BirdCoder workspace.';
-
-  @override
-  String get settings_engine_webview => 'WebView';
-
-  @override
-  String get settings_engine_servo => 'Servo';
-
-  @override
-  String get settings_engine_cef => 'CEF';
-
-  @override
   String get settings_theme => 'Theme';
 
   @override
@@ -266,4 +250,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_server => 'Server error. Please try again later.';
+
+  @override
+  String get agent_session_load_failed =>
+      'Failed to load the session transcript.';
 }

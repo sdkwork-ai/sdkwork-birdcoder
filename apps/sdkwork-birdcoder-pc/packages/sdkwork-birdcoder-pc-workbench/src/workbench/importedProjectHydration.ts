@@ -14,6 +14,14 @@ export interface RefreshImportedProjectFromAuthorityOptions {
   projectId: string;
   projectService: IProjectService;
   signal?: AbortSignal;
+  /**
+   * How the provider inventory import is treated: 'best-effort' for plain
+   * refreshes (a slow provider store scan must never fail the refresh, which
+   * continues with the persisted inventory), 'required' for explicit
+   * provider Session imports that must surface import failures.
+   */
+  synchronizeMode?: 'best-effort' | 'required';
+  syncTimeoutMs?: number;
   userScope?: string;
   workspaceId: string;
 }
@@ -52,6 +60,8 @@ export async function refreshImportedProjectFromAuthority(
     projectId,
     projectService,
     signal: options.signal,
+    synchronizeMode: options.synchronizeMode ?? 'best-effort',
+    syncTimeoutMs: options.syncTimeoutMs,
   });
   const refreshedProject = refreshed.projects?.[0];
   if (refreshed.status !== 'refreshed' || !refreshedProject) {

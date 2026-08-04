@@ -52,7 +52,7 @@
   "integration": {
     "authority": "BirdCoder owns only system descriptor/runtime metadata; Agents owns AI sessions and projects.",
     "sdkPolicy": "The controller consumes an injected BirdCoder app SDK port and never constructs HTTP transport.",
-    "routePolicy": "app.im.chat.index aligns with the current H5 and Flutter route identity; this initialization does not yet implement the full chat workflow."
+    "routePolicy": "app.workbench.index is the honest initialization route identity; this scaffold does not claim a chat workflow."
   },
   "verification": {
     "commands": [

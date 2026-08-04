@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
-const codexAgentId = 'agent.intelligence.codex';
+const codexAgentId = 'agent.codex';
 const codexSessionId = 'e2e-codex-session';
 const approvalInteractionId = 'interaction.e2e-codex-approval';
 const typedApprovalInteractionId = 'interaction.e2e-codex-typed-approval';

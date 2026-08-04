@@ -129,12 +129,12 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
           completedAtByScopeKey.set(scopeKey, completedAt);
           return Promise.resolve(null);
         }
-        const inFlight = inFlightByScopeKey.get(scopeKey);
-        if (inFlight) {
-          return inFlight;
-        }
-      } else {
-        invalidateScopeKey(scopeKey);
+      }
+      // force 只绕过已完成结果的缓存；同一 scope 的进行中请求仍然合并，
+      // 避免多个窗口/多次手动刷新并发时各自触发一次完整的后端同步。
+      const inFlight = inFlightByScopeKey.get(scopeKey);
+      if (inFlight) {
+        return inFlight;
       }
       // 新 scope 首次写入后，检查是否需要 LRU 淘汰
       evictLeastRecentlyUsedScopes();

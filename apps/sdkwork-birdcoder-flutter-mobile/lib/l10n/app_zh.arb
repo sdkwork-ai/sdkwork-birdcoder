@@ -42,11 +42,6 @@
   "auth_invalid_password": "密码至少需要 8 个字符。",
   "auth_login_failed": "登录失败，请检查您的凭据。",
   "auth_register_success": "注册成功，请登录。",
-  "settings_engine": "引擎",
-  "settings_engine_description": "选择用于加载 BirdCoder 工作区的渲染引擎。",
-  "settings_engine_webview": "WebView",
-  "settings_engine_servo": "Servo",
-  "settings_engine_cef": "CEF",
   "settings_theme": "主题",
   "settings_theme_description": "选择 BirdCoder 如何跟随浅色、深色或系统外观。",
   "settings_language": "语言",
@@ -82,5 +77,6 @@
   "error_session_expired": "您的会话已过期，请重新登录。",
   "error_request_timeout": "请求超时，请重试。",
   "error_unauthorized": "您无权执行此操作。",
-  "error_server": "服务器错误，请稍后重试。"
+  "error_server": "服务器错误，请稍后重试。",
+  "agent_session_load_failed": "加载会话记录失败。"
 }

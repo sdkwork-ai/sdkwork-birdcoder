@@ -14,7 +14,7 @@ import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/u
 import { subscribeRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
 import {
   filterWorkbenchModeCatalogEngines,
-  matchesWorkbenchModeEngineId,
+  isSessionVisibleInWorkbenchMode,
   type WorkbenchMode,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
@@ -464,7 +464,7 @@ export const Sidebar = React.memo(function Sidebar({
       renderProjects.map((project) => ({
       ...project,
       agentSessions: project.agentSessions.filter((session) =>
-        matchesWorkbenchModeEngineId(workbenchMode, session.engineId),
+        isSessionVisibleInWorkbenchMode(workbenchMode, session.engineId),
       ),
     })),
     [renderProjects, workbenchMode],
@@ -474,7 +474,7 @@ export const Sidebar = React.memo(function Sidebar({
       renderTaskSearchProjects.map((project) => ({
       ...project,
       agentSessions: project.agentSessions.filter((session) =>
-        matchesWorkbenchModeEngineId(workbenchMode, session.engineId),
+        isSessionVisibleInWorkbenchMode(workbenchMode, session.engineId),
       ),
     })),
     [renderTaskSearchProjects, workbenchMode],

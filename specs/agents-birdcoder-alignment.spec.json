@@ -69,19 +69,19 @@
         "providers": [
           {
             "engineId": "codex",
-            "agentId": "agent.intelligence.codex"
+            "agentId": "agent.codex"
           },
           {
             "engineId": "claude-code",
-            "agentId": "agent.intelligence.claude-code"
+            "agentId": "agent.claude-code"
           },
           {
             "engineId": "gemini",
-            "agentId": "agent.intelligence.gemini"
+            "agentId": "agent.gemini"
           },
           {
             "engineId": "opencode",
-            "agentId": "agent.intelligence.opencode"
+            "agentId": "agent.opencode"
           }
         ]
       },
@@ -100,7 +100,7 @@
         "providers": [
           {
             "engineId": "openclaw",
-            "agentId": "agent.intelligence.openclaw",
+            "agentId": "agent.openclaw",
             "displayName": "OpenClaw",
             "installation": {
               "baseline": "2026.7.2",
@@ -121,7 +121,7 @@
           },
           {
             "engineId": "hermes",
-            "agentId": "agent.intelligence.hermes",
+            "agentId": "agent.hermes",
             "displayName": "Hermes Agent",
             "installation": {
               "baseline": "cff9728587da4f3c0beed0786f9bea528e489f13",

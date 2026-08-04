@@ -16,7 +16,7 @@ const secondaryWorkProject = {
   visibility: 'private',
   status: 'active',
   driveAccessMode: 'disabled',
-  defaultAgentId: 'agent.intelligence.openclaw',
+  defaultAgentId: 'agent.openclaw',
   version: '1',
   createdAt: '2025-12-31T00:00:00.000Z',
   updatedAt: '2025-12-31T00:00:00.000Z',
@@ -64,7 +64,7 @@ function createSecondaryProjectSession({
 function createSecondarySessionRuntimeBinding(
   session: ReturnType<typeof createSecondaryProjectSession>,
 ) {
-  const isOpenClaw = session.agentId === 'agent.intelligence.openclaw';
+  const isOpenClaw = session.agentId === 'agent.openclaw';
   const providerSessionId = secondaryProviderSessionIdsBySessionId.get(session.sessionId);
   if (!providerSessionId) {
     throw new Error(`Missing provider Session fixture for ${session.sessionId}.`);
@@ -78,10 +78,10 @@ function createSecondarySessionRuntimeBinding(
     hostMode: 'web',
     transportKind: 'sdk-stream',
     providerBindingId: isOpenClaw
-      ? 'binding.agent-provider.openclaw'
+      ? 'binding.openclaw'
       : 'codex',
     modelId: isOpenClaw ? 'openclaw-default' : 'gpt-5-codex',
-    providerId: isOpenClaw ? 'provider.model.openclaw' : 'openai',
+    providerId: isOpenClaw ? 'provider.openclaw' : 'openai',
     providerSessionId,
     status: 'active',
     isCurrent: true,
@@ -145,12 +145,12 @@ async function installSecondaryWorkProject(page: Page): Promise<() => number> {
   let sessionRequestCount = 0;
   const sessions = [
     createSecondaryProjectSession({
-      agentId: 'agent.intelligence.openclaw',
+      agentId: 'agent.openclaw',
       sessionId: 'e2e-secondary-openclaw-session',
       title: 'Secondary OpenClaw rollout',
     }),
     createSecondaryProjectSession({
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       sessionId: 'e2e-secondary-codex-session',
       title: 'Secondary Codex implementation',
     }),

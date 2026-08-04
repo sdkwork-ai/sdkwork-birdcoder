@@ -32,7 +32,7 @@ function activity(
 function session(sessionActivity: AgentSessionActivityView): AgentSessionView {
   return {
     activity: sessionActivity,
-    agentId: 'agent.code-engine.codex',
+    agentId: 'agent.codex',
     createdAt: observedAt,
     displayTime: 'now',
     engineId: 'codex',

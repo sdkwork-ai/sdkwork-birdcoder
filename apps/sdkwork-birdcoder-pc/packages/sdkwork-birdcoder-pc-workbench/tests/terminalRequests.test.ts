@@ -9,13 +9,13 @@ import {
 describe('terminal request target context', () => {
   it('normalizes the target Agent, project, Session, and runtime location', () => {
     expect(buildDefaultTerminalCommandRequest({
-      agentId: ' agent.intelligence.codex ',
+      agentId: ' agent.codex ',
       agentSessionId: ' session-1 ',
       projectId: ' project-1 ',
       runtimeLocationId: ' runtime-1 ',
       surface: 'project',
     })).toMatchObject({
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       agentSessionId: 'session-1',
       projectId: 'project-1',
       runtimeLocationId: 'runtime-1',
@@ -25,7 +25,7 @@ describe('terminal request target context', () => {
 
   it('treats a different target session as a different request', () => {
     const request: TerminalCommandRequest = {
-      agentId: 'agent.intelligence.codex',
+      agentId: 'agent.codex',
       agentSessionId: 'session-1',
       command: 'codex resume provider-session-1',
       projectId: 'project-1',
@@ -40,7 +40,7 @@ describe('terminal request target context', () => {
     })).toBe(false);
     expect(areTerminalCommandRequestsEqual(request, {
       ...request,
-      agentId: 'agent.intelligence.opencode',
+      agentId: 'agent.opencode',
     })).toBe(false);
     expect(areTerminalCommandRequestsEqual(request, { ...request })).toBe(true);
   });

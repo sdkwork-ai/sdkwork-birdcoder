@@ -7,6 +7,7 @@ import type {
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { AgentSessionActivitySummaryRecord } from '../src/services/agentSessionViewModels.ts';
+import { toAgentSessionViewFromActivitySummary } from '../src/services/agentSessionViewModels.ts';
 import {
   buildProjectsStoreScopeKey,
   canCommitAgentSessionToProjectsStore,
@@ -465,6 +466,212 @@ describe('Session Inbox', () => {
       ],
     })[0]!.agentSessions[0]!;
     expect(userProjection.title).toBe('Canonical user title');
+  });
+
+  it('keeps the provider thread name when only the latest RuntimeBinding carries it', () => {
+    const latestTurn = {
+      turnId: 'turn.provider-name',
+      runtimeBindingId: 'runtime-binding.turn-old',
+    } as ActivitySummary['latestTurn'];
+    const latestBinding = runtimeBinding('provider-name-session', {
+      runtimeBindingId: 'runtime-binding.latest',
+      providerTitle: 'Provider thread name',
+    });
+    const view = toAgentSessionViewFromActivitySummary(summary({
+      sessionId: 'provider-name-session',
+      currentRuntimeBinding: null,
+      latestRuntimeBinding: latestBinding,
+      latestTurn,
+      session: { title: 'First user message', titleSource: 'system' },
+    }));
+
+    // Even though the latest Turn no longer matches the latest binding, the
+    // provider-defined name must not degrade to the canonical first message.
+    expect(view.providerTitle).toBe('Provider thread name');
+    expect(view.title).toBe('Provider thread name');
+  });
+
+  it('never downgrades a provider-named row to the canonical first-message title', () => {
+    const providerTitle = 'Provider thread name';
+    const first = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'title-guard',
+          currentRuntimeBinding: runtimeBinding('title-guard', { providerTitle }),
+          session: { title: 'First user message', titleSource: 'system' },
+        }),
+      ],
+    });
+    expect(first[0]?.agentSessions[0]?.title).toBe(providerTitle);
+
+    // A later snapshot carries no binding at all; the row must keep the
+    // provider name instead of regressing to the first message.
+    const second = applyWorkspaceSessionInboxUpdate(first, {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'title-guard',
+          currentRuntimeBinding: null,
+          latestTurn: null,
+          latestRuntimeBinding: null,
+          session: { title: 'First user message', titleSource: 'system' },
+        }),
+      ],
+    });
+    expect(second[0]?.agentSessions[0]?.title).toBe(providerTitle);
+  });
+
+  it('keeps a user-renamed title over a provider name', () => {
+    const first = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'user-rename-guard',
+          currentRuntimeBinding: runtimeBinding('user-rename-guard', {
+            providerTitle: 'Provider thread name',
+          }),
+          session: { title: 'My renamed task', titleSource: 'user' },
+        }),
+      ],
+    });
+    expect(first[0]?.agentSessions[0]?.title).toBe('My renamed task');
+
+    // The provider thread renamed afterwards; the user title must win.
+    const second = applyWorkspaceSessionInboxUpdate(first, {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'user-rename-guard',
+          currentRuntimeBinding: runtimeBinding('user-rename-guard', {
+            providerTitle: 'Provider thread name',
+          }),
+          session: { title: 'First user message', titleSource: 'system' },
+        }),
+      ],
+    });
+    expect(second[0]?.agentSessions[0]?.title).toBe('My renamed task');
+  });
+
+  it('keeps the provider name in the Store merge when the snapshot degrades', () => {
+    const providerNamed = session('store-title-guard', {
+      title: 'Provider thread name',
+      providerTitle: 'Provider thread name',
+      serverVersion: '1',
+    });
+    const projects = upsertAgentSessionIntoCollection(
+      [project([providerNamed])],
+      projectId,
+      {
+        ...providerNamed,
+        title: 'First user message',
+        providerTitle: undefined,
+        updatedAt: '2026-07-26T08:30:00.000Z',
+      },
+    );
+
+    expect(projects[0]?.agentSessions[0]?.title).toBe('Provider thread name');
+  });
+
+  it('syncs provider title changes that do not advance activity or versions', () => {
+    const first = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'provider-rename',
+          currentRuntimeBinding: runtimeBinding('provider-rename', {
+            providerTitle: 'Stale provider title',
+          }),
+          session: { title: 'Canonical', titleSource: 'provider' },
+        }),
+      ],
+    });
+    expect(first[0]?.agentSessions[0]?.title).toBe('Stale provider title');
+
+    // The provider renamed the thread: same session version, same activity
+    // timestamp, only the binding provider title changed. The inbox must still
+    // converge so the list does not keep a stale name forever.
+    const second = applyWorkspaceSessionInboxUpdate(first, {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'provider-rename',
+          currentRuntimeBinding: runtimeBinding('provider-rename', {
+            providerTitle: 'Fresh provider title',
+          }),
+          session: { title: 'Canonical', titleSource: 'provider' },
+        }),
+      ],
+    });
+    expect(second[0]?.agentSessions[0]?.title).toBe('Fresh provider title');
+  });
+
+  it('syncs engine and model configuration changes that do not advance activity', () => {
+    const first = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'config-switch',
+          currentRuntimeBinding: runtimeBinding('config-switch', {
+            modelId: 'gpt-5',
+            providerId: 'provider.openai',
+          }),
+        }),
+      ],
+    });
+    expect(first[0]?.agentSessions[0]).toMatchObject({
+      modelId: 'gpt-5',
+      providerId: 'provider.openai',
+    });
+
+    const second = applyWorkspaceSessionInboxUpdate(first, {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'config-switch',
+          currentRuntimeBinding: runtimeBinding('config-switch', {
+            modelId: 'claude-sonnet-4-5',
+            providerId: 'provider.anthropic',
+          }),
+        }),
+      ],
+    });
+    expect(second[0]?.agentSessions[0]).toMatchObject({
+      modelId: 'claude-sonnet-4-5',
+      providerId: 'provider.anthropic',
+    });
+  });
+
+  it('still refuses a version-regressed inventory update even when the title differs', () => {
+    const first = applyWorkspaceSessionInboxUpdate([project()], {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'regression-guard',
+          version: '2',
+          currentRuntimeBinding: runtimeBinding('regression-guard', {
+            providerTitle: 'Newest title',
+          }),
+          session: { title: 'Newest', titleSource: 'provider' },
+        }),
+      ],
+    });
+    expect(first[0]?.agentSessions[0]?.title).toBe('Newest title');
+
+    const regressed = applyWorkspaceSessionInboxUpdate(first, {
+      hasMore: false,
+      summaries: [
+        summary({
+          sessionId: 'regression-guard',
+          version: '1',
+          currentRuntimeBinding: runtimeBinding('regression-guard', {
+            providerTitle: 'Stale older title',
+          }),
+          session: { title: 'Stale older', titleSource: 'provider' },
+        }),
+      ],
+    });
+    expect(regressed[0]?.agentSessions[0]?.title).toBe('Newest title');
   });
 
   it('retains a newer provider directory when an older projection arrives', () => {

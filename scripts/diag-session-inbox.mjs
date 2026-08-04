@@ -214,7 +214,7 @@ async function run() {
     const rawItems = await page.evaluate(async () => {
       const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
       const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-      const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+      const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -247,7 +247,7 @@ async function run() {
       try {
         const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
         const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         });
@@ -284,7 +284,7 @@ async function run() {
       try {
         const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
         const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         });
@@ -312,7 +312,7 @@ async function run() {
       try {
         const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
         const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         });
@@ -335,7 +335,7 @@ async function run() {
       try {
         const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
         const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         });
@@ -361,7 +361,7 @@ async function run() {
       try {
         const session = JSON.parse(localStorage.getItem('sdkwork.birdcoder.appSession.v1') ?? '{}');
         const token = session?.data?.accessToken ?? session?.accessToken ?? session?.authToken;
-        const res = await fetch('/app/v3/api/ai/agents/agent.intelligence.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
+        const res = await fetch('/app/v3/api/ai/agents/agent.codex/sessions/e2e-codex-session/items/synchronize?page_size=50&sort=-sequence', {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         });

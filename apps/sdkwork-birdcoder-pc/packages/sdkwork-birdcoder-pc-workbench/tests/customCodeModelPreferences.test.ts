@@ -15,7 +15,7 @@ import {
 
 const catalogEntry = {
   accessModes: [],
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   bindingId: 'binding.agent.codex',
   defaultAccessModeId: '',
   defaultModelId: 'codex-default',
@@ -36,7 +36,7 @@ const catalogEntry = {
 
 const claudeCatalogEntry = {
   ...catalogEntry,
-  agentId: 'agent.code-engine.claude-code',
+  agentId: 'agent.claude-code',
   bindingId: 'binding.agent.claude-code',
   defaultModelId: 'claude-default',
   displayName: 'Claude Code',
@@ -138,7 +138,7 @@ describe('custom code model preferences', () => {
       'gpt-5-custom',
       preferences,
     )).toEqual({
-      agentId: 'agent.code-engine.codex',
+      agentId: 'agent.codex',
       engineId: 'codex',
       modelId: 'gpt-5-custom',
       providerBindingId: 'binding.provider.codex',
@@ -149,7 +149,7 @@ describe('custom code model preferences', () => {
       'gpt-5-fast',
       preferences,
     )).toEqual({
-      agentId: 'agent.code-engine.claude-code',
+      agentId: 'agent.claude-code',
       engineId: 'claude-code',
       modelId: 'gpt-5-fast',
       providerBindingId: 'binding.provider.claude-code',

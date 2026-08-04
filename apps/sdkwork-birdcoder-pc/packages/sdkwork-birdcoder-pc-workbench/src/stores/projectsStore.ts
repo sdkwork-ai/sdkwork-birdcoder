@@ -14,6 +14,7 @@ import {
   formatAgentSessionActivityDisplayTime,
   mergeLatestAgentSessionItems,
   resolveAgentSessionViewSortTimestampString,
+  resolveAgentSessionViewTitleAuthority,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areAgentSessionItemSourceWindowsEquivalent,
@@ -337,8 +338,9 @@ function touchScopeAccess(scopeKey: string): void {
 /**
  * 淘汰最少访问的 scope store，直到缓存量回落至上限以内。
  *
- * 仅淘汰无活跃 listener 的 store，避免导致当前正在渲染的 UI 状态异常。
- * 若所有 store 均处于活跃状态，本次不强制淘汰，依赖下一次写入时再次尝试。
+ * 优先淘汰无活跃 listener 的 store；若仍超出上限，则按 LRU 顺序强制淘汰
+ * 仍被监听的 store —— 内存上限是硬约束，投影本身是 disposable 的，被淘汰
+ * scope 的监听方先收到"已重置"快照，并在下一次权威刷新时重新水合。
  */
 function evictLeastRecentlyUsedScopes(): void {
   if (projectStoresByScopeKey.size <= PROJECT_STORE_MAX_CACHED_SCOPES) {
@@ -358,17 +360,49 @@ function evictLeastRecentlyUsedScopes(): void {
     const key = next.value;
     const store = projectStoresByScopeKey.get(key)!;
     if (store.listeners.size === 0) {
-      // 无订阅者：可安全释放整个 store
-      store.inflightAbortController?.abort(new DOMException(
-        'Project inventory scope was evicted.',
-        'AbortError',
-      ));
-      store.agentSessionTombstones.clear();
-      store.agentSessionTranscriptRevisions.clear();
+      disposeProjectsStoreData(store);
       projectStoresByScopeKey.delete(key);
       evicted += 1;
     }
   }
+
+  // 所有剩余 store 均被监听但缓存仍超限：按 LRU 顺序强制淘汰，先向
+  // 监听方发布"已重置"快照，再释放数据，避免 UI 停留在陈旧投影上。
+  const forcedIterator = projectStoresByScopeKey.keys();
+  while (evicted < overflow) {
+    const next = forcedIterator.next();
+    if (next.done) {
+      break;
+    }
+    const key = next.value;
+    const store = projectStoresByScopeKey.get(key)!;
+    emitProjectsStoreReset(store);
+    disposeProjectsStoreData(store);
+    projectStoresByScopeKey.delete(key);
+    evicted += 1;
+  }
+}
+
+/**
+ * 释放 store 的内部数据，帮助 GC 在长时间运行的应用中更快回收。
+ * 不修改 store 快照，也不通知监听方。
+ */
+function disposeProjectsStoreData(store: ProjectsStore): void {
+  store.inflightAbortController?.abort(new DOMException(
+    'Project inventory scope was evicted.',
+    'AbortError',
+  ));
+  store.inflightAbortController = null;
+  store.agentSessionTombstones.clear();
+  store.agentSessionTranscriptRevisions.clear();
+  store.removedProjectIds.clear();
+  store.listeners.clear();
+}
+
+/** 将 store 重置为未加载状态，并通知当前监听方重新读取快照。 */
+function emitProjectsStoreReset(store: ProjectsStore): void {
+  store.snapshot = createProjectsStoreSnapshot();
+  emitProjectsStoreSnapshot(store);
 }
 
 /**
@@ -1013,7 +1047,13 @@ export function mergeAgentSessionProjectionForStore(
       : incoming.runtimeLocationId,
     // Activity can legitimately be newer than a plain inventory projection,
     // but the inventory still carries the latest provider/user-state title.
-    title: retainExistingSession ? existing.title : incoming.title,
+    // A snapshot whose title degraded to the canonical first-message fallback
+    // must never overwrite a provider- or user-level name.
+    title: retainExistingSession
+      || resolveAgentSessionViewTitleAuthority(incoming)
+        < resolveAgentSessionViewTitleAuthority(existing)
+      ? existing.title
+      : incoming.title,
     status: retainExistingSession ? existing.status : incoming.status,
     hostMode: retainExistingActivity ? existing.hostMode : incoming.hostMode,
     engineId: retainExistingActivity ? existing.engineId : incoming.engineId,
@@ -2073,16 +2113,7 @@ export function upsertProjectIntoProjectsStoreByScopeKey(
 export function deleteProjectsStore(scopeKey: string): void {
   const store = projectStoresByScopeKey.get(scopeKey);
   if (store) {
-    // 主动清理 Map 内部数据，帮助 GC 在长时间运行的应用中更快回收
-    store.inflightAbortController?.abort(new DOMException(
-      'Project inventory scope was released.',
-      'AbortError',
-    ));
-    store.inflightAbortController = null;
-    store.agentSessionTombstones.clear();
-    store.agentSessionTranscriptRevisions.clear();
-    store.removedProjectIds.clear();
-    store.listeners.clear();
+    disposeProjectsStoreData(store);
     projectStoresByScopeKey.delete(scopeKey);
   }
 }

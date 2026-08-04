@@ -3,7 +3,10 @@ import type {
   AgentSessionActivityView,
   AgentSessionView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { compareWorkbenchLongIntegers } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  compareWorkbenchLongIntegers,
+  resolveAgentSessionViewTitleAuthority,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import {
@@ -621,6 +624,12 @@ function mergeSummaryView(
     && localActivityAt > incomingActivityAt;
   return {
     ...incoming,
+    // A snapshot whose title degraded to the canonical first-message fallback
+    // must never overwrite a provider- or user-level name already stored.
+    title: resolveAgentSessionViewTitleAuthority(incoming)
+      >= resolveAgentSessionViewTitleAuthority(existing)
+      ? incoming.title
+      : existing.title,
     items: existing.items,
     itemPageInfo: existing.itemPageInfo,
     runtimeStatus: preserveLocalRuntime ? existing.runtimeStatus : incoming.runtimeStatus,
@@ -682,7 +691,17 @@ export function applyWorkspaceSessionInboxUpdate(
       nextProjects = upsertAgentSessionIntoCollection(nextProjects, projectId, incoming);
       continue;
     }
-    if (!shouldApplyAgentSessionActivitySummary(incoming.activity!, existing.activity)) {
+    const incomingActivity = incoming.activity!;
+    const existingActivity = existing.activity;
+    const shouldApplyInventoryChange = Boolean(
+      existingActivity
+      && !hasActivityComponentRegression(incomingActivity, existingActivity)
+      && hasSessionInventoryChange(existing, incoming),
+    );
+    if (
+      !shouldApplyAgentSessionActivitySummary(incomingActivity, existingActivity)
+      && !shouldApplyInventoryChange
+    ) {
       continue;
     }
     nextProjects = updateAgentSessionInCollection(
@@ -693,4 +712,33 @@ export function applyWorkspaceSessionInboxUpdate(
     );
   }
   return trimProjectsStoreSessionCache(nextProjects);
+}
+
+/**
+ * Whether the incoming summary snapshot differs in any field the inbox row
+ * displays. Provider thread renames, model switches, and user-state marks are
+ * not always accompanied by a version or activity advancement, so the
+ * activity gate alone would keep the list showing stale names and stale
+ * engine/model/provider configuration forever.
+ */
+function hasSessionInventoryChange(
+  existing: AgentSessionView,
+  incoming: AgentSessionView,
+): boolean {
+  return (
+    existing.title !== incoming.title
+    || existing.engineId !== incoming.engineId
+    || existing.modelId !== incoming.modelId
+    || existing.providerId !== incoming.providerId
+    || existing.providerBindingId !== incoming.providerBindingId
+    || existing.providerTitle !== incoming.providerTitle
+    || existing.providerTitleSource !== incoming.providerTitleSource
+    || existing.providerPinned !== incoming.providerPinned
+    || existing.providerArchived !== incoming.providerArchived
+    || existing.providerVisible !== incoming.providerVisible
+    || existing.pinned !== incoming.pinned
+    || existing.unread !== incoming.unread
+    || existing.archived !== incoming.archived
+    || existing.status !== incoming.status
+  );
 }

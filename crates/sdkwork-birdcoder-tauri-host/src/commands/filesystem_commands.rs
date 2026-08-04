@@ -614,6 +614,9 @@ fn build_directory_listing(
             build_directory_entry_node(entry_name, &entry_type, &child_virtual_path)
         {
             children.push(child);
+            if children.len() >= MAX_DIRECTORY_LISTING_NODES {
+                break;
+            }
         }
     }
     sort_file_system_nodes(&mut children);
@@ -630,6 +633,10 @@ fn build_directory_listing(
 const MAX_DIRECTORY_SNAPSHOT_DEPTH: usize = 10;
 const DEFAULT_DIRECTORY_SNAPSHOT_MAX_NODES: usize = 20_000;
 const MAX_DIRECTORY_SNAPSHOT_MAX_NODES: usize = 100_000;
+/// Cap on entries materialized by a one-level directory listing; mirrors the
+/// snapshot budget so a pathological directory cannot grow host memory
+/// without bound.
+const MAX_DIRECTORY_LISTING_NODES: usize = 20_000;
 
 struct DirectorySnapshotBudget {
     limit_reached: bool,
@@ -728,6 +735,9 @@ const MAX_FS_IMAGE_PREVIEW_BYTES: usize = 8 * 1024 * 1024;
 /// files, but an unbounded single IPC payload would let a buggy or hostile
 /// renderer stage arbitrarily large content in memory and disk.
 const MAX_FS_WRITE_FILE_BYTES: usize = 64 * 1024 * 1024;
+/// Cap on paths accepted by revision probe commands; a renderer bug or
+/// hostile caller cannot force an unbounded per-path parse and stat pass.
+const MAX_FS_REVISION_PROBE_PATHS: usize = 10_000;
 
 fn resolve_supported_image_mime_type(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
@@ -1066,6 +1076,11 @@ pub async fn fs_get_file_revisions(
     root_path: String,
     relative_paths: Vec<String>,
 ) -> Result<Vec<FileSystemFileRevisionProbeResponse>, String> {
+    if relative_paths.len() > MAX_FS_REVISION_PROBE_PATHS {
+        return Err(format!(
+            "file revision probe exceeds the {MAX_FS_REVISION_PROBE_PATHS}-path limit"
+        ));
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let mut probes = Vec::with_capacity(relative_paths.len());
         for relative_path in relative_paths {
@@ -1137,6 +1152,11 @@ pub async fn fs_get_directory_revisions(
     root_path: String,
     relative_paths: Vec<String>,
 ) -> Result<Vec<FileSystemFileRevisionProbeResponse>, String> {
+    if relative_paths.len() > MAX_FS_REVISION_PROBE_PATHS {
+        return Err(format!(
+            "directory revision probe exceeds the {MAX_FS_REVISION_PROBE_PATHS}-path limit"
+        ));
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let mut probes = Vec::with_capacity(relative_paths.len());
         for relative_path in relative_paths {
@@ -1398,6 +1418,13 @@ pub async fn user_home_config_read(relative_path: String) -> Result<Option<Strin
         if !path.is_file() {
             return Err("user home config path is not a file".to_string());
         }
+        let metadata = fs::metadata(&path)
+            .map_err(|_| "failed to inspect user home config".to_string())?;
+        if metadata.len() > DEFAULT_FS_READ_FILE_MAX_BYTES as u64 {
+            return Err(format!(
+                "user home config exceeds the {DEFAULT_FS_READ_FILE_MAX_BYTES}-byte read limit"
+            ));
+        }
         fs::read_to_string(&path)
             .map(Some)
             .map_err(|_| "failed to read user home config".to_string())
@@ -1409,6 +1436,11 @@ pub async fn user_home_config_read(relative_path: String) -> Result<Option<Strin
 #[tauri::command]
 pub async fn user_home_config_write(relative_path: String, content: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        if content.len() > MAX_FS_WRITE_FILE_BYTES {
+            return Err(format!(
+                "user home config exceeds the {MAX_FS_WRITE_FILE_BYTES}-byte write limit"
+            ));
+        }
         let home_directory = std::env::var_os("USERPROFILE")
             .or_else(|| std::env::var_os("HOME"))
             .map(PathBuf::from)

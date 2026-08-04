@@ -60,6 +60,16 @@ const AGENT_SESSION_ITEM_CURSOR_MAX_LENGTH = 2_048;
 const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
+/**
+ * Budget for the best-effort provider inventory import that precedes a
+ * project Session refresh. The backend discovery scan walks the provider
+ * session store (JSONL files on disk) and can legitimately take longer than
+ * a database read, so the import is awaited only up to this budget and the
+ * refresh then continues with the persisted inventory. The backend caches
+ * completed imports for 60 seconds, so a scan that outlived the budget is
+ * served from the cache by the next refresh.
+ */
+const DEFAULT_PROJECT_SESSION_SYNC_TIMEOUT_MS = 20_000;
 
 export interface RefreshProjectSessionsOptions {
   agentSessionService: IAgentSessionService;
@@ -67,6 +77,19 @@ export interface RefreshProjectSessionsOptions {
   projectService: IProjectService;
   refreshTimeoutMs?: number;
   signal?: AbortSignal;
+  /**
+   * How the provider inventory import (backend provider Session
+   * synchronization) is treated by the refresh:
+   *
+   * - 'best-effort': the import is awaited up to `syncTimeoutMs` and the
+   *   refresh continues with the persisted inventory when it fails or
+   *   exceeds the budget, so a slow provider store scan never fails the
+   *   refresh. `providerSynchronization` is then omitted from the result.
+   * - 'required': an import failure fails the refresh (the provider Session
+   *   import flow must surface it).
+   */
+  synchronizeMode?: 'best-effort' | 'required';
+  syncTimeoutMs?: number;
 }
 
 export interface ResolvedAgentSessionLocation {
@@ -160,6 +183,61 @@ function normalizeRefreshTimeoutMs(timeoutMs: number | undefined): number {
     );
   }
   return timeoutMs;
+}
+
+function normalizeProjectSessionSyncTimeoutMs(timeoutMs: number | undefined): number {
+  if (timeoutMs === undefined) {
+    return DEFAULT_PROJECT_SESSION_SYNC_TIMEOUT_MS;
+  }
+  return normalizeRefreshTimeoutMs(timeoutMs);
+}
+
+/**
+ * Awaits the provider inventory import up to the sync budget. The backend
+ * discovery scan walks the provider session store (JSONL files on disk) and
+ * can legitimately outlive the refresh budget, so the import is best-effort:
+ * on failure or budget expiry the refresh continues with the persisted
+ * inventory and the caller reports the degraded outcome. The underlying
+ * request is deliberately not aborted on budget expiry — the backend
+ * completes the import and caches the outcome, so the next refresh inside
+ * the backend freshness window is served from the cache.
+ */
+function settleProjectSessionSynchronization(
+  agentSessionService: IAgentSessionService,
+  projectId: string,
+  signal: AbortSignal | undefined,
+  syncTimeoutMs: number | undefined,
+): Promise<Awaited<ReturnType<IAgentSessionService['synchronizeProjectSessions']>> | undefined> {
+  const budgetMs = normalizeProjectSessionSyncTimeoutMs(syncTimeoutMs);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (
+      value: Awaited<ReturnType<IAgentSessionService['synchronizeProjectSessions']>> | undefined,
+    ) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
+    const budgetHandle = setTimeout(() => {
+      console.warn(
+        `Synchronizing Agents project sessions exceeded its ${budgetMs} ms budget; the refresh continues with the persisted inventory`,
+      );
+      finish(undefined);
+    }, budgetMs);
+    agentSessionService.synchronizeProjectSessions(projectId, { signal })
+      .then((value) => finish(value))
+      .catch((error: unknown) => {
+        console.warn(
+          'Failed to synchronize Agents project sessions; the refresh continues with the persisted inventory',
+          error,
+        );
+        finish(undefined);
+      })
+      .finally(() => {
+        clearTimeout(budgetHandle);
+      });
+  });
 }
 
 function withAgentRefreshTimeout<T>(
@@ -774,7 +852,7 @@ function normalizeProjectActivitySummaries(
   return { deletedSessionIds, deletedSessionTombstones, sessions };
 }
 
-async function loadProjectSessionActivitySnapshot(
+export async function loadProjectSessionActivitySnapshot(
   agentSessionService: IAgentSessionService,
   project: AgentProjectView,
   signal?: AbortSignal,
@@ -819,13 +897,16 @@ async function loadProjectSessionActivitySnapshot(
       throw new Error('Agents project Session activity snapshot returned an unexpected terminal cursor.');
     }
     summaries.push(...page.items);
-    if (
-      summaries.length > PROJECT_STORE_MAX_CACHED_SESSIONS
-      || (page.pageInfo.hasMore && summaries.length >= PROJECT_STORE_MAX_CACHED_SESSIONS)
-    ) {
-      throw new Error(
-        `Agents project Session activity snapshot exceeds ${PROJECT_STORE_MAX_CACHED_SESSIONS} Sessions.`,
-      );
+    if (summaries.length >= PROJECT_STORE_MAX_CACHED_SESSIONS) {
+      // The project holds more Sessions than the projection cache can retain.
+      // Commit the newest rows instead of failing the whole refresh so a
+      // single oversized project cannot blank the inventory.
+      if (page.pageInfo.hasMore) {
+        console.warn(
+          `Agents project Session activity snapshot truncated at ${PROJECT_STORE_MAX_CACHED_SESSIONS} Sessions.`,
+        );
+      }
+      break;
     }
     cursor = nextCursor;
     if (!page.pageInfo.hasMore) {
@@ -840,6 +921,8 @@ async function refreshProjectSessionsWithoutTimeout({
   projectId,
   projectService,
   signal,
+  synchronizeMode,
+  syncTimeoutMs,
 }: Omit<RefreshProjectSessionsOptions, 'refreshTimeoutMs'>): Promise<RefreshProjectSessionsResult> {
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
@@ -869,10 +952,17 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  const providerSynchronization = await agentSessionService.synchronizeProjectSessions(
-    normalizedProjectId,
-    { signal },
-  );
+  const providerSynchronization = synchronizeMode === 'best-effort'
+    ? await settleProjectSessionSynchronization(
+        agentSessionService,
+        normalizedProjectId,
+        signal,
+        syncTimeoutMs,
+      )
+    : await agentSessionService.synchronizeProjectSessions(
+        normalizedProjectId,
+        { signal },
+      );
   signal?.throwIfAborted();
   const snapshot = await loadProjectSessionActivitySnapshot(
     agentSessionService,

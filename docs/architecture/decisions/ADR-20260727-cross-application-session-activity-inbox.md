@@ -37,7 +37,8 @@ Session aggregate nor a durable change feed.
 | Head source of truth | Agents Session, latest relevant Turn, pending Interaction, current Runtime Binding, and Session user state |
 | Provider enrichment | Fresh provider activity evidence may refine only a row already selected in the current page; it cannot create head eligibility or order |
 | Owner projection | Agents computes provider identity, owner fact versions, freshness, activity time, and effective presentation phase; no server-monotonic aggregate activity revision is claimed |
-| BirdCoder integration | Generated Agents SDK behind an injected service port; normal Project and Session refresh is read-only, while explicit folder import or re-import invokes `projectSessions.synchronize` before re-reading the owner inventory |
+| BirdCoder integration | Generated Agents SDK behind an injected service port; the Workspace Session Inbox reads the owner activity snapshot on a bounded refresh cycle and issues deduplicated, time-budgeted `projectSessions.synchronize` calls for the projects it has loaded, so provider-owned Sessions converge with the list without blocking the activity read; explicit folder import or re-import forces the same command before re-reading the owner inventory |
+| Synchronization cost | The backend serves repeat `projectSessions.synchronize` outcomes from a process-local refresh cache (60 s, aligned with the client-side deduplication TTL) so the background inbox loop never re-scans the provider session store (JSONL files on disk) in steady state; a manual refresh treats the import as best-effort and continues with the persisted inventory when the import fails or exceeds its budget, so a slow provider store scan never fails the refresh |
 | Provider identity | Tenant, organization, owner, engine-qualified provider binding, provider, and provider session identifier; the baseline constrains stored owner/binding/provider/session-identifier uniqueness |
 | Title authority | Provider inventory may refresh a `provider` title; explicit user rename changes authority to `user` and wins over later inventories |
 | BirdCoder state | Disposable in-memory projection scoped by authenticated subject and Agents Workspace |
@@ -190,9 +191,11 @@ fail closed rather than be presented as a complete cross-application result.
 
 ## Verification
 
-- Existing Agents API tests cover owner scope, opaque cursor binding, explicit
-  import-only synchronization behavior, bounded synchronized/skipped/failed
-  accounting and aggregate issues, provider title authority, provider identity
+- Existing Agents API tests cover owner scope, opaque cursor binding,
+  project-scoped provider inventory synchronization (including incremental
+  fingerprint deduplication, unattributed-inventory reporting, and bounded
+  synchronized/skipped/failed accounting with aggregate issues), provider
+  title authority, provider identity
   deduplication, deterministic pending Interaction selection, current Runtime
   Binding behavior, user-state ordering, and freshness semantics for the
   implemented projection. They do not close the launch blockers above.

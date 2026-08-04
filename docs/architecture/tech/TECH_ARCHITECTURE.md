@@ -218,12 +218,12 @@ code-engine catalog:
 
 | Mode | Required tier | Engine ID | Agent ID |
 | --- | --- | --- | --- |
-| Coding | `t1-code` | `codex` | `agent.intelligence.codex` |
-| Coding | `t1-code` | `claude-code` | `agent.intelligence.claude-code` |
-| Coding | `t1-code` | `gemini` | `agent.intelligence.gemini` |
-| Coding | `t1-code` | `opencode` | `agent.intelligence.opencode` |
-| Work | `t2-autonomous` | `openclaw` (OpenClaw) | `agent.intelligence.openclaw` |
-| Work | `t2-autonomous` | `hermes` (Hermes Agent) | `agent.intelligence.hermes` |
+| Coding | `t1-code` | `codex` | `agent.codex` |
+| Coding | `t1-code` | `claude-code` | `agent.claude-code` |
+| Coding | `t1-code` | `gemini` | `agent.gemini` |
+| Coding | `t1-code` | `opencode` | `agent.opencode` |
+| Work | `t2-autonomous` | `openclaw` (OpenClaw) | `agent.openclaw` |
+| Work | `t2-autonomous` | `hermes` (Hermes Agent) | `agent.hermes` |
 
 An entry is available for task creation only when `engineId`, `agentId`, and
 `tier` all match the selected row and the live catalog publishes a usable
@@ -276,17 +276,25 @@ Agents Session Activity summary
   -> Code and Studio Session lists
 ```
 
-Project and Session list refreshes start a read-only activity traversal with a
-null cursor and never invoke provider synchronization. The explicit local
-folder import or re-import command is the only BirdCoder workflow that calls
-the generated Agents App SDK `projectSessions.synchronize` operation. Its
-partial result retains successful reconciliation while reporting bounded
-skipped/failed issue aggregates. Reconciliation is intentionally
-per-session atomic rather than batch-transactional: inventory rows and
-transcript items upsert idempotently by stable keys, so an interrupted or
-partially failed run converges on the next pass; a single malformed item can
-never block the whole batch from converging. An activity cursor is not a
-durable change-feed watermark.
+Project and Session list refreshes traverse the activity snapshot with a null
+cursor. The background Workspace Session Inbox additionally runs a bounded,
+deduplicated, time-budgeted per-project provider synchronization pass
+(`projectSessions.synchronize`) so provider-owned Sessions converge without
+blocking the activity read; the backend serves repeat synchronizations from a
+60-second process-local refresh cache aligned with the client-side
+deduplication TTL, so the background loop never re-scans the provider session
+store (JSONL files on disk) in steady state. A manual project refresh treats
+the provider import as best-effort and continues with the persisted inventory
+when the import fails or exceeds its budget, so a slow provider store scan
+never fails the refresh. The explicit local folder import or re-import
+command requires the synchronization outcome and surfaces import failures.
+The synchronize partial result retains successful reconciliation while
+reporting bounded skipped/failed issue aggregates. Reconciliation is
+intentionally per-session atomic rather than batch-transactional: inventory
+rows and transcript items upsert idempotently by stable keys, so an
+interrupted or partially failed run converges on the next pass; a single
+malformed item can never block the whole batch from converging. An activity
+cursor is not a durable change-feed watermark.
 Head eligibility and ordering come from Agents-managed Session, Turn,
 Interaction, Runtime Binding, and Session user-state facts. Query-time provider
 observation may enrich only rows already selected in the current page;
@@ -459,13 +467,16 @@ preserved until the Diff closes.
 
 #### Commercial Readiness Gaps
 
-Provider identity, import-only explicit synchronization, title authority, and the greenfield
+Provider identity, bounded periodic synchronization, title authority, and the greenfield
 PostgreSQL uniqueness baseline are implemented. Provider identity is scoped by
 tenant, organization, owner, engine-qualified provider binding, provider, and
 provider session identifier; provider titles update only while provider-owned, and
 an explicit user rename wins over later inventory. The read endpoint is
 side-effect free, and client paths, directory names, and fingerprints never
-cross the owner SDK boundary.
+cross the owner SDK boundary. The Workspace Session Inbox issues deduplicated,
+time-budgeted `projectSessions.synchronize` calls for the projects it has
+loaded (with backend fingerprint-based incremental reconciliation), so
+provider-owned Sessions converge without blocking the activity read.
 
 Session lifecycle reliability hardening is in place: session soft-delete and
 turn-input-queue purge execute in one database transaction (no partial
@@ -491,6 +502,18 @@ runtime host. Until those items close, provider-only activity cannot be
 described as complete head discovery, and clients use returned owner fact
 versions without claiming monotonic aggregate order.
 
+Audit evidence recorded for the owner-side open items (owned by
+`sdkwork-agents`, not by this repository): the PostgreSQL baseline has never
+been executed against a live database (no CI job runs the `postgres-sync`
+feature), the activity head query orders by a computed `activity_at` column
+that cannot use the lateral indexes, the model-configuration profile store is
+a node-local SQLite file with unencrypted secret bindings (multi-node
+configuration is therefore node-local), and `projectSessions.synchronize`
+runs synchronously inside the HTTP request with provider discovery and the
+two reconciliation sweeps outside the time budget. These items remain with
+the Agents maintainers and gate commercial availability exactly as listed
+above.
+
 The repository technical-debt quality gate for retired Workspace/IDE service
 types is closed: the retired crate, package, and `database/` directory
 skeletons were removed, the orphaned App SDK offset-pagination test and
@@ -515,12 +538,43 @@ persisted only through the OS-level keyring-backed secure port and fail
 closed in-memory otherwise.
 
 The gateway also mounts the SDKWork Deployments owner module as one of its
-owner API contributions. The Deployments module owns its own database and
-lifecycle (`sdkwork-deployments`); BirdCoder's stateless-ownership promise is
-unchanged — the gateway holds no BirdCoder business table and delegates the
-Deployments module's database bootstrap to that module's own migration entry
-point before serving. Deploying the gateway without the Deployments module
-(no Deploy database configuration) remains a supported stateless profile.
+owner API contributions when a workspace PostgreSQL profile is configured
+(`SDKWORK_DATABASE_URL` or a structured `SDKWORK_DATABASE_*` field). The
+Deployments module owns its own database and lifecycle
+(`sdkwork-deployments`); BirdCoder's stateless-ownership promise is unchanged
+— the gateway holds no BirdCoder business table and delegates the Deployments
+module's database bootstrap to that module's own migration entry point before
+serving. Deploying the gateway without a Deploy database configuration is the
+implemented stateless profile: the gateway skips the Deployments migration and
+route mounting entirely and serves without inventing a development database
+(`crates/sdkwork-api-birdcoder-standalone-gateway/src/lib.rs`). This carve-out
+is deliberate and machine-checked: the gateway is not a database-owning
+process (owner modules own their pools and lifecycles per-module), so it does
+not enable the SDKWork process-shared database pool and keeps no
+`specs/process-database-pool.spec.json`; the stateless posture is enforced by
+`scripts/server-observability-contract.test.mjs`.
+
+Host reliability hardening is in place on the desktop host: git subprocesses
+run under a wall-clock timeout (60s default, 300s for diff commands) with
+bounded trailing-output retention (128 KiB default, 2 MiB for diffs), the
+diff response caps untracked files folded into one response (256), and
+git-owned `info/exclude` metadata is only read under a byte budget and must
+resolve inside the repository boundary. `user_home_config` reads and writes
+are bounded (8 MiB / 64 MiB), directory listings and revision probes carry
+explicit entry/path caps, and the desktop installation identity is read and
+written inside one SQLite transaction so concurrent callers cannot rotate it.
+
+Client-side reliability hardening: the Projects Store cache now enforces its
+five-scope ceiling even when every scope has an active listener (listeners
+receive a reset snapshot before a forced LRU eviction), structured tool
+content is measured before it is stringified so a large provider payload
+cannot allocate a full copy, queue positions are validated before projection,
+and offset-list page requests are rejected (not silently clamped) when
+`page_size` exceeds 200 or `page` is below 1, aligning with
+`PAGINATION_SPEC.md` §10.1. H5 web sessions never persist the rotating refresh
+token (browser storage is readable by any script); native Capacitor sessions
+keep it in OS keychain/keystore-backed storage, mirroring the PC keyring
+posture.
 
 ## 6. PC Host And Composition Boundaries
 

@@ -185,6 +185,133 @@ function resolveItemRole(
   return 'assistant';
 }
 
+/// Budget applied when rendering structured tool content into the transcript.
+/// A provider payload can legitimately carry a large or deeply nested tool
+/// result; `JSON.stringify` before a budget check would allocate a full copy,
+/// so the stringify happens only after an iterative measurement confirms the
+/// result fits.
+const TOOL_CONTENT_STRINGIFY_MAX_CHARACTERS = 1024 * 1024;
+const TOOL_CONTENT_STRINGIFY_MAX_NODES = 65_536;
+
+function stringifyBoundedToolContent(value: unknown): string {
+  const measured = measureBoundedJsonValue(
+    value,
+    TOOL_CONTENT_STRINGIFY_MAX_CHARACTERS,
+    TOOL_CONTENT_STRINGIFY_MAX_NODES,
+  );
+  if (!measured.isValid || measured.exceeded) {
+    return '[tool content omitted: exceeds the display budget]';
+  }
+  return JSON.stringify(value, null, 2);
+}
+
+/**
+ * Iteratively measures the JSON size of an untrusted provider payload without
+ * recursing on the JavaScript stack or allocating a full string copy. Mirrors
+ * the runtime-event budget estimator so deeply nested provider metadata is
+ * bounded before any rendering allocation.
+ */
+function measureBoundedJsonValue(
+  value: unknown,
+  characterLimit: number,
+  nodeLimit: number,
+): { characters: number; exceeded: boolean; isValid: boolean } {
+  const visited = new WeakSet<object>();
+  interface Frame {
+    kind: 'value' | 'array' | 'object';
+    value?: unknown;
+    index?: number;
+    entries?: Generator<readonly [string, unknown], void>;
+  }
+  const frames: Frame[] = [{ kind: 'value', value }];
+  let characters = 0;
+  let nodes = 0;
+
+  const exceeds = (): boolean => {
+    if (characters > characterLimit) {
+      return true;
+    }
+    return nodes > nodeLimit;
+  };
+
+  while (frames.length > 0) {
+    const frame = frames.pop()!;
+    if (frame.kind === 'array') {
+      const array = frame.value as readonly unknown[];
+      if (frame.index! < array.length) {
+        frames.push({ ...frame, index: frame.index! + 1 });
+        frames.push({ kind: 'value', value: array[frame.index!] });
+      }
+      continue;
+    }
+    if (frame.kind === 'object') {
+      const entry = frame.entries!.next();
+      if (!entry.done) {
+        const [key, candidate] = entry.value;
+        characters += key.length + 3;
+        frames.push(frame);
+        frames.push({ kind: 'value', value: candidate });
+      }
+      if (exceeds()) {
+        return { characters, exceeded: true, isValid: true };
+      }
+      continue;
+    }
+
+    nodes += 1;
+    if (nodes > nodeLimit) {
+      return { characters, exceeded: true, isValid: true };
+    }
+    const candidate = frame.value;
+    if (typeof candidate === 'string') {
+      characters += candidate.length + 2;
+    } else if (candidate === null) {
+      characters += 4;
+    } else if (typeof candidate === 'boolean') {
+      characters += candidate ? 4 : 5;
+    } else if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      characters += String(candidate).length;
+    } else if (typeof candidate !== 'object') {
+      return { characters, exceeded: false, isValid: false };
+    } else {
+      if (visited.has(candidate)) {
+        return { characters, exceeded: false, isValid: false };
+      }
+      visited.add(candidate);
+      if (Array.isArray(candidate)) {
+        characters += 2;
+        frames.push({ kind: 'array', value: candidate, index: 0 });
+      } else {
+        const prototype = Object.getPrototypeOf(candidate) as unknown;
+        if (prototype !== Object.prototype && prototype !== null) {
+          return { characters, exceeded: false, isValid: false };
+        }
+        characters += 2;
+        frames.push({
+          kind: 'object',
+          entries: iterateOwnEnumerableEntries(candidate),
+        });
+      }
+    }
+    if (exceeds()) {
+      return { characters, exceeded: true, isValid: true };
+    }
+  }
+
+  return { characters, exceeded: false, isValid: true };
+}
+
+function* iterateOwnEnumerableEntries(
+  value: object,
+): Generator<readonly [string, unknown], void> {
+  const record = value as Record<string, unknown>;
+  for (const key in record) {
+    if (Object.prototype.hasOwnProperty.call(record, key)) {
+      yield [key, record[key]] as const;
+    }
+  }
+}
+
 function resolveItemContent(item: AgentSessionItemRecord): string {
   if (item.kind === 'reasoning') {
     return '';
@@ -196,7 +323,7 @@ function resolveItemContent(item: AgentSessionItemRecord): string {
   }
   const structuredContent = item.toolResult ?? item.toolArguments;
   if (structuredContent) {
-    return JSON.stringify(structuredContent, null, 2);
+    return stringifyBoundedToolContent(structuredContent);
   }
   return item.toolName?.trim() ?? '';
 }
@@ -1180,7 +1307,15 @@ export function toAgentSessionViewFromActivitySummary(
     modelId,
     providerBindingId,
     providerId,
-  });
+  })
+    // A Session bound to a user-configured model (custom or relay provider)
+    // never matches the catalog models exactly. The Agent identity is still
+    // the authoritative engine signal, so resolve the engine from it before
+    // degrading to the raw provider id (which would hide the Session from
+    // the workbench-mode-filtered inbox).
+    ?? resolveWorkbenchCodeEngineForRuntimeBinding({
+      agentId: summary.session.agentId,
+    });
   const activity = toAgentSessionActivityView(summary);
   const view = toAgentSessionView(summary.session, {
     projectId,
@@ -1195,8 +1330,19 @@ export function toAgentSessionViewFromActivitySummary(
         : 'web',
     transportKind: identityBinding?.transportKind,
     providerSessionId: identity.providerSessionId ?? identityBinding?.providerSessionId ?? undefined,
-    providerTitle: identityBinding?.providerTitle ?? undefined,
-    providerTitleSource: identityBinding?.providerTitleSource ?? undefined,
+    // The provider-defined Session name is display metadata, not identity:
+    // even when the current binding is gone (or the latest Turn no longer
+    // matches the latest binding), the latest RuntimeBinding still carries
+    // the provider thread name. Falling back to it keeps the inbox row from
+    // degrading to the canonical first-message title.
+    providerTitle:
+      identityBinding?.providerTitle
+      ?? summary.latestRuntimeBinding?.providerTitle
+      ?? undefined,
+    providerTitleSource:
+      identityBinding?.providerTitleSource
+      ?? summary.latestRuntimeBinding?.providerTitleSource
+      ?? undefined,
     providerPreview: identityBinding?.providerPreview ?? undefined,
     providerCreatedAt: identityBinding?.providerCreatedAt ?? undefined,
     providerUpdatedAt: identityBinding?.providerUpdatedAt ?? undefined,
@@ -1344,12 +1490,29 @@ export async function loadAgentSessionView(
     : undefined;
   const userState = userStatesResult.value?.get(session.sessionId) ?? null;
   const currentBinding = runtimeBindingResult.value?.items.find((binding) => binding.isCurrent);
-  const engine = currentBinding
-    ? resolveWorkbenchCodeEngineForRuntimeBinding({
-        ...currentBinding,
-        agentId: session.agentId,
-      })
-    : null;
+  // The provider-defined Session name survives binding churn: when no binding
+  // is current anymore, the most recently updated binding still carries the
+  // provider thread name and keeps the title from degrading to the canonical
+  // first-message text.
+  const latestBinding = runtimeBindingResult.value?.items.reduce<typeof currentBinding>(
+    (mostRecent, candidate) =>
+      !mostRecent || Date.parse(candidate.updatedAt) > Date.parse(mostRecent.updatedAt)
+        ? candidate
+        : mostRecent,
+    undefined,
+  );
+  const engine = (
+    currentBinding
+      ? resolveWorkbenchCodeEngineForRuntimeBinding({
+          ...currentBinding,
+          agentId: session.agentId,
+        })
+      : null
+  )
+    // Same engine identity fallback as the activity summary projection: the
+    // Agent id remains authoritative when the runtime binding carries a
+    // user-configured model outside the catalog.
+    ?? resolveWorkbenchCodeEngineForRuntimeBinding({ agentId: session.agentId });
   const view = toAgentSessionView(session, {
     projectId,
     engineId: engine?.id
@@ -1375,9 +1538,13 @@ export async function loadAgentSessionView(
     providerSessionId: currentBinding?.providerSessionId
       ?? (runtimeBindingResult.failed ? fallbackView?.providerSessionId : undefined),
     providerTitle: currentBinding?.providerTitle
-      ?? (runtimeBindingResult.failed ? fallbackView?.providerTitle : undefined),
+      ?? (runtimeBindingResult.failed
+        ? fallbackView?.providerTitle
+        : latestBinding?.providerTitle ?? undefined),
     providerTitleSource: currentBinding?.providerTitleSource
-      ?? (runtimeBindingResult.failed ? fallbackView?.providerTitleSource : undefined),
+      ?? (runtimeBindingResult.failed
+        ? fallbackView?.providerTitleSource
+        : latestBinding?.providerTitleSource ?? undefined),
     providerPreview: currentBinding?.providerPreview
       ?? (runtimeBindingResult.failed ? fallbackView?.providerPreview : undefined),
     providerCreatedAt: currentBinding?.providerCreatedAt

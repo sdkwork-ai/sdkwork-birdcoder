@@ -42,11 +42,6 @@
   "auth_invalid_password": "密碼至少需要 8 個字元。",
   "auth_login_failed": "登入失敗，請檢查您的憑證。",
   "auth_register_success": "註冊成功，請登入。",
-  "settings_engine": "引擎",
-  "settings_engine_description": "選擇用於載入 BirdCoder 工作區的渲染引擎。",
-  "settings_engine_webview": "WebView",
-  "settings_engine_servo": "Servo",
-  "settings_engine_cef": "CEF",
   "settings_theme": "主題",
   "settings_theme_description": "選擇 BirdCoder 如何跟隨淺色、深色或系統外觀。",
   "settings_language": "語言",
@@ -82,5 +77,6 @@
   "error_session_expired": "您的工作階段已過期，請重新登入。",
   "error_request_timeout": "請求逾時，請重試。",
   "error_unauthorized": "您無權執行此操作。",
-  "error_server": "伺服器錯誤，請稍後重試。"
+  "error_server": "伺服器錯誤，請稍後重試。",
+  "agent_session_load_failed": "載入會話記錄失敗。"
 }

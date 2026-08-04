@@ -10,6 +10,7 @@ import {
 import { sha256Hash } from '@sdkwork/utils/crypto';
 import { randomString, uuid } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
+import { unique } from '@sdkwork/utils/collection';
 import type {
   AgentSessionItemView,
   AgentSessionItemResourceView,
@@ -88,6 +89,11 @@ import { useWorkspaceSessionInboxSynchronization } from './useWorkspaceSessionIn
 import {
   invalidateWorkspaceSessionInboxSynchronization,
 } from '../workbench/workspaceSessionInboxCoordinator.ts';
+import {
+  applyProjectSessionActivityRefresh,
+  loadProjectSessionActivitySnapshot,
+} from '../workbench/sessionRefresh.ts';
+import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export interface LoadMoreProjectSessionsResult {
   hasMore: boolean;
@@ -689,10 +695,104 @@ async function fetchProjects(
   return request;
 }
 
+const PROJECT_SESSION_SNAPSHOT_LOAD_TIMEOUT_MS = 30_000;
+const PROJECT_SESSION_SNAPSHOT_LOAD_MAX_CONCURRENCY = 4;
+
+/**
+ * Loads the Agents Session activity snapshot for specific projects and merges
+ * it into the Store, without re-reading the whole workspace Session feed.
+ *
+ * The Workspace Inbox synchronization only commits Sessions whose project is
+ * already in the Store, so a project that just entered the inventory (loaded
+ * page, reused or imported project) would otherwise wait up to a periodic
+ * refresh cycle. Forcing a whole-feed re-read instead would scale with the
+ * total workspace Session count; this targeted read scales with the affected
+ * projects only, which matters when many projects are imported or loaded.
+ * Provider inventory synchronization itself stays on the periodic inbox
+ * cycle — this helper only reads what the backend already indexed.
+ */
+async function loadProjectSessionSnapshotsForProjects(
+  agentSessionService: IAgentSessionService,
+  storeScopeKey: string,
+  projectIds: readonly string[],
+): Promise<void> {
+  const uniqueProjectIds = unique(
+    projectIds.map((projectId) => projectId.trim()).filter((projectId) => projectId.length > 0),
+  );
+  if (uniqueProjectIds.length === 0) {
+    return;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort(new DOMException(
+      `Timed out loading project Session snapshots after ${PROJECT_SESSION_SNAPSHOT_LOAD_TIMEOUT_MS} ms.`,
+      'TimeoutError',
+    ));
+  }, PROJECT_SESSION_SNAPSHOT_LOAD_TIMEOUT_MS);
+  try {
+    let nextProjectIndex = 0;
+    const workerCount = Math.min(
+      PROJECT_SESSION_SNAPSHOT_LOAD_MAX_CONCURRENCY,
+      uniqueProjectIds.length,
+    );
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+      while (nextProjectIndex < uniqueProjectIds.length) {
+        const projectId = uniqueProjectIds[nextProjectIndex];
+        nextProjectIndex += 1;
+        if (controller.signal.aborted) {
+          return;
+        }
+        const project = getProjectsStore(storeScopeKey).snapshot.projects.find(
+          (candidate) => candidate.projectId === projectId,
+        );
+        if (!project) {
+          continue;
+        }
+        try {
+          const snapshot = await loadProjectSessionActivitySnapshot(
+            agentSessionService,
+            project,
+            controller.signal,
+          );
+          mutateProjectsStoreByScopeKeyInternal(storeScopeKey, (projects) => {
+            // The project may have been renamed or updated while the
+            // snapshot was in flight; merge against the newest Store record
+            // so stale captured scalars can never roll a project back.
+            const latestProject = projects.find(
+              (candidate) => candidate.projectId === projectId,
+            );
+            if (!latestProject) {
+              return projects as AgentProjectView[];
+            }
+            return applyProjectSessionActivityRefresh(
+              projects,
+              { ...latestProject, agentSessions: snapshot.sessions },
+              snapshot.deletedSessionIds,
+              {
+                deletedSessionTombstones: snapshot.deletedSessionTombstones,
+                scopeKey: storeScopeKey,
+              },
+            );
+          });
+        } catch (error: unknown) {
+          if (controller.signal.aborted) {
+            return;
+          }
+          console.error(
+            'Failed to load the Agents Session snapshot for a project',
+            { error, projectId },
+          );
+        }
+      }
+    }));
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function disposeProjectsStoreIfUnused(scopeKey: string): void {
   const store = getProjectsStore(scopeKey);
-  if (store.listeners.size > 0 || !scopeKey.includes('::search:')) {
-    return;
+  if (store.listeners.size > 0 || !scopeKey.includes('::search:')) {    return;
   }
 
   // React cleans up changed subscriptions before mounting their replacements.
@@ -911,13 +1011,19 @@ export function useProjects(options?: UseProjectsOptions) {
     }
 
     const store = getProjectsStore(storeScopeKey);
-    return fetchProjects(
+    const refreshedProjects = await fetchProjects(
       store,
       projectService,
       pageRequest,
       'replace',
     );
+    // The project inventory may now include projects the last Workspace
+    // Session Inbox synchronization had not loaded; their Session rows would
+    // otherwise stay missing until the next periodic refresh cycle.
+    void invalidateWorkspaceSessionInbox();
+    return refreshedProjects;
   }, [
+    invalidateWorkspaceSessionInbox,
     projectService,
     storeScopeKey,
     pageRequest,
@@ -934,7 +1040,10 @@ export function useProjects(options?: UseProjectsOptions) {
       return store.snapshot.projects;
     }
 
-    return fetchProjects(
+    const previouslyLoadedProjectIds = new Set(
+      store.snapshot.projects.map((project) => project.projectId),
+    );
+    const loadedProjects = await fetchProjects(
       store,
       projectService,
       {
@@ -945,7 +1054,21 @@ export function useProjects(options?: UseProjectsOptions) {
       },
       'append',
     );
+    // Newly loaded projects were skipped by the last Workspace Session Inbox
+    // synchronization (it only commits Sessions whose project is already in
+    // the Store); load their Session rows directly instead of re-reading the
+    // whole workspace feed, which would scale with every project imported.
+    const newlyLoadedProjectIds = loadedProjects
+      .map((project) => project.projectId)
+      .filter((projectId) => !previouslyLoadedProjectIds.has(projectId));
+    void loadProjectSessionSnapshotsForProjects(
+      agentSessionService,
+      storeScopeKey,
+      newlyLoadedProjectIds,
+    );
+    return loadedProjects;
   }, [
+    agentSessionService,
     normalizedSearchQuery,
     pageRequest.pageSize,
     projectService,
@@ -1299,6 +1422,15 @@ export function useProjects(options?: UseProjectsOptions) {
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertProjectIntoCollection(projects, existingProject),
       );
+      // A reused Project may already own Sessions; surface them immediately
+      // without re-reading the whole workspace Session feed.
+      if (storeScopeKey) {
+        void loadProjectSessionSnapshotsForProjects(
+          agentSessionService,
+          storeScopeKey,
+          [existingProject.projectId],
+        );
+      }
       return {
         projectId: existingProject.projectId,
         reusedExistingProject: true,
@@ -1321,6 +1453,13 @@ export function useProjects(options?: UseProjectsOptions) {
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertProjectIntoCollection(projects, concurrentlyCreatedProject),
       );
+      if (storeScopeKey) {
+        void loadProjectSessionSnapshotsForProjects(
+          agentSessionService,
+          storeScopeKey,
+          [concurrentlyCreatedProject.projectId],
+        );
+      }
       return {
         projectId: concurrentlyCreatedProject.projectId,
         reusedExistingProject: true,
@@ -1343,6 +1482,15 @@ export function useProjects(options?: UseProjectsOptions) {
         upsertProjectIntoCollection(projects, importedProject),
         { invalidatePagination: true },
       );
+      // Imported Projects carry their existing Sessions; load them directly
+      // instead of re-reading the whole workspace Session feed.
+      if (storeScopeKey) {
+        void loadProjectSessionSnapshotsForProjects(
+          agentSessionService,
+          storeScopeKey,
+          [importedProject.projectId],
+        );
+      }
       return importedProject;
     } catch (error: unknown) {
       const message =

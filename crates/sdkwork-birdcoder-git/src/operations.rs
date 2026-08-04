@@ -1,10 +1,10 @@
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
-use crate::command_runner::{run_git, run_git_allow_exit_codes};
+use crate::command_runner::{run_git, run_git_with_limits, CommandLimits};
 use crate::repository_probe::{
     paths_equal, probe_git_repository, GitRepositoryProbeInput, GitRepositoryProbeStatus,
 };
@@ -14,6 +14,13 @@ use crate::validation::{
 };
 
 const GIT_DIFF_RESPONSE_LIMIT_BYTES: usize = 2 * 1024 * 1024;
+/// Cap on untracked files folded into a single diff response. Beyond this
+/// cap the remaining files are skipped and the response is marked truncated
+/// instead of spawning one subprocess per file without a bound.
+const GIT_DIFF_MAX_UNTRACKED_FILES: usize = 256;
+/// Budget for reading git-owned `info/exclude` metadata; a hostile repository
+/// cannot force an unbounded file read into host memory.
+const GIT_EXCLUDE_FILE_READ_LIMIT_BYTES: usize = 1024 * 1024;
 pub const MAX_COMMIT_MESSAGE_CHARACTERS: usize = 500;
 
 pub fn inspect_project_git_overview(
@@ -102,13 +109,28 @@ pub fn inspect_project_git_diff(
     } else {
         vec!["diff", "--no-ext-diff", "--binary", "--cached", "--"]
     };
-    let mut patch =
-        run_git(&tracked_args, root).map_err(|error| GitMutationError::Mutate(error.message))?;
-
-    let untracked = run_git(&["ls-files", "--others", "--exclude-standard", "-z"], root)
+    // Diff commands run under a diff-sized budget: the runner retains at
+    // most the response limit per stream, so a large repository never
+    // materializes an unbounded patch in host memory.
+    let mut patch = run_git_with_limits(&tracked_args, root, &[0], CommandLimits::diff())
         .map_err(|error| GitMutationError::Mutate(error.message))?;
-    for untracked_path in untracked.split('\0').filter(|value| !value.is_empty()) {
-        let untracked_patch = run_git_allow_exit_codes(
+    let mut truncated = false;
+
+    let untracked =
+        run_git_with_limits(&["ls-files", "--others", "--exclude-standard", "-z"], root, &[0], CommandLimits::diff())
+            .map_err(|error| GitMutationError::Mutate(error.message))?;
+    let untracked_paths = untracked
+        .split('\0')
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if untracked_paths.len() > GIT_DIFF_MAX_UNTRACKED_FILES {
+        truncated = true;
+    }
+    for untracked_path in untracked_paths
+        .into_iter()
+        .take(GIT_DIFF_MAX_UNTRACKED_FILES)
+    {
+        let untracked_patch = run_git_with_limits(
             &[
                 "diff",
                 "--no-index",
@@ -119,6 +141,7 @@ pub fn inspect_project_git_diff(
             ],
             root,
             &[0, 1],
+            CommandLimits::diff(),
         )
         .map_err(|error| GitMutationError::Mutate(error.message))?;
         if !untracked_patch.is_empty() {
@@ -129,8 +152,11 @@ pub fn inspect_project_git_diff(
         }
     }
 
-    let (patch, truncated) = truncate_utf8(patch, GIT_DIFF_RESPONSE_LIMIT_BYTES);
-    Ok(GitProjectDiff { patch, truncated })
+    let (patch, size_truncated) = truncate_utf8(patch, GIT_DIFF_RESPONSE_LIMIT_BYTES);
+    Ok(GitProjectDiff {
+        patch,
+        truncated: truncated || size_truncated,
+    })
 }
 
 pub fn create_project_git_branch(
@@ -385,7 +411,7 @@ fn git_ref_exists(root: &Path, reference: &str) -> bool {
 fn add_worktree_exclude(root: &Path, worktree: &Path) -> Result<String, GitMutationError> {
     let pattern = worktree_exclude_pattern(root, worktree)?;
     let exclude_path = resolve_git_exclude_path(root)?;
-    let existing = fs::read_to_string(&exclude_path).unwrap_or_default();
+    let existing = read_exclude_file(&exclude_path).unwrap_or_default();
     if existing.lines().any(|line| line.trim() == pattern) {
         return Ok(pattern);
     }
@@ -409,7 +435,7 @@ fn remove_worktree_exclude(root: &Path, pattern: &str) {
     let Ok(exclude_path) = resolve_git_exclude_path(root) else {
         return;
     };
-    let Ok(existing) = fs::read_to_string(&exclude_path) else {
+    let Ok(existing) = read_exclude_file(&exclude_path) else {
         return;
     };
     let retained = existing
@@ -428,7 +454,7 @@ fn cleanup_stale_managed_worktree_excludes(root: &Path) {
     let Ok(exclude_path) = resolve_git_exclude_path(root) else {
         return;
     };
-    let Ok(existing) = fs::read_to_string(&exclude_path) else {
+    let Ok(existing) = read_exclude_file(&exclude_path) else {
         return;
     };
     let retained = existing
@@ -463,11 +489,56 @@ fn resolve_git_exclude_path(root: &Path) -> Result<PathBuf, GitMutationError> {
     let value = run_git(&["rev-parse", "--git-path", "info/exclude"], root)
         .map_err(|error| GitMutationError::Mutate(error.message))?;
     let path = PathBuf::from(value.trim());
-    Ok(if path.is_absolute() {
+    let candidate = if path.is_absolute() {
         path
     } else {
         root.join(path)
-    })
+    };
+    // The git directory may live outside the worktree (a `.git` file or an
+    // external `GIT_DIR`). The exclude file must still resolve inside the
+    // repository's canonical root so repository-controlled metadata can never
+    // redirect our writes outside the project boundary.
+    let canonical_root = fs::canonicalize(root)
+        .map_err(|error| GitMutationError::Mutate(error.to_string()))?;
+    let canonical_candidate = canonicalize_allowing_missing_file(&candidate)
+        .map_err(|error| GitMutationError::Mutate(error.to_string()))?;
+    if !canonical_candidate.starts_with(&canonical_root) {
+        return Err(GitMutationError::Validation(
+            "git exclude path escapes the repository boundary".to_owned(),
+        ));
+    }
+    Ok(candidate)
+}
+
+/// Canonicalizes a path whose final component may not exist yet, by
+/// canonicalizing the existing parent directory and re-appending the name.
+fn canonicalize_allowing_missing_file(path: &Path) -> io::Result<PathBuf> {
+    match fs::canonicalize(path) {
+        Ok(canonical) => Ok(canonical),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            let parent = path.parent().ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "path has no parent")
+            })?;
+            let name = path.file_name().ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "path has no file name")
+            })?;
+            Ok(fs::canonicalize(parent)?.join(name))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Reads a git-owned metadata file with an explicit byte budget so a hostile
+/// repository cannot force an unbounded file read into host memory.
+fn read_exclude_file(path: &Path) -> io::Result<String> {
+    let metadata = fs::metadata(path)?;
+    if metadata.len() > GIT_EXCLUDE_FILE_READ_LIMIT_BYTES as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "git exclude file exceeds the read budget",
+        ));
+    }
+    fs::read_to_string(path)
 }
 
 fn worktree_exclude_pattern(root: &Path, worktree: &Path) -> Result<String, GitMutationError> {

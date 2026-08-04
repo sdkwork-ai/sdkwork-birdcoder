@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.codex-desktop-parity",
-  "updatedAt": "2026-08-02T22:29:40.596Z",
+  "updatedAt": "2026-08-04T00:00:00.000Z",
   "goalStatus": "active",
   "summary": "BirdCoder incrementally aligns the current Codex desktop coding workbench while preserving SDKWork canonical Session semantics and generated SDK ownership.",
   "completionPolicy": {
@@ -1589,7 +1589,7 @@
         "generatedEvidence": {
           "createRequestSha256": "c827f4eab5e33713d271dd9ec6885dec4a3e50c0ee7ca79bd6abc09fa5765aee",
           "taskRecordSha256": "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
-          "aiApiSha256": "fbffb795b5da7d1318f1a576b53fa0bb3b8fc3e8bce770d23640da3f0ad08973"
+          "aiApiSha256": "5f2d0530d934d76d6762bfd9f7da27d494f821646a9b5ea19ab8c82566e508ff"
         }
       },
       "requiredContractExtensions": [

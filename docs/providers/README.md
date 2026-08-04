@@ -16,8 +16,8 @@ This directory records the provider-native message contracts that BirdCoder must
 ## Work Mode Distribution And Installation
 
 BirdCoder Work Mode has a fixed Work Provider allowlist. Its new-task menu
-always displays OpenClaw (`openclaw` / `agent.intelligence.openclaw`) and
-Hermes Agent (`hermes` / `agent.intelligence.hermes`) at tier
+always displays OpenClaw (`openclaw` / `agent.openclaw`) and
+Hermes Agent (`hermes` / `agent.hermes`) at tier
 `t2-autonomous`. Display does not mean installed: only the generated Agents
 App SDK catalog can declare a Provider available, and it must publish the exact
 engine id, Agent id, tier, and a usable model.

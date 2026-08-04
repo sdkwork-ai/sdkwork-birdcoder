@@ -31,6 +31,13 @@ describe('resolveAgentSessionTerminalResume', () => {
       providerKey: 'opencode',
       providerLabel: 'OpenCode',
     },
+    {
+      command: 'codex resume 019fa3a3-fa92-7801-9a30-522115ec65a9',
+      engineId: 'codex',
+      providerId: 'provider.codex',
+      providerKey: 'codex',
+      providerLabel: 'Codex',
+    },
   ])('uses the $providerLabel provider implementation', ({
     command,
     engineId,

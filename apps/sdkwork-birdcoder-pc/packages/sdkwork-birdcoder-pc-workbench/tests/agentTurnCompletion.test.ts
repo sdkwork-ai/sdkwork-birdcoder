@@ -5,7 +5,7 @@ import {
 } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService';
 
 const completedAt = '2026-01-01T00:00:00.000Z';
-const agentId = 'agent.code-engine.codex';
+const agentId = 'agent.codex';
 const runtimeBindingId = 'runtime-binding.codex';
 const sessionId = 'session.test';
 const identity = { agentId, sessionId };
@@ -439,7 +439,7 @@ describe('Agent turn streaming completion contract', () => {
     engineId,
     modelId,
   ) => {
-    const providerAgentId = `agent.code-engine.${engineId}`;
+    const providerAgentId = `agent.${engineId}`;
     const providerHostBindingId = `runtime-binding.${engineId}`;
     const completion = createTurnCompletion({
       agentId: providerAgentId,
@@ -603,8 +603,8 @@ describe('Agent turn streaming completion contract', () => {
   it('routes the same Session ID through each explicitly selected provider Agent', async () => {
     const providerAgentIds = [
       agentId,
-      'agent.code-engine.claude-code',
-      'agent.code-engine.opencode',
+      'agent.claude-code',
+      'agent.opencode',
     ] as const;
     const retrieve = vi.fn(async (
       requestedAgentId: string,
@@ -864,7 +864,7 @@ describe('Agent turn streaming completion contract', () => {
   });
 
   it.each([
-    createTurnCompletion({ agentId: 'agent.code-engine.claude-code' }),
+    createTurnCompletion({ agentId: 'agent.claude-code' }),
     createTurnCompletion({ sessionId: 'session.other' }),
     createTurnCompletion({ itemSessionId: 'session.other' }),
     createTurnCompletion({ runtimeBindingId: 'runtime-binding.other' }),
@@ -938,15 +938,15 @@ describe('Agent session user-state resource bounds', () => {
       },
     }));
     const service = new BirdCoderAgentSessionService({
-      agentId: 'agent.code-engine.default',
+      agentId: 'agent.default',
       client: {
         ai: { agents: { sessionUserStates: { list } } },
       } as never,
     });
     const identities = [
       { agentId, sessionId: 'session.codex' },
-      { agentId: 'agent.code-engine.claude-code', sessionId: 'session.claude' },
-      { agentId: 'agent.code-engine.opencode', sessionId: 'session.opencode' },
+      { agentId: 'agent.claude-code', sessionId: 'session.claude' },
+      { agentId: 'agent.opencode', sessionId: 'session.opencode' },
     ];
 
     await expect(service.getSessionUserStates(identities)).resolves.toEqual(new Map());
@@ -960,7 +960,7 @@ describe('Agent session user-state resource bounds', () => {
       );
     }
     expect(list.mock.calls.map(([requestedAgentId]) => requestedAgentId)).not.toContain(
-      'agent.code-engine.default',
+      'agent.default',
     );
   });
 });

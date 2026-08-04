@@ -339,36 +339,6 @@ abstract class AppLocalizations {
   /// **'Registration successful. Please sign in.'**
   String get auth_register_success;
 
-  /// No description provided for @settings_engine.
-  ///
-  /// In en, this message translates to:
-  /// **'Engine'**
-  String get settings_engine;
-
-  /// No description provided for @settings_engine_description.
-  ///
-  /// In en, this message translates to:
-  /// **'Select the rendering engine used to load the BirdCoder workspace.'**
-  String get settings_engine_description;
-
-  /// No description provided for @settings_engine_webview.
-  ///
-  /// In en, this message translates to:
-  /// **'WebView'**
-  String get settings_engine_webview;
-
-  /// No description provided for @settings_engine_servo.
-  ///
-  /// In en, this message translates to:
-  /// **'Servo'**
-  String get settings_engine_servo;
-
-  /// No description provided for @settings_engine_cef.
-  ///
-  /// In en, this message translates to:
-  /// **'CEF'**
-  String get settings_engine_cef;
-
   /// No description provided for @settings_theme.
   ///
   /// In en, this message translates to:
@@ -584,6 +554,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server error. Please try again later.'**
   String get error_server;
+
+  /// No description provided for @agent_session_load_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load the session transcript.'**
+  String get agent_session_load_failed;
 }
 
 class _AppLocalizationsDelegate

@@ -12766,6 +12766,7 @@ dependencies = [
  "hmac 0.12.1",
  "hyper-util",
  "prometheus",
+ "rustls 0.23.41",
  "sdkwork-claw-config",
  "sdkwork-claw-contract",
  "sdkwork-claw-health",
@@ -13508,6 +13509,7 @@ name = "sdkwork-intelligence-deploy-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "sdkwork-database-id",
  "sdkwork-deploy-content-provider-port",
@@ -14085,6 +14087,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -14685,7 +14688,7 @@ dependencies = [
 
 [[package]]
 name = "sdkwork-utils-rust"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

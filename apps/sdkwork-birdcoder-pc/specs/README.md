@@ -79,8 +79,8 @@ domain.
 
 | Mode | Agents tier | Admitted engine and Agent identities |
 | --- | --- | --- |
-| Coding | `t1-code` | `codex` / `agent.intelligence.codex`; `claude-code` / `agent.intelligence.claude-code`; `gemini` / `agent.intelligence.gemini`; `opencode` / `agent.intelligence.opencode` |
-| Work | `t2-autonomous` | `openclaw` / `agent.intelligence.openclaw`; `hermes` / `agent.intelligence.hermes` |
+| Coding | `t1-code` | `codex` / `agent.codex`; `claude-code` / `agent.claude-code`; `gemini` / `agent.gemini`; `opencode` / `agent.opencode` |
+| Work | `t2-autonomous` | `openclaw` / `agent.openclaw`; `hermes` / `agent.hermes` |
 
 The generated Agents App SDK catalog is the availability authority. BirdCoder
 admits an engine only when its normalized `engineId`, `agentId`, and `tier`

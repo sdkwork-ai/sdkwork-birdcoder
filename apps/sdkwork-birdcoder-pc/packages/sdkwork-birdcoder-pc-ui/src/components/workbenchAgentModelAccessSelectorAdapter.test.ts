@@ -29,7 +29,7 @@ const catalogModel = {
 
 const engine: WorkbenchCodeEngineDefinition = {
   id: 'codex',
-  agentId: 'agent.code-engine.codex',
+  agentId: 'agent.codex',
   bindingId: 'binding.agent.codex',
   label: 'Codex',
   aliases: [],
