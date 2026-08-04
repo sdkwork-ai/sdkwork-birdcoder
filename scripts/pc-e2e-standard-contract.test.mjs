@@ -39,7 +39,7 @@ const webViteConfig = readText(
 );
 const webMain = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/src/main.tsx`);
 const appContent = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx`);
-const testEnv = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/.env.test`);
+const testEnv = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/.env.standalone.test`);
 const mockServer = readText('scripts/pc-e2e-mock-api-server.mjs');
 const mockFixtures = readText('scripts/pc-e2e-mock-api-fixtures.mjs');
 const productionWebRuntimeRunner = readText(

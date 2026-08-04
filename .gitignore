@@ -112,6 +112,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.*.example
+!.env.standalone.*
 *.log
 .DS_Store
 Thumbs.db
