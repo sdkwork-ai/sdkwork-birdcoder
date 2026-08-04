@@ -2188,6 +2188,15 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
       { page: 1, pageSize: 200 },
     );
     const items = Array.isArray(response?.items) ? response.items : [];
+    if (!Array.isArray(response?.items)) {
+      // The feedback surface degrades to an empty list when the owner
+      // response is malformed; keep the degradation observable instead of
+      // silently hiding a backend contract break.
+      console.warn(
+        'Agent Session item feedback response is missing an items array; degrading to an empty list.',
+        { agentId: normalizedIdentity.agentId, sessionId: normalizedIdentity.sessionId },
+      );
+    }
     return (items as Array<{ itemId: string; rating: 'up' | 'down' }>)
       .map((item) => ({ itemId: item.itemId, rating: item.rating }));
   }

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 
 import type {
   ApplicationPublishRequest as DeployApplicationPublishRequest,
@@ -113,10 +113,7 @@ function successfulPublisher(
   return {
     async publish(request) {
       captured.request = request;
-      assert.deepEqual(
-        [...new Uint8Array(await request.artifact.file.readRange!(0, 4))],
-        [1, 2, 3, 4],
-      );
+      expect([...new Uint8Array(await request.artifact.file.readRange!(0, 4))]).toEqual([1, 2, 3, 4]);
       request.onProgress?.({
         evidence: {},
         kind: 'stage',
@@ -195,139 +192,152 @@ function createService(
   });
 }
 
-const calls: CommandCall[] = [];
-const captured: { request?: DeployApplicationPublishRequest } = {};
-const service = createService(calls, successfulPublisher(captured));
-const discovery = await service.discoverApplications('project-1');
-assert.equal(discovery.workspaceKind, 'sdkwork-workspace');
-assert.deepEqual(discovery.applications[0], {
-  appKey: 'customer-web',
-  framework: 'react',
-  manifestRelativePath: 'apps/customer-web/sdkwork.app.config.json',
-  name: 'Customer Web',
-  readiness: 'ready',
-  relativePath: 'apps/customer-web',
-  setupIssues: [],
-  targets: [{
-    command: 'pnpm build',
-    cwd: '.',
-    id: 'web-production',
-    name: 'Production web',
-    outputs: [{
-      archive: 'zip',
+describe('ApplicationPublishService', () => {
+  it('discovers applications through the native host', async () => {
+    const calls: CommandCall[] = [];
+    const service = createService(calls, successfulPublisher({}));
+    const discovery = await service.discoverApplications('project-1');
+    expect(discovery.workspaceKind).toBe('sdkwork-workspace');
+    expect(discovery.applications[0]).toEqual({
+      appKey: 'customer-web',
+      framework: 'react',
+      manifestRelativePath: 'apps/customer-web/sdkwork.app.config.json',
+      name: 'Customer Web',
+      readiness: 'ready',
+      relativePath: 'apps/customer-web',
+      setupIssues: [],
+      targets: [{
+        command: 'pnpm build',
+        cwd: '.',
+        id: 'web-production',
+        name: 'Production web',
+        outputs: [{
+          archive: 'zip',
+          fileName: 'web.zip',
+          path: 'dist',
+          type: 'directory',
+        }],
+        packageId: 'web-production-zip',
+        readiness: 'ready',
+        setupIssues: [],
+      }],
+    });
+    expect(calls.map((call) => call.command)).toEqual(['application_publish_discover']);
+    expect(calls[0]?.args).toEqual({ rootPath: ROOT_PATH });
+  });
+
+  it('preflights a target through the native host', async () => {
+    const calls: CommandCall[] = [];
+    const service = createService(calls, successfulPublisher({}));
+    const preflight = await service.preflightApplication({
+      appRelativePath: 'apps/customer-web',
+      projectId: 'project-1',
+      targetId: 'web-production',
+    });
+    expect(preflight.planId).toBe('plan-1');
+    expect(preflight.command).toBe('pnpm build');
+    expect(preflight.cwd).toBe('.');
+    expect(preflight.checks.every((check) => check.status === 'passed')).toBe(true);
+    expect(calls.map((call) => call.command)).toEqual(['application_publish_preflight']);
+    expect(calls[0]?.args).toEqual({
+      applicationRelativePath: 'apps/customer-web',
+      rootPath: ROOT_PATH,
+      targetId: 'web-production',
+    });
+  });
+
+  it('publishes with progress, evidence, and the captured deploy request', async () => {
+    const calls: CommandCall[] = [];
+    const captured: { request?: DeployApplicationPublishRequest } = {};
+    const service = createService(calls, successfulPublisher(captured));
+    const preflight = await service.preflightApplication({
+      appRelativePath: 'apps/customer-web',
+      projectId: 'project-1',
+      targetId: 'web-production',
+    });
+    const progress: string[] = [];
+    const evidence = await service.publishApplication(
+      {
+        deployAfterRelease: true,
+        environment: 'production',
+        planId: preflight.planId,
+        version: '1.2.3',
+      },
+      (update) => progress.push(update.stage),
+    );
+    expect(evidence).toEqual({
+      artifactId: 'deploy-artifact-1',
+      checksumSha256: CHECKSUM,
+      deploymentId: 'deployment-1',
       fileName: 'web.zip',
-      path: 'dist',
-      type: 'directory',
-    }],
-    packageId: 'web-production-zip',
-    readiness: 'ready',
-    setupIssues: [],
-  }],
-});
+      releaseId: 'release-1',
+      siteId: 'site-1',
+      uploadItemId: 'upload-item-1',
+      uploadSessionId: 'upload-session-1',
+    });
+    expect(captured.request?.site.kind).toBe('resolveOrCreate');
+    expect(captured.request?.site.kind === 'resolveOrCreate' && captured.request.site.slug).toBe('customer-web');
+    expect(captured.request?.site.kind === 'resolveOrCreate' && captured.request.site.siteType).toBe(2);
+    expect(captured.request?.artifact.packageType).toBe(2);
+    expect(captured.request?.deployment).toEqual({
+      deployType: 1,
+      environment: 'production',
+      versionTag: '1.2.3',
+    });
+    expect(progress).toEqual([
+      'building',
+      'packaging',
+      'uploading',
+      'uploading',
+      'registering',
+      'releasing',
+      'deploying',
+      'completed',
+    ]);
+    expect(calls.map((call) => call.command)).toEqual([
+      'application_publish_preflight',
+      'application_publish_build_package',
+      'application_publish_read_artifact_range',
+      'application_publish_artifact_discard',
+    ]);
+  });
 
-const preflight = await service.preflightApplication({
-  appRelativePath: 'apps/customer-web',
-  projectId: 'project-1',
-  targetId: 'web-production',
-});
-assert.equal(preflight.planId, 'plan-1');
-assert.equal(preflight.command, 'pnpm build');
-assert.equal(preflight.cwd, '.');
-assert.ok(preflight.checks.every((check) => check.status === 'passed'));
+  it('fails closed and discards the artifact when the deploy gateway is unavailable', async () => {
+    const calls: CommandCall[] = [];
+    const failedService = createService(
+      calls,
+      {
+        async publish() {
+          throw new Error('Deploy gateway unavailable.');
+        },
+      },
+      'plan-failure',
+    );
+    await failedService.preflightApplication({
+      appRelativePath: 'apps/customer-web',
+      projectId: 'project-1',
+      targetId: 'web-production',
+    });
+    await expect(failedService.publishApplication({
+      deployAfterRelease: false,
+      environment: 'staging',
+      planId: 'plan-failure',
+      version: '2.0.0',
+    })).rejects.toMatchObject({
+      code: 'cloud_publish_failed',
+      message: 'Deploy gateway unavailable.',
+    });
+    expect(calls.at(-1)?.command).toBe('application_publish_artifact_discard');
+  });
 
-const progress: string[] = [];
-const evidence = await service.publishApplication(
-  {
-    deployAfterRelease: true,
-    environment: 'production',
-    planId: preflight.planId,
-    version: '1.2.3',
-  },
-  (update) => progress.push(update.stage),
-);
-assert.deepEqual(evidence, {
-  artifactId: 'deploy-artifact-1',
-  checksumSha256: CHECKSUM,
-  deploymentId: 'deployment-1',
-  fileName: 'web.zip',
-  releaseId: 'release-1',
-  siteId: 'site-1',
-  uploadItemId: 'upload-item-1',
-  uploadSessionId: 'upload-session-1',
+  it('rejects a publish without a preflight plan', async () => {
+    const calls: CommandCall[] = [];
+    const failedService = createService(calls, successfulPublisher({}));
+    await expect(failedService.publishApplication({
+      deployAfterRelease: false,
+      environment: 'staging',
+      planId: 'unused-plan',
+      version: '02.0.0',
+    })).rejects.toMatchObject({ code: 'preflight_failed' });
+  });
 });
-assert.equal(captured.request?.site.kind, 'resolveOrCreate');
-assert.equal(captured.request?.site.kind === 'resolveOrCreate' && captured.request.site.slug, 'customer-web');
-assert.equal(captured.request?.site.kind === 'resolveOrCreate' && captured.request.site.siteType, 2);
-assert.equal(captured.request?.artifact.packageType, 2);
-assert.deepEqual(captured.request?.deployment, {
-  deployType: 1,
-  environment: 'production',
-  versionTag: '1.2.3',
-});
-assert.deepEqual(progress, [
-  'building',
-  'packaging',
-  'uploading',
-  'uploading',
-  'registering',
-  'releasing',
-  'deploying',
-  'completed',
-]);
-assert.deepEqual(
-  calls.map((call) => call.command),
-  [
-    'application_publish_discover',
-    'application_publish_preflight',
-    'application_publish_build_package',
-    'application_publish_read_artifact_range',
-    'application_publish_artifact_discard',
-  ],
-);
-assert.deepEqual(calls[0]?.args, { rootPath: ROOT_PATH });
-assert.deepEqual(calls[1]?.args, {
-  applicationRelativePath: 'apps/customer-web',
-  rootPath: ROOT_PATH,
-  targetId: 'web-production',
-});
-
-const failedCalls: CommandCall[] = [];
-const failedService = createService(
-  failedCalls,
-  {
-    async publish() {
-      throw new Error('Deploy gateway unavailable.');
-    },
-  },
-  'plan-failure',
-);
-await failedService.preflightApplication({
-  appRelativePath: 'apps/customer-web',
-  projectId: 'project-1',
-  targetId: 'web-production',
-});
-await assert.rejects(
-  failedService.publishApplication({
-    deployAfterRelease: false,
-    environment: 'staging',
-    planId: 'plan-failure',
-    version: '2.0.0',
-  }),
-  { code: 'cloud_publish_failed', message: 'Deploy gateway unavailable.' },
-);
-assert.equal(
-  failedCalls.at(-1)?.command,
-  'application_publish_artifact_discard',
-);
-
-await assert.rejects(
-  failedService.publishApplication({
-    deployAfterRelease: false,
-    environment: 'staging',
-    planId: 'unused-plan',
-    version: '02.0.0',
-  }),
-  { code: 'preflight_failed' },
-);
-
-console.log('application publish service tests passed');

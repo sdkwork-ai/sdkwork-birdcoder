@@ -32,8 +32,8 @@ assert.match(
 
 assert.match(
   appSource,
-  /useProjects\(\{[\s\S]*?isActive:\s*Boolean\(user\)\s*&&\s*isRecoveryHydrated,[\s\S]*?\}\)/s,
-  'BirdcoderApp must not load Agents projects until authentication and recovery hydration are both complete.',
+  /useProjects\(\{[\s\S]*?isActive:\s*Boolean\(user\)\s*&&\s*isRecoveryHydrated(?:\s*&&\s*Boolean\([A-Za-z0-9_]+\))?,[\s\S]*?\}\)/s,
+  'BirdcoderApp must not load Agents projects until authentication and recovery hydration are both complete (a workspace-selection gate may strengthen, never weaken, this condition).',
 );
 
 console.log('auth project loading gating contract passed.');

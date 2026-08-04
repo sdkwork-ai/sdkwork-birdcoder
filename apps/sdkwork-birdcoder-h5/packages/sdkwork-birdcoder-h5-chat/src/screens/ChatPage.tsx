@@ -49,6 +49,25 @@ export function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousIsLoadingRef = useRef(true);
+  const previousIsSendingRef = useRef(false);
+
+  // Scroll the transcript to the newest message after the initial history
+  // load and after a Turn submission completes. Loading earlier messages
+  // intentionally preserves the scroll position (no forced jump).
+  useEffect(() => {
+    const finishedInitialLoad = previousIsLoadingRef.current && !isLoading;
+    const finishedSend = previousIsSendingRef.current && !isSending;
+    previousIsLoadingRef.current = isLoading;
+    previousIsSendingRef.current = isSending;
+    if (finishedInitialLoad || finishedSend) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, [isLoading, isSending]);
 
   const canSend = useMemo(
     () => !isBlank(input) && !isSending && sessionId != null,
@@ -161,7 +180,10 @@ export function ChatPage() {
           {messagesCopy.description}
         </p>
       </div>
-      <div className="flex min-h-48 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-card p-3">
+      <div
+        ref={scrollContainerRef}
+        className="flex min-h-48 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-card p-3"
+      >
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{messagesCopy.loadingHistory}</p>
         ) : null}

@@ -815,6 +815,11 @@ export interface UseProjectsOptions {
   workspaceId?: string | null;
 }
 
+/// Server-side offset pagination rejects pages beyond 10,000
+/// (`PAGINATION_SPEC.md` / `API_SPEC.md` §16.2); client pagination stops at
+/// the same bound so a broken `hasMore` can never drive an unbounded loop.
+const MAX_OFFSET_LIST_PAGE = 10_000;
+
 export function useProjects(options?: UseProjectsOptions) {
   const {
     agentSessionService,
@@ -974,7 +979,14 @@ export function useProjects(options?: UseProjectsOptions) {
   }, [isActive, storeScopeKey]);
 
   useEffect(() => {
-    if (!storeScopeKey || !isActive) {
+    if (!isActive) {
+      // While inactive the hook must present an empty snapshot and skip
+      // project fetch subscriptions so unauthenticated app shells never
+      // load Agents projects (auth-project-loading-gating contract).
+      setStoreSnapshot(createProjectsStoreSnapshot());
+      return;
+    }
+    if (!storeScopeKey) {
       return;
     }
 
@@ -1001,6 +1013,7 @@ export function useProjects(options?: UseProjectsOptions) {
     isActive,
     storeScopeKey,
     pageRequest,
+    setStoreSnapshot,
   ]);
 
   const refreshProjects = useCallback(async () => {
@@ -1039,6 +1052,14 @@ export function useProjects(options?: UseProjectsOptions) {
     if (!pageInfo?.hasMore) {
       return store.snapshot.projects;
     }
+    const nextPage = (pageInfo.page ?? 1) + 1;
+    if (nextPage > MAX_OFFSET_LIST_PAGE) {
+      // Server-side offset pagination rejects pages beyond 10,000
+      // (`PAGINATION_SPEC.md` / API_SPEC §16.2). Stop client-side pagination
+      // at the same bound so a broken `hasMore` can never drive an unbounded
+      // page loop.
+      return store.snapshot.projects;
+    }
 
     const previouslyLoadedProjectIds = new Set(
       store.snapshot.projects.map((project) => project.projectId),
@@ -1047,7 +1068,7 @@ export function useProjects(options?: UseProjectsOptions) {
       store,
       projectService,
       {
-        page: (pageInfo.page ?? 1) + 1,
+        page: nextPage,
         pageSize: pageInfo.pageSize ?? pageRequest.pageSize,
         ...(normalizedSearchQuery ? { q: normalizedSearchQuery } : {}),
         workspaceId,
@@ -2172,6 +2193,15 @@ export function useProjects(options?: UseProjectsOptions) {
 
     const turnId = `turn.${uuid()}`;
     const activeTurnKey = buildActiveAgentTurnKey(selectedSession.agentId, selectedSession.id);
+    if (activeAgentTurnDeliveriesRef.current.has(activeTurnKey)) {
+      // Fail closed against concurrent direct submissions: a second stream
+      // for the same Session would race the first on the store projection
+      // and invalidate its cancellation semantics. The queue path remains
+      // the serialized submission entry point.
+      throw new Error(
+        `Agent Session ${agentSessionId} already has an in-flight Turn submission.`,
+      );
+    }
     const activeDelivery: ActiveAgentTurnDelivery = {
       cancellationConfirmed: false,
       controller: new AbortController(),

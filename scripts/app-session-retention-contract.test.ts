@@ -16,6 +16,11 @@ import {
 
 let persistedSession: string | null = null;
 bindAppSessionPersistencePort({
+  // Secure port contract: OS-backed credential stores (desktop keyring) may
+  // persist long-lived rotating credentials. In-memory browser-local ports
+  // must strip the refresh token instead (see the insecure-port assertion
+  // below).
+  secureTokenStorage: true,
   read: () => persistedSession,
   remove: () => {
     persistedSession = null;
@@ -47,6 +52,38 @@ const tokenManager = getBirdCoderGlobalTokenManager();
 assert.equal(tokenManager.getAccessToken(), 'access-token');
 assert.equal(tokenManager.getAuthToken(), 'auth-token');
 assert.equal(tokenManager.getRefreshToken(), 'rotating-refresh-token');
+
+// Insecure ports must fail closed: the rotating refresh token stays in
+// memory only and is never written to browser-local persistence.
+let insecurePersisted: string | null = null;
+bindAppSessionPersistencePort({
+  secureTokenStorage: false,
+  read: () => insecurePersisted,
+  remove: () => {
+    insecurePersisted = null;
+  },
+  write: (raw) => {
+    insecurePersisted = raw;
+  },
+});
+resetAppSessionTokenStorageCache();
+storeAppSessionFromResult({
+  accessToken: 'access-token',
+  authToken: 'auth-token',
+  expiresAt,
+  refreshToken: 'rotating-refresh-token',
+  sessionId: 'session-id',
+});
+assert.ok(insecurePersisted, 'insecure port must receive a persisted record');
+assert.equal(
+  JSON.parse(insecurePersisted as string).refreshToken,
+  undefined,
+  'insecure browser-local persistence must never store the rotating refresh token',
+);
+resetAppSessionTokenStorageCache();
+const insecureRestored = loadStoredAppSessionToken();
+assert.equal(insecureRestored?.accessToken, 'access-token');
+assert.equal(insecureRestored?.refreshToken, undefined);
 
 resetBirdCoderGlobalTokenManager();
 resetAppSessionTokenStorageCache();

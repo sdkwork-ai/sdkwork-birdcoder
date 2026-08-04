@@ -33,15 +33,24 @@ assert.doesNotMatch(
   'Flutter core must not expose backend SDK wrappers.',
 );
 
-assert.match(
-  read(`${adminPrefix}/sdk/backend_sdk_client.dart`),
-  /sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/u,
-  'Flutter admin core must compose backend SDK clients through the consumer assembly package.',
+// BirdCoder owns no Backend API surface (root PRD: Backend API and Open API
+// each contain zero BirdCoder operations; Flutter PRD: "Backend API and Open
+// API consumers are absent because BirdCoder owns neither surface"). Admin
+// core must therefore never construct or reference a backend SDK consumer.
+assert.equal(
+  fs.existsSync(path.join(rootDir, `${adminPrefix}/sdk/backend_sdk_client.dart`)),
+  false,
+  'Flutter admin core must not construct backend SDK clients: BirdCoder owns no Backend API surface.',
 );
-assert.match(
-  read('apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/lib/src/backend_sdk_consumer.dart'),
-  /pendingGeneratedSdk/u,
-  'Flutter admin core must own backend SDK client construction.',
+assert.equal(
+  fs.existsSync(
+    path.join(
+      rootDir,
+      'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
+    ),
+  ),
+  false,
+  'The retired backend SDK consumer assembly must stay removed.',
 );
 
 console.log('flutter admin sdk boundary contract passed.');
