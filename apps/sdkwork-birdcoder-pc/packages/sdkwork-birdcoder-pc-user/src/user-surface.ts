@@ -110,8 +110,14 @@ export function createBirdCoderUserService(user: User | null): SdkworkUserServic
   return createSdkworkCanonicalUserService({
     capabilities: {
       profile: {
-        avatarUrlEditable: false,
+        avatarEditable: false,
+        contactBindingEnabled: false,
         emailEditable: false,
+        emailUnbindEnabled: false,
+        oauthBindingEnabled: false,
+        phoneEditable: false,
+        phoneUnbindEnabled: false,
+        profileEditable: false,
       },
       security: {
         passwordChangeEnabled: false,
@@ -187,6 +193,5 @@ export function createBirdCoderUserController(
     messages: options.messages,
     registry: options.registry,
     service: createBirdCoderUserService(options.user),
-    user: options.user,
   });
 }

@@ -491,11 +491,38 @@ fn desktop_session_terminate(
     host::desktop_session_terminate(state, session_id)
 }
 
+#[tauri::command]
+fn deeplink_drain_pending_import_requests() -> Vec<host::DeepLinkImportRequest> {
+    host::deeplink_drain_pending_import_requests()
+}
+
+#[tauri::command]
+async fn deeplink_import_from_request(
+    app: tauri::AppHandle,
+    request: host::DeepLinkImportRequest,
+) -> Result<host::DeepLinkImportSnapshot, String> {
+    host::deeplink_import_from_request(&app, request).await
+}
+
 pub fn run() {
+    // Single-instance must be registered before the deep-link plugin: while the
+    // app is already running, Windows delivers `birdcoder://` URLs as launch
+    // arguments of a second instance, and the single-instance plugin (with the
+    // `deep-link` feature) forwards them to the primary process, where the
+    // deep-link handler then imports the payload.
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             app.manage(host::FileSystemWatchState::new());
             host::setup_tauri_host(app.handle())?;
+            host::setup_deeplink_handling(app.handle())?;
             host::spawn_embedded_application_gateway_startup(app.handle().clone());
             Ok(())
         })
@@ -565,6 +592,8 @@ pub fn run() {
             desktop_session_attachment_acknowledge,
             desktop_session_resize,
             desktop_session_terminate,
+            deeplink_drain_pending_import_requests,
+            deeplink_import_from_request,
             user_model_config_list_channels,
             user_model_config_get_channel,
             user_model_config_upsert_channel,

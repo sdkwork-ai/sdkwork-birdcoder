@@ -111,6 +111,30 @@ function resolveCandidateTargetDirs(resolvedSrcTauriDir) {
     targetDirs.push(packageTargetDir);
   }
 
+  // Cargo workspace layout: the tauri crate belongs to a workspace whose
+  // target dir lives at the workspace root (src-tauri -> package -> packages
+  // -> app -> repo root). Walk up to the first Cargo.toml declaring
+  // `[workspace]` and inspect its target dir too.
+  let current = resolvedSrcTauriDir;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const manifestPath = path.join(current, 'Cargo.toml');
+    if (
+      existsSync(manifestPath)
+      && /^\s*\[workspace\]/m.test(readFileSync(manifestPath, 'utf8'))
+    ) {
+      const workspaceTargetDir = path.join(current, 'target');
+      if (!targetDirs.includes(workspaceTargetDir)) {
+        targetDirs.push(workspaceTargetDir);
+      }
+      break;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
   return targetDirs;
 }
 

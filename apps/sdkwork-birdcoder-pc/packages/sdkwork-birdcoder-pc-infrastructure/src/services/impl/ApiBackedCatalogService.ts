@@ -236,15 +236,15 @@ export class ApiBackedCatalogService implements ICatalogService {
       this.agentsClient.ai.agents.mcpServers.list({
         page: boundedPage,
         pageSize: boundedPageSize,
-      }, { signal }),
+      }, signal ? { signal, timeout: 30_000 } : undefined),
       this.agentsClient.ai.agents.compositionSlots.list(normalizedAgentId, {
         page: boundedPage,
         pageSize: boundedPageSize,
-      }, { signal }),
+      }, signal ? { signal, timeout: 30_000 } : undefined),
       this.skillsClient.skills.skillPackages.list({
         page: boundedPage,
         pageSize: boundedPageSize,
-      }, { signal }),
+      }, signal ? { signal, timeout: 30_000 } : undefined),
       this.localPluginRuntime.discover(resolveLocalPluginProviderId(normalizedAgentId)),
     ]);
     signal?.throwIfAborted();
@@ -329,7 +329,7 @@ export class ApiBackedCatalogService implements ICatalogService {
         q: query?.trim() || undefined,
         scope,
       },
-      { signal },
+      signal ? { signal, timeout: 30_000 } : undefined,
     );
     return toCatalogPage<AgentRecord>(result, boundedPage, boundedPageSize, 'Agent');
   }
@@ -348,7 +348,7 @@ export class ApiBackedCatalogService implements ICatalogService {
         pageSize: boundedPageSize,
         q: query?.trim() || undefined,
       },
-      { signal },
+      signal ? { signal, timeout: 30_000 } : undefined,
     );
     return toCatalogPage<SkillRecord>(result, boundedPage, boundedPageSize, 'Skill');
   }

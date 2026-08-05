@@ -8,12 +8,14 @@ import { ToastProvider } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastPro
 import { SandboxDirectoryPickerProvider } from '@sdkwork/drive-pc-sandbox-explorer';
 import { ErrorBoundaryWithTranslation } from './birdcoderAppErrorBoundary.tsx';
 import { AppContent } from './birdcoderAppContent.tsx';
+import { DeepLinkImportListener } from './DeepLinkImportListener.tsx';
 
 export default function App() {
   return (
     <ErrorBoundaryWithTranslation>
       <ToastProvider>
         <SandboxDirectoryPickerProvider>
+          <DeepLinkImportListener />
           <AppContent />
         </SandboxDirectoryPickerProvider>
       </ToastProvider>

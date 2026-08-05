@@ -26,10 +26,6 @@
       "import": "./src/components/DeferredFileExplorer.tsx",
       "types": "./src/components/DeferredFileExplorer.tsx"
     },
-    "./components/FileChangeDiffViewer": {
-      "import": "./src/components/FileChangeDiffViewer.tsx",
-      "types": "./src/components/FileChangeDiffViewer.tsx"
-    },
     "./components/DeferredRunDialogs": {
       "import": "./src/components/DeferredRunDialogs.tsx",
       "types": "./src/components/DeferredRunDialogs.tsx"
@@ -37,6 +33,10 @@
     "./components/DeferredUniversalChat": {
       "import": "./src/components/DeferredUniversalChat.tsx",
       "types": "./src/components/DeferredUniversalChat.tsx"
+    },
+    "./components/FileChangeDiffViewer": {
+      "import": "./src/components/FileChangeDiffViewer.tsx",
+      "types": "./src/components/FileChangeDiffViewer.tsx"
     },
     "./components/FileExplorer": {
       "import": "./src/components/FileExplorer.tsx",
@@ -65,6 +65,26 @@
     "./components/WorkbenchNewSessionButton": {
       "import": "./src/components/WorkbenchNewSessionButton.tsx",
       "types": "./src/components/WorkbenchNewSessionButton.tsx"
+    },
+    "./components/clipboard": {
+      "types": "./src/components/clipboard.ts",
+      "import": "./src/components/clipboard.ts",
+      "default": "./src/components/clipboard.ts"
+    },
+    "./components/contentPreview": {
+      "types": "./src/components/contentPreview.ts",
+      "import": "./src/components/contentPreview.ts",
+      "default": "./src/components/contentPreview.ts"
+    },
+    "./components/editorLanguage": {
+      "types": "./src/components/editorLanguage.ts",
+      "import": "./src/components/editorLanguage.ts",
+      "default": "./src/components/editorLanguage.ts"
+    },
+    "./components/editorModelPath": {
+      "types": "./src/components/editorModelPath.ts",
+      "import": "./src/components/editorModelPath.ts",
+      "default": "./src/components/editorModelPath.ts"
     }
   },
   "scripts": {

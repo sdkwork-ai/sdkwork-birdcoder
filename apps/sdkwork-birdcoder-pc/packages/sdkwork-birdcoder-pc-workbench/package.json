@@ -11,49 +11,197 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
-    "./context/*": {
-      "import": "./src/context/*.ts",
-      "types": "./src/context/*.ts"
-    },
     "./bootstrap/createBootstrapGateMessages": {
       "import": "./src/bootstrap/createBootstrapGateMessages.ts",
       "types": "./src/bootstrap/createBootstrapGateMessages.ts"
-    },
-    "./components/ErrorBoundary": {
-      "import": "./src/components/ErrorBoundary.tsx",
-      "types": "./src/components/ErrorBoundary.tsx"
-    },
-    "./hooks/*": {
-      "import": "./src/hooks/*.ts",
-      "types": "./src/hooks/*.ts"
     },
     "./chat/*": {
       "import": "./src/chat/*.ts",
       "types": "./src/chat/*.ts"
     },
-    "./i18n": {
-      "import": "./src/i18n/index.ts",
-      "types": "./src/i18n/index.ts"
+    "./chat/agentTurnInputQueueStore": {
+      "types": "./src/chat/agentTurnInputQueueStore.ts",
+      "import": "./src/chat/agentTurnInputQueueStore.ts",
+      "default": "./src/chat/agentTurnInputQueueStore.ts"
+    },
+    "./chat/draftStore": {
+      "types": "./src/chat/draftStore.ts",
+      "import": "./src/chat/draftStore.ts",
+      "default": "./src/chat/draftStore.ts"
+    },
+    "./chat/persistence": {
+      "types": "./src/chat/persistence.ts",
+      "import": "./src/chat/persistence.ts",
+      "default": "./src/chat/persistence.ts"
+    },
+    "./chat/types": {
+      "types": "./src/chat/types.ts",
+      "import": "./src/chat/types.ts",
+      "default": "./src/chat/types.ts"
+    },
+    "./components/ErrorBoundary": {
+      "import": "./src/components/ErrorBoundary.tsx",
+      "types": "./src/components/ErrorBoundary.tsx"
+    },
+    "./context/*": {
+      "import": "./src/context/*.ts",
+      "types": "./src/context/*.ts"
+    },
+    "./context/AuthContext": {
+      "types": "./src/context/AuthContext.ts",
+      "import": "./src/context/AuthContext.ts",
+      "default": "./src/context/AuthContext.ts"
+    },
+    "./context/IDEContext": {
+      "types": "./src/context/IDEContext.ts",
+      "import": "./src/context/IDEContext.ts",
+      "default": "./src/context/IDEContext.ts"
+    },
+    "./context/authSessionScope": {
+      "types": "./src/context/authSessionScope.ts",
+      "import": "./src/context/authSessionScope.ts",
+      "default": "./src/context/authSessionScope.ts"
     },
     "./contexts/*": {
       "import": "./src/contexts/*.ts",
       "types": "./src/contexts/*.ts"
     },
-    "./utils/*": {
-      "import": "./src/utils/*.ts",
-      "types": "./src/utils/*.ts"
+    "./contexts/ToastProvider": {
+      "types": "./src/contexts/ToastProvider.ts",
+      "import": "./src/contexts/ToastProvider.ts",
+      "default": "./src/contexts/ToastProvider.ts"
     },
     "./events/*": {
       "import": "./src/events/*.ts",
       "types": "./src/events/*.ts"
     },
-    "./workbench/*": {
-      "import": "./src/workbench/*.ts",
-      "types": "./src/workbench/*.ts"
+    "./events/agentSessionRevealEvents": {
+      "types": "./src/events/agentSessionRevealEvents.ts",
+      "import": "./src/events/agentSessionRevealEvents.ts",
+      "default": "./src/events/agentSessionRevealEvents.ts"
     },
-    "./theme/*": {
-      "import": "./src/theme/*.ts",
-      "types": "./src/theme/*.ts"
+    "./events/projectDeviceMountEvents": {
+      "types": "./src/events/projectDeviceMountEvents.ts",
+      "import": "./src/events/projectDeviceMountEvents.ts",
+      "default": "./src/events/projectDeviceMountEvents.ts"
+    },
+    "./events/projectMountRecoveryEvents": {
+      "types": "./src/events/projectMountRecoveryEvents.ts",
+      "import": "./src/events/projectMountRecoveryEvents.ts",
+      "default": "./src/events/projectMountRecoveryEvents.ts"
+    },
+    "./hooks/*": {
+      "import": "./src/hooks/*.ts",
+      "types": "./src/hooks/*.ts"
+    },
+    "./hooks/useAgentSessionActions": {
+      "types": "./src/hooks/useAgentSessionActions.ts",
+      "import": "./src/hooks/useAgentSessionActions.ts",
+      "default": "./src/hooks/useAgentSessionActions.ts"
+    },
+    "./hooks/useAgentSessionEngineModelSelection": {
+      "types": "./src/hooks/useAgentSessionEngineModelSelection.ts",
+      "import": "./src/hooks/useAgentSessionEngineModelSelection.ts",
+      "default": "./src/hooks/useAgentSessionEngineModelSelection.ts"
+    },
+    "./hooks/useAgentSessionInteractions": {
+      "types": "./src/hooks/useAgentSessionInteractions.ts",
+      "import": "./src/hooks/useAgentSessionInteractions.ts",
+      "default": "./src/hooks/useAgentSessionInteractions.ts"
+    },
+    "./hooks/useBirdcoderAppSettings": {
+      "types": "./src/hooks/useBirdcoderAppSettings.ts",
+      "import": "./src/hooks/useBirdcoderAppSettings.ts",
+      "default": "./src/hooks/useBirdcoderAppSettings.ts"
+    },
+    "./hooks/useComposerProviderCapabilities": {
+      "types": "./src/hooks/useComposerProviderCapabilities.ts",
+      "import": "./src/hooks/useComposerProviderCapabilities.ts",
+      "default": "./src/hooks/useComposerProviderCapabilities.ts"
+    },
+    "./hooks/useFileSystem": {
+      "types": "./src/hooks/useFileSystem.ts",
+      "import": "./src/hooks/useFileSystem.ts",
+      "default": "./src/hooks/useFileSystem.ts"
+    },
+    "./hooks/useImportedProjectSessionInventory": {
+      "types": "./src/hooks/useImportedProjectSessionInventory.ts",
+      "import": "./src/hooks/useImportedProjectSessionInventory.ts",
+      "default": "./src/hooks/useImportedProjectSessionInventory.ts"
+    },
+    "./hooks/usePersistedState": {
+      "types": "./src/hooks/usePersistedState.ts",
+      "import": "./src/hooks/usePersistedState.ts",
+      "default": "./src/hooks/usePersistedState.ts"
+    },
+    "./hooks/useProjectGitMutationActions": {
+      "types": "./src/hooks/useProjectGitMutationActions.ts",
+      "import": "./src/hooks/useProjectGitMutationActions.ts",
+      "default": "./src/hooks/useProjectGitMutationActions.ts"
+    },
+    "./hooks/useProjectGitOverview": {
+      "types": "./src/hooks/useProjectGitOverview.ts",
+      "import": "./src/hooks/useProjectGitOverview.ts",
+      "default": "./src/hooks/useProjectGitOverview.ts"
+    },
+    "./hooks/useProjectLocalWorkingDirectory": {
+      "types": "./src/hooks/useProjectLocalWorkingDirectory.ts",
+      "import": "./src/hooks/useProjectLocalWorkingDirectory.ts",
+      "default": "./src/hooks/useProjectLocalWorkingDirectory.ts"
+    },
+    "./hooks/useProjectRunConfigurations": {
+      "types": "./src/hooks/useProjectRunConfigurations.ts",
+      "import": "./src/hooks/useProjectRunConfigurations.ts",
+      "default": "./src/hooks/useProjectRunConfigurations.ts"
+    },
+    "./hooks/useProjectRuntimeLocation": {
+      "types": "./src/hooks/useProjectRuntimeLocation.ts",
+      "import": "./src/hooks/useProjectRuntimeLocation.ts",
+      "default": "./src/hooks/useProjectRuntimeLocation.ts"
+    },
+    "./hooks/useProjects": {
+      "types": "./src/hooks/useProjects.ts",
+      "import": "./src/hooks/useProjects.ts",
+      "default": "./src/hooks/useProjects.ts"
+    },
+    "./hooks/useSelectedAgentSessionItems": {
+      "types": "./src/hooks/useSelectedAgentSessionItems.ts",
+      "import": "./src/hooks/useSelectedAgentSessionItems.ts",
+      "default": "./src/hooks/useSelectedAgentSessionItems.ts"
+    },
+    "./hooks/useSessionRefreshActions": {
+      "types": "./src/hooks/useSessionRefreshActions.ts",
+      "import": "./src/hooks/useSessionRefreshActions.ts",
+      "default": "./src/hooks/useSessionRefreshActions.ts"
+    },
+    "./hooks/useWorkbenchAgentSessionCreationActions": {
+      "types": "./src/hooks/useWorkbenchAgentSessionCreationActions.ts",
+      "import": "./src/hooks/useWorkbenchAgentSessionCreationActions.ts",
+      "default": "./src/hooks/useWorkbenchAgentSessionCreationActions.ts"
+    },
+    "./hooks/useWorkbenchAgentSessionItemEditAction": {
+      "types": "./src/hooks/useWorkbenchAgentSessionItemEditAction.ts",
+      "import": "./src/hooks/useWorkbenchAgentSessionItemEditAction.ts",
+      "default": "./src/hooks/useWorkbenchAgentSessionItemEditAction.ts"
+    },
+    "./hooks/useWorkbenchChatSelection": {
+      "types": "./src/hooks/useWorkbenchChatSelection.ts",
+      "import": "./src/hooks/useWorkbenchChatSelection.ts",
+      "default": "./src/hooks/useWorkbenchChatSelection.ts"
+    },
+    "./hooks/useWorkbenchPreferences": {
+      "types": "./src/hooks/useWorkbenchPreferences.ts",
+      "import": "./src/hooks/useWorkbenchPreferences.ts",
+      "default": "./src/hooks/useWorkbenchPreferences.ts"
+    },
+    "./hooks/useWorkspaces": {
+      "types": "./src/hooks/useWorkspaces.ts",
+      "import": "./src/hooks/useWorkspaces.ts",
+      "default": "./src/hooks/useWorkspaces.ts"
+    },
+    "./i18n": {
+      "import": "./src/i18n/index.ts",
+      "types": "./src/i18n/index.ts"
     },
     "./platform/fileSystem": {
       "import": "./src/platform/fileSystem.ts",
@@ -63,6 +211,18 @@
       "import": "./src/platform/tauriFileManager.ts",
       "types": "./src/platform/tauriFileManager.ts"
     },
+    "./services/birdcoderDriveUpload": {
+      "import": "./src/services/birdcoderDriveUpload.ts",
+      "types": "./src/services/birdcoderDriveUpload.ts"
+    },
+    "./settings/appSettings": {
+      "import": "./src/settings/appSettings.ts",
+      "types": "./src/settings/appSettings.ts"
+    },
+    "./storage/localStore": {
+      "import": "./src/storage/localStore.ts",
+      "types": "./src/storage/localStore.ts"
+    },
     "./terminal/*": {
       "import": "./src/terminal/*.ts",
       "types": "./src/terminal/*.ts"
@@ -71,17 +231,167 @@
       "import": "./src/terminal/BirdcoderTerminalApp.tsx",
       "types": "./src/terminal/BirdcoderTerminalApp.tsx"
     },
-    "./storage/localStore": {
-      "import": "./src/storage/localStore.ts",
-      "types": "./src/storage/localStore.ts"
+    "./terminal/agentSessionResume": {
+      "types": "./src/terminal/agentSessionResume.ts",
+      "import": "./src/terminal/agentSessionResume.ts",
+      "default": "./src/terminal/agentSessionResume.ts"
     },
-    "./settings/appSettings": {
-      "import": "./src/settings/appSettings.ts",
-      "types": "./src/settings/appSettings.ts"
+    "./terminal/profileAvailability": {
+      "types": "./src/terminal/profileAvailability.ts",
+      "import": "./src/terminal/profileAvailability.ts",
+      "default": "./src/terminal/profileAvailability.ts"
     },
-    "./services/birdcoderDriveUpload": {
-      "import": "./src/services/birdcoderDriveUpload.ts",
-      "types": "./src/services/birdcoderDriveUpload.ts"
+    "./terminal/profiles": {
+      "types": "./src/terminal/profiles.ts",
+      "import": "./src/terminal/profiles.ts",
+      "default": "./src/terminal/profiles.ts"
+    },
+    "./terminal/requests": {
+      "types": "./src/terminal/requests.ts",
+      "import": "./src/terminal/requests.ts",
+      "default": "./src/terminal/requests.ts"
+    },
+    "./terminal/runConfigDefinitions": {
+      "types": "./src/terminal/runConfigDefinitions.ts",
+      "import": "./src/terminal/runConfigDefinitions.ts",
+      "default": "./src/terminal/runConfigDefinitions.ts"
+    },
+    "./terminal/runConfigStorage": {
+      "types": "./src/terminal/runConfigStorage.ts",
+      "import": "./src/terminal/runConfigStorage.ts",
+      "default": "./src/terminal/runConfigStorage.ts"
+    },
+    "./terminal/runConfigs": {
+      "types": "./src/terminal/runConfigs.ts",
+      "import": "./src/terminal/runConfigs.ts",
+      "default": "./src/terminal/runConfigs.ts"
+    },
+    "./terminal/runtime": {
+      "types": "./src/terminal/runtime.ts",
+      "import": "./src/terminal/runtime.ts",
+      "default": "./src/terminal/runtime.ts"
+    },
+    "./terminal/runtimeTarget": {
+      "types": "./src/terminal/runtimeTarget.ts",
+      "import": "./src/terminal/runtimeTarget.ts",
+      "default": "./src/terminal/runtimeTarget.ts"
+    },
+    "./terminal/useBirdcoderTerminalLaunchPlanResolver": {
+      "types": "./src/terminal/useBirdcoderTerminalLaunchPlanResolver.ts",
+      "import": "./src/terminal/useBirdcoderTerminalLaunchPlanResolver.ts",
+      "default": "./src/terminal/useBirdcoderTerminalLaunchPlanResolver.ts"
+    },
+    "./theme/*": {
+      "import": "./src/theme/*.ts",
+      "types": "./src/theme/*.ts"
+    },
+    "./theme/birdcoderTheme": {
+      "types": "./src/theme/birdcoderTheme.ts",
+      "import": "./src/theme/birdcoderTheme.ts",
+      "default": "./src/theme/birdcoderTheme.ts"
+    },
+    "./utils/*": {
+      "import": "./src/utils/*.ts",
+      "types": "./src/utils/*.ts"
+    },
+    "./utils/EventBus": {
+      "types": "./src/utils/EventBus.ts",
+      "import": "./src/utils/EventBus.ts",
+      "default": "./src/utils/EventBus.ts"
+    },
+    "./workbench/*": {
+      "import": "./src/workbench/*.ts",
+      "types": "./src/workbench/*.ts"
+    },
+    "./workbench/agentSessionCreation": {
+      "types": "./src/workbench/agentSessionCreation.ts",
+      "import": "./src/workbench/agentSessionCreation.ts",
+      "default": "./src/workbench/agentSessionCreation.ts"
+    },
+    "./workbench/agentSessionSelection": {
+      "types": "./src/workbench/agentSessionSelection.ts",
+      "import": "./src/workbench/agentSessionSelection.ts",
+      "default": "./src/workbench/agentSessionSelection.ts"
+    },
+    "./workbench/agentTurnDeliveryOutcome": {
+      "types": "./src/workbench/agentTurnDeliveryOutcome.ts",
+      "import": "./src/workbench/agentTurnDeliveryOutcome.ts",
+      "default": "./src/workbench/agentTurnDeliveryOutcome.ts"
+    },
+    "./workbench/codeEngineCatalog": {
+      "types": "./src/workbench/codeEngineCatalog.ts",
+      "import": "./src/workbench/codeEngineCatalog.ts",
+      "default": "./src/workbench/codeEngineCatalog.ts"
+    },
+    "./workbench/desktopTraySessionMenu": {
+      "types": "./src/workbench/desktopTraySessionMenu.ts",
+      "import": "./src/workbench/desktopTraySessionMenu.ts",
+      "default": "./src/workbench/desktopTraySessionMenu.ts"
+    },
+    "./workbench/fileChangeRestore": {
+      "types": "./src/workbench/fileChangeRestore.ts",
+      "import": "./src/workbench/fileChangeRestore.ts",
+      "default": "./src/workbench/fileChangeRestore.ts"
+    },
+    "./workbench/gitWorktrees": {
+      "types": "./src/workbench/gitWorktrees.ts",
+      "import": "./src/workbench/gitWorktrees.ts",
+      "default": "./src/workbench/gitWorktrees.ts"
+    },
+    "./workbench/importedProjectHydration": {
+      "types": "./src/workbench/importedProjectHydration.ts",
+      "import": "./src/workbench/importedProjectHydration.ts",
+      "default": "./src/workbench/importedProjectHydration.ts"
+    },
+    "./workbench/modelAccessBridging": {
+      "types": "./src/workbench/modelAccessBridging.ts",
+      "import": "./src/workbench/modelAccessBridging.ts",
+      "default": "./src/workbench/modelAccessBridging.ts"
+    },
+    "./workbench/preferences": {
+      "types": "./src/workbench/preferences.ts",
+      "import": "./src/workbench/preferences.ts",
+      "default": "./src/workbench/preferences.ts"
+    },
+    "./workbench/projectDirectorySelection": {
+      "types": "./src/workbench/projectDirectorySelection.ts",
+      "import": "./src/workbench/projectDirectorySelection.ts",
+      "default": "./src/workbench/projectDirectorySelection.ts"
+    },
+    "./workbench/projectInventoryRender": {
+      "types": "./src/workbench/projectInventoryRender.ts",
+      "import": "./src/workbench/projectInventoryRender.ts",
+      "default": "./src/workbench/projectInventoryRender.ts"
+    },
+    "./workbench/projectMountRecovery": {
+      "types": "./src/workbench/projectMountRecovery.ts",
+      "import": "./src/workbench/projectMountRecovery.ts",
+      "default": "./src/workbench/projectMountRecovery.ts"
+    },
+    "./workbench/projectRuntimeLocationResolution": {
+      "types": "./src/workbench/projectRuntimeLocationResolution.ts",
+      "import": "./src/workbench/projectRuntimeLocationResolution.ts",
+      "default": "./src/workbench/projectRuntimeLocationResolution.ts"
+    },
+    "./workbench/recovery": {
+      "types": "./src/workbench/recovery.ts",
+      "import": "./src/workbench/recovery.ts",
+      "default": "./src/workbench/recovery.ts"
+    },
+    "./workbench/sessionInbox": {
+      "types": "./src/workbench/sessionInbox.ts",
+      "import": "./src/workbench/sessionInbox.ts",
+      "default": "./src/workbench/sessionInbox.ts"
+    },
+    "./workbench/workProviderInstallation": {
+      "types": "./src/workbench/workProviderInstallation.ts",
+      "import": "./src/workbench/workProviderInstallation.ts",
+      "default": "./src/workbench/workProviderInstallation.ts"
+    },
+    "./workbench/workbenchMode": {
+      "types": "./src/workbench/workbenchMode.ts",
+      "import": "./src/workbench/workbenchMode.ts",
+      "default": "./src/workbench/workbenchMode.ts"
     }
   },
   "scripts": {

@@ -177,10 +177,10 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-project-device-mount-find`\n- `allow-project-device-mount-provider-session-directory-identity`\n- `allow-local-store-list`\n- `allow-secure-app-session-read`\n- `allow-secure-app-session-write`\n- `allow-secure-app-session-delete`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-read-image-preview`\n- `allow-fs-read-external-image-preview`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-application-publish-discover`\n- `allow-application-publish-preflight`\n- `allow-application-publish-build-package`\n- `allow-application-publish-read-artifact-range`\n- `allow-application-publish-artifact-discard`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-plugin-catalog-discover`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-tray-update-menu`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`\n- `allow-user-model-config-list-channels`\n- `allow-user-model-config-get-channel`\n- `allow-user-model-config-upsert-channel`\n- `allow-user-model-config-delete-channel`\n- `allow-user-model-config-get-api-key`\n- `allow-user-model-config-upsert-api-key`\n- `allow-user-model-config-list-engine-configs`\n- `allow-user-model-config-upsert-engine-config`\n- `allow-user-model-config-list-engine-selections`\n- `allow-user-model-config-get-engine-selection`\n- `allow-user-model-config-upsert-engine-selection`",
+          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-project-device-mount-find`\n- `allow-project-device-mount-provider-session-directory-identity`\n- `allow-local-store-list`\n- `allow-secure-app-session-read`\n- `allow-secure-app-session-write`\n- `allow-secure-app-session-delete`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-read-image-preview`\n- `allow-fs-read-external-image-preview`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-application-publish-discover`\n- `allow-application-publish-preflight`\n- `allow-application-publish-build-package`\n- `allow-application-publish-read-artifact-range`\n- `allow-application-publish-artifact-discard`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-plugin-catalog-discover`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-tray-update-menu`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`\n- `allow-user-model-config-list-channels`\n- `allow-user-model-config-get-channel`\n- `allow-user-model-config-upsert-channel`\n- `allow-user-model-config-delete-channel`\n- `allow-user-model-config-get-api-key`\n- `allow-user-model-config-upsert-api-key`\n- `allow-user-model-config-list-engine-configs`\n- `allow-user-model-config-upsert-engine-config`\n- `allow-user-model-config-list-engine-selections`\n- `allow-user-model-config-get-engine-selection`\n- `allow-user-model-config-upsert-engine-selection`\n- `allow-deeplink-drain-pending-import-requests`\n- `allow-deeplink-import-from-request`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-project-device-mount-find`\n- `allow-project-device-mount-provider-session-directory-identity`\n- `allow-local-store-list`\n- `allow-secure-app-session-read`\n- `allow-secure-app-session-write`\n- `allow-secure-app-session-delete`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-read-image-preview`\n- `allow-fs-read-external-image-preview`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-application-publish-discover`\n- `allow-application-publish-preflight`\n- `allow-application-publish-build-package`\n- `allow-application-publish-read-artifact-range`\n- `allow-application-publish-artifact-discard`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-plugin-catalog-discover`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-tray-update-menu`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`\n- `allow-user-model-config-list-channels`\n- `allow-user-model-config-get-channel`\n- `allow-user-model-config-upsert-channel`\n- `allow-user-model-config-delete-channel`\n- `allow-user-model-config-get-api-key`\n- `allow-user-model-config-upsert-api-key`\n- `allow-user-model-config-list-engine-configs`\n- `allow-user-model-config-upsert-engine-config`\n- `allow-user-model-config-list-engine-selections`\n- `allow-user-model-config-get-engine-selection`\n- `allow-user-model-config-upsert-engine-selection`"
+          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-project-device-mount-find`\n- `allow-project-device-mount-provider-session-directory-identity`\n- `allow-local-store-list`\n- `allow-secure-app-session-read`\n- `allow-secure-app-session-write`\n- `allow-secure-app-session-delete`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-read-image-preview`\n- `allow-fs-read-external-image-preview`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-application-publish-discover`\n- `allow-application-publish-preflight`\n- `allow-application-publish-build-package`\n- `allow-application-publish-read-artifact-range`\n- `allow-application-publish-artifact-discard`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-plugin-catalog-discover`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-tray-update-menu`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`\n- `allow-user-model-config-list-channels`\n- `allow-user-model-config-get-channel`\n- `allow-user-model-config-upsert-channel`\n- `allow-user-model-config-delete-channel`\n- `allow-user-model-config-get-api-key`\n- `allow-user-model-config-upsert-api-key`\n- `allow-user-model-config-list-engine-configs`\n- `allow-user-model-config-upsert-engine-config`\n- `allow-user-model-config-list-engine-selections`\n- `allow-user-model-config-get-engine-selection`\n- `allow-user-model-config-upsert-engine-selection`\n- `allow-deeplink-drain-pending-import-requests`\n- `allow-deeplink-import-from-request`"
         },
         {
           "description": "Allows desktop shell host bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-tray-update-menu`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
@@ -235,6 +235,18 @@
           "type": "string",
           "const": "allow-application-publish-read-artifact-range",
           "markdownDescription": "Enables bounded binary reads from an opaque staged publish artifact."
+        },
+        {
+          "description": "Enables the deeplink_drain_pending_import_requests command (reads the host's cold-start deep link buffer once on webview mount).",
+          "type": "string",
+          "const": "allow-deeplink-drain-pending-import-requests",
+          "markdownDescription": "Enables the deeplink_drain_pending_import_requests command (reads the host's cold-start deep link buffer once on webview mount)."
+        },
+        {
+          "description": "Enables the deeplink_import_from_request command (writes a user-confirmed deep link channel import into the client-local user model config store).",
+          "type": "string",
+          "const": "allow-deeplink-import-from-request",
+          "markdownDescription": "Enables the deeplink_import_from_request command (writes a user-confirmed deep link channel import into the client-local user model config store)."
         },
         {
           "description": "Enables the desktop_configure_window_controls_bridge command.",
@@ -2677,6 +2689,60 @@
           "type": "string",
           "const": "core:window:deny-unminimize",
           "markdownDescription": "Denies the unminimize command without any pre-configured scope."
+        },
+        {
+          "description": "Allows reading the opened deep link via the get_current command\n#### This default permission set includes:\n\n- `allow-get-current`",
+          "type": "string",
+          "const": "deep-link:default",
+          "markdownDescription": "Allows reading the opened deep link via the get_current command\n#### This default permission set includes:\n\n- `allow-get-current`"
+        },
+        {
+          "description": "Enables the get_current command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:allow-get-current",
+          "markdownDescription": "Enables the get_current command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the is_registered command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:allow-is-registered",
+          "markdownDescription": "Enables the is_registered command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the register command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:allow-register",
+          "markdownDescription": "Enables the register command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the unregister command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:allow-unregister",
+          "markdownDescription": "Enables the unregister command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_current command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:deny-get-current",
+          "markdownDescription": "Denies the get_current command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the is_registered command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:deny-is-registered",
+          "markdownDescription": "Denies the is_registered command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the register command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:deny-register",
+          "markdownDescription": "Denies the register command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the unregister command without any pre-configured scope.",
+          "type": "string",
+          "const": "deep-link:deny-unregister",
+          "markdownDescription": "Denies the unregister command without any pre-configured scope."
         }
       ]
     },

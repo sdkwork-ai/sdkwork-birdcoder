@@ -96,7 +96,7 @@ export function resolveBirdCoderIamRuntimeProfile(
 export async function loadAuthPage() {
   const module =
     await import('@sdkwork/birdcoder-pc-auth') as unknown as BirdCoderAuthPageLoaderModule;
-  return module.loadAuthPage({ getRuntime: getBirdCoderIamRuntime });
+  return module.loadAuthPage({ getRuntime: getBirdCoderIamRuntime as unknown as LoadBirdCoderAuthPageOptions['getRuntime'] });
 }
 
 export function createBirdCoderIamPageLoaders(): BirdCoderIamPageLoaders {

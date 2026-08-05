@@ -183,7 +183,7 @@ export class ApiBackedProjectService implements IProjectService {
       ...(request.includeDeleted === undefined
         ? {}
         : { includeDeleted: request.includeDeleted }),
-    }, request.signal ? { signal: request.signal } : undefined);
+    }, request.signal ? { signal: request.signal, timeout: 30_000 } : undefined);
     for (const project of response.items) {
       this.rememberProjectVersion(project.projectId, project.version);
     }

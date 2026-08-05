@@ -1,9 +1,16 @@
+mod deeplink;
 mod desktop_lifecycle;
 mod desktop_tray_menu;
 mod provider_session_cwd;
 pub mod state;
 pub mod user_model_config;
 pub mod terminal_runtime;
+
+pub use deeplink::{
+    deeplink_drain_pending_import_requests, deeplink_import_from_request,
+    setup_deeplink_handling, DEEPLINK_ERROR_EVENT, DEEPLINK_IMPORT_EVENT, DEEPLINK_SCHEME,
+    DeepLinkErrorSnapshot, DeepLinkImportRequest, DeepLinkImportSnapshot,
+};
 
 pub(crate) use desktop_lifecycle::setup_desktop_lifecycle;
 pub use desktop_tray_menu::{

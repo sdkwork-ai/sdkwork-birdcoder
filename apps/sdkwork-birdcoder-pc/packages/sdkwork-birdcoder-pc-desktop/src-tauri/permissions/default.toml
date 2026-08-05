@@ -79,6 +79,8 @@ permissions = [
   "allow-user-model-config-list-engine-selections",
   "allow-user-model-config-get-engine-selection",
   "allow-user-model-config-upsert-engine-selection",
+  "allow-deeplink-drain-pending-import-requests",
+  "allow-deeplink-import-from-request",
 ]
 
 [[set]]
@@ -541,3 +543,13 @@ commands.allow = ["user_model_config_get_engine_selection"]
 identifier = "allow-user-model-config-upsert-engine-selection"
 description = "Enables the user_model_config_upsert_engine_selection command."
 commands.allow = ["user_model_config_upsert_engine_selection"]
+
+[[permission]]
+identifier = "allow-deeplink-drain-pending-import-requests"
+description = "Enables the deeplink_drain_pending_import_requests command (reads the host's cold-start deep link buffer once on webview mount)."
+commands.allow = ["deeplink_drain_pending_import_requests"]
+
+[[permission]]
+identifier = "allow-deeplink-import-from-request"
+description = "Enables the deeplink_import_from_request command (writes a user-confirmed deep link channel import into the client-local user model config store)."
+commands.allow = ["deeplink_import_from_request"]

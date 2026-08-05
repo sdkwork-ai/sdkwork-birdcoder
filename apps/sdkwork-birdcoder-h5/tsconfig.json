@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "strict": true,
@@ -12,45 +16,23 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "@sdkwork/birdcoder-h5-*": ["./packages/sdkwork-birdcoder-h5-*/src/index.ts"],
-      "@sdkwork/birdcoder-h5-chat/*": [
-        "./packages/sdkwork-birdcoder-h5-chat/src/*"
+      "@/*": [
+        "./src/*"
       ],
-      "@sdkwork/birdcoder-h5-core/*": [
-        "./packages/sdkwork-birdcoder-h5-core/src/*"
+      "react": [
+        "./node_modules/@types/react/index.d.ts"
       ],
-      "@sdkwork/iam-app-sdk": [
-        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/iam-contracts": [
-        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
-      ],
-      "@sdkwork/iam-h5-auth": [
-        "../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth/src/index.ts"
-      ],
-      "@sdkwork/agents-app-sdk": [
-        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/birdcoder-app-sdk": [
-        "../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/drive-app-sdk": [
-        "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/sdk-common": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
-      ],
-      "@sdkwork/sdk-common/*": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
-      ],
-      "@sdkwork/messaging-app-sdk": [
-        "../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
-      ],
-      "react": ["./node_modules/@types/react/index.d.ts"],
-      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
+      "react/jsx-runtime": [
+        "./node_modules/@types/react/jsx-runtime.d.ts"
+      ]
     }
   },
-  "include": ["src", "packages"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src",
+    "packages"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

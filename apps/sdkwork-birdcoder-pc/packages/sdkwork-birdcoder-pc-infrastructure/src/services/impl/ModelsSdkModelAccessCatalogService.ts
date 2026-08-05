@@ -312,7 +312,7 @@ implements IModelAccessCatalogService {
         defaultModelId: input.defaultModelId,
         supportedAgentProviderIds: [...input.supportedAgentProviderIds],
       },
-      { signal: options.signal },
+      { signal: options.signal, timeout: 30_000 },
     );
     return mapDatabaseChannel(channel);
   }
@@ -341,7 +341,7 @@ implements IModelAccessCatalogService {
           ...(capabilities ? { capabilities } : {}),
           ...(modalities ? { modalities } : {}),
         },
-        { signal: options.signal },
+        { signal: options.signal, timeout: 30_000 },
       );
       for (const item of result.items) {
         const model = mapDatabaseModel(item, models.size);
@@ -373,7 +373,7 @@ implements IModelAccessCatalogService {
           ...(query ? { q: query } : {}),
           ...(agentProviderId ? { agentProviderId } : {}),
         },
-        { signal: options.signal },
+        { signal: options.signal, timeout: 30_000 },
       );
       for (const item of result.items) {
         const channel = mapDatabaseChannel(item);

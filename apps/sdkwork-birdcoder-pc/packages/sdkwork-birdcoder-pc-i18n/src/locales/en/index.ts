@@ -16,6 +16,7 @@ import appMenu from './app/menu.ts';
 import appTray from './app/tray.ts';
 import appProject from './app/project.ts';
 import appSidebar from './app/sidebar.ts';
+import appDeepLink from './app/deeplink.ts';
 import appDialogs from './app/dialogs.ts';
 import appGit from './app/git.ts';
 import appTools from './app/tools.ts';
@@ -51,6 +52,7 @@ export const enModules = [
   appTray,
   appProject,
   appSidebar,
+  appDeepLink,
   appDialogs,
   appGit,
   appTools,

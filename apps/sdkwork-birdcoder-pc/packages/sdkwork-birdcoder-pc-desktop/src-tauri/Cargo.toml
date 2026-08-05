@@ -13,6 +13,8 @@ sdkwork-birdcoder-tauri-host = { workspace = true }
 sdkwork-models-user-config-repository-sqlx = { workspace = true }
 serde_json = { workspace = true }
 tauri = { version = "~2.11.0", features = [] }
+tauri-plugin-deep-link = "2.4.9"
+tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
 
 [lib]
 name = "sdkwork_birdcoder_pc_desktop_lib"

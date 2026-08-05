@@ -1,6 +1,6 @@
 param(
   [string]$SrcTauriDir = 'src-tauri',
-  [string]$BinaryName = 'sdkwork-birdcoder-desktop'
+  [string]$BinaryName = 'sdkwork-birdcoder-pc-desktop'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,7 +22,41 @@ function Resolve-TauriDevBinaryPath {
     $ResolvedBinaryName
   }
 
-  return [System.IO.Path]::GetFullPath((Join-Path $ResolvedSrcTauriDir (Join-Path 'target\debug' $binaryFileName)))
+  $resolvedSrcTauriDir = [System.IO.Path]::GetFullPath($ResolvedSrcTauriDir)
+
+  # Candidate 1: classic layout where the tauri crate owns its own target dir
+  # (src-tauri/target/debug).
+  $candidates = @(
+    (Join-Path $resolvedSrcTauriDir (Join-Path 'target\debug' $binaryFileName))
+  )
+
+  # Candidate 2+: the crate is part of a cargo workspace whose target dir sits
+  # at the workspace root (src-tauri -> package -> packages -> app -> repo
+  # root). Walk up to find the first directory that contains a Cargo.toml
+  # declaring `[workspace]`, then look for target/debug there.
+  $current = $resolvedSrcTauriDir
+  for ($depth = 0; $depth -lt 8; $depth++) {
+    $cargoManifest = Join-Path $current 'Cargo.toml'
+    if (Test-Path -LiteralPath $cargoManifest) {
+      $manifestText = Get-Content -LiteralPath $cargoManifest -Raw -ErrorAction SilentlyContinue
+      if ($manifestText -match '(?m)^\s*\[workspace\]') {
+        $candidates += (Join-Path $current (Join-Path 'target\debug' $binaryFileName))
+      }
+    }
+    $parent = Split-Path $current -Parent
+    if ($parent -eq $current) {
+      break
+    }
+    $current = $parent
+  }
+
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate) {
+      return [System.IO.Path]::GetFullPath($candidate)
+    }
+  }
+
+  return [System.IO.Path]::GetFullPath($candidates[0])
 }
 
 function Get-DedupedProcesses {

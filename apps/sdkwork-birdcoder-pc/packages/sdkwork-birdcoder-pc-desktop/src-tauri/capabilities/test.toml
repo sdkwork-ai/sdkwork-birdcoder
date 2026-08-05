@@ -71,6 +71,12 @@ permissions = [
   "allow-user-model-config-get-engine-selection",
   "allow-user-model-config-upsert-engine-selection",
 
+  # Deep link import commands (same client-local user model config store as
+  # the user_model_config_* commands above; import only writes after the user
+  # confirms the deep link dialog)
+  "allow-deeplink-drain-pending-import-requests",
+  "allow-deeplink-import-from-request",
+
   # OS credential-store backed IAM application session commands
   "allow-secure-app-session-read",
   "allow-secure-app-session-write",
