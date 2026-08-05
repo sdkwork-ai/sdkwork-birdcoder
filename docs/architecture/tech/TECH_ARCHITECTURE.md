@@ -482,37 +482,37 @@ Session lifecycle reliability hardening is in place: session soft-delete and
 turn-input-queue purge execute in one database transaction (no partial
 delete), audit persistence is best-effort with structured failure logging so
 an unavailable audit sink cannot corrupt the client-visible business outcome,
-and offset list pagination rejects pages beyond 10,000 (previously an
-unbounded page parameter could overflow offset arithmetic). The session
-activity head query now has composite lateral indexes
-(`ai_agent_turn/interaction/resource_user_state` × `(tenant, organization,
-session, updated_at, id)`, plus the interaction kind variant) shipped in both
-the baseline and migration `0004`.
+and offset-list page requests are rejected (not silently clamped) beyond the
+bounded page ceiling. High-traffic Session, Turn, Interaction, and Audit lists
+use opaque keyset cursors with scope fingerprints per PAGINATION_SPEC instead
+of offset arithmetic. The P1 Session Activity head projection is materialized:
+an `activity_at` column is refreshed atomically inside the session
+transaction by triggers (Session self-trigger plus per-subtable triggers for
+Turns, Interactions, runtime bindings, and user state), and the owner-scoped
+head query orders on the dedicated `(tenant, organization, owner, activity_at
+DESC, id DESC)` index instead of a computed expression.
 
-This consumer architecture is not commercial-production complete until Agents
-and Kernel maintainers approve executable evidence for: a bounded indexed
-PostgreSQL P1 head projection (the lateral indexes above bound per-row lookups
-but a materialized head projection is still open); live PostgreSQL migration
-and query-plan evidence for its activity and identity constraints; Project
-deletion tombstone and pagination semantics; durable distributed runtime
-routing and synchronization-job ownership; and a persisted server-monotonic
-aggregate activity revision only if that revision becomes a product contract.
-The current inventory is bounded but executes synchronously on the selected
-runtime host. Until those items close, provider-only activity cannot be
-described as complete head discovery, and clients use returned owner fact
-versions without claiming monotonic aggregate order.
+This consumer architecture still waits on Agents and Kernel maintainers to
+close: Project deletion tombstone semantics (list pagination semantics are
+closed); durable distributed runtime routing and synchronization-job ownership
+(the model-configuration profile store is a node-local SQLite file, so
+multi-node configuration is node-local, and the synchronization worker is an
+in-process background task with an in-flight registry and refresh cache, not a
+distributed durable job); and a persisted server-monotonic aggregate activity
+revision only if that revision becomes a product contract. Until those items
+close, provider-only activity cannot be described as complete head discovery,
+and clients use returned owner fact versions without claiming monotonic
+aggregate order.
 
 Audit evidence recorded for the owner-side open items (owned by
-`sdkwork-agents`, not by this repository): the PostgreSQL baseline has never
-been executed against a live database (no CI job runs the `postgres-sync`
-feature), the activity head query orders by a computed `activity_at` column
-that cannot use the lateral indexes, the model-configuration profile store is
-a node-local SQLite file with unencrypted secret bindings (multi-node
-configuration is therefore node-local), and `projectSessions.synchronize`
-runs synchronously inside the HTTP request with provider discovery and the
-two reconciliation sweeps outside the time budget. These items remain with
-the Agents maintainers and gate commercial availability exactly as listed
-above.
+`sdkwork-agents`, not by this repository): the PostgreSQL baseline plus
+migrations run against a live `postgres:16` service in the Agents integration
+pipeline, with a drift gate and owner-scoped `EXPLAIN` contract tests (also
+available as ignored local live tests); `projectSessions.synchronize` enqueues
+a background worker, returns `202 accepted` or bounded cache hits, and
+deduplicates in-flight runs; and `activity_at` is a materialized column
+maintained transactionally by triggers. The remaining items stay with the
+Agents maintainers and gate commercial availability exactly as listed above.
 
 The repository technical-debt quality gate for retired Workspace/IDE service
 types is closed: the retired crate, package, and `database/` directory

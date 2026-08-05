@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-08-04
+Updated: 2026-08-05
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, FRONTEND_SPEC.md, PAGINATION_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Background And Problem
@@ -169,12 +169,14 @@ Non-goals:
 14. The Header renders Workspace selection on the left and the selected
     Workspace's Project inventory on the right.
 15. Project inventory uses server-side Workspace scope, query search, and
-    case-insensitive `name_exact` lookup. Project Session inventory remains
-    bounded offset pagination. Session transcripts use opaque keyset cursors;
-    clients request the newest page with `sort=-sequence`, restore chronological
-    presentation order, and advance only with `pageInfo.nextCursor`. PC keeps a
-    bounded in-memory transcript and preserves the expanded window when late
-    Agent or Provider metadata enriches the selected Session.
+    case-insensitive `name_exact` lookup. Project Session inventory, Session
+    transcripts, Turn history, Interactions, and Audit events all use opaque
+    keyset cursors with scope fingerprints per PAGINATION_SPEC: clients request
+    the newest page with `sort=-sequence`, restore chronological presentation
+    order, advance only with `pageInfo.nextCursor`, and never page by offset on
+    these high-traffic lists. PC keeps a bounded in-memory transcript and
+    preserves the expanded window when late Agent or Provider metadata enriches
+    the selected Session.
 16. Unsupported future Session Item roles or kinds remain visible through a
     bounded unsupported-content presentation instead of being misclassified as
     assistant output or silently discarded.
@@ -254,37 +256,43 @@ Item consumer and does not claim full cross-surface feature parity.
 ## 9. Open Questions
 
 No product-ownership boundary is open for the current Rust-and-PC cutover.
-Provider-identity design and the greenfield PostgreSQL baseline are implemented.
-They have source and contract-test evidence, but no configured live database was
-reset or migrated during this work. Production launch remains blocked on the
-following owner operational evidence in
+Provider-identity design and the greenfield PostgreSQL baseline are implemented,
+with live migration and query-plan evidence: the Agents integration pipeline
+runs a real `postgres:16` service, applies the baseline plus migrations, gates
+on drift, and executes owner-scoped query-plan (`EXPLAIN`) contract tests; the
+same live checks are available as ignored local tests. The P1 Session Activity
+head projection uses a materialized `activity_at` column refreshed atomically
+by transactional triggers (Session self-trigger plus per-subtable triggers), so
+the head query orders on a real indexed column instead of a computed
+expression.
+
+The following owner operational items remain open and require Agents and
+Kernel maintainer review, per
 [REQ-2026-0003](../requirements/REQ-2026-0003-cross-application-session-activity-inbox.md):
 
-- bounded indexed PostgreSQL P1 Session Activity head projection;
-- live PostgreSQL migration and query-plan evidence for the owner-scoped
-  provider identity constraint and activity projection (the baseline has never
-  run against a live database, and the head query orders by a computed
-  `activity_at` column that cannot use the lateral indexes);
-- Project deletion tombstone and pagination semantics;
-- durable distributed runtime routing and synchronization-job ownership
-  (the model-configuration profile store is a node-local SQLite file, so
-  multi-node configuration is node-local; `projectSessions.synchronize` runs
-  synchronously inside the HTTP request with provider discovery and the
-  reconciliation sweeps outside the time budget); and
+- Project deletion tombstone semantics (keyset pagination for Session, Turn,
+  Interaction, and Audit lists is closed; the tombstone lifecycle itself is
+  not);
+- durable distributed runtime routing and synchronization-job ownership: the
+  model-configuration profile store is a node-local SQLite file, so multi-node
+  configuration is node-local, and the in-process synchronization worker and
+  in-flight registry are not a distributed durable job (the
+  `projectSessions.synchronize` call itself is closed: it now enqueues a
+  background worker, returns `202 accepted`/cache hits, deduplicates in-flight
+  runs, and serves refreshed results from a bounded cache); and
 - a persisted server-monotonic aggregate activity revision if the contract
   requires one.
 
-The repository technical-debt quality gate also remains a release blocker until
-the retired Workspace/IDE service types identified by that gate are removed.
-They are outside the Session authority and are not a reason to reintroduce a
-BirdCoder-owned Session store.
+The repository technical-debt quality gate passes: the retired Workspace/IDE
+service types it identified are removed and the gate is green.
 
-The present provider inventory is bounded and executes synchronously on the
-runtime host selected by Agents. It is not a distributed durable job. These
-items require Agents and Kernel maintainer review. Provider-only observation is
-page-local enrichment and does not close head discovery. Additional composition
-kinds must likewise be added by their owning modules before PC can consume
-them; BirdCoder does not invent aliases or compatibility slots.
+The present provider inventory synchronization is bounded and executes on a
+background worker with an in-process in-flight registry and refresh cache on
+the runtime host selected by Agents; it is not a distributed durable job.
+Provider-only observation is page-local enrichment and does not close head
+discovery. Additional composition kinds must likewise be added by their owning
+modules before PC can consume them; BirdCoder does not invent aliases or
+compatibility slots.
 
 Hybrid execution additionally has protected open decisions recorded in
 [REVIEW-20260730](../../engineering/reviews/REVIEW-20260730-hybrid-execution-commercial-gate.md),

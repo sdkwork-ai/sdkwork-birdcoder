@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   `${libSource}\n${profileSource}`,
-  /assemble_api_router\(config\)/u,
+  /assemble_api_router_with_readiness\(config/u,
   'The gateway app builder must consume the host-neutral BirdCoder assembly.',
 );
 assert.doesNotMatch(
