@@ -66,6 +66,8 @@ export type {
   ContentWorkbenchProps,
 } from './components/ContentWorkbench';
 export { buildBirdCoderEditorModelPath } from './components/editorModelPath';
+export { CodeEditor } from './components/CodeEditor';
+export type { CodeEditorProps } from './components/CodeEditor';
 
 export { DeferredDiffEditor } from './components/DeferredDiffEditor';
 export { FileChangeDiffViewer } from './components/FileChangeDiffViewer';

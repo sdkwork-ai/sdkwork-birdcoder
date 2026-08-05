@@ -69,6 +69,8 @@ export interface WorkbenchAgentEngineDefinition {
   engineKind: WorkbenchAgentEngineKind;
   defaultAccessModeId: string;
   accessModes: readonly WorkbenchAgentEngineAccessModeDefinition[];
+  available: boolean;
+  unavailableReason?: string;
 }
 
 export interface WorkbenchAgentEngineSettings {
@@ -457,6 +459,8 @@ function toWorkbenchDefinition(
     engineKind: entry.engineKind ?? 'unknown',
     defaultAccessModeId,
     accessModes,
+    available: entry.available !== false,
+    ...(entry.unavailableReason ? { unavailableReason: entry.unavailableReason } : {}),
   };
 }
 
@@ -654,6 +658,8 @@ function createUnknownEngineDefinition(value: unknown): WorkbenchAgentEngineDefi
     engineKind: 'unknown',
     defaultAccessModeId: '',
     accessModes: [],
+    available: false,
+    unavailableReason: id ? `${id} is not bootstrapped in this runtime profile` : undefined,
   };
 }
 

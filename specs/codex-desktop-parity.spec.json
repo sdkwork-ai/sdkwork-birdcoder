@@ -1589,7 +1589,7 @@
         "generatedEvidence": {
           "createRequestSha256": "c827f4eab5e33713d271dd9ec6885dec4a3e50c0ee7ca79bd6abc09fa5765aee",
           "taskRecordSha256": "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
-          "aiApiSha256": "eacbc2e2c994ab83b7e4a30b8a4a49bff3fd1fe3dd062b803291d6412ffedc93"
+          "aiApiSha256": "1410a30152ff6b98d28c61cfe5c0b59f131296eb1772053e256bc69e5c98ba4a"
         }
       },
       "requiredContractExtensions": [

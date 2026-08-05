@@ -37,7 +37,7 @@ describe('ApiBackedCatalogService work resources', () => {
 
     expect(agentList).toHaveBeenCalledWith(
       { page: 1, pageSize: 50, q: 'legal', scope: 'mine' },
-      { signal: undefined },
+      undefined,
     );
   });
 
@@ -57,7 +57,7 @@ describe('ApiBackedCatalogService work resources', () => {
     });
     expect(skillList).toHaveBeenCalledWith(
       { page: 2, pageSize: 24, q: undefined },
-      { signal: undefined },
+      undefined,
     );
   });
 

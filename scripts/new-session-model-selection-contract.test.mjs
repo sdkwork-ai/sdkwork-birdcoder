@@ -33,12 +33,12 @@ assert.match(
 );
 assert.match(
   newSessionButtonSource,
-  /const engineModelId = resolveWorkbenchAgentEngineSelectedModelId\(\s*engine\.id,\s*preferences,?\s*\)[\s\S]*onCreateSession\(engine\.id,\s*engineModelId\)/,
+  /const engineModelId = item\.engine\s*\?\s*resolveWorkbenchAgentEngineSelectedModelId\(\s*item\.engine\.id,\s*preferences\)[\s\S]*onCreateSession\(item\.id,\s*engineModelId\)/,
   'WorkbenchNewSessionButton engine menu must create each engine with that engine owned selected model.',
 );
 assert.match(
   newSessionButtonSource,
-  /getWorkbenchCodeModelLabel\(engine\.id,\s*engineModelId,\s*preferences\)/,
+  /getWorkbenchCodeModelLabel\(item\.engine\.id,\s*engineModelId,\s*preferences\)/,
   'WorkbenchNewSessionButton engine menu must show the model that will be used for each new session engine option.',
 );
 assert.match(
@@ -58,7 +58,7 @@ assert.match(
 );
 assert.match(
   sidebarSource,
-  /const handleCreateEngineSession = useCallback\(\(engineId:\s*string,\s*modelId:\s*string\)/,
+  /const handleCreateEngineSession = useCallback\(\s*\(engineId:\s*string,\s*modelId:\s*string\)/,
   'Project sidebar must accept modelId when creating a session from the shared button or root menu.',
 );
 assert.match(

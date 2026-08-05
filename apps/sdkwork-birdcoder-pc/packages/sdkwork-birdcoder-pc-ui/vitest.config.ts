@@ -14,6 +14,17 @@ const canonicalTestReactDomRoot = path.dirname(
   require.resolve('react-dom/package.json', { paths: [testingLibraryRoot] }),
 );
 
+// Workspace sibling repositories (e.g. sdkwork-models vendor icons) live
+// outside the Vite search root; allow them explicitly so tests can import
+// their assets without tripping the dev-server filesystem sandbox.
+const siblingWorkspaceRoot = path.resolve(__dirname, '../../../../..');
+const modelsPickerRoot = path.resolve(
+  __dirname,
+  '../../../../../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker',
+);
+
+const fsAllow = [siblingWorkspaceRoot, modelsPickerRoot];
+
 export default defineConfig({
   resolve: {
     alias: [
@@ -22,5 +33,10 @@ export default defineConfig({
       { find: /^react-dom$/u, replacement: canonicalTestReactDomRoot },
       { find: /^react-dom\/(.*)$/u, replacement: `${canonicalTestReactDomRoot}/$1` },
     ],
+  },
+  server: {
+    fs: {
+      allow: fsAllow,
+    },
   },
 });

@@ -672,7 +672,7 @@ assert.match(
 );
 assert.match(
   replyRenderersSource,
-  /suppressReplyChrome \? null[\s\S]*context\.showMessageActions && !suppressReplyChrome/,
+  /suppressReplyChrome \? null[\s\S]*context\.showMessageActions && messageCompleted && !suppressReplyChrome/,
   'activity-only rows must omit both role headers and message-level action controls.',
 );
 assert.match(

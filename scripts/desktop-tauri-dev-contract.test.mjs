@@ -427,7 +427,7 @@ assert.match(
 );
 assert.match(
   desktopPackageJson.scripts['start:desktop'],
-  /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-desktop/,
+  /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-pc-desktop/,
   'Desktop start:desktop must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
 );
 assert.match(
@@ -458,7 +458,7 @@ assert.match(
 );
 assert.match(
   desktopPackageJson.scripts['start:desktop:check'],
-  /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-desktop/,
+  /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-pc-desktop/,
   'Desktop start:desktop:check must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
 );
 assert.match(

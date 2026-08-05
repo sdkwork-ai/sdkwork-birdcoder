@@ -31,6 +31,8 @@ pub const SUPPORTED_APPS: &[&str] = &[
     "openclaw",
     "hermes",
 ];
+/// Upper bound for the number of vendors a single import link may carry.
+pub const MAX_IMPORT_VENDORS: usize = 16;
 
 /// Parsed deep link payload forwarded to the webview for confirmation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +60,17 @@ pub struct DeepLinkImportRequest {
     pub api_key: String,
     /// Optional default model id.
     pub model: String,
+    /// Gateway OpenAI-compatible base URL (`{host}/v1`) the import uses to
+    /// query the key-scoped vendor/model catalog (`GET {base}/vendors`) and
+    /// write complete channel offerings. Links without it import without
+    /// offerings.
+    #[serde(default)]
+    pub models_base_url: String,
+    /// Model providers (vendor codes) the link was generated for, e.g.
+    /// `openai` / `anthropic` / `deepseek`. Legacy fallback for links that
+    /// carry vendors explicitly; the gateway catalog query takes precedence.
+    #[serde(default)]
+    pub vendors: Vec<String>,
 }
 
 /// Entry point: validates scheme / host / path and dispatches on
@@ -72,18 +85,45 @@ pub fn parse_deeplink_url(url: &Url) -> Result<DeepLinkImportRequest, String> {
         ));
     }
 
-    let params: HashMap<String, String> = url.query_pairs().into_owned().collect();
+    // Keep the raw pairs: the `vendor` parameter may repeat (multi-select),
+    // and a `HashMap` would collapse duplicates to a single value.
+    let pairs: Vec<(String, String)> = url.query_pairs().into_owned().collect();
+    let params: HashMap<String, String> = pairs.iter().cloned().collect();
+    let vendors = collect_vendor_params(&pairs);
     let resource = params.get("resource").map(String::as_str).unwrap_or_default();
     match resource {
-        "provider" => parse_provider_import_request(&params),
+        "provider" => parse_provider_import_request(&params, vendors),
         other => Err(format!(
             "unsupported deep link resource \"{other}\"; only resource=provider is supported for now"
         )),
     }
 }
 
+/// Collects the vendor codes carried by an import link. `vendor` values may
+/// repeat (`vendor=openai&vendor=anthropic`) or join with commas
+/// (`vendor=openai,anthropic`); codes are trimmed, lowercased and deduplicated
+/// while preserving arrival order. Unknown or empty values are skipped — the
+/// channel simply imports without that offering.
+fn collect_vendor_params(pairs: &[(String, String)]) -> Vec<String> {
+    let mut vendors: Vec<String> = Vec::new();
+    for (key, value) in pairs {
+        if key != "vendor" {
+            continue;
+        }
+        for part in value.split(',') {
+            let code = part.trim().to_lowercase();
+            if code.is_empty() || vendors.contains(&code) {
+                continue;
+            }
+            vendors.push(code);
+        }
+    }
+    vendors
+}
+
 fn parse_provider_import_request(
     params: &HashMap<String, String>,
+    vendors: Vec<String>,
 ) -> Result<DeepLinkImportRequest, String> {
     let request = DeepLinkImportRequest {
         // One id per arrival: two clicks on the same link get distinct ids
@@ -106,6 +146,8 @@ fn parse_provider_import_request(
         endpoint: params.get("endpoint").cloned().unwrap_or_default(),
         api_key: params.get("apiKey").cloned().unwrap_or_default(),
         model: params.get("model").cloned().unwrap_or_default(),
+        models_base_url: params.get("modelsBaseUrl").cloned().unwrap_or_default(),
+        vendors,
     };
     validate_provider_import_request(&request)?;
     Ok(request)
@@ -140,12 +182,52 @@ pub fn validate_provider_import_request(request: &DeepLinkImportRequest) -> Resu
     if request.api_key.is_empty() {
         return Err("deep link import is missing the required \"apiKey\" parameter".to_owned());
     }
+    if !request.models_base_url.is_empty() {
+        let parsed_models_base = Url::parse(&request.models_base_url)
+            .map_err(|_| "deep link \"modelsBaseUrl\" must be a valid URL".to_owned())?;
+        if parsed_models_base.scheme() != "http" && parsed_models_base.scheme() != "https" {
+            return Err("deep link \"modelsBaseUrl\" must be an HTTP(S) URL".to_owned());
+        }
+    }
+    if request.vendors.len() > MAX_IMPORT_VENDORS {
+        return Err(format!(
+            "deep link import carries too many vendors ({}); expected at most {MAX_IMPORT_VENDORS}",
+            request.vendors.len()
+        ));
+    }
+    for code in &request.vendors {
+        if !is_valid_vendor_code(code) {
+            return Err(format!(
+                "deep link import carries an invalid vendor code \"{code}\""
+            ));
+        }
+    }
     Ok(())
+}
+
+/// Vendor codes must be lowercase ASCII words with optional `-` separators
+/// (e.g. `openai`, `01ai`, `grok-2`), matching the codes used by the model
+/// management vendor presets and the Cloud Router model catalog.
+fn is_valid_vendor_code(code: &str) -> bool {
+    if code.is_empty() || code.len() > 64 {
+        return false;
+    }
+    let mut bytes = code.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return false;
+    }
+    bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_deeplink_url, validate_provider_import_request, DEFAULT_CHANNEL_KIND};
+    use super::{
+        parse_deeplink_url, validate_provider_import_request, DEFAULT_CHANNEL_KIND,
+        MAX_IMPORT_VENDORS,
+    };
     use crate::host::deeplink::DEEPLINK_SCHEME;
     use tauri::Url;
 
@@ -171,6 +253,63 @@ mod tests {
         assert_eq!(request.endpoint, "https://api.example.com");
         assert_eq!(request.api_key, "sk-test-123");
         assert_eq!(request.model, "claude-sonnet-4");
+        // No `vendor` parameter: imports without offerings.
+        assert!(request.vendors.is_empty());
+    }
+
+    #[test]
+    fn parses_repeated_vendor_parameters() {
+        let request = parse_deeplink_url(&import_url(&format!(
+            "{}&vendor=openai&vendor=anthropic&vendor=deepseek",
+            provider_query()
+        )))
+        .unwrap();
+        assert_eq!(request.vendors, ["openai", "anthropic", "deepseek"]);
+    }
+
+    #[test]
+    fn parses_comma_separated_vendor_parameters() {
+        let request = parse_deeplink_url(&import_url(&format!(
+            "{}&vendor=openai%2Canthropic",
+            provider_query()
+        )))
+        .unwrap();
+        assert_eq!(request.vendors, ["openai", "anthropic"]);
+    }
+
+    #[test]
+    fn normalizes_and_deduplicates_vendor_parameters() {
+        let request = parse_deeplink_url(&import_url(&format!(
+            "{}&vendor=OpenAI&vendor=openai,&vendor=,deepseek",
+            provider_query()
+        )))
+        .unwrap();
+        // Codes are lowercased, empty parts skipped, duplicates dropped while
+        // preserving arrival order.
+        assert_eq!(request.vendors, ["openai", "deepseek"]);
+    }
+
+    #[test]
+    fn rejects_invalid_vendor_codes() {
+        let url = import_url(&format!("{}&vendor=open_ai", provider_query()));
+        let error = parse_deeplink_url(&url).unwrap_err();
+        assert!(error.contains("invalid vendor code \"open_ai\""), "{error}");
+        let url = import_url(&format!("{}&vendor=-leading", provider_query()));
+        let error = parse_deeplink_url(&url).unwrap_err();
+        assert!(error.contains("invalid vendor code \"-leading\""), "{error}");
+        let url = import_url(&format!("{}&vendor=open%20ai", provider_query()));
+        let error = parse_deeplink_url(&url).unwrap_err();
+        assert!(error.contains("invalid vendor code \"open ai\""), "{error}");
+    }
+
+    #[test]
+    fn rejects_too_many_vendors() {
+        let mut query = provider_query();
+        for index in 0..=MAX_IMPORT_VENDORS {
+            query.push_str(&format!("&vendor=vendor-{index}"));
+        }
+        let error = parse_deeplink_url(&import_url(&query)).unwrap_err();
+        assert!(error.contains("too many vendors"), "{error}");
     }
 
     #[test]
@@ -249,6 +388,12 @@ mod tests {
         assert!(validate_provider_import_request(&tampered).is_err());
         tampered = base.clone();
         tampered.name.clear();
+        assert!(validate_provider_import_request(&tampered).is_err());
+        tampered = base.clone();
+        tampered.vendors = vec!["open_ai".to_owned()];
+        assert!(validate_provider_import_request(&tampered).is_err());
+        tampered = base.clone();
+        tampered.vendors = vec!["openai".to_owned(); MAX_IMPORT_VENDORS + 1];
         assert!(validate_provider_import_request(&tampered).is_err());
     }
 }

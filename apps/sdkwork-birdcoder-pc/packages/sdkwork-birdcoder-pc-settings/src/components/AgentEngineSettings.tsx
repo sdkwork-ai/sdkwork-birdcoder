@@ -16,6 +16,8 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench';
 import { Button, WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
+import { AgentEngineConfigFilePanel } from './AgentEngineConfigFilePanel';
+import { AgentEngineQuickConfigForm } from './AgentEngineQuickConfigForm';
 import type { SettingsProps } from './types';
 
 type AgentEngineSettingsSelectionProps = {
@@ -122,9 +124,15 @@ export function AgentEngineSettingsSidebar({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <EngineKindBadge kind={engine.engineKind} />
-                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.modelCount', { count: engine.modelCatalog.length })}
-                  </span>
+                  {engine.available ? (
+                    <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                      {t('settings.engines.modelCount', { count: engine.modelCatalog.length })}
+                    </span>
+                  ) : (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+                      {t('settings.engines.unavailableBadge')}
+                    </span>
+                  )}
                 </div>
               </div>
             </button>
@@ -146,6 +154,7 @@ export function AgentEngineSettings({
   const { addToast } = useToast();
   const engines = useSortedAgentEngines();
   const [internalActiveEngineId, setInternalActiveEngineId] = useState('');
+  const [activeTab, setActiveTab] = useState<'models' | 'config'>('models');
   const activeEngineId = controlledActiveEngineId ?? internalActiveEngineId;
   const setActiveEngineId = setControlledActiveEngineId ?? setInternalActiveEngineId;
 
@@ -193,6 +202,11 @@ export function AgentEngineSettings({
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium text-white">{activeEngine.label}</div>
                       <EngineKindBadge kind={activeEngine.engineKind} />
+                      {activeEngine.available ? null : (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+                          {t('settings.engines.unavailableBadge')}
+                        </span>
+                      )}
                       {defaultEngineId === activeEngine.id ? (
                         <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
                           {t('settings.engines.defaultBadge')}
@@ -206,7 +220,13 @@ export function AgentEngineSettings({
                 </div>
 
                 <div className="grid w-full gap-3 lg:max-w-sm">
-                  {defaultEngineId === activeEngine.id ? null : (
+                  {!activeEngine.available ? (
+                    <div className="w-full rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-200/90">
+                      {t('settings.engines.unavailableReason', {
+                        reason: activeEngine.unavailableReason ?? t('settings.engines.unavailableUnknown'),
+                      })}
+                    </div>
+                  ) : defaultEngineId === activeEngine.id ? null : (
                     <Button
                       size="sm"
                       className="w-full"
@@ -227,6 +247,7 @@ export function AgentEngineSettings({
                     </Button>
                   )}
 
+                  {!activeEngine.available ? null : (
                   <label className="grid gap-2 text-sm font-medium text-white">
                     {t('settings.engines.defaultModel')}
                     <select
@@ -261,23 +282,78 @@ export function AgentEngineSettings({
                       ))}
                     </select>
                   </label>
+                  )}
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                {activeEngine.models.map((model) => (
-                  <div
-                    key={model.id}
-                    className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-3"
-                  >
-                    <div className="text-sm font-medium text-gray-200">{model.label}</div>
-                    <div className="mt-1 text-xs text-gray-500">{model.id}</div>
-                    {model.description ? (
-                      <div className="mt-2 text-xs leading-5 text-gray-400">{model.description}</div>
-                    ) : null}
-                  </div>
-                ))}
+              <div
+                className="mt-5 flex gap-1 border-b border-white/10"
+                role="tablist"
+                aria-label={t('settings.engines.detailTabsLabel')}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'models'}
+                  onClick={() => setActiveTab('models')}
+                  className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'models'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {t('settings.engines.tabModels')}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'config'}
+                  onClick={() => setActiveTab('config')}
+                  className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'config'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {t('settings.engines.tabConfigFile')}
+                </button>
               </div>
+
+              {activeTab === 'models' ? (
+                <div className="mt-5 grid gap-4">
+                  <AgentEngineQuickConfigForm
+                    engine={activeEngine}
+                    onSaved={() => {
+                      void loadWorkbenchAgentEngineCatalog().catch((error) => {
+                        console.warn('[sdkwork-agents] failed to refresh agent-engine catalog:', error);
+                      });
+                    }}
+                    onNotify={(message, tone) => addToast(message, tone)}
+                  />
+                  {activeEngine.available ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {activeEngine.models.map((model) => (
+                        <div
+                          key={model.id}
+                          className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-3"
+                        >
+                          <div className="text-sm font-medium text-gray-200">{model.label}</div>
+                          <div className="mt-1 text-xs text-gray-500">{model.id}</div>
+                          {model.description ? (
+                            <div className="mt-2 text-xs leading-5 text-gray-400">
+                              {model.description}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <AgentEngineConfigFilePanel engine={activeEngine} />
+                </div>
+              )}
             </div>
           ) : null}
         </div>

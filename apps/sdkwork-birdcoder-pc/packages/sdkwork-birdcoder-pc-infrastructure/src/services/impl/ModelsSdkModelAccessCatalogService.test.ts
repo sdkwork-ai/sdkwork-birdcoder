@@ -184,11 +184,11 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     expect(listModels).toHaveBeenCalledOnce();
     expect(listModels).toHaveBeenCalledWith(
       { page: 1, pageSize: 100, q: 'test', capabilities: ['chat'] },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
     expect(listChannels).toHaveBeenCalledWith(
       { page: 1, pageSize: 100, q: 'test', agentProviderId: 'codex' },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
   });
 
@@ -226,7 +226,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     expect(listModels).toHaveBeenNthCalledWith(
       2,
       { page: 1, pageSize: 1, capabilities: ['chat'] },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
   });
 
@@ -259,12 +259,12 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     expect(listModelsSpy).toHaveBeenNthCalledWith(
       1,
       { page: 1, pageSize: 100, capabilities: ['chat'] },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
     expect(listModelsSpy).toHaveBeenNthCalledWith(
       2,
       { page: 2, pageSize: 100, capabilities: ['chat'] },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
     expect(result.source).toBe('database');
     expect(result.models.map((model) => model.modelId)).toEqual([
@@ -294,7 +294,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
     expect(listModelsSpy).toHaveBeenCalledTimes(10);
     expect(listModelsSpy).toHaveBeenLastCalledWith(
       { page: 10, pageSize: 100, capabilities: ['chat'] },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
   });
 
@@ -320,7 +320,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
         capabilities: ['chat', 'embedding'],
         modalities: ['image'],
       },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
   });
 
@@ -339,7 +339,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
 
     expect(listModels).toHaveBeenCalledWith(
       { page: 1, pageSize: 100 },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
   });
 
@@ -515,7 +515,7 @@ describe('ModelsSdkModelAccessCatalogService', () => {
         defaultModelId: 'gpt-test',
         supportedAgentProviderIds: ['codex', 'claude-code'],
       },
-      { signal: undefined },
+      { signal: undefined, timeout: 30000 },
     );
     expect(upsertChannel.mock.calls[0]?.[1]).not.toHaveProperty('apiKey');
     expect(result).toMatchObject({

@@ -23,6 +23,14 @@ export interface DeepLinkImportRequest {
   endpoint: string;
   apiKey: string;
   model: string;
+  /**
+   * Gateway OpenAI-compatible base URL the host queries for the key-scoped
+   * vendor/model catalog during the import. Absent on legacy links.
+   */
+  modelsBaseUrl?: string;
+  /** Legacy vendor codes carried by older links; the host falls back to them
+   * only when the gateway catalog query is unavailable. */
+  vendors?: string[];
 }
 
 interface DeepLinkImportDialogProps {

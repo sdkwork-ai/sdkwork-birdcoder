@@ -206,6 +206,10 @@
     "./bootstrap/appSessionPersistenceBinding": {
       "import": "./src/bootstrap/appSessionPersistenceBinding.ts",
       "types": "./src/bootstrap/appSessionPersistenceBinding.ts"
+    },
+    "./services/agentsSdkClients": {
+      "import": "./src/services/agentsSdkClients.ts",
+      "types": "./src/services/agentsSdkClients.ts"
     }
   },
   "dependencies": {
@@ -234,6 +238,6 @@
   },
   "scripts": {
     "test": "vitest run --config vitest.config.ts src/services/impl/ApiBackedCatalogService.test.ts src/services/impl/ModelsSdkModelAccessCatalogService.test.ts src/services/modelManagementChannelSaving.test.ts src/services/agentsModelConfigurationService.test.ts && pnpm run test:contract",
-    "test:contract": "node --import tsx src/services/impl/ApplicationPublishService.test.ts && node --import tsx src/services/impl/RuntimeProjectRuntimeLocationService.test.ts"
+    "test:contract": "vitest run --config vitest.config.ts src/services/impl/ApplicationPublishService.test.ts src/services/impl/RuntimeProjectRuntimeLocationService.test.ts"
   }
 }

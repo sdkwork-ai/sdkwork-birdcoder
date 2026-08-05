@@ -30,6 +30,7 @@ packages:
   - "../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap"
   - "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react"
   - "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react"
+  - "../sdkwork-appbase/sdks/sdkwork-base-data-backend-sdk/sdkwork-base-data-backend-sdk-typescript"
   - "../sdkwork-core/sdkwork-core-pc-react"
   - "../sdkwork-ui/sdkwork-ui-pc-react"
   - "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript"
@@ -83,11 +84,11 @@ packages:
 catalog:
   "@openai/codex": 0.146.0
   "@tailwindcss/vite": ^4.1.14
-  react: ^19.2.4
-  react-dom: ^19.2.4
+  react: ^19.2.8
+  react-dom: ^19.2.8
   react-hook-form: ^7.72.1
-  react-i18next: ^17.0.7
-  i18next: ^26.1.0
+  react-i18next: ^17.0.11
+  i18next: ^26.3.6
   lucide-react: ^1.7.0
   motion: ^12.23.24
   clsx: ^2.1.1
@@ -102,12 +103,12 @@ catalog:
   typescript: ~6.0.2
   tsx: ^4.21.0
   vite: ^8.0.3
-  "@vitejs/plugin-react": ^6.0.1
+  "@vitejs/plugin-react": ^6.0.5
   vite-plugin-dts: ^4.5.4
   vitest: ^4.1.8
   jsdom: ^29.1.1
-  "@types/react": ^19.2.14
-  "@types/react-dom": ^19.2.3
+  "@types/react": ^19.2.18
+  "@types/react-dom": ^19.2.4
   "@babel/runtime": ^7.29.2
   "@capacitor/android": ^6.0.0
   "@capacitor/app": ^6.0.0
@@ -137,7 +138,7 @@ catalog:
   "@radix-ui/react-tooltip": ^1.2.8
   "@sdkwork/sdk-common": ^1.0.3
   "@tailwindcss/typography": ^0.5.20
-  "@tauri-apps/api": ~2.11.0
+  "@tauri-apps/api": ~2.11.1
   "@tauri-apps/cli": ~2.11.0
   "@tauri-apps/plugin-clipboard-manager": ^2.3.2
   "@tauri-apps/plugin-dialog": ^2.6.0
@@ -238,7 +239,7 @@ catalog:
   property-information: ^7.1.0
   react-markdown: ^10.1.0
   react-router: ^7.15.0
-  react-router-dom: ^7.15.0
+  react-router-dom: ^7.18.2
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2
   smol-toml: ^1.6.1

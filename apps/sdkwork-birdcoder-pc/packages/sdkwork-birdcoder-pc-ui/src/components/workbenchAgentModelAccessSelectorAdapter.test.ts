@@ -39,6 +39,7 @@ const engine: WorkbenchAgentEngineDefinition = {
   modelIds: [catalogModel.id],
   tier: 'official-sdk',
   engineKind: 'code',
+        available: true,
   defaultAccessModeId: '',
   accessModes: [],
 };

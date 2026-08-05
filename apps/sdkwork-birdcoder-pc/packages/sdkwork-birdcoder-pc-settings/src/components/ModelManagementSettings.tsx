@@ -77,6 +77,11 @@ function toPickerChannel(
       models: offering.models.map((model) => ({
         model: model.modelId,
         displayName: model.displayName,
+        // Token metadata round-trips through the edit dialog so imported
+        // channels do not lose the gateway catalog's context/output info.
+        ...(model.contextTokens == null ? {} : { contextTokens: model.contextTokens }),
+        ...(model.maxOutputTokens == null ? {} : { maxOutputTokens: model.maxOutputTokens }),
+        ...(model.toolCallRounds == null ? {} : { toolCallRounds: model.toolCallRounds }),
       })),
     })),
     sortOrder: channel.sortOrder ?? undefined,

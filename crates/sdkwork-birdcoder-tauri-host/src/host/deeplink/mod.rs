@@ -20,6 +20,15 @@
 //! - `endpoint` (required): HTTP(S) API endpoint
 //! - `apiKey` (required): API key stored alongside the channel
 //! - `model` (optional): default model id
+//! - `modelsBaseUrl` (optional): gateway OpenAI-compatible base URL
+//!   (`{host}/v1`). During the import the host queries the Cloud Router
+//!   `GET {base}/vendors` extension with the same API key and writes the
+//!   reachable vendors and their models straight into the channel offerings
+//!   — no vendor selection needed in the producing console. Links without it
+//!   (or when the query fails) fall back to the legacy `vendor` parameters,
+//!   then to a channel without offerings.
+//! - `vendor` (optional, repeatable): legacy vendor codes; used only when the
+//!   gateway catalog query is unavailable.
 //!
 //! The host parses every URL into a [`DeepLinkImportRequest`] and never
 //! writes anything on its own: the request is buffered (for cold start) and
@@ -43,8 +52,10 @@ use super::user_model_config::apply_client_local_user_model_config_database_url;
 pub use parser::{parse_deeplink_url, DeepLinkImportRequest};
 use provider::import_provider_from_request;
 
+mod catalog;
 mod parser;
 mod provider;
+mod vendors;
 
 pub const DEEPLINK_SCHEME: &str = "birdcoder";
 /// Webview event carrying a parsed [`DeepLinkImportRequest`] that awaits

@@ -2239,6 +2239,11 @@ export const UniversalChat = memo(function UniversalChat({
           modelId: model.modelId,
           displayName: model.displayName,
           supportsMultimodal: false,
+          // Token metadata survives round-trips so imported channels keep the
+          // context/output window info the gateway catalog provided.
+          ...(model.contextTokens == null ? {} : { contextTokens: model.contextTokens }),
+          ...(model.maxOutputTokens == null ? {} : { maxOutputTokens: model.maxOutputTokens }),
+          ...(model.toolCallRounds == null ? {} : { toolCallRounds: model.toolCallRounds }),
         })),
       })),
     };

@@ -35,6 +35,10 @@ export interface SaveModelManagementChannelOfferingDraft {
   models: readonly {
     modelId: string;
     displayName: string;
+    /** Token metadata preserved from catalog / import data. */
+    contextTokens?: number;
+    maxOutputTokens?: number;
+    toolCallRounds?: number;
   }[];
 }
 
@@ -157,6 +161,11 @@ async function saveModelManagementChannelSerialized(
         modelId: model.modelId.trim(),
         displayName: model.displayName.trim() || model.modelId.trim(),
         supportsMultimodal: false,
+        // Token metadata survives round-trips so imported channels keep the
+        // context/output window info the gateway catalog provided.
+        ...(model.contextTokens == null ? {} : { contextTokens: model.contextTokens }),
+        ...(model.maxOutputTokens == null ? {} : { maxOutputTokens: model.maxOutputTokens }),
+        ...(model.toolCallRounds == null ? {} : { toolCallRounds: model.toolCallRounds }),
       })),
     })),
   };

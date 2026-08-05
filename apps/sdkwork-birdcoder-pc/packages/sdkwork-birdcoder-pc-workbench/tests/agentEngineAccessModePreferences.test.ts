@@ -73,6 +73,7 @@ const catalogEntry = {
   providerId: 'provider.openai',
   tier: 'official-sdk',
   engineKind: 'code' as const,
+  available: true,
 };
 
 describe('agent engine access mode preferences', () => {

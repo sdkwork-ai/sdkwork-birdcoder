@@ -145,8 +145,7 @@ describe('DeepLinkImportListener', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('cancels without importing and advances the queue', async () => {
-    mockInvoke.mockResolvedValueOnce([sampleRequest('r1')]);
+  it('cancels without importing and advances the queue', async () => {    mockInvoke.mockResolvedValueOnce([sampleRequest('r1')]);
     await renderListener();
     await screen.findByRole('dialog');
     // The dialog has two cancel controls with the same label: the header

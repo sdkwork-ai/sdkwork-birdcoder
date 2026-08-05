@@ -31,6 +31,7 @@ const catalogEntry = {
   providerId: 'provider.openai',
   tier: 'official-sdk',
   engineKind: 'code' as const,
+  available: true,
 };
 
 beforeEach(() => {

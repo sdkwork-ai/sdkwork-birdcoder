@@ -85,6 +85,10 @@
       "types": "./src/components/editorModelPath.ts",
       "import": "./src/components/editorModelPath.ts",
       "default": "./src/components/editorModelPath.ts"
+    },
+    "./components/CodeEditor": {
+      "import": "./src/components/CodeEditor.tsx",
+      "types": "./src/components/CodeEditor.tsx"
     }
   },
   "scripts": {

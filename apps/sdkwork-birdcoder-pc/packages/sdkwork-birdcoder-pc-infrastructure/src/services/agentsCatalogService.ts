@@ -46,6 +46,8 @@ export interface BirdCoderAgentEngineCatalogEntry {
   engineKind: BirdCoderAgentEngineKind;
   defaultAccessModeId: string;
   accessModes: readonly BirdCoderAgentEngineAccessModeEntry[];
+  available: boolean;
+  unavailableReason?: string;
 }
 
 function toModelEntry(model: AgentEngineModelCatalogEntry): BirdCoderAgentEngineCatalogModelEntry {
@@ -90,6 +92,8 @@ function toCatalogEntry(engine: AgentEngineCatalogEngine): BirdCoderAgentEngineC
     engineKind: engine.engineKind ?? 'unknown',
     defaultAccessModeId: engine.defaultAccessModeId ?? '',
     accessModes: (engine.accessModes ?? []).map(toAccessModeEntry),
+    available: engine.available !== false,
+    ...(engine.unavailableReason ? { unavailableReason: engine.unavailableReason } : {}),
   };
 }
 
@@ -98,6 +102,35 @@ export async function listBirdCoderAgentEngineCatalog(
 ): Promise<BirdCoderAgentEngineCatalogEntry[]> {
   const response = await client.ai.agents.agentEngines.list();
   return response.engines.map(toCatalogEntry);
+}
+
+export type BirdCoderAgentEngineConfigFormat =
+  | 'toml'
+  | 'json'
+  | 'env'
+  | 'text';
+
+export interface BirdCoderAgentEngineConfigFile {
+  engineId: string;
+  configFilePath: string;
+  format: BirdCoderAgentEngineConfigFormat;
+  /** File content with credential values masked by the server. */
+  content: string;
+  exists: boolean;
+}
+
+export async function fetchBirdCoderAgentEngineConfigFile(
+  engineId: string,
+  client: AgentsAppSdkClient = getBirdCoderAgentsAppSdkClient(),
+): Promise<BirdCoderAgentEngineConfigFile> {
+  const file = await client.ai.agents.modelConfigurations.configFile(engineId);
+  return {
+    engineId: file.engineId,
+    configFilePath: file.configFilePath,
+    format: file.format,
+    content: file.content,
+    exists: file.exists,
+  };
 }
 
 export async function listBirdCoderMcpMarketplace(

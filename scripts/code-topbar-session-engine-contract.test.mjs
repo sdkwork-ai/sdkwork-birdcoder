@@ -72,7 +72,7 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*isEngineBusyCurrentSession\?: boolean;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*selectedSessionTitle\?: string;/,
+  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*isEngineBusyCurrentSession\?: boolean;[\s\S]*selectedSessionTitle\?: string;/,
   'Code top bar props must contain only scalar remote project metadata and selected-session state so the header stays insulated from object churn and device-local mount details.',
 );
 
@@ -82,10 +82,10 @@ assert.doesNotMatch(
   'Code top bar must not accept a device-local project path through remote project presentation props.',
 );
 
-assert.match(
+assert.doesNotMatch(
   topBarSource,
-  /<WorkbenchNewSessionButton[\s\S]*currentSessionEngineId=\{selectedSessionEngineId\}[\s\S]*currentSessionModelId=\{selectedSessionModelId\}/s,
-  'Code top bar must pass strict session-aware engine and model metadata into the new-session action without retaining a device-local project path.',
+  /<WorkbenchNewSessionButton|selectedSessionEngineId|selectedSessionModelId/,
+  'Code top bar must stay insulated from session engine metadata and new-session actions, which now live in the page-scoped session header.',
 );
 
 assert.match(

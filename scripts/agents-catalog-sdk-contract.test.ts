@@ -33,6 +33,7 @@ function assertCatalogEntry(entry: BirdCoderAgentEngineCatalogEntry): void {
       defaultModelId: 'codex-1',
       tier: 'official-sdk',
       engineKind: 'code',
+      available: true,
       defaultAccessModeId: 'ask_for_approval',
       accessModes: [
         {
@@ -67,6 +68,7 @@ const catalog = await listBirdCoderAgentEngineCatalog(
       {
         engineKey: 'codex',
         engineKind: 'code',
+        available: true,
         agentId: 'agent.codex',
         bindingId: 'binding.codex',
         tier: 'official-sdk',

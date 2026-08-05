@@ -3,6 +3,8 @@ export * from './GeneralSettings';
 export * from './AppearanceSettings';
 export * from './VoiceSettings';
 export * from './KeyboardShortcutsSettings';
+export * from './AgentEngineConfigFilePanel';
+export * from './AgentEngineQuickConfigForm';
 export * from './AgentEngineSettings';
 export * from './ModelManagementSettings';
 export * from './ConfigSettings';

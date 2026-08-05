@@ -136,6 +136,7 @@ describe('Agent Session engine identity projection', () => {
         defaultModelId: 'gpt-5',
         tier: 't1-code',
         engineKind: 'code',
+        available: true,
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [
@@ -168,6 +169,7 @@ describe('Agent Session engine identity projection', () => {
         defaultModelId: 'gpt-5',
         tier: 't1-code',
         engineKind: 'code',
+        available: true,
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [
@@ -212,6 +214,7 @@ describe('Agent Session engine identity projection', () => {
         defaultModelId: 'gpt-5',
         tier: 't1-code',
         engineKind: 'code',
+        available: true,
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [

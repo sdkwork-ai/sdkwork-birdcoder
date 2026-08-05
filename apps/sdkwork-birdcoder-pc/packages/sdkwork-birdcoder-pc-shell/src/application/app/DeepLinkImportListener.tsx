@@ -129,6 +129,8 @@ export function DeepLinkImportListener() {
     setIsImporting(true);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
+      // The host resolves vendors/models itself through the gateway catalog
+      // (`modelsBaseUrl`) and re-validates the payload before importing.
       const snapshot = await invoke<DeepLinkImportSnapshot>('deeplink_import_from_request', {
         request: currentRequest,
       });
