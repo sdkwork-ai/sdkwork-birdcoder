@@ -4,7 +4,7 @@ import {
   resolveProviderVisualToneClassName,
 } from './providerVisualIdentity';
 
-export interface WorkbenchCodeEngineIconProps {
+export interface WorkbenchAgentEngineIconProps {
   engineId: string | null | undefined;
   className?: string;
   labelClassName?: string;
@@ -16,12 +16,12 @@ const SIZE_CLASS_BY_ID = {
   sm: 'h-5 min-w-5 px-1.5 text-[9px]',
 } as const;
 
-export function WorkbenchCodeEngineIcon({
+export function WorkbenchAgentEngineIcon({
   engineId,
   className,
   labelClassName,
   size = 'sm',
-}: WorkbenchCodeEngineIconProps) {
+}: WorkbenchAgentEngineIconProps) {
   const visualIdentity = resolveProviderVisualIdentity({ engineId });
 
   return (

@@ -8,8 +8,8 @@ const source = fs.readFileSync(
 
 assert.match(
   source,
-  /function areWorkbenchCodeEngineSettingsEqual\(/,
-  'useWorkbenchPreferences should centralize code-engine settings comparison behind a dedicated helper so preference equality can stay explicit without serializing on every effect pass.',
+  /function areWorkbenchAgentEngineSettingsEqual\(/,
+  'useWorkbenchPreferences should centralize agent-engine settings comparison behind a dedicated helper so preference equality can stay explicit without serializing on every effect pass.',
 );
 
 assert.doesNotMatch(

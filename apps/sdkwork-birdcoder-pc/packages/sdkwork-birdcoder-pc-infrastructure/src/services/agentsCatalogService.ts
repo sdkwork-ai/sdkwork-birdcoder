@@ -1,12 +1,12 @@
 import type {
-  CodeEngineAccessModeCatalogEntry,
-  CodeEngineCatalogEngine,
-  CodeEngineModelCatalogEntry,
+  AgentEngineAccessModeCatalogEntry,
+  AgentEngineCatalogEngine,
+  AgentEngineModelCatalogEntry,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import { getBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
 
-export interface BirdCoderCodeEngineCatalogModelEntry {
+export interface BirdCoderAgentEngineCatalogModelEntry {
   modelId: string;
   label: string;
   description: string;
@@ -15,19 +15,25 @@ export interface BirdCoderCodeEngineCatalogModelEntry {
   defaultForEngine: boolean;
 }
 
-export interface BirdCoderCodeEngineAccessModeEntry {
+export interface BirdCoderAgentEngineAccessModeEntry {
   modeId: string;
   displayName: string;
   description: string;
-  approvalBehavior: CodeEngineAccessModeCatalogEntry['approvalBehavior'];
-  workspaceAccess: CodeEngineAccessModeCatalogEntry['workspaceAccess'];
-  networkAccess: CodeEngineAccessModeCatalogEntry['networkAccess'];
-  riskLevel: CodeEngineAccessModeCatalogEntry['riskLevel'];
+  approvalBehavior: AgentEngineAccessModeCatalogEntry['approvalBehavior'];
+  workspaceAccess: AgentEngineAccessModeCatalogEntry['workspaceAccess'];
+  networkAccess: AgentEngineAccessModeCatalogEntry['networkAccess'];
+  riskLevel: AgentEngineAccessModeCatalogEntry['riskLevel'];
   enabled: boolean;
   disabledReason?: string;
 }
 
-export interface BirdCoderCodeEngineCatalogEntry {
+export type BirdCoderAgentEngineKind =
+  | 'code'
+  | 'work'
+  | 'simple'
+  | 'unknown';
+
+export interface BirdCoderAgentEngineCatalogEntry {
   engineId: string;
   agentId: string;
   displayName: string;
@@ -35,13 +41,14 @@ export interface BirdCoderCodeEngineCatalogEntry {
   bindingId: string;
   healthy: boolean;
   defaultModelId: string;
-  models: readonly BirdCoderCodeEngineCatalogModelEntry[];
+  models: readonly BirdCoderAgentEngineCatalogModelEntry[];
   tier: string;
+  engineKind: BirdCoderAgentEngineKind;
   defaultAccessModeId: string;
-  accessModes: readonly BirdCoderCodeEngineAccessModeEntry[];
+  accessModes: readonly BirdCoderAgentEngineAccessModeEntry[];
 }
 
-function toModelEntry(model: CodeEngineModelCatalogEntry): BirdCoderCodeEngineCatalogModelEntry {
+function toModelEntry(model: AgentEngineModelCatalogEntry): BirdCoderAgentEngineCatalogModelEntry {
   return {
     modelId: model.modelId,
     label: model.label,
@@ -53,8 +60,8 @@ function toModelEntry(model: CodeEngineModelCatalogEntry): BirdCoderCodeEngineCa
 }
 
 function toAccessModeEntry(
-  mode: CodeEngineAccessModeCatalogEntry,
-): BirdCoderCodeEngineAccessModeEntry {
+  mode: AgentEngineAccessModeCatalogEntry,
+): BirdCoderAgentEngineAccessModeEntry {
   return {
     modeId: mode.modeId,
     displayName: mode.displayName,
@@ -68,7 +75,7 @@ function toAccessModeEntry(
   };
 }
 
-function toCatalogEntry(engine: CodeEngineCatalogEngine): BirdCoderCodeEngineCatalogEntry {
+function toCatalogEntry(engine: AgentEngineCatalogEngine): BirdCoderAgentEngineCatalogEntry {
   const defaultModel = engine.models.find((model) => model.defaultForEngine) ?? engine.models[0];
   return {
     engineId: engine.engineKey,
@@ -80,15 +87,16 @@ function toCatalogEntry(engine: CodeEngineCatalogEngine): BirdCoderCodeEngineCat
     defaultModelId: defaultModel?.modelId ?? '',
     models: engine.models.map(toModelEntry),
     tier: engine.tier ?? '',
+    engineKind: engine.engineKind ?? 'unknown',
     defaultAccessModeId: engine.defaultAccessModeId ?? '',
     accessModes: (engine.accessModes ?? []).map(toAccessModeEntry),
   };
 }
 
-export async function listBirdCoderCodeEngineCatalog(
+export async function listBirdCoderAgentEngineCatalog(
   client: AgentsAppSdkClient = getBirdCoderAgentsAppSdkClient(),
-): Promise<BirdCoderCodeEngineCatalogEntry[]> {
-  const response = await client.ai.agents.codeEngines.list();
+): Promise<BirdCoderAgentEngineCatalogEntry[]> {
+  const response = await client.ai.agents.agentEngines.list();
   return response.engines.map(toCatalogEntry);
 }
 

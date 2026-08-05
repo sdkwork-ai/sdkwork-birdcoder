@@ -21,6 +21,7 @@ const allowedInternalDependencies = new Map([
   ])],
   ['@sdkwork/birdcoder-pc-code', new Set([
     '@sdkwork/birdcoder-pc-workbench',
+    '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-contracts-commons',
     '@sdkwork/birdcoder-pc-ui',
     '@sdkwork/birdcoder-pc-ui-shell',
@@ -30,6 +31,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-infrastructure',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-contracts-commons',
+    '@sdkwork/birdcoder-pc-core',
   ])],
   ['@sdkwork/birdcoder-pc-console-core', new Set()],
   ['@sdkwork/birdcoder-pc-console-shell', new Set()],
@@ -46,10 +48,14 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-desktop', new Set([
     '@sdkwork/birdcoder-pc-distribution',
     '@sdkwork/birdcoder-pc-host-core',
+    '@sdkwork/birdcoder-pc-infrastructure',
     '@sdkwork/birdcoder-pc-shell',
     '@sdkwork/birdcoder-pc-shell-runtime',
+    '@sdkwork/birdcoder-pc-workbench',
   ])],
-  ['@sdkwork/birdcoder-pc-distribution', new Set()],
+  ['@sdkwork/birdcoder-pc-distribution', new Set([
+    '@sdkwork/birdcoder-pc-host-core',
+  ])],
   ['@sdkwork/birdcoder-pc-host-core', new Set()],
   ['@sdkwork/birdcoder-pc-host-studio', new Set([
     '@sdkwork/birdcoder-pc-host-core',
@@ -91,6 +97,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-settings',
     '@sdkwork/birdcoder-pc-studio',
     '@sdkwork/birdcoder-pc-contracts-commons',
+    '@sdkwork/birdcoder-pc-ui',
     '@sdkwork/birdcoder-pc-ui-shell',
     '@sdkwork/birdcoder-pc-user',
     '@sdkwork/birdcoder-pc-work-resources',
@@ -107,12 +114,14 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-studio', new Set([
     '@sdkwork/birdcoder-pc-workbench',
     '@sdkwork/birdcoder-pc-host-studio',
+    '@sdkwork/birdcoder-pc-contracts-commons',
     '@sdkwork/birdcoder-pc-ui',
     '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-contracts-commons', new Set()],
   ['@sdkwork/birdcoder-pc-ui', new Set([
     '@sdkwork/birdcoder-pc-workbench',
+    '@sdkwork/birdcoder-pc-contracts-commons',
     '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-ui-shell', new Set()],
@@ -126,6 +135,8 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-shell',
     '@sdkwork/birdcoder-pc-shell-runtime',
+    '@sdkwork/birdcoder-pc-contracts-commons',
+    '@sdkwork/birdcoder-pc-workbench',
   ])],
   ['@sdkwork/birdcoder-pc-workbench-state', new Set([
     '@sdkwork/birdcoder-pc-workbench',

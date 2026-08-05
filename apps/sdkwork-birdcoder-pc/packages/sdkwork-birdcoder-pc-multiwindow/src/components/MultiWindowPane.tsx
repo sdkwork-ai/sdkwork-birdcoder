@@ -1,10 +1,10 @@
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
-  getWorkbenchCodeEngineSessionSummary,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+  getWorkbenchAgentEngineSessionSummary,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
 import {
-  WorkbenchCodeEngineIcon,
+  WorkbenchAgentEngineIcon,
   resolveSafePreviewUrl,
 } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
@@ -105,7 +105,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
   const shouldProvisionSession = sessionProvisioningStatus.status === 'needs-session';
   const effectiveEngineId = pane.selectedEngineId || binding?.agentSession?.engineId?.trim() || '';
   const effectiveModelId = pane.selectedModelId || binding?.agentSession?.modelId?.trim() || '';
-  const engineSummary = getWorkbenchCodeEngineSessionSummary(
+  const engineSummary = getWorkbenchAgentEngineSessionSummary(
     effectiveEngineId,
     effectiveModelId,
   );
@@ -178,7 +178,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
             </button>
           ) : null}
           <div className="hidden items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-[11px] text-gray-400 xl:flex">
-            <WorkbenchCodeEngineIcon engineId={effectiveEngineId} />
+            <WorkbenchAgentEngineIcon engineId={effectiveEngineId} />
             <span className="max-w-[120px] truncate">{engineSummary}</span>
           </div>
           {shouldProvisionSession ? (

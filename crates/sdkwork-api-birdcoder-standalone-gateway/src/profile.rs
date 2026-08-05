@@ -95,9 +95,9 @@ pub(crate) async fn assemble_standalone_profile(
         Arc<dyn sdkwork_agents_runtime_facade::ProviderSessionProjectCwdResolver>,
     >,
 ) -> Result<StandaloneApiProfile, String> {
-    let birdcoder = sdkwork_api_birdcoder_assembly::assemble_api_router(config)
-        .await
-        .map_err(|error| format!("assemble BirdCoder owner App API failed: {error:#}"))?;
+    // Assemble dependency owners first so the BirdCoder System health endpoint
+    // can report real composed dependency availability instead of a hard-coded
+    // healthy status.
     let iam = sdkwork_api_iam_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble IAM owner App API failed: {error:#}"))?;
@@ -132,6 +132,21 @@ pub(crate) async fn assemble_standalone_profile(
     let models = sdkwork_api_models_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Models owner App API failed: {error}"))?;
+    let dependency_readiness = Arc::new(CompositeReadinessCheck::new(vec![
+        iam.readiness_check.clone(),
+        agents.readiness_check.clone(),
+        documents.readiness_check.clone(),
+        drive.readiness_check.clone(),
+        membership.readiness_check.clone(),
+        order.readiness_check.clone(),
+        prompts.readiness_check.clone(),
+        skills.readiness_check.clone(),
+        models.readiness_check.clone(),
+    ]));
+    let birdcoder =
+        sdkwork_api_birdcoder_assembly::assemble_api_router_with_readiness(config, Some(dependency_readiness))
+            .await
+            .map_err(|error| format!("assemble BirdCoder owner App API failed: {error:#}"))?;
     let mut contributions = vec![
         OwnerApiContribution {
             owner: "sdkwork-birdcoder",

@@ -56,7 +56,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const handleNewSessionProviderSelect = useCallback\(\(engineId: string\) => \{[\s\S]*resolveWorkbenchCodeEngineSelectedModelId\([\s\S]*applyComposerSelection\(engineId, modelId\)/,
+  /const handleNewSessionProviderSelect = useCallback\(\(engineId: string\) => \{[\s\S]*resolveWorkbenchAgentEngineSelectedModelId\([\s\S]*applyComposerSelection\(engineId, modelId\)/,
   'Changing the new-session provider must also resolve and apply the model owned by that provider.',
 );
 

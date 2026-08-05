@@ -9,11 +9,13 @@ authors.workspace = true
 axum = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
+sdkwork-web-bootstrap = { workspace = true }
 sdkwork-birdcoder-system-descriptor-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 
 [dev-dependencies]
+serde_json = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true }
 sdkwork-web-core = { workspace = true }

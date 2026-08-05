@@ -8,10 +8,10 @@ import type {
   ModelAccessChannel,
   ModelAccessChannelConfigurationDraft,
 } from '@sdkwork/models-pc-picker';
-import type { WorkbenchCodeEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import type { WorkbenchAgentEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 
 export interface UniversalChatComposerFooterCommonProps {
-  accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
+  accessModes: readonly WorkbenchAgentEngineAccessModeDefinition[];
   attachmentsDisabled: boolean;
   canQueueTypedMessage: boolean;
   canStopTurn: boolean;

@@ -1,10 +1,23 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::OnceLock;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use super::filesystem_commands::resolve_root_directory_path;
+
+/// Maximum number of desktop Git operations (each spawning git subprocesses)
+/// that may run concurrently. A diff can internally derive up to 256 git
+/// processes, so without a concurrency cap the renderer could drive an
+/// unbounded number of subprocesses at once and exhaust the host process
+/// table and memory under load.
+const MAX_CONCURRENT_GIT_OPERATIONS: usize = 4;
+
+fn git_operation_semaphore() -> &'static tokio::sync::Semaphore {
+    static SEMAPHORE: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
+    SEMAPHORE.get_or_init(|| tokio::sync::Semaphore::new(MAX_CONCURRENT_GIT_OPERATIONS))
+}
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -243,6 +256,12 @@ where
     T: Send + 'static,
     F: FnOnce(PathBuf, String) -> Result<T, String> + Send + 'static,
 {
+    // Bound concurrent git operations so a large diff (which internally spawns
+    // many git subprocesses) cannot multiply into unbounded host subprocesses.
+    let _permit = git_operation_semaphore()
+        .acquire()
+        .await
+        .map_err(|_| "desktop Git operation semaphore is closed".to_owned())?;
     tauri::async_runtime::spawn_blocking(move || {
         let authorized_root = resolve_root_directory_path(&root_path)?;
         let root = git_cli_root_path(&authorized_root);

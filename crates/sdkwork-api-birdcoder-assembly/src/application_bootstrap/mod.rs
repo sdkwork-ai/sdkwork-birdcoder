@@ -3,6 +3,7 @@ pub mod route_manifest;
 pub mod routers;
 
 use axum::Router;
+use sdkwork_web_bootstrap::ReadinessCheck;
 use sdkwork_web_core::HttpRouteManifest;
 
 use config::BirdServerConfig;
@@ -19,9 +20,10 @@ pub struct BuiltApplication {
 
 pub async fn build_application(
     config: &BirdServerConfig,
+    readiness_check: Option<std::sync::Arc<dyn ReadinessCheck>>,
 ) -> Result<BuiltApplication, Box<dyn std::error::Error>> {
     config.validate_runtime()?;
-    let (router, route_manifest) = routers::build_router(config).await?;
+    let (router, route_manifest) = routers::build_router(config, readiness_check).await?;
 
     Ok(BuiltApplication {
         router,

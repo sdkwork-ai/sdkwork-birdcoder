@@ -15,7 +15,7 @@ export default defineLocaleModule('settings/extra', {
         coding: 'Coding',
         archive: 'Archived',
       },
-      codeEngines: 'Code Engines & Models',
+      agentEngines: 'Agent Engines & Models',
       modelManagement: 'Model Configuration',
       appearance: 'Appearance',
       voice: 'Voice',

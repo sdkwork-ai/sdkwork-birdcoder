@@ -118,7 +118,7 @@ export default defineLocaleModule('chat', {
     roleReviewer: '\u5ba1\u67e5',
     roleTool: '\u5de5\u5177',
     roleSystem: '\u7cfb\u7edf',
-    codeEngine: '\u4ee3\u7801\u5f15\u64ce',
+    agentEngine: '\u667a\u80fd\u4f53\u5f15\u64ce',
     newSessionProviderCurrent: '\u5f53\u524d Provider\uff1a{{provider}}',
     newSessionProviderOption: '{{provider}}\uff0c{{model}}',
     selectNewSessionProvider: '\u9009\u62e9 Provider',

@@ -83,6 +83,34 @@ fn read_non_empty_string(value: Option<&Value>) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+/// Whether a manifest build command is safe to execute with a structured
+/// argument vector (never through a shell). The command must be a plain
+/// executable plus space-separated arguments: no shell operators, pipes,
+/// redirection, command substitution, environment assignment, or quote
+/// characters that a `sh -c` / `cmd /C` layer would interpret. This keeps a
+/// renderer-controlled `sdkwork.app.config.json` from escalating to arbitrary
+/// shell execution.
+fn is_safe_manifest_command(value: &str) -> bool {
+    if value.trim() != value || value.is_empty() {
+        return false;
+    }
+    let mut tokens = value.split_whitespace();
+    let executable = tokens.next().unwrap_or_default();
+    // The executable itself must not look like an option or a shell word.
+    if executable.starts_with('-') {
+        return false;
+    }
+    for token in std::iter::once(executable).chain(tokens) {
+        if token
+            .bytes()
+            .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'/' | b'\\' | b':' | b'=' | b'@' | b'+' | b',')))
+        {
+            return false;
+        }
+    }
+    true
+}
+
 fn is_stable_identifier(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
@@ -252,6 +280,7 @@ fn parse_target(value: &Value, index: usize) -> BuildTargetCandidate {
             && !value.contains('\0')
             && !value.contains('\r')
             && !value.contains('\n')
+            && is_safe_manifest_command(value)
     }) {
         issues.push(format!(
             "Target {} requires an explicit command.",

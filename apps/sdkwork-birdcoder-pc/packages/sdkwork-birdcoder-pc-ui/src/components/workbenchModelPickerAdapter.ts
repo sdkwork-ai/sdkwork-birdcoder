@@ -4,9 +4,9 @@ import type {
 } from '@sdkwork/models-pc-picker';
 import {
   getWorkbenchModelVendorLabel,
-  type WorkbenchCodeEngineDefinition,
-  type WorkbenchCodeEngineModelDefinition,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+  type WorkbenchAgentEngineDefinition,
+  type WorkbenchAgentEngineModelDefinition,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 
 export interface WorkbenchModelPickerSelection {
   engineId: string;
@@ -23,7 +23,7 @@ export function buildWorkbenchModelPickerId(engineId: string, modelId: string): 
 }
 
 export function createWorkbenchModelPickerCatalog(
-  engines: readonly WorkbenchCodeEngineDefinition[],
+  engines: readonly WorkbenchAgentEngineDefinition[],
 ): WorkbenchModelPickerCatalog {
   const groupsByVendor = new Map<string, ModelsPickerGroup>();
   const selectionByPickerId = new Map<string, WorkbenchModelPickerSelection>();
@@ -66,8 +66,8 @@ function createVendorGroup(vendorCode: string): ModelsPickerGroup {
 }
 
 function createPickerOption(
-  engine: WorkbenchCodeEngineDefinition,
-  model: WorkbenchCodeEngineModelDefinition,
+  engine: WorkbenchAgentEngineDefinition,
+  model: WorkbenchAgentEngineModelDefinition,
   pickerId: string,
 ): ModelsPickerOption {
   const sourceLabel = engine.label;

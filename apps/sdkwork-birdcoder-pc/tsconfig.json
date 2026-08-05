@@ -22,6 +22,9 @@
       ],
       "sdkwork-birdcoder-*": [
         "./packages/sdkwork-birdcoder-pc-*/src"
+      ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
       ]
     }
   },

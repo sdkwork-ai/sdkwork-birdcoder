@@ -244,7 +244,7 @@ export function createAgentSessionFixture(overrides = {}) {
   };
 }
 
-export function createCodeEngineCatalogFixture() {
+export function createAgentEngineCatalogFixture() {
   return {
     engines: [
       {

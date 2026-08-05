@@ -56,7 +56,7 @@
   },
   "workbenchModes": {
     "schemaVersion": 2,
-    "catalogAuthority": "sdkwork-agents code-engine catalog",
+    "catalogAuthority": "sdkwork-agents agent-engine catalog",
     "defaultMode": "coding",
     "admissionPolicy": "exact-engine-agent-tier-fail-closed",
     "visibilityPolicy": {
@@ -95,7 +95,7 @@
           "unknownProviderBehavior": "reject-before-host-invocation",
           "browserBehavior": "desktop-required",
           "setupBehavior": "noninteractive-install-with-onboarding-or-setup-deferred",
-          "postInstallAuthority": "refresh-sdkwork-agents-code-engine-catalog-without-fabricated-availability"
+          "postInstallAuthority": "refresh-sdkwork-agents-agent-engine-catalog-without-fabricated-availability"
         },
         "providers": [
           {

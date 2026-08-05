@@ -3,19 +3,23 @@ import { defineLocaleModule } from '../resource.ts';
 export default defineLocaleModule('settings/engine', {
   settings: {
     engines: {
-      title: '\u4ee3\u7801\u5f15\u64ce\u4e0e\u6a21\u578b',
-      description: '\u4e3a\u6bcf\u4e2a\u4ee3\u7801\u5f15\u64ce\u9009\u62e9\u5185\u7f6e\u9ed8\u8ba4\u6a21\u578b\u3002',
-      sidebarTitle: '\u4ee3\u7801\u5f15\u64ce',
-      sidebarLabel: '\u4ee3\u7801\u5f15\u64ce\u5217\u8868',
+      title: '\u667a\u80fd\u4f53\u5f15\u64ce\u4e0e\u6a21\u578b',
+      description: '\u4e3a\u6bcf\u4e2a\u667a\u80fd\u4f53\u5f15\u64ce\u9009\u62e9\u5185\u7f6e\u9ed8\u8ba4\u6a21\u578b\u3002',
+      sidebarTitle: '\u667a\u80fd\u4f53\u5f15\u64ce',
+      sidebarLabel: '\u667a\u80fd\u4f53\u5f15\u64ce\u5217\u8868',
       makeDefault: '\u8bbe\u4e3a\u9ed8\u8ba4',
       defaultEngineUpdated:
-        '\u5df2\u5c06\u9ed8\u8ba4\u4ee3\u7801\u5f15\u64ce\u5207\u6362\u4e3a {{engine}}\u3002',
+        '\u5df2\u5c06\u9ed8\u8ba4\u667a\u80fd\u4f53\u5f15\u64ce\u5207\u6362\u4e3a {{engine}}\u3002',
       defaultBadge: '\u9ed8\u8ba4',
       engineTabs: '\u5f15\u64ce\u6807\u7b7e',
       modelCount: '{{count}} \u4e2a\u6a21\u578b',
       defaultModel: '\u9ed8\u8ba4\u6a21\u578b',
       defaultModelDesc:
         '\u5f53\u8be5\u5f15\u64ce\u88ab\u6fc0\u6d3b\u7528\u4e8e\u65b0\u4e00\u8f6e\u5bf9\u8bdd\u65f6\u4f7f\u7528\u3002',
+      kindCode: '\u7f16\u7801',
+      kindWork: '\u5de5\u4f5c',
+      kindSimple: '\u7b80\u5355',
+      kindUnknown: '\u672a\u77e5',
       primaryLane: '\u4e3b\u901a\u9053',
       authorityPath: '\u6743\u5a01\u6267\u884c\u8def\u5f84',
       runtimeMode: '\u8fd0\u884c\u65b9\u5f0f',

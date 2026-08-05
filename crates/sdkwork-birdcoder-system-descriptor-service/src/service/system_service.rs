@@ -36,9 +36,17 @@ impl<R: RouteCatalogProvider> SystemService<R> {
         }
     }
 
-    pub fn health(&self) -> HealthPayload {
+    /// Reports the System health payload. `dependencies_healthy` comes from
+    /// the composed dependency readiness check (owner API contributions), so
+    /// the endpoint reflects real availability instead of a hard-coded
+    /// healthy status.
+    pub fn health(&self, dependencies_healthy: bool) -> HealthPayload {
         HealthPayload {
-            status: "healthy".to_owned(),
+            status: if dependencies_healthy {
+                "healthy".to_owned()
+            } else {
+                "not_healthy".to_owned()
+            },
         }
     }
 

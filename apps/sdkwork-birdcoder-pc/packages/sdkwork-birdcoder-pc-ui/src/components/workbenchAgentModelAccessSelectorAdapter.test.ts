@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelAccessCatalogSnapshot } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import type {
-  WorkbenchCodeEngineDefinition,
-  WorkbenchCodeEngineModelDefinition,
+  WorkbenchAgentEngineDefinition,
+  WorkbenchAgentEngineModelDefinition,
   WorkbenchUnifiedCustomAgentModelDefinition,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 
 import {
   createWorkbenchAgentModelAccessSelectorCatalog,
@@ -27,7 +27,7 @@ const catalogModel = {
   source: 'agents-catalog',
 } as const;
 
-const engine: WorkbenchCodeEngineDefinition = {
+const engine: WorkbenchAgentEngineDefinition = {
   id: 'codex',
   agentId: 'agent.codex',
   bindingId: 'binding.agent.codex',
@@ -38,6 +38,7 @@ const engine: WorkbenchCodeEngineDefinition = {
   modelCatalog: [catalogModel],
   modelIds: [catalogModel.id],
   tier: 'official-sdk',
+  engineKind: 'code',
   defaultAccessModeId: '',
   accessModes: [],
 };
@@ -108,14 +109,14 @@ describe('workbench Agent model access selector adapter', () => {
   });
 
   it('skips engine models whose vendor cannot be resolved', () => {
-    const unknownVendorModel: WorkbenchCodeEngineModelDefinition = {
+    const unknownVendorModel: WorkbenchAgentEngineModelDefinition = {
       ...catalogModel,
       id: 'mystery-model',
       label: 'Mystery model',
       modelVendor: 'unknown',
       vendor: 'unknown',
     };
-    const engineWithUnknownVendorModel: WorkbenchCodeEngineDefinition = {
+    const engineWithUnknownVendorModel: WorkbenchAgentEngineDefinition = {
       ...engine,
       models: [catalogModel, unknownVendorModel],
       modelCatalog: [catalogModel, unknownVendorModel],

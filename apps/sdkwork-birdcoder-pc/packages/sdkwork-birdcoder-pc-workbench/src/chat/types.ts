@@ -49,7 +49,7 @@ export {
   composeAgentSessionTranscriptActivity,
   readTaskProgressCounter,
   resolvePreferredAgentSessionItemToolProtocolAdapterId,
-  resolveBirdCoderCodeEngineCommandInteractionState,
+  resolveBirdCoderAgentEngineCommandInteractionState,
   resolveAgentTurnActivityPresentation,
   resolveAgentSessionItemPresentation,
   resolveAgentSessionItemPresentations,

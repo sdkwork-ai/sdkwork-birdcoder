@@ -10,11 +10,11 @@ import {
 import { Check, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import type { WorkbenchCodeEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import type { WorkbenchAgentEngineAccessModeDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import { FullAccessConfirmationDialog } from './FullAccessConfirmationDialog';
 
 interface ComposerAccessModeControlProps {
-  accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
+  accessModes: readonly WorkbenchAgentEngineAccessModeDefinition[];
   disabled: boolean;
   engineId: string;
   isOpen: boolean;
@@ -23,7 +23,7 @@ interface ComposerAccessModeControlProps {
   selectedAccessModeId: string;
 }
 
-function getAccessModeIcon(mode: WorkbenchCodeEngineAccessModeDefinition) {
+function getAccessModeIcon(mode: WorkbenchAgentEngineAccessModeDefinition) {
   if (mode.riskLevel === 'unrestricted') {
     return ShieldAlert;
   }
@@ -117,7 +117,7 @@ export function ComposerAccessModeControl({
     window.requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
-  const handleModeSelect = (mode: WorkbenchCodeEngineAccessModeDefinition) => {
+  const handleModeSelect = (mode: WorkbenchAgentEngineAccessModeDefinition) => {
     if (mode.riskLevel === 'unrestricted' && mode.id !== selectedMode?.id) {
       onOpenChange(false);
       setPendingAccessModeId(mode.id);

@@ -550,18 +550,18 @@ assert.match(
 );
 assert.match(
   mockServer,
-  /\/app\/v3\/api\/ai\/code_engines[\s\S]*createBirdCoderDataEnvelope\(createCodeEngineCatalogFixture\(\)\)/u,
-  'PC mock API must expose the canonical authenticated Agents code-engine catalog envelope.',
+  /\/app\/v3\/api\/ai\/agent_engines[\s\S]*createBirdCoderDataEnvelope\(createAgentEngineCatalogFixture\(\)\)/u,
+  'PC mock API must expose the canonical authenticated Agents agent-engine catalog envelope.',
 );
 assert.doesNotMatch(
   webMain,
-  /loadWorkbenchCodeEngineCatalog/u,
-  'PC runtime bootstrap must not request the authenticated code-engine catalog before IAM authentication completes.',
+  /loadWorkbenchAgentEngineCatalog/u,
+  'PC runtime bootstrap must not request the authenticated agent-engine catalog before IAM authentication completes.',
 );
 assert.match(
   appContent,
-  /if \(isAuthLoading\)[\s\S]*if \(!isAuthenticated\)[\s\S]*resetWorkbenchCodeEngineCatalog\(\)[\s\S]*loadWorkbenchCodeEngineCatalog\(\)/u,
-  'PC app content must load the code-engine catalog only after authentication and clear it outside an authenticated session.',
+  /if \(isAuthLoading\)[\s\S]*if \(!isAuthenticated\)[\s\S]*resetWorkbenchAgentEngineCatalog\(\)[\s\S]*loadWorkbenchAgentEngineCatalog\(\)/u,
+  'PC app content must load the agent-engine catalog only after authentication and clear it outside an authenticated session.',
 );
 
 assert.match(

@@ -24,7 +24,18 @@ pub struct ApiAssembly {
 }
 
 pub async fn assemble_api_router(config: &BirdServerConfig) -> Result<ApiAssembly, String> {
-    let birdcoder = bootstrap::build_application(config)
+    assemble_api_router_with_readiness(config, None).await
+}
+
+/// Assembles the BirdCoder owner contribution with an optional composed
+/// dependency readiness check. The gateway passes the combined owner readiness
+/// (IAM, Agents, Drive, ...) so the System health endpoint reports real
+/// dependency availability instead of a hard-coded healthy status.
+pub async fn assemble_api_router_with_readiness(
+    config: &BirdServerConfig,
+    readiness_check: Option<Arc<dyn ReadinessCheck>>,
+) -> Result<ApiAssembly, String> {
+    let birdcoder = bootstrap::build_application(config, readiness_check.clone())
         .await
         .map_err(|error| error.to_string())?;
     let openapi = sdkwork_web_contract::build_openapi_document(
@@ -50,6 +61,6 @@ pub async fn assemble_api_router(config: &BirdServerConfig) -> Result<ApiAssembl
         openapi,
         permission_catalog,
         domain_context_injectors: Vec::new(),
-        readiness_check: Arc::new(AlwaysReady),
+        readiness_check: readiness_check.unwrap_or_else(|| Arc::new(AlwaysReady)),
     })
 }

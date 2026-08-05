@@ -117,7 +117,7 @@ export default defineLocaleModule('chat', {
     roleReviewer: 'Reviewer',
     roleTool: 'Tool',
     roleSystem: 'System',
-    codeEngine: 'Code Engine',
+    agentEngine: 'Agent Engine',
     newSessionProviderCurrent: 'Current provider: {{provider}}',
     newSessionProviderOption: '{{provider}}, {{model}}',
     selectNewSessionProvider: 'Select provider',

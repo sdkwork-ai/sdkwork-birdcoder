@@ -75,7 +75,7 @@ assert.match(
 
 assert.match(
   activityLifecycleSource,
-  /function resolveChatCommandLifecycleTone\([\s\S]*command\.runtimeStatus === 'terminated'[\s\S]*return 'cancelled'[\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(command\)/,
+  /function resolveChatCommandLifecycleTone\([\s\S]*command\.runtimeStatus === 'terminated'[\s\S]*return 'cancelled'[\s\S]*resolveBirdCoderAgentEngineCommandInteractionState\(command\)/,
   'Provider-terminated commands must render as cancelled before the public three-state status can misclassify them as failures.',
 );
 
@@ -93,20 +93,20 @@ assert.doesNotMatch(
 
 assert.match(
   activityLifecycleSource,
-  /resolveBirdCoderCodeEngineCommandInteractionState\(/,
-  'UniversalChat command cards must consume the shared code-engine interaction state resolver.',
+  /resolveBirdCoderAgentEngineCommandInteractionState\(/,
+  'UniversalChat command cards must consume the shared agent-engine interaction state resolver.',
 );
 
 assert.match(
   activityLifecycleSource,
-  /const interactionState = resolveBirdCoderCodeEngineCommandInteractionState\(command\);[\s\S]*interactionState\.requiresReply[\s\S]*interactionState\.requiresApproval/,
+  /const interactionState = resolveBirdCoderAgentEngineCommandInteractionState\(command\);[\s\S]*interactionState\.requiresReply[\s\S]*interactionState\.requiresApproval/,
   'UniversalChat command cards must ignore stale wait flags through the shared settled-command interaction state.',
 );
 
 assert.doesNotMatch(
   activityLifecycleSource,
   /command\.runtimeStatus === 'awaiting_user'|command\.kind === 'user_question'|command\.runtimeStatus === 'awaiting_approval'|command\.kind === 'approval'/,
-  'UniversalChat must not duplicate code-engine waiting-state dialect checks locally.',
+  'UniversalChat must not duplicate agent-engine waiting-state dialect checks locally.',
 );
 
 assert.match(

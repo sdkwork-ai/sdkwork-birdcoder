@@ -115,7 +115,7 @@ assert.doesNotMatch(
 );
 assert.match(
   activityLifecycleSource,
-  /function resolveChatCommandLifecycleTone\([\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(command\)/,
+  /function resolveChatCommandLifecycleTone\([\s\S]*resolveBirdCoderAgentEngineCommandInteractionState\(command\)/,
   'Visible command rows and live announcements must share one provider-neutral command lifecycle resolver.',
 );
 assert.match(

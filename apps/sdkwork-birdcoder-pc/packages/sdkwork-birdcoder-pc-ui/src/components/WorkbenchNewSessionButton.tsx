@@ -11,15 +11,15 @@ import {
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import {
   getWorkbenchCodeModelLabel,
-  resolveWorkbenchCodeEngineSelectedModelId,
+  resolveWorkbenchAgentEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import {
   filterWorkbenchModeCatalogEngines,
   listWorkbenchModeProviderAvailability,
   type WorkbenchMode,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar' | 'work-sidebar';
 
@@ -152,7 +152,7 @@ function WorkbenchNewSessionButtonComponent({
         ...catalog.preferredSelection,
         engine: preferredEngine,
         engineId: preferredEngine.id,
-        modelId: resolveWorkbenchCodeEngineSelectedModelId(
+        modelId: resolveWorkbenchAgentEngineSelectedModelId(
           preferredEngine.id,
           preferences,
           preferredEngine.id === catalog.preferredSelection.engine.id
@@ -404,7 +404,7 @@ function WorkbenchNewSessionButtonComponent({
             <SquarePen size={18} className="shrink-0 text-gray-300" aria-hidden="true" />
           ) : (
             <span className="shrink-0">
-              <WorkbenchCodeEngineIcon engineId={preferredSelection.engine.id} />
+              <WorkbenchAgentEngineIcon engineId={preferredSelection.engine.id} />
             </span>
           )}
           {variant !== 'topbar' || !compact ? (
@@ -444,7 +444,7 @@ function WorkbenchNewSessionButtonComponent({
           </div>
           {menuItems.map((item, index) => {
             const engineModelId = item.engine
-              ? resolveWorkbenchCodeEngineSelectedModelId(item.engine.id, preferences)
+              ? resolveWorkbenchAgentEngineSelectedModelId(item.engine.id, preferences)
               : '';
             const engineModelLabel =
               (item.engine
@@ -484,7 +484,7 @@ function WorkbenchNewSessionButtonComponent({
                 }}
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <WorkbenchCodeEngineIcon engineId={item.id} />
+                  <WorkbenchAgentEngineIcon engineId={item.id} />
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate">{item.label}</span>
                     <span className="truncate text-[11px] text-gray-500">

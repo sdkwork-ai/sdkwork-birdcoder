@@ -26,13 +26,16 @@ WORKDIR /opt/sdkwork-birdcoder
 ENV SDKWORK_BIRDCODER_APP_ROOT=/opt/sdkwork-birdcoder
 ENV SDKWORK_OPENAPI_SNAPSHOT_PATH=/opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json
 
-COPY deployments/docker/profiles/default.env /opt/sdkwork-birdcoder/deploy/profiles/default.env
-COPY --chown=birdcoder:birdcoder deployments/server-windows/x64/openapi/birdcoder-app-api.openapi.json /opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json
-COPY --chown=birdcoder:birdcoder artifacts/release/server /opt/sdkwork-birdcoder/
-COPY --chown=birdcoder:birdcoder artifacts/release/server-binary /opt/sdkwork-birdcoder/
+# Build context is the unpacked container release bundle root. The packaging
+# gate (scripts/release/package-release-assets.mjs) refuses to stage a Windows
+# host-native binary into Linux release assets, so server/bin can only carry a
+# Linux executable built by `pnpm build:server` on a Linux runner.
+COPY --chown=birdcoder:birdcoder server/bin/sdkwork-birdcoder-standalone-gateway /opt/sdkwork-birdcoder/server/bin/sdkwork-birdcoder-standalone-gateway
+COPY --chown=birdcoder:birdcoder openapi/birdcoder-app-api.openapi.json /opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json
+COPY --chown=birdcoder:birdcoder deploy/docker/profiles/default.env /opt/sdkwork-birdcoder/deploy/profiles/default.env
 
 RUN chown -R birdcoder:birdcoder /opt/sdkwork-birdcoder && \
-    chmod +x /opt/sdkwork-birdcoder/server-binary 2>/dev/null || true
+    chmod +x /opt/sdkwork-birdcoder/server/bin/sdkwork-birdcoder-standalone-gateway
 
 USER birdcoder
 
@@ -41,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 EXPOSE 18989
 
-CMD ["bash", "-lc", "exec /opt/sdkwork-birdcoder/server-binary"]
+CMD ["/opt/sdkwork-birdcoder/server/bin/sdkwork-birdcoder-standalone-gateway"]

@@ -12,8 +12,8 @@ export type {
 } from './components/DevicePreview';
 export { resolveSafePreviewUrl } from './components/previewUrlSecurity';
 
-export { WorkbenchCodeEngineIcon } from './components/WorkbenchCodeEngineIcon';
-export type { WorkbenchCodeEngineIconProps } from './components/WorkbenchCodeEngineIcon';
+export { WorkbenchAgentEngineIcon } from './components/WorkbenchAgentEngineIcon';
+export type { WorkbenchAgentEngineIconProps } from './components/WorkbenchAgentEngineIcon';
 export {
   PROVIDER_VISUAL_TONE_CLASS_NAMES,
   resolveProviderVisualIdentity,

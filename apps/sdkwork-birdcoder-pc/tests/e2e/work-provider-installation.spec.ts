@@ -31,7 +31,7 @@ async function bootstrapAuthenticatedSession(
 
 async function hideWorkProvidersFromCatalog(page: Page): Promise<() => number> {
   let requestCount = 0;
-  await page.route('**/app/v3/api/ai/code_engines', async (route) => {
+  await page.route('**/app/v3/api/ai/agent_engines', async (route) => {
     requestCount += 1;
     const response = await route.fetch();
     const payload = await response.json() as {

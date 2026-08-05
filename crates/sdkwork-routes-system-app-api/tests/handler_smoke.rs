@@ -8,7 +8,6 @@ use sdkwork_routes_system_app_api::{build_system_app_router, SystemAppState};
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };
-
 fn test_state() -> SystemAppState {
     SystemAppState::with_runtime(
         SYSTEM_APP_API_ROUTES,
@@ -129,4 +128,62 @@ async fn birdcoder_no_longer_exposes_local_session_operations() {
         .expect("serve removed operation request");
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+struct FailingReadiness;
+
+impl sdkwork_web_bootstrap::ReadinessCheck for FailingReadiness {
+    fn check(
+        &self,
+    ) -> sdkwork_web_bootstrap::ReadinessFuture<'_> {
+        Box::pin(async { Err("iam-database-unavailable".to_owned()) })
+    }
+}
+
+struct ReadyReadiness;
+
+impl sdkwork_web_bootstrap::ReadinessCheck for ReadyReadiness {
+    fn check(
+        &self,
+    ) -> sdkwork_web_bootstrap::ReadinessFuture<'_> {
+        Box::pin(async { Ok(()) })
+    }
+}
+
+#[tokio::test]
+async fn health_reports_real_dependency_availability() {
+    async fn health_status(state: SystemAppState) -> String {
+        let response = build_system_app_router()
+            .with_state(state)
+            .oneshot(with_request_context(
+                Request::builder()
+                    .uri("/app/v3/api/system/health")
+                    .body(Body::empty())
+                    .expect("build health request"),
+                true,
+            ))
+            .await
+            .expect("serve health request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("read health body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse health response");
+        json["data"]["item"]["status"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    }
+
+    // Default state (no explicit readiness) must report healthy.
+    assert_eq!(health_status(test_state()).await, "healthy");
+
+    // A composed readiness check that fails must surface not_healthy.
+    let failing_state = test_state().with_readiness_check(std::sync::Arc::new(FailingReadiness));
+    assert_eq!(health_status(failing_state).await, "not_healthy");
+
+    // A ready composed check must keep the endpoint healthy.
+    let ready_state = test_state().with_readiness_check(std::sync::Arc::new(ReadyReadiness));
+    assert_eq!(health_status(ready_state).await, "healthy");
 }

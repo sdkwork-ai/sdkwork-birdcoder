@@ -6,21 +6,21 @@ import {
   composeAgentSessionTranscriptActivity,
   isAgentSessionItemVisibleInTranscript,
   resolveAgentTurnActivityPresentation,
-  resolveBirdCoderCodeEngineCommandInteractionState,
+  resolveBirdCoderAgentEngineCommandInteractionState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
-  findWorkbenchCodeEngineDefinition,
-  getWorkbenchCodeEngineDefinition,
+  findWorkbenchAgentEngineDefinition,
+  getWorkbenchAgentEngineDefinition,
   getWorkbenchCodeModelLabel,
-  listWorkbenchServerImplementedCodeEngines,
-  normalizeWorkbenchServerImplementedCodeEngineId,
+  listWorkbenchServerImplementedAgentEngines,
+  normalizeWorkbenchServerImplementedAgentEngineId,
   normalizeWorkbenchCodeModelId,
-  resolveWorkbenchCodeEngineSelectedAccessModeId,
-  resolveWorkbenchCodeEngineSelectedModelAccessChannelId,
-  resolveWorkbenchCodeEngineSelectedModelId,
+  resolveWorkbenchAgentEngineSelectedAccessModeId,
+  resolveWorkbenchAgentEngineSelectedModelAccessChannelId,
+  resolveWorkbenchAgentEngineSelectedModelId,
   useModelCatalogLoaded,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import {
   filterWorkbenchModeCatalogEngines,
   matchesWorkbenchModeEngineId,
@@ -65,8 +65,8 @@ import {
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import {
-  setWorkbenchCodeEngineAccessMode,
-  setWorkbenchCodeEngineModelAccessChannel,
+  setWorkbenchAgentEngineAccessMode,
+  setWorkbenchAgentEngineModelAccessChannel,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/preferences';
 import type {
   AgentModelAccessSelection,
@@ -1503,8 +1503,8 @@ export const UniversalChat = memo(function UniversalChat({
     composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
       ? composerSelectionOverride
       : null;
-  const controlledSelectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    selectedEngineId ?? preferences.codeEngineId,
+  const controlledSelectedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+    selectedEngineId ?? preferences.agentEngineId,
     preferences,
   );
   const hasControlledSelectedModelId =
@@ -1516,14 +1516,14 @@ export const UniversalChat = memo(function UniversalChat({
     { allowUnknown: hasControlledSelectedModelId },
   );
   const resolvedSelectedEngineId = activeComposerSelectionOverride
-    ? normalizeWorkbenchServerImplementedCodeEngineId(
+    ? normalizeWorkbenchServerImplementedAgentEngineId(
         activeComposerSelectionOverride.engineId,
         preferences,
       )
     : controlledSelectedEngineId;
   const catalogLoaded = useModelCatalogLoaded();
   const availableEngines = useMemo(
-    () => listWorkbenchServerImplementedCodeEngines(preferences),
+    () => listWorkbenchServerImplementedAgentEngines(preferences),
     [preferences, catalogLoaded],
   );
   const workbenchMode = normalizeWorkbenchMode(preferences.workbenchMode);
@@ -1539,7 +1539,7 @@ export const UniversalChat = memo(function UniversalChat({
     () => createWorkbenchModelAccessFallbackModels(modeAvailableEngines),
     [modeAvailableEngines],
   );
-  // Fallback models derive from the global code-engine catalog, whose snapshot
+  // Fallback models derive from the global agent-engine catalog, whose snapshot
   // identity flips whenever the AppContent catalog effect resets or reloads it
   // (token refreshes included). They only shape the result of a failed or
   // short catalog load, so fetch effects must read the latest value through a
@@ -1734,7 +1734,7 @@ export const UniversalChat = memo(function UniversalChat({
   const runEngineModelConfigEnsure = useCallback(async (
     engineId: string,
   ): Promise<EnsureWorkbenchEngineModelConfigurationResult | null> => {
-    const normalizedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+    const normalizedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
       engineId,
       preferences,
     );
@@ -1750,18 +1750,18 @@ export const UniversalChat = memo(function UniversalChat({
     }
     const promise = (async () => {
       try {
-        const engineDefinition = findWorkbenchCodeEngineDefinition(
+        const engineDefinition = findWorkbenchAgentEngineDefinition(
           normalizedEngineId,
           preferences,
-        ) ?? getWorkbenchCodeEngineDefinition(normalizedEngineId, preferences);
-        const selectedModelId = resolveWorkbenchCodeEngineSelectedModelId(
+        ) ?? getWorkbenchAgentEngineDefinition(normalizedEngineId, preferences);
+        const selectedModelId = resolveWorkbenchAgentEngineSelectedModelId(
           normalizedEngineId,
           preferences,
         );
         const selectedModel = engineDefinition.models.find(
           (model) => model.id === selectedModelId,
         ) ?? engineDefinition.models.find((model) => model.defaultForEngine);
-        const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+        const preferenceChannelId = resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
           normalizedEngineId,
           preferences,
         );
@@ -1877,8 +1877,8 @@ export const UniversalChat = memo(function UniversalChat({
     ],
   );
   const currentEngine =
-    findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
-    getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
+    findWorkbenchAgentEngineDefinition(resolvedSelectedEngineId, preferences) ??
+    getWorkbenchAgentEngineDefinition(resolvedSelectedEngineId, preferences);
   const {
     capabilities: composerProviderCapabilities,
     error: composerProviderCapabilitiesError,
@@ -1899,7 +1899,7 @@ export const UniversalChat = memo(function UniversalChat({
     : controlledSelectedModelId;
   const selectedProvider =
     !showComposerEngineSelector && selectedEngineId ? selectedEngineId : resolvedSelectedEngineId;
-  const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId(
+  const selectedProviderModelId = resolveWorkbenchAgentEngineSelectedModelId(
     selectedProvider,
     preferences,
     selectedProvider === resolvedSelectedEngineId ? currentModelId : undefined,
@@ -1918,7 +1918,7 @@ export const UniversalChat = memo(function UniversalChat({
     currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
-  const currentAccessModeId = resolveWorkbenchCodeEngineSelectedAccessModeId(
+  const currentAccessModeId = resolveWorkbenchAgentEngineSelectedAccessModeId(
     resolvedSelectedEngineId,
     preferences,
   );
@@ -1935,7 +1935,7 @@ export const UniversalChat = memo(function UniversalChat({
   const effectiveSelectedModelAccessChannelId = resolveWorkbenchModelAccessChannelId(
     agentModelAccessSelectorCatalog,
     currentAgentModelOptionId,
-    resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+    resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
       resolvedSelectedEngineId,
       preferences,
     ),
@@ -1972,7 +1972,7 @@ export const UniversalChat = memo(function UniversalChat({
     setModelAccessSearchQuery(query);
   }, []);
   const handleAccessModeSelect = useCallback((accessModeId: string) => {
-    updatePreferences((previousPreferences) => setWorkbenchCodeEngineAccessMode(
+    updatePreferences((previousPreferences) => setWorkbenchAgentEngineAccessMode(
       previousPreferences,
       resolvedSelectedEngineId,
       accessModeId,
@@ -1998,7 +1998,7 @@ export const UniversalChat = memo(function UniversalChat({
   }, [addToast, setInputValue, t]);
   const newSessionProviderOptions = useMemo<UniversalChatNewSessionProviderOption[]>(
     () => modeAvailableEngines.map((engine) => {
-      const modelId = resolveWorkbenchCodeEngineSelectedModelId(
+      const modelId = resolveWorkbenchAgentEngineSelectedModelId(
         engine.id,
         preferences,
         engine.id === resolvedSelectedEngineId ? currentModelId : undefined,
@@ -2016,7 +2016,7 @@ export const UniversalChat = memo(function UniversalChat({
     modelId: string,
     allowUnknownModel = false,
   ) => {
-    const normalizedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+    const normalizedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
       engineId,
       preferences,
     );
@@ -2161,7 +2161,7 @@ export const UniversalChat = memo(function UniversalChat({
       throw error;
     }
 
-    updatePreferences((previousPreferences) => setWorkbenchCodeEngineModelAccessChannel(
+    updatePreferences((previousPreferences) => setWorkbenchAgentEngineModelAccessChannel(
       previousPreferences,
       resolvedSelectedEngineId,
       stableChannelCode,
@@ -2400,7 +2400,7 @@ export const UniversalChat = memo(function UniversalChat({
         projectedChannel,
       )
     ));
-    updatePreferences((previousPreferences) => setWorkbenchCodeEngineModelAccessChannel(
+    updatePreferences((previousPreferences) => setWorkbenchAgentEngineModelAccessChannel(
       previousPreferences,
       resolvedSelectedEngineId,
       configurationId,
@@ -2444,7 +2444,7 @@ export const UniversalChat = memo(function UniversalChat({
       };
     });
     updatePreferences((previousPreferences) => {
-      const engineSettings = { ...previousPreferences.codeEngineSettings };
+      const engineSettings = { ...previousPreferences.agentEngineSettings };
       let changed = false;
       for (const engineId of Object.keys(engineSettings)) {
         const settings = engineSettings[engineId];
@@ -2454,19 +2454,19 @@ export const UniversalChat = memo(function UniversalChat({
           changed = true;
         }
       }
-      return changed ? { ...previousPreferences, codeEngineSettings: engineSettings } : previousPreferences;
+      return changed ? { ...previousPreferences, agentEngineSettings: engineSettings } : previousPreferences;
     });
     // The deleted channel may still be bound in the agents runtime (its
     // configuration is in-memory). Re-ensure the engine configuration so the
     // engine falls back to the official BirdCoder relay default (or the next
     // stored selection) instead of the CLI's own config, and a deleted
     // credential is never reused.
-    const preferenceChannelId = resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+    const preferenceChannelId = resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
       resolvedSelectedEngineId,
       preferences,
     )?.trim().toLowerCase();
     if (preferenceChannelId === stableChannelCode.trim().toLowerCase()) {
-      const fallbackModelId = resolveWorkbenchCodeEngineSelectedModelId(
+      const fallbackModelId = resolveWorkbenchAgentEngineSelectedModelId(
         resolvedSelectedEngineId,
         preferences,
       );
@@ -2482,7 +2482,7 @@ export const UniversalChat = memo(function UniversalChat({
     userModelConfigService,
   ]);
   const handleNewSessionProviderSelect = useCallback((engineId: string) => {
-    const modelId = resolveWorkbenchCodeEngineSelectedModelId(
+    const modelId = resolveWorkbenchAgentEngineSelectedModelId(
       engineId,
       preferences,
       engineId === resolvedSelectedEngineId ? currentModelId : undefined,
@@ -4287,7 +4287,7 @@ export const UniversalChat = memo(function UniversalChat({
               <div className="min-w-0">
                 <div className="min-w-0">
                   <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                    {t('chat.codeEngine')}
+                    {t('chat.agentEngine')}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="truncate whitespace-nowrap font-semibold text-white">

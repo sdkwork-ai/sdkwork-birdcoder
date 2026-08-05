@@ -36,6 +36,13 @@ function walkFiles(relativeRoot, predicate) {
 }
 
 const appSdkEntry = 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts';
+// TypeScript accepts both `./sdks/...` (no baseUrl) and `sdks/...` (baseUrl)
+// forms for the same resolved module; normalize the leading `./` so the
+// boundary assertion is about the target file, not the tsconfig path style.
+function normalizeTsconfigTarget(target) {
+  return String(target).replace(/\\/gu, '/').replace(/^\.\//u, '');
+}
+
 for (const [relativePath, expectedAlias] of [
   ['tsconfig.json', appSdkEntry],
   ['tsconfig.runtime.json', appSdkEntry],
@@ -44,7 +51,7 @@ for (const [relativePath, expectedAlias] of [
 ]) {
   const config = readJson(relativePath);
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/birdcoder-app-sdk'],
+    (config.compilerOptions?.paths?.['@sdkwork/birdcoder-app-sdk'] ?? []).map(normalizeTsconfigTarget),
     [expectedAlias],
     `${relativePath} must resolve the application-root App SDK facade.`,
   );

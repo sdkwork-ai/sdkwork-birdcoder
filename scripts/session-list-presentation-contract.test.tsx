@@ -23,7 +23,7 @@ import {
   resolveSessionRuntimeStatusPresentation,
   type SessionRuntimeStatusLabels,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/SessionRuntimeStatusSlot.tsx';
-import { WorkbenchCodeEngineIcon } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchCodeEngineIcon.tsx';
+import { WorkbenchAgentEngineIcon } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchAgentEngineIcon.tsx';
 import {
   resolveProviderVisualIdentity,
   resolveProviderVisualToneClassName,
@@ -263,7 +263,7 @@ for (const [engineId, expectedAbbreviation, expectedId, expectedTone] of provide
     <SessionProviderBadge engineId={engineId} />,
   );
   const newSessionIconHtml = renderToStaticMarkup(
-    <WorkbenchCodeEngineIcon engineId={engineId} />,
+    <WorkbenchAgentEngineIcon engineId={engineId} />,
   );
 
   assert.deepEqual(visualIdentity, {
@@ -333,7 +333,7 @@ const fallbackSessionBadgeHtml = renderToStaticMarkup(
   <SessionProviderBadge providerId="provider.acme-cloud" />,
 );
 const fallbackNewSessionIconHtml = renderToStaticMarkup(
-  <WorkbenchCodeEngineIcon engineId="acme-cloud" />,
+  <WorkbenchAgentEngineIcon engineId="acme-cloud" />,
 );
 const fallbackVisualIdentity = resolveProviderVisualIdentity('provider.acme-cloud');
 assert.match(fallbackSessionBadgeHtml, /data-session-provider-abbreviation="AC"/u);

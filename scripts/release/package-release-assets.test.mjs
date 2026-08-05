@@ -742,4 +742,75 @@ withFixture(() => {
   );
 });
 
+// Linux server/container packaging must fail closed when the only available
+// binary is a Windows host-native fallback (MZ/PE payload), instead of
+// silently shipping a non-runnable executable under a Linux file name.
+withFixture((fixtureRoot) => {
+  writeWebDistFixture(fixtureRoot);
+  writeDocsDistFixture(fixtureRoot);
+  writeServerFixture(fixtureRoot);
+
+  // Replace the fixture binaries with a Windows PE fallback at the
+  // host-native candidate path exactly the way a Windows host would produce
+  // it (binary without target triple, `.exe` name). The packager must refuse
+  // to stage it into Linux release assets.
+  const windowsFallbackDir = path.join(fixtureRoot, 'target', 'release');
+  fs.mkdirSync(windowsFallbackDir, { recursive: true });
+  const windowsFallbackPath = path.join(windowsFallbackDir, `${SERVER_BINARY_NAME}.exe`);
+  writeFile(windowsFallbackPath, 'MZ\u0000\u0000windows-pe-fixture');
+  fs.rmSync(path.join(fixtureRoot, 'target', SERVER_BINARY_TARGET), { recursive: true, force: true });
+
+  assertThrowsWithMessage(
+    () => packageReleaseAssets('server', {
+      profile: 'sdkwork-birdcoder',
+      'release-tag': 'release-local',
+      platform: 'linux',
+      arch: 'x64',
+      target: SERVER_BINARY_TARGET,
+      'output-dir': 'artifacts/release',
+    }),
+    /Refusing to package server release assets for Linux from the Windows host-native binary.*Run `pnpm build:server` on the Linux CI runner/u,
+  );
+
+  assertThrowsWithMessage(
+    () => packageReleaseAssets('container', {
+      profile: 'sdkwork-birdcoder',
+      'release-tag': 'release-local',
+      platform: 'linux',
+      arch: 'x64',
+      target: SERVER_BINARY_TARGET,
+      accelerator: 'cpu',
+      'output-dir': 'artifacts/release',
+    }),
+    /Refusing to package container release assets for Linux from the Windows host-native binary.*Run `pnpm build:server` on the Linux CI runner/u,
+  );
+});
+
+// A Linux-named binary that still carries a Windows MZ header (renamed PE
+// payload) must also be rejected: an MZ header is never a valid ELF entry.
+withFixture((fixtureRoot) => {
+  writeWebDistFixture(fixtureRoot);
+  writeDocsDistFixture(fixtureRoot);
+  writeServerFixture(fixtureRoot);
+
+  const linuxTargetDir = path.join(fixtureRoot, 'target', SERVER_BINARY_TARGET, 'release');
+  fs.mkdirSync(linuxTargetDir, { recursive: true });
+  writeFile(
+    path.join(linuxTargetDir, SERVER_BINARY_NAME),
+    'MZ\u0000\u0000renamed-windows-pe-fixture',
+  );
+
+  assertThrowsWithMessage(
+    () => packageReleaseAssets('server', {
+      profile: 'sdkwork-birdcoder',
+      'release-tag': 'release-local',
+      platform: 'linux',
+      arch: 'x64',
+      target: SERVER_BINARY_TARGET,
+      'output-dir': 'artifacts/release',
+    }),
+    /Refusing to package server release assets for Linux: .* is a Windows PE executable \(MZ header\)/u,
+  );
+});
+
 console.log('package release assets contract passed.');

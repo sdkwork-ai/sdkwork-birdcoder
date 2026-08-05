@@ -3,7 +3,7 @@ export * from './GeneralSettings';
 export * from './AppearanceSettings';
 export * from './VoiceSettings';
 export * from './KeyboardShortcutsSettings';
-export * from './CodeEngineSettings';
+export * from './AgentEngineSettings';
 export * from './ModelManagementSettings';
 export * from './ConfigSettings';
 export * from './PersonalizationSettings';

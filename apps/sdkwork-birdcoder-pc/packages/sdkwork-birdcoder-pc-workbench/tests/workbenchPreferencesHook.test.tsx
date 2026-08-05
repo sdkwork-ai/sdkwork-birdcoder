@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useWorkbenchPreferences } from '../src/hooks/useWorkbenchPreferences.ts';
 import {
-  replaceWorkbenchCodeEngineCatalogForTesting,
-  resetWorkbenchCodeEngineCatalog,
-} from '../src/workbench/codeEngineCatalog.ts';
+  replaceWorkbenchAgentEngineCatalogForTesting,
+  resetWorkbenchAgentEngineCatalog,
+} from '../src/workbench/agentEngineCatalog.ts';
 
 const catalogEntry = {
   accessModes: [],
@@ -30,16 +30,17 @@ const catalogEntry = {
   ],
   providerId: 'provider.openai',
   tier: 'official-sdk',
+  engineKind: 'code' as const,
 };
 
 beforeEach(() => {
   localStorage.clear();
-  replaceWorkbenchCodeEngineCatalogForTesting([catalogEntry]);
+  replaceWorkbenchAgentEngineCatalogForTesting([catalogEntry]);
 });
 
 afterEach(() => {
   cleanup();
-  resetWorkbenchCodeEngineCatalog();
+  resetWorkbenchAgentEngineCatalog();
   localStorage.clear();
 });
 

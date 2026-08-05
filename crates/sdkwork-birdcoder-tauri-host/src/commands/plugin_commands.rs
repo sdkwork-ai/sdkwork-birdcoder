@@ -3,6 +3,18 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::filesystem_commands::{
+    register_allowed_fs_root, resolve_root_directory_path,
+};
+
+/// Upper bound on plugin manifest / skill payloads read during discovery so a
+/// hostile or corrupted plugin directory cannot force unbounded in-memory
+/// materialization.
+const MAX_PLUGIN_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_PLUGIN_SKILL_BYTES: u64 = 256 * 1024;
+/// Upper bound on skill entries discovered per plugin.
+const MAX_PLUGIN_SKILL_ENTRIES: usize = 256;
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalPluginSkillSnapshot {
@@ -47,13 +59,13 @@ fn discover_codex_plugin_manifest(manifest_path: &Path, snapshot: &mut LocalPlug
     let Some(root) = manifest_path.parent().and_then(Path::parent) else {
         return;
     };
-    let raw = match fs::read_to_string(manifest_path) {
+    let raw = match read_file_bounded(manifest_path, MAX_PLUGIN_MANIFEST_BYTES) {
         Ok(raw) => raw,
         Err(error) => {
             snapshot.errors.push(error_snapshot(
                 manifest_path,
                 "permission-denied",
-                error.to_string(),
+                error,
             ));
             return;
         }
@@ -95,13 +107,17 @@ fn discover_codex_plugin_manifest(manifest_path: &Path, snapshot: &mut LocalPlug
     if skills_root.is_dir() {
         if let Ok(entries) = fs::read_dir(&skills_root) {
             for entry in entries.flatten() {
+                if skills.len() >= MAX_PLUGIN_SKILL_ENTRIES {
+                    break;
+                }
                 let path = if entry.path().is_dir() {
                     entry.path().join("SKILL.md")
                 } else {
                     entry.path()
                 };
                 if path.file_name().is_some_and(|n| n == "SKILL.md") && path.is_file() {
-                    let raw_skill = fs::read_to_string(&path).unwrap_or_default();
+                    let raw_skill =
+                        read_file_bounded(&path, MAX_PLUGIN_SKILL_BYTES).unwrap_or_default();
                     let mut skill_name = None;
                     let mut description = None;
                     for line in raw_skill.lines().take(32) {
@@ -141,7 +157,7 @@ fn discover_codex_plugin_manifest(manifest_path: &Path, snapshot: &mut LocalPlug
     let mcp_servers = value
         .get("mcpServers")
         .and_then(Value::as_str)
-        .and_then(|p| fs::read_to_string(root.join(p.trim_start_matches("./"))).ok())
+        .and_then(|p| read_file_bounded(&root.join(p.trim_start_matches("./")), MAX_PLUGIN_MANIFEST_BYTES).ok())
         .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
         .and_then(|value| value.as_object().map(|v| v.keys().cloned().collect()))
         .unwrap_or_default();
@@ -168,6 +184,20 @@ fn error_snapshot(path: &Path, kind: &str, message: String) -> LocalPluginLoadEr
         kind: kind.to_string(),
         message,
     }
+}
+
+/// Reads a plugin payload up to `max_bytes`. Files larger than the budget are
+/// rejected instead of being materialized in host memory, so a hostile or
+/// corrupted plugin directory cannot force an unbounded allocation.
+fn read_file_bounded(path: &Path, max_bytes: u64) -> Result<String, String> {
+    let metadata =
+        fs::metadata(path).map_err(|error| format!("failed to inspect plugin file: {error}"))?;
+    if metadata.len() > max_bytes {
+        return Err(format!(
+            "plugin file exceeds the {max_bytes}-byte discovery budget"
+        ));
+    }
+    fs::read_to_string(path).map_err(|error| format!("failed to read plugin file: {error}"))
 }
 
 fn default_roots(provider_id: &str) -> Vec<PathBuf> {
@@ -225,6 +255,7 @@ fn discover_simple_provider(
                             path: path.to_string_lossy().into_owned(),
                         })
                     })
+                    .take(MAX_PLUGIN_SKILL_ENTRIES)
                     .collect::<Vec<_>>();
                 if !skills.is_empty() {
                     snapshot.plugins.push(LocalPluginSnapshot {
@@ -352,12 +383,28 @@ pub async fn local_plugin_catalog_discover(
     } else {
         roots.into_iter().map(PathBuf::from).collect()
     };
+    // Every discovery root must be an authorized desktop filesystem root. The
+    // renderer supplies paths, so an arbitrary directory (for example a
+    // private user folder) must not be readable through plugin discovery:
+    // authorization fails closed with a diagnostic instead of enumerating it.
+    let mut authorized_roots = Vec::<PathBuf>::new();
+    for root in &configured_roots {
+        match resolve_authorized_plugin_root(root) {
+            Ok(canonical_root) => authorized_roots.push(canonical_root),
+            Err(error) => snapshot.errors.push(LocalPluginLoadErrorSnapshot {
+                provider_id: provider_id.clone(),
+                path: Some(root.to_string_lossy().into_owned()),
+                kind: "unauthorized-root".to_string(),
+                message: error,
+            }),
+        }
+    }
     if provider_id != "provider.plugin.codex" {
-        discover_simple_provider(&provider_id, &configured_roots, &mut snapshot);
+        discover_simple_provider(&provider_id, &authorized_roots, &mut snapshot);
         return Ok(snapshot);
     }
     let mut manifests = Vec::<PathBuf>::new();
-    for root in configured_roots {
+    for root in authorized_roots {
         let direct = root.join(".codex-plugin/plugin.json");
         if direct.is_file() {
             manifests.push(direct);
@@ -377,4 +424,17 @@ pub async fn local_plugin_catalog_discover(
         discover_codex_plugin_manifest(&manifest, &mut snapshot);
     }
     Ok(snapshot)
+}
+
+/// Resolves a plugin discovery root through the desktop filesystem
+/// authorization boundary. The root must exist, be a directory, and be
+/// registered as an allowed filesystem root (either through the mount
+/// registry or the default provider plugin roots).
+fn resolve_authorized_plugin_root(root: &Path) -> Result<PathBuf, String> {
+    // Default provider roots live under the user home or the current
+    // directory; registering them through the same boundary used by the
+    // desktop host keeps plugin discovery inside the host authorization
+    // model instead of a separate trust domain.
+    register_allowed_fs_root(root.to_path_buf())?;
+    resolve_root_directory_path(&root.to_string_lossy())
 }

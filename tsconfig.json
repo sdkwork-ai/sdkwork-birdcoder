@@ -17,6 +17,39 @@
       "lucide-react": [
         "./node_modules/lucide-react"
       ],
+      "@sdkwork/appbase-pc-react": [
+        "./apps/sdkwork-birdcoder-pc/src/appbase-public-types/appbase-pc-react.d.ts"
+      ],
+      "@sdkwork/auth-pc-react": [
+        "./apps/sdkwork-birdcoder-pc/src/appbase-public-types/auth-pc-react.d.ts"
+      ],
+      "@sdkwork/search-pc-react": [
+        "./apps/sdkwork-birdcoder-pc/src/appbase-public-types/search-pc-react.d.ts"
+      ],
+      "@sdkwork/user-pc-react": [
+        "./apps/sdkwork-birdcoder-pc/src/appbase-public-types/user-pc-react.d.ts"
+      ],
+      "@sdkwork/wallet-pc-react": [
+        "./apps/sdkwork-birdcoder-pc/src/appbase-public-types/wallet-pc-react.d.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-runtime": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime/src/index.ts"
+      ],
+      "@sdkwork/iam-service": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/runtime-bootstrap": [
+        "../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "./sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
       "sdkwork-birdcoder-commons/shell": [
         "./apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/shell.ts"
       ],

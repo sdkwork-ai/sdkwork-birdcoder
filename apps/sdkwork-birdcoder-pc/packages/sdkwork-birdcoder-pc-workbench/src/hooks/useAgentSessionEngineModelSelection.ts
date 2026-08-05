@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { resolveWorkbenchCodeEngineSelectedModelId } from '../workbench/codeEngineCatalog.ts';
+import { resolveWorkbenchAgentEngineSelectedModelId } from '../workbench/agentEngineCatalog.ts';
 
 import type { WorkbenchPreferences } from '../workbench/preferences.ts';
 
@@ -27,7 +27,7 @@ export function useAgentSessionEngineModelSelection({
 
       setSelectedEngineId(engineId);
 
-      const nextModelId = resolveWorkbenchCodeEngineSelectedModelId(
+      const nextModelId = resolveWorkbenchAgentEngineSelectedModelId(
         engineId,
         preferences,
       );

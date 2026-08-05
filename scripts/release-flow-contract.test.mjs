@@ -395,18 +395,18 @@ try {
 
 assert.match(
   dockerfileSource,
-  /COPY deployments\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
-  'Container Dockerfile must copy default.env from the source-tree deployments/docker context used by docker buildx.',
+  /COPY --chown=birdcoder:birdcoder deploy\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
+  'Container Dockerfile must copy default.env from the unpacked bundle deploy/docker context used by docker buildx.',
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder artifacts\/release\/server \/opt\/sdkwork-birdcoder\//u,
-  'Container Dockerfile must copy the packaged server runtime bundle into the image.',
+  /COPY --chown=birdcoder:birdcoder server\/bin\/sdkwork-birdcoder-standalone-gateway \/opt\/sdkwork-birdcoder\/server\/bin\/sdkwork-birdcoder-standalone-gateway/u,
+  'Container Dockerfile must copy the packaged Linux server binary from the unpacked bundle into the image.',
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder artifacts\/release\/server-binary \/opt\/sdkwork-birdcoder\//u,
-  'Container Dockerfile must copy the packaged server binary into the image.',
+  /COPY --chown=birdcoder:birdcoder openapi\/birdcoder-app-api\.openapi\.json \/opt\/sdkwork-birdcoder\/openapi\/birdcoder-app-api\.openapi\.json/u,
+  'Container Dockerfile must copy the packaged OpenAPI snapshot from the unpacked bundle into the image.',
 );
 assert.doesNotMatch(
   dockerfileSource,

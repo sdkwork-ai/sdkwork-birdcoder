@@ -19,7 +19,7 @@ import {
   getWorkbenchWorkProviderInstallationDefinition,
   type WorkbenchWorkProviderInstallationResult,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/workProviderInstallation';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 type InstallDialogPhase = 'confirm' | 'installing' | 'success' | 'error';
 
@@ -181,7 +181,7 @@ export function WorkProviderInstallDialog({
       >
         <div className="flex items-start gap-3 border-b border-white/[0.08] px-5 py-4">
           <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/[0.07]">
-            <WorkbenchCodeEngineIcon engineId={providerId} />
+            <WorkbenchAgentEngineIcon engineId={providerId} />
           </span>
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-[15px] font-semibold text-white">

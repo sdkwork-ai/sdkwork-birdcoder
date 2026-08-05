@@ -95,6 +95,20 @@ const EXECUTION_PROVIDER_VISUAL_IDENTITIES: readonly KnownProviderVisualIdentity
     label: 'Hermes Agent',
     tone: 'violet',
   },
+  {
+    abbreviation: 'MM',
+    aliases: ['mimo', 'mimo-code'],
+    id: 'mimo-code',
+    label: 'MiMo Code',
+    tone: 'fuchsia',
+  },
+  {
+    abbreviation: 'RG',
+    aliases: ['rig'],
+    id: 'rig',
+    label: 'Rig',
+    tone: 'lime',
+  },
 ];
 
 const PROVIDER_VISUAL_IDENTITIES: Readonly<Record<string, ProviderVisualIdentity>> = {

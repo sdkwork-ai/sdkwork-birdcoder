@@ -132,20 +132,39 @@ pub(crate) fn preflight_application(
     })
 }
 
-#[cfg(windows)]
-fn build_shell_command(command: &str, working_directory: &Path) -> Command {
-    let mut process = Command::new("cmd.exe");
-    process
-        .args(["/D", "/S", "/C", command])
-        .current_dir(working_directory);
-    process
-}
-
-#[cfg(not(windows))]
-fn build_shell_command(command: &str, working_directory: &Path) -> Command {
-    let mut process = Command::new("sh");
-    process.args(["-c", command]).current_dir(working_directory);
-    process
+/// Builds a structured process for a manifest build command. The command was
+/// validated by `is_safe_manifest_command` (no shell operators or quote
+/// characters), so it is executed as an argument vector directly instead of
+/// being concatenated into `cmd /C` or `sh -c`: this keeps renderer-controlled
+/// manifest content from escalating to arbitrary shell execution.
+///
+/// On Windows a `.cmd`/`.bat` script cannot be spawned directly as a process
+/// (the OS requires `cmd.exe` to interpret it), so scripts with those exact
+/// extensions are launched through `cmd /c` with the script path passed as a
+/// single argument; every other command stays fully structured.
+fn build_structured_command(command: &str, working_directory: &Path) -> Result<Command, String> {
+    let mut tokens = command.split_whitespace();
+    let executable = tokens.next().ok_or_else(|| "manifest command is empty".to_owned())?;
+    let remaining_args = tokens.collect::<Vec<_>>();
+    #[cfg(windows)]
+    {
+        let lowered = executable.to_ascii_lowercase();
+        if lowered.ends_with(".cmd") || lowered.ends_with(".bat") {
+            let mut process = Command::new("cmd.exe");
+            // `/D /C` with the script as a single quoted-free argument: the
+            // script path was already validated to contain no shell
+            // characters, so no additional escaping is needed.
+            process
+                .args(["/D", "/C"])
+                .arg(executable)
+                .args(remaining_args)
+                .current_dir(working_directory);
+            return Ok(process);
+        }
+    }
+    let mut process = Command::new(executable);
+    process.args(remaining_args).current_dir(working_directory);
+    Ok(process)
 }
 
 async fn read_bounded<R>(mut reader: R) -> (Vec<u8>, bool)
@@ -218,7 +237,12 @@ async fn execute_manifest_command(
     target: &BuildTarget,
     working_directory: &Path,
 ) -> Result<ApplicationPublishDiagnostic, ApplicationPublishError> {
-    let mut process = build_shell_command(&target.command, working_directory);
+    let mut process = build_structured_command(&target.command, working_directory).map_err(|_| {
+        ApplicationPublishError::new(
+            "APPLICATION_PUBLISH_BUILD_START_FAILED",
+            "The manifest build command could not be started.",
+        )
+    })?;
     process
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -479,21 +503,37 @@ mod tests {
 
     fn build_command() -> &'static str {
         if cfg!(windows) {
-            "echo fixture>artifact.bin"
+            "build-fixture.cmd"
         } else {
-            "printf fixture > artifact.bin"
+            "./build-fixture.sh"
         }
     }
 
     fn unselected_build_command() -> &'static str {
         if cfg!(windows) {
-            "echo unexpected>not-selected.bin"
+            "not-selected.cmd"
         } else {
-            "printf unexpected > not-selected.bin"
+            "./not-selected.sh"
         }
     }
 
     fn write_manifest(root: &Path, command: &str) {
+        // The publish command contract rejects shell operators in manifest
+        // commands, so the fixture scripts carry the shell-level work
+        // (redirection) and the manifest references the scripts as plain
+        // executable tokens.
+        let script_body = if cfg!(windows) {
+            "@echo off\r\necho fixture>artifact.bin\r\n"
+        } else {
+            "#!/bin/sh\nprintf fixture > artifact.bin\n"
+        };
+        fs::write(root.join(if cfg!(windows) { "build-fixture.cmd" } else { "build-fixture.sh" }), script_body)
+            .expect("publish fixture build script");
+        fs::write(
+            root.join(if cfg!(windows) { "not-selected.cmd" } else { "not-selected.sh" }),
+            if cfg!(windows) { "@echo off\r\necho unexpected>not-selected.bin\r\n" } else { "#!/bin/sh\nprintf unexpected > not-selected.bin\n" },
+        )
+        .expect("publish fixture not-selected script");
         fs::write(
             root.join("sdkwork.app.config.json"),
             serde_json::json!({

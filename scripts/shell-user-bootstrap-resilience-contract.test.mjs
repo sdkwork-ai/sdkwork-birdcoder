@@ -38,7 +38,7 @@ assert.match(
 
 assert.match(
   bootstrapUserStateSource,
-  /await runBootstrapTaskWithTimeout\([\s\S]*'code engine model config synchronization'[\s\S]*syncWorkbenchCodeEngineModelConfig\(/,
+  /await runBootstrapTaskWithTimeout\([\s\S]*'agent engine model config synchronization'[\s\S]*syncWorkbenchAgentEngineModelConfig\(/,
   'Code-engine model-config synchronization must run through the bounded bootstrap helper.',
 );
 
@@ -50,7 +50,7 @@ assert.match(
 
 assert.match(
   bootstrapUserStateSource,
-  /ensureCodeEngineModelConfigSynchronized\(options\)[\s\S]*\.then\(\(\) => persistLocalUserState\(\)\)[\s\S]*SHELL_USER_STATE_BOOTSTRAP_TIMEOUT_MS/,
+  /ensureAgentEngineModelConfigSynchronized\(options\)[\s\S]*\.then\(\(\) => persistLocalUserState\(\)\)[\s\S]*SHELL_USER_STATE_BOOTSTRAP_TIMEOUT_MS/,
   'The combined model-config plus local-state startup path must also be bounded by the user-state bootstrap timeout.',
 );
 

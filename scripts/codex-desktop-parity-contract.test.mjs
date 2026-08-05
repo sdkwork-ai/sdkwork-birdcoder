@@ -1285,7 +1285,7 @@ const requiredBlockerContracts = [
       taskRecordSha256:
         "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
       aiApiSha256:
-        "5f2d0530d934d76d6762bfd9f7da27d494f821646a9b5ea19ab8c82566e508ff",
+        "eacbc2e2c994ab83b7e4a30b8a4a49bff3fd1fe3dd062b803291d6412ffedc93",
     },
     requiredContractExtensions: [
       "expose generated App SDK operations for user-visible Run reconciliation and recovery",
@@ -1350,7 +1350,7 @@ const requiredBlockerContracts = [
     observedRuntimeFacts: [
       "Streaming HTTP requests attach a bounded TurnExecutionStreamSink, wait only for the first signal, and then forward ordered chunks through Body::from_stream while execution continues",
       "RuntimeFacadeTurnExecutor forwards provider-neutral model chunks and Kernel events into the HTTP sink while retaining a bounded terminal copy for persistence",
-      "Turn execution reuses a process-wide AgentsCodeEngineHost; the Codex runtime prefers one resident app-server transport while retaining explicitly governed SDK or CLI compatibility fallbacks",
+      "Turn execution reuses a process-wide AgentsAgentEngineHost; the Codex runtime prefers one resident app-server transport while retaining explicitly governed SDK or CLI compatibility fallbacks",
       "AgentTurnRecord persists no model request id or transport execution handle",
       "Live stream items are persisted only from the terminal collected stream_events after provider execution returns, so restart-safe event replay and active execution recovery remain unavailable",
       "cancel_turn marks the repository record cancelled and writes audit events without invoking Kernel cancellation",
@@ -1473,10 +1473,10 @@ const requiredBlockerContracts = [
         orderedContains: [
           "fn complete_with_stream_sink(",
           "execute_runtime_facade_turn(input, true, Some(sink))",
-          "shared_code_engine_host()",
+          "shared_agent_engine_host()",
           "host.slot(engine_key)",
           "if prefer_stream {",
-          "execute_code_engine_turn_with_stream_sink(slot, &turn_input, &mut facade_sink)",
+          "execute_agent_engine_turn_with_stream_sink(slot, &turn_input, &mut facade_sink)",
           "stream_deltas: output.stream_deltas",
         ],
       },
@@ -1505,13 +1505,13 @@ const requiredBlockerContracts = [
         label: "Default facade streaming entrypoint discards the live sink",
         path: "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs",
         scope: {
-          startMarker: "pub fn execute_code_engine_turn_with_stream(",
+          startMarker: "pub fn execute_agent_engine_turn_with_stream(",
           endMarker:
             "/// Execute a turn and forward each provider-neutral model chunk as it arrives.",
         },
         orderedContains: [
           "let mut sink = DiscardingModelStreamSink;",
-          "execute_code_engine_turn_with_stream_sink(slot, input, &mut sink)",
+          "execute_agent_engine_turn_with_stream_sink(slot, input, &mut sink)",
         ],
       },
       {

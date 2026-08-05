@@ -126,10 +126,24 @@ pub fn inspect_project_git_diff(
     if untracked_paths.len() > GIT_DIFF_MAX_UNTRACKED_FILES {
         truncated = true;
     }
+    // The overall diff response budget is enforced *while* untracked patches
+    // accumulate, not only after every file has been materialized: each
+    // per-file diff can retain up to 2 MiB, so without an early stop 256
+    // untracked files could hold ~512 MiB in host memory before truncation.
+    // Once the accumulated patch reaches the response limit we stop spawning
+    // further git subprocesses and mark the diff truncated.
     for untracked_path in untracked_paths
         .into_iter()
         .take(GIT_DIFF_MAX_UNTRACKED_FILES)
     {
+        if patch.len() >= GIT_DIFF_RESPONSE_LIMIT_BYTES {
+            truncated = true;
+            break;
+        }
+        let remaining_budget = GIT_DIFF_RESPONSE_LIMIT_BYTES - patch.len();
+        // Retain only what still fits the response budget per file: the
+        // trailing window keeps the head of a huge untracked file observable
+        // without materializing its full patch.
         let untracked_patch = run_git_with_limits(
             &[
                 "diff",
@@ -148,7 +162,17 @@ pub fn inspect_project_git_diff(
             if !patch.is_empty() && !patch.ends_with('\n') {
                 patch.push('\n');
             }
-            patch.push_str(&untracked_patch);
+            let retained_untracked = if untracked_patch.len() > remaining_budget {
+                truncated = true;
+                truncate_utf8(untracked_patch, remaining_budget).0
+            } else {
+                untracked_patch
+            };
+            patch.push_str(&retained_untracked);
+        }
+        if patch.len() >= GIT_DIFF_RESPONSE_LIMIT_BYTES {
+            truncated = true;
+            break;
         }
     }
 

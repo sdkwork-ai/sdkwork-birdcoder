@@ -440,7 +440,10 @@ if (reportOnly) {
   for (const violation of violations) {
     console.log(`- ${normalizePath(violation)}`);
   }
-  process.exit(0);
+  // The report mode is a diagnostic view, not a bypass: it must still fail
+  // the process when violations exist so a CI lane bound to the report
+  // variant cannot turn the ownership gate green by accident.
+  process.exit(violations.length > 0 ? 1 : 0);
 }
 
 assert.deepEqual(

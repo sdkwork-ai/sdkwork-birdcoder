@@ -16,7 +16,7 @@ vi.mock('react-i18next', () => ({
       'settings.sidebar.archivedSessions': 'Archived Tasks',
       'settings.sidebar.browser': 'Browser',
       'settings.sidebar.clearSearch': 'Clear settings search',
-      'settings.sidebar.codeEngines': 'Code Engines & Models',
+      'settings.sidebar.agentEngines': 'Agent Engines & Models',
       'settings.sidebar.collapseNavigation': 'Collapse settings navigation',
       'settings.sidebar.computerControl': 'Computer Control',
       'settings.sidebar.config': 'Config',

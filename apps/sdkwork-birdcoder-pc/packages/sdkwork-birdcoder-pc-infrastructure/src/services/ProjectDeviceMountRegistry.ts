@@ -678,10 +678,13 @@ async function recoverTauriStoredProjectMount(
       const storedOwnerKey = normalizeMountOwnerKey(directMount.ownerKey);
       if (storedProjectId && storedOwnerKey && ownerKeys.includes(storedOwnerKey)) {
         const migratedMount = enrichTauriStoredProjectMount(directMount, projectId, subject);
-        if (await writeTauriStoredProjectMount(key, migratedMount)) {
-          return (await prepareTauriStoredProjectMount(projectId, subject))
-            ? migratedMount
-            : null;
+        // Re-authorize the persisted path before writing: the host only
+        // accepts mount records whose path is an authorized desktop root, and
+        // the authorization registry is process-local (empty after restart).
+        if (await prepareTauriStoredProjectMount(projectId, subject)) {
+          if (await writeTauriStoredProjectMount(key, migratedMount)) {
+            return migratedMount;
+          }
         }
       }
       return null;
@@ -699,12 +702,13 @@ async function recoverTauriStoredProjectMount(
         : null;
     }
     const canonicalMount = enrichTauriStoredProjectMount(directMount, projectId, subject);
+    if (!(await prepareTauriStoredProjectMount(projectId, subject))) {
+      return null;
+    }
     if (!(await writeTauriStoredProjectMount(key, canonicalMount))) {
       return null;
     }
-    return (await prepareTauriStoredProjectMount(projectId, subject))
-      ? canonicalMount
-      : null;
+    return canonicalMount;
   }
 
   const invoke = await resolveBirdCoderTauriInvoke();
@@ -747,27 +751,31 @@ async function recoverTauriStoredProjectMount(
       return null;
     }
     const migratedMount = enrichTauriStoredProjectMount(recoveredMount, projectId, subject);
+    // Re-authorize before writing (the host authorization registry is
+    // process-local and empty after restart).
+    if (!(await prepareTauriStoredProjectMount(projectId, subject))) {
+      return null;
+    }
     if (!(await writeTauriStoredProjectMount(key, migratedMount))) {
       return null;
     }
     if (recoveryEntry.key.toLowerCase() !== key.toLowerCase()) {
       await deleteTauriStoredProjectMount(recoveryEntry.key);
     }
-    return (await prepareTauriStoredProjectMount(projectId, subject))
-      ? migratedMount
-      : null;
+    return migratedMount;
   }
 
   const canonicalMount = enrichTauriStoredProjectMount(recoveredMount, projectId, subject);
+  if (!(await prepareTauriStoredProjectMount(projectId, subject))) {
+    return null;
+  }
   if (!(await writeTauriStoredProjectMount(key, canonicalMount))) {
     return null;
   }
   if (recoveryEntry.key.toLowerCase() !== key.toLowerCase()) {
     await deleteTauriStoredProjectMount(recoveryEntry.key);
   }
-  return (await prepareTauriStoredProjectMount(projectId, subject))
-    ? canonicalMount
-    : null;
+  return canonicalMount;
 }
 
 function toTauriRuntimeLocationBinding(

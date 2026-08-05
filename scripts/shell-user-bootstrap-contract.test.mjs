@@ -84,12 +84,12 @@ try {
     ),
   );
 
-  assert.equal(bootstrappedPreferences.codeEngineId, 'codex');
+  assert.equal(bootstrappedPreferences.agentEngineId, 'codex');
   assert.equal(bootstrappedRecoverySnapshot.activeTab, 'code');
   assert.equal(bootstrappedRecoverySnapshot.cleanExit, true);
 
   await preferencesModule.writeWorkbenchPreferences({
-    codeEngineId: 'gemini',
+    agentEngineId: 'gemini',
     codeModelId: 'gemini-1.5-pro',
     terminalProfileId: 'bash',
     defaultWorkingDirectory: 'D:/custom-workspace',
@@ -116,7 +116,7 @@ try {
   );
 
   assert.equal(
-    preservedPreferences.codeEngineId,
+    preservedPreferences.agentEngineId,
     'gemini',
     'shell bootstrap must preserve existing workbench preferences',
   );

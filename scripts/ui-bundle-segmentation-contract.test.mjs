@@ -78,7 +78,7 @@ for (const requiredShellExport of [
   'TopMenu',
   'ResizeHandle',
   'DevicePreview',
-  'WorkbenchCodeEngineIcon',
+  'WorkbenchAgentEngineIcon',
   'SessionTranscriptLoadingState',
   'useFixedSizeWindowedRange',
   'useRelativeMinuteNow',

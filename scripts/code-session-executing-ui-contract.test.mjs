@@ -26,12 +26,12 @@ const providerVisualIdentitySource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/providerVisualIdentity.ts', import.meta.url),
   'utf8',
 );
-const workbenchCodeEngineIconSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchCodeEngineIcon.tsx', import.meta.url),
+const workbenchAgentEngineIconSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchAgentEngineIcon.tsx', import.meta.url),
   'utf8',
 );
-const codeEngineCatalogSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codeEngineCatalog.ts', import.meta.url),
+const agentEngineCatalogSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentEngineCatalog.ts', import.meta.url),
   'utf8',
 );
 const enLocaleSource = fs.readFileSync(
@@ -60,7 +60,7 @@ assert.match(
 
 assert.doesNotMatch(
   projectExplorerSessionRowSource,
-  /WorkbenchCodeEngineIcon|data-session-engine-slot=/u,
+  /WorkbenchAgentEngineIcon|data-session-engine-slot=/u,
   'Code ProjectExplorer session rows must not present engine identity where provider identity belongs.',
 );
 
@@ -83,20 +83,20 @@ assert.match(
 );
 
 assert.match(
-  workbenchCodeEngineIconSource,
+  workbenchAgentEngineIconSource,
   /resolveProviderVisualIdentity\(\{ engineId \}\)/u,
   'New-session and engine icons must consume the shared provider visual registry.',
 );
 
 assert.doesNotMatch(
-  `${sessionProviderBadgeSource}\n${workbenchCodeEngineIconSource}`,
+  `${sessionProviderBadgeSource}\n${workbenchAgentEngineIconSource}`,
   /THEME_CLASS_BY_ID|ENGINE_PRESENTATION|KNOWN_SESSION_PROVIDER_BADGE_TONES/u,
   'Provider icon consumers must not maintain local theme registries.',
 );
 
 assert.doesNotMatch(
-  codeEngineCatalogSource,
-  /WorkbenchCodeEngineThemeId|\bmonogram:|\btheme:\s*resolveTheme|function\s+(?:buildMonogram|resolveTheme)\b/u,
+  agentEngineCatalogSource,
+  /WorkbenchAgentEngineThemeId|\bmonogram:|\btheme:\s*resolveTheme|function\s+(?:buildMonogram|resolveTheme)\b/u,
   'The engine catalog must not retain a second provider abbreviation or color authority.',
 );
 
@@ -108,7 +108,7 @@ assert.match(
 
 assert.doesNotMatch(
   sidebarSource,
-  /<WorkbenchCodeEngineIcon engineId=\{entry\.engineId\} \/>/u,
+  /<WorkbenchAgentEngineIcon engineId=\{entry\.engineId\} \/>/u,
   'Provider-group headings must not derive a misleading PR badge from an engine fallback.',
 );
 

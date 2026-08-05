@@ -214,7 +214,7 @@ connector, automation, and space navigation. Both modes continue to consume
 the same canonical Agents Project and Session facts.
 
 Provider admission is an explicit allowlist over the generated Agents
-code-engine catalog:
+agent-engine catalog:
 
 | Mode | Required tier | Engine ID | Agent ID |
 | --- | --- | --- | --- |
@@ -249,7 +249,7 @@ and reject unknown ids before invoking the host. Browser mode returns
 `desktop-required`.
 
 A successful installer exit is not availability authority. BirdCoder clears
-and reloads the generated Agents code-engine catalog, then enables task
+and reloads the generated Agents agent-engine catalog, then enables task
 creation only if the exact Work identity and usable model are published. It
 does not synthesize a catalog entry. The exact visibility, mapping, installer
 authorities, baselines, arguments, and post-install rule are machine-governed

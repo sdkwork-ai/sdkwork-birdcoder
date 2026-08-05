@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useTranslation } from 'react-i18next';
 import type {
   ProjectExplorerEngineOption,
@@ -87,7 +87,7 @@ export function ProjectExplorerProjectContextMenu({
           }}
         >
           <div className="flex items-center gap-2">
-            <WorkbenchCodeEngineIcon engineId={engine.id} />
+            <WorkbenchAgentEngineIcon engineId={engine.id} />
             <span>{t('code.newEngineSessionInProject', { engine: engine.label })}</span>
           </div>
         </button>

@@ -8,19 +8,19 @@ import {
 } from '../storage/localStore.ts';
 import {
   DEFAULT_WORKBENCH_CHAT_SELECTION,
-  findWorkbenchCodeEngineDefinition,
-  normalizeWorkbenchCodeEngineSettingsMap,
-  normalizeWorkbenchCodeEngineAccessModeId,
+  findWorkbenchAgentEngineDefinition,
+  normalizeWorkbenchAgentEngineSettingsMap,
+  normalizeWorkbenchAgentEngineAccessModeId,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchUnifiedCustomAgentModels,
-  normalizeWorkbenchServerImplementedCodeEngineId,
+  normalizeWorkbenchServerImplementedAgentEngineId,
   resolveWorkbenchChatSelection,
   type WorkbenchChatSelection,
-  type WorkbenchCodeEngineId,
-  type WorkbenchCodeEngineSettingsMap,
+  type WorkbenchAgentEngineId,
+  type WorkbenchAgentEngineSettingsMap,
   type WorkbenchUnifiedCustomAgentModelDefinition,
   type WorkbenchModelAccessVendorOfferingDefinition,
-} from './codeEngineCatalog.ts';
+} from './agentEngineCatalog.ts';
 import {
   AGENT_SESSION_INBOX_FILTERS,
   AGENT_SESSION_INBOX_GROUP_MODES,
@@ -33,7 +33,7 @@ import { normalizeWorkbenchMode, type WorkbenchMode } from './workbenchMode.ts';
 
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
   workbenchMode: WorkbenchMode;
-  codeEngineSettings: WorkbenchCodeEngineSettingsMap;
+  agentEngineSettings: WorkbenchAgentEngineSettingsMap;
   unifiedCustomAgentModels: WorkbenchUnifiedCustomAgentModelDefinition[];
   disabledComposerCapabilityIds: string[];
   terminalProfileId: TerminalProfileId;
@@ -63,8 +63,12 @@ export type GitReviewDeliveryMode = (typeof GIT_REVIEW_DELIVERY_MODES)[number];
 
 interface WorkbenchPreferencesInput {
   workbenchMode?: string | null;
+  agentEngineId?: string | null;
+  /** Legacy persisted preference key, read for migration only. */
   codeEngineId?: string | null;
   codeModelId?: string | null;
+  agentEngineSettings?: unknown;
+  /** Legacy persisted preference key, read for migration only. */
   codeEngineSettings?: unknown;
   unifiedCustomAgentModels?: unknown;
   /** Legacy provider-partitioned preference key, read for migration only. */
@@ -128,7 +132,7 @@ const TERMINAL_PROFILE_ALIASES: Readonly<Record<string, TerminalProfileId>> = {
 export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   ...DEFAULT_WORKBENCH_CHAT_SELECTION,
   workbenchMode: 'coding',
-  codeEngineSettings: {},
+  agentEngineSettings: {},
   unifiedCustomAgentModels: [],
   disabledComposerCapabilityIds: [],
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
@@ -241,18 +245,27 @@ export function normalizeWorkbenchPreferences(
   const unifiedCustomAgentModels = normalizeWorkbenchUnifiedCustomAgentModels(
     value?.unifiedCustomAgentModels ?? value?.customCodeModels,
   );
-  const codeEngineSettings = normalizeWorkbenchCodeEngineSettingsMap(value?.codeEngineSettings, {
-    unifiedCustomAgentModels,
-  });
+  const agentEngineSettings = normalizeWorkbenchAgentEngineSettingsMap(
+    value?.agentEngineSettings ?? value?.codeEngineSettings,
+    {
+      unifiedCustomAgentModels,
+    },
+  );
   const terminalProfileId = normalizeWorkbenchTerminalProfileId(value?.terminalProfileId);
   const defaultWorkingDirectory = value?.defaultWorkingDirectory?.trim();
   return {
-    ...resolveWorkbenchChatSelection(value, {
-      codeEngineSettings,
-      unifiedCustomAgentModels,
-    }),
+    ...resolveWorkbenchChatSelection(
+      {
+        ...value,
+        agentEngineId: value?.agentEngineId ?? value?.codeEngineId,
+      },
+      {
+        agentEngineSettings,
+        unifiedCustomAgentModels,
+      },
+    ),
     workbenchMode: normalizeWorkbenchMode(value?.workbenchMode),
-    codeEngineSettings,
+    agentEngineSettings,
     unifiedCustomAgentModels,
     disabledComposerCapabilityIds: normalizeWorkbenchDisabledComposerCapabilityIds(
       value?.disabledComposerCapabilityIds,
@@ -330,20 +343,20 @@ const workbenchPreferencesStore: WorkbenchPreferencesStore = {
   },
 };
 
-function resolveKnownWorkbenchCodeEngineId(
+function resolveKnownWorkbenchAgentEngineId(
   engineId: string | null | undefined,
   preferences?: WorkbenchPreferences | null,
-): WorkbenchCodeEngineId | null {
-  return findWorkbenchCodeEngineDefinition(engineId, preferences)?.id ?? null;
+): WorkbenchAgentEngineId | null {
+  return findWorkbenchAgentEngineDefinition(engineId, preferences)?.id ?? null;
 }
 
-export function setWorkbenchCodeEngineDefaultModel(
+export function setWorkbenchAgentEngineDefaultModel(
   preferences: WorkbenchPreferences,
   engineId: string | null | undefined,
   modelId: string | null | undefined,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(engineId, normalizedPreferences);
+  const normalizedEngineId = resolveKnownWorkbenchAgentEngineId(engineId, normalizedPreferences);
   if (!normalizedEngineId) {
     return normalizedPreferences;
   }
@@ -354,15 +367,15 @@ export function setWorkbenchCodeEngineDefaultModel(
   );
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
-    codeEngineSettings: {
-      ...normalizedPreferences.codeEngineSettings,
+    agentEngineSettings: {
+      ...normalizedPreferences.agentEngineSettings,
       [normalizedEngineId]: {
-        ...normalizedPreferences.codeEngineSettings[normalizedEngineId],
+        ...normalizedPreferences.agentEngineSettings[normalizedEngineId],
         defaultModelId: resolvedModelId,
       },
     },
     codeModelId:
-      normalizedPreferences.codeEngineId === normalizedEngineId
+      normalizedPreferences.agentEngineId === normalizedEngineId
         ? resolvedModelId
         : normalizedPreferences.codeModelId,
   });
@@ -394,7 +407,7 @@ export function saveWorkbenchUnifiedCustomAgentModel(
   input: SaveWorkbenchUnifiedCustomAgentModelInput,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const engine = findWorkbenchCodeEngineDefinition(
+  const engine = findWorkbenchAgentEngineDefinition(
     input.activeProviderId,
     normalizedPreferences,
   );
@@ -429,30 +442,30 @@ export function saveWorkbenchUnifiedCustomAgentModel(
   ]);
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
-    codeEngineId: engine.id,
+    agentEngineId: engine.id,
     codeModelId: modelId,
     unifiedCustomAgentModels: nextCustomModels,
-    codeEngineSettings: {
-      ...normalizedPreferences.codeEngineSettings,
+    agentEngineSettings: {
+      ...normalizedPreferences.agentEngineSettings,
       [engine.id]: {
-        ...normalizedPreferences.codeEngineSettings[engine.id],
+        ...normalizedPreferences.agentEngineSettings[engine.id],
         defaultModelId: modelId,
       },
     },
   });
 }
 
-export function setWorkbenchCodeEngineAccessMode(
+export function setWorkbenchAgentEngineAccessMode(
   preferences: WorkbenchPreferences,
   engineId: string | null | undefined,
   accessModeId: string | null | undefined,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(engineId, normalizedPreferences);
+  const normalizedEngineId = resolveKnownWorkbenchAgentEngineId(engineId, normalizedPreferences);
   if (!normalizedEngineId) {
     return normalizedPreferences;
   }
-  const resolvedAccessModeId = normalizeWorkbenchCodeEngineAccessModeId(
+  const resolvedAccessModeId = normalizeWorkbenchAgentEngineAccessModeId(
     normalizedEngineId,
     accessModeId,
     normalizedPreferences,
@@ -460,15 +473,15 @@ export function setWorkbenchCodeEngineAccessMode(
   if (!resolvedAccessModeId) {
     return normalizedPreferences;
   }
-  const currentSettings = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  const currentSettings = normalizedPreferences.agentEngineSettings[normalizedEngineId];
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
-    codeEngineSettings: {
-      ...normalizedPreferences.codeEngineSettings,
+    agentEngineSettings: {
+      ...normalizedPreferences.agentEngineSettings,
       [normalizedEngineId]: {
         ...currentSettings,
         defaultModelId: currentSettings?.defaultModelId
-          ?? findWorkbenchCodeEngineDefinition(normalizedEngineId)?.defaultModelId
+          ?? findWorkbenchAgentEngineDefinition(normalizedEngineId)?.defaultModelId
           ?? '',
         accessModeId: resolvedAccessModeId,
       },
@@ -476,13 +489,13 @@ export function setWorkbenchCodeEngineAccessMode(
   });
 }
 
-export function setWorkbenchCodeEngineModelAccessChannel(
+export function setWorkbenchAgentEngineModelAccessChannel(
   preferences: WorkbenchPreferences,
   engineId: string | null | undefined,
   channelId: string | null | undefined,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(
+  const normalizedEngineId = resolveKnownWorkbenchAgentEngineId(
     engineId,
     normalizedPreferences,
   );
@@ -490,15 +503,15 @@ export function setWorkbenchCodeEngineModelAccessChannel(
   if (!normalizedEngineId || !modelAccessChannelId) {
     return normalizedPreferences;
   }
-  const currentSettings = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  const currentSettings = normalizedPreferences.agentEngineSettings[normalizedEngineId];
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
-    codeEngineSettings: {
-      ...normalizedPreferences.codeEngineSettings,
+    agentEngineSettings: {
+      ...normalizedPreferences.agentEngineSettings,
       [normalizedEngineId]: {
         ...currentSettings,
         defaultModelId: currentSettings?.defaultModelId
-          ?? findWorkbenchCodeEngineDefinition(normalizedEngineId)?.defaultModelId
+          ?? findWorkbenchAgentEngineDefinition(normalizedEngineId)?.defaultModelId
           ?? '',
         modelAccessChannelId,
       },
@@ -506,12 +519,12 @@ export function setWorkbenchCodeEngineModelAccessChannel(
   });
 }
 
-export function setWorkbenchActiveCodeEngine(
+export function setWorkbenchActiveAgentEngine(
   preferences: WorkbenchPreferences,
   engineId: string | null | undefined,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const resolvedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+  const resolvedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
     engineId,
     normalizedPreferences,
   );
@@ -519,7 +532,7 @@ export function setWorkbenchActiveCodeEngine(
     ...normalizedPreferences,
     ...resolveWorkbenchChatSelection(
       {
-        codeEngineId: resolvedEngineId,
+        agentEngineId: resolvedEngineId,
         codeModelId: normalizedPreferences.codeModelId,
       },
       normalizedPreferences,
@@ -533,23 +546,23 @@ export function setWorkbenchActiveChatSelection(
   modelId: string | null | undefined,
 ): WorkbenchPreferences {
   const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const resolvedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    resolveKnownWorkbenchCodeEngineId(engineId, normalizedPreferences)
+  const resolvedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+    resolveKnownWorkbenchAgentEngineId(engineId, normalizedPreferences)
       ?? engineId
-      ?? normalizedPreferences.codeEngineId,
+      ?? normalizedPreferences.agentEngineId,
     normalizedPreferences,
   );
   const selection = resolveWorkbenchChatSelection(
-    { codeEngineId: resolvedEngineId, codeModelId: modelId },
+    { agentEngineId: resolvedEngineId, codeModelId: modelId },
     normalizedPreferences,
   );
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
     ...selection,
-    codeEngineSettings: {
-      ...normalizedPreferences.codeEngineSettings,
+    agentEngineSettings: {
+      ...normalizedPreferences.agentEngineSettings,
       [resolvedEngineId]: {
-        ...normalizedPreferences.codeEngineSettings[resolvedEngineId],
+        ...normalizedPreferences.agentEngineSettings[resolvedEngineId],
         defaultModelId: selection.codeModelId,
       },
     },

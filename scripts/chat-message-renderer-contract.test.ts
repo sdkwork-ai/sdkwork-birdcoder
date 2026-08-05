@@ -333,7 +333,7 @@ assert.match(
 assert.match(
   providerPresentationProfilesSource,
   /engineId: 'codex'[\s\S]*engineId: 'claude-code'[\s\S]*engineId: 'opencode'[\s\S]*engineId: 'gemini'/,
-  'Provider presentation profiles must cover every built-in code engine.',
+  'Provider presentation profiles must cover every built-in agent engine.',
 );
 assert.match(
   enginePluginsSource,
@@ -422,7 +422,7 @@ assert.match(
 );
 assert.match(
   activitySummarySource,
-  /<ChatCommandActivityList[\s\S]*<ChatFileActivityList/,
+  /<ChatFileActivityList[\s\S]*<ChatCommandActivityList/,
   'The activity container must delegate independently evolving command and file details.',
 );
 assert.match(

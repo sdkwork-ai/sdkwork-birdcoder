@@ -5,7 +5,7 @@ import {
   getComposerCapabilityPreferenceId,
   useComposerProviderCapabilities,
 } from '@sdkwork/birdcoder-pc-workbench';
-import { findWorkbenchCodeEngineDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { findWorkbenchAgentEngineDefinition } from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import type { SettingsProps } from './types';
 import { PluginCapabilityList } from './plugins/PluginCapabilityList';
 import { PluginSettingsToolbar } from './plugins/PluginSettingsToolbar';
@@ -24,11 +24,11 @@ export function PluginSettings({
   const updatePreferences = updateWorkbenchPreferences ?? (() => undefined);
   const [activeTab, setActiveTab] = useState<PluginSettingsTab>('plugins');
   const [searchQuery, setSearchQuery] = useState('');
-  const activeEngine = findWorkbenchCodeEngineDefinition(
-    preferences.codeEngineId,
+  const activeEngine = findWorkbenchAgentEngineDefinition(
+    preferences.agentEngineId,
     preferences,
   );
-  const agentId = activeEngine?.agentId || preferences.codeEngineId;
+  const agentId = activeEngine?.agentId || preferences.agentEngineId;
   const {
     capabilities,
     error,

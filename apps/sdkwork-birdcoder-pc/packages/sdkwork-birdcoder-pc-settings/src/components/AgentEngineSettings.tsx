@@ -2,46 +2,78 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
-  loadWorkbenchCodeEngineCatalog,
-  normalizeWorkbenchServerImplementedCodeEngineId,
-  resolveWorkbenchCodeEngineSelectedModelId,
-  useWorkbenchCodeEngineCatalog,
-  type WorkbenchCodeEngineId,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+  loadWorkbenchAgentEngineCatalog,
+  normalizeWorkbenchServerImplementedAgentEngineId,
+  resolveWorkbenchAgentEngineSelectedModelId,
+  useWorkbenchAgentEngineCatalog,
+  type WorkbenchAgentEngineId,
+  type WorkbenchAgentEngineKind,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import {
-  setWorkbenchActiveCodeEngine,
-  setWorkbenchCodeEngineDefaultModel,
+  setWorkbenchActiveAgentEngine,
+  setWorkbenchAgentEngineDefaultModel,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
-import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { Button, WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 import type { SettingsProps } from './types';
 
-type CodeEngineSettingsSelectionProps = {
-  activeEngineId?: WorkbenchCodeEngineId;
-  setActiveEngineId?: (engineId: WorkbenchCodeEngineId) => void;
+type AgentEngineSettingsSelectionProps = {
+  activeEngineId?: WorkbenchAgentEngineId;
+  setActiveEngineId?: (engineId: WorkbenchAgentEngineId) => void;
 };
 
-function useSortedCodeEngines() {
-  const catalog = useWorkbenchCodeEngineCatalog();
+function useSortedAgentEngines() {
+  const catalog = useWorkbenchAgentEngineCatalog();
   return useMemo(
     () => [...catalog.engines].sort((left, right) => left.label.localeCompare(right.label)),
     [catalog.engines],
   );
 }
 
-export function CodeEngineSettingsSidebar({
+const ENGINE_KIND_TONE_CLASSES: Readonly<Record<WorkbenchAgentEngineKind, string>> = {
+  code: 'bg-emerald-500/15 text-emerald-300 ring-emerald-400/30',
+  work: 'bg-violet-500/15 text-violet-300 ring-violet-400/30',
+  simple: 'bg-sky-500/15 text-sky-300 ring-sky-400/30',
+  unknown: 'bg-white/5 text-gray-400 ring-white/10',
+};
+
+function engineKindLabelKey(kind: WorkbenchAgentEngineKind): string {
+  switch (kind) {
+    case 'code':
+      return 'settings.engines.kindCode';
+    case 'work':
+      return 'settings.engines.kindWork';
+    case 'simple':
+      return 'settings.engines.kindSimple';
+    default:
+      return 'settings.engines.kindUnknown';
+  }
+}
+
+function EngineKindBadge({ kind }: { kind: WorkbenchAgentEngineKind }) {
+  const { t } = useTranslation();
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ring-inset ${ENGINE_KIND_TONE_CLASSES[kind]}`}
+    >
+      {t(engineKindLabelKey(kind))}
+    </span>
+  );
+}
+
+export function AgentEngineSettingsSidebar({
   workbenchPreferences,
   activeEngineId,
   setActiveEngineId,
 }: Pick<SettingsProps, 'workbenchPreferences'> & {
-  activeEngineId: WorkbenchCodeEngineId;
-  setActiveEngineId: (engineId: WorkbenchCodeEngineId) => void;
+  activeEngineId: WorkbenchAgentEngineId;
+  setActiveEngineId: (engineId: WorkbenchAgentEngineId) => void;
 }) {
   const { t } = useTranslation();
-  const engines = useSortedCodeEngines();
-  const defaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    workbenchPreferences?.codeEngineId,
+  const engines = useSortedAgentEngines();
+  const defaultEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+    workbenchPreferences?.agentEngineId,
     workbenchPreferences,
   );
 
@@ -78,7 +110,7 @@ export function CodeEngineSettingsSidebar({
                   : 'border-white/10 bg-[#141417] text-gray-300 hover:border-white/20 hover:bg-white/5 hover:text-white'
               }`}
             >
-              <WorkbenchCodeEngineIcon engineId={engine.id} size="md" />
+              <WorkbenchAgentEngineIcon engineId={engine.id} size="md" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate text-sm font-medium">{engine.label}</span>
@@ -88,8 +120,11 @@ export function CodeEngineSettingsSidebar({
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">
-                  {t('settings.engines.modelCount', { count: engine.modelCatalog.length })}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <EngineKindBadge kind={engine.engineKind} />
+                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                    {t('settings.engines.modelCount', { count: engine.modelCatalog.length })}
+                  </span>
                 </div>
               </div>
             </button>
@@ -100,28 +135,28 @@ export function CodeEngineSettingsSidebar({
   );
 }
 
-export function CodeEngineSettings({
+export function AgentEngineSettings({
   workbenchPreferences,
   updateWorkbenchPreferences,
   activeEngineId: controlledActiveEngineId,
   setActiveEngineId: setControlledActiveEngineId,
 }: Pick<SettingsProps, 'workbenchPreferences' | 'updateWorkbenchPreferences'> &
-  CodeEngineSettingsSelectionProps) {
+  AgentEngineSettingsSelectionProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const engines = useSortedCodeEngines();
+  const engines = useSortedAgentEngines();
   const [internalActiveEngineId, setInternalActiveEngineId] = useState('');
   const activeEngineId = controlledActiveEngineId ?? internalActiveEngineId;
   const setActiveEngineId = setControlledActiveEngineId ?? setInternalActiveEngineId;
 
   useEffect(() => {
-    void loadWorkbenchCodeEngineCatalog().catch((error) => {
-      console.warn('[sdkwork-agents] failed to refresh code-engine catalog:', error);
+    void loadWorkbenchAgentEngineCatalog().catch((error) => {
+      console.warn('[sdkwork-agents] failed to refresh agent-engine catalog:', error);
     });
   }, []);
 
-  const defaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    workbenchPreferences?.codeEngineId,
+  const defaultEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+    workbenchPreferences?.agentEngineId,
     workbenchPreferences,
   );
   const activeEngine =
@@ -139,7 +174,7 @@ export function CodeEngineSettings({
 
   return (
     <div className="flex min-w-0 flex-1 bg-[#0e0e11]">
-      <CodeEngineSettingsSidebar
+      <AgentEngineSettingsSidebar
         activeEngineId={activeEngine?.id ?? activeEngineId}
         setActiveEngineId={setActiveEngineId}
         workbenchPreferences={workbenchPreferences}
@@ -153,10 +188,11 @@ export function CodeEngineSettings({
             <div className="rounded-xl border border-white/10 bg-[#18181b] p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                  <WorkbenchCodeEngineIcon engineId={activeEngine.id} size="md" />
+                  <WorkbenchAgentEngineIcon engineId={activeEngine.id} size="md" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium text-white">{activeEngine.label}</div>
+                      <EngineKindBadge kind={activeEngine.engineKind} />
                       {defaultEngineId === activeEngine.id ? (
                         <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
                           {t('settings.engines.defaultBadge')}
@@ -177,7 +213,7 @@ export function CodeEngineSettings({
                       onClick={() => {
                         setActiveEngineId(activeEngine.id);
                         updateWorkbenchPreferences((previousState) =>
-                          setWorkbenchActiveCodeEngine(previousState, activeEngine.id),
+                          setWorkbenchActiveAgentEngine(previousState, activeEngine.id),
                         );
                         addToast(
                           t('settings.engines.defaultEngineUpdated', {
@@ -195,7 +231,7 @@ export function CodeEngineSettings({
                     {t('settings.engines.defaultModel')}
                     <select
                       value={
-                        resolveWorkbenchCodeEngineSelectedModelId(
+                        resolveWorkbenchAgentEngineSelectedModelId(
                           activeEngineId,
                           workbenchPreferences,
                           activeEngine.defaultModelId,
@@ -203,7 +239,7 @@ export function CodeEngineSettings({
                       }
                       onChange={(event) => {
                         updateWorkbenchPreferences((previousState) =>
-                          setWorkbenchCodeEngineDefaultModel(
+                          setWorkbenchAgentEngineDefaultModel(
                             previousState,
                             activeEngine.id,
                             event.target.value,

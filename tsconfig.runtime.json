@@ -11,6 +11,24 @@
       "lucide-react": [
         "./node_modules/lucide-react"
       ],
+      "@sdkwork/iam-contracts": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-runtime": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime/src/index.ts"
+      ],
+      "@sdkwork/iam-service": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/runtime-bootstrap": [
+        "../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "./sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
       "sdkwork-birdcoder-commons/shell": [
         "./apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/shell.ts"
       ],

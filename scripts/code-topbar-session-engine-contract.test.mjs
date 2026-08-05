@@ -96,7 +96,7 @@ assert.match(
 
 assert.doesNotMatch(
   topBarSource,
-  /getWorkbenchCodeEngineSessionSummary|projectPath/,
+  /getWorkbenchAgentEngineSessionSummary|projectPath/,
   'Code top bar must not retain deprecated engine-summary plumbing or a device-local project path prop.',
 );
 

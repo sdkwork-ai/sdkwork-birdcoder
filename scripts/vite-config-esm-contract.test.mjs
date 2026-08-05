@@ -1102,7 +1102,7 @@ for (const productSurfaceModule of [
     moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/index.ts',
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/pages/SettingsPage.tsx',
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/CodeEngineSettings.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/AgentEngineSettings.tsx',
     ],
   },
 ]) {

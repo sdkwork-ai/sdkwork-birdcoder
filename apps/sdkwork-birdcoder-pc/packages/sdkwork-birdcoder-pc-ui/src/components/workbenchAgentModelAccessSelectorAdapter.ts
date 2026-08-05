@@ -11,9 +11,9 @@ import type {
   UserModelChannel,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import type {
-  WorkbenchCodeEngineDefinition,
+  WorkbenchAgentEngineDefinition,
   WorkbenchUnifiedCustomAgentModelDefinition,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 
 export interface WorkbenchAgentModelAccessSelectorCatalog {
   models: AgentModelCatalogOption[];
@@ -149,7 +149,7 @@ export function mergeWorkbenchModelAccessCatalogSnapshot(
 }
 
 export function createWorkbenchModelAccessFallbackModels(
-  engines: readonly WorkbenchCodeEngineDefinition[],
+  engines: readonly WorkbenchAgentEngineDefinition[],
 ): ModelAccessCatalogModel[] {
   const modelsByIdentity = new Map<string, ModelAccessCatalogModel>();
   for (const catalogModel of SDKWORK_MAINSTREAM_AGENT_MODEL_CATALOG as readonly MainstreamAgentModelCatalogEntry[]) {

@@ -16,7 +16,7 @@ import {
 import { createAgentModelAccessSelectorMessages } from '@sdkwork/birdcoder-pc-workbench/workbench/modelAccessBridging';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
-import { listWorkbenchServerImplementedCodeEngines } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { listWorkbenchServerImplementedAgentEngines } from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import {
   matchesWorkbenchModeEngineId,
   normalizeWorkbenchMode,
@@ -145,7 +145,7 @@ export function ModelManagementSettings() {
   );
 
   const providerOptions = useMemo<AgentProviderOption[]>(() => {
-    const engines = listWorkbenchServerImplementedCodeEngines(preferences);
+    const engines = listWorkbenchServerImplementedAgentEngines(preferences);
     const workbenchMode = normalizeWorkbenchMode(preferences.workbenchMode);
     // The provider options (and the checked-provider validation derived from
     // them) only admit the engines the active workbench mode supports.
@@ -242,7 +242,7 @@ export function ModelManagementSettings() {
     // the workbench falls back to the official relay default (or the next
     // stored selection) instead of a dangling channel id.
     updatePreferences((previousPreferences) => {
-      const engineSettings = { ...previousPreferences.codeEngineSettings };
+      const engineSettings = { ...previousPreferences.agentEngineSettings };
       let changed = false;
       for (const engineId of Object.keys(engineSettings)) {
         const settings = engineSettings[engineId];
@@ -253,7 +253,7 @@ export function ModelManagementSettings() {
         }
       }
       return changed
-        ? { ...previousPreferences, codeEngineSettings: engineSettings }
+        ? { ...previousPreferences, agentEngineSettings: engineSettings }
         : previousPreferences;
     });
     await reload();

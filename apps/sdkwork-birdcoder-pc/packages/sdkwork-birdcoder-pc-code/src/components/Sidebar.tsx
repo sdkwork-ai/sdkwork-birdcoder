@@ -6,9 +6,9 @@ import {
   sortAgentSessionInboxEntries,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 import {
-  resolveWorkbenchCodeEngineSelectedModelId,
+  resolveWorkbenchAgentEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import { deduplicateAgentProjectsForRender } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { subscribeRevealAgentSession } from '@sdkwork/birdcoder-pc-workbench/events/agentSessionRevealEvents';
@@ -798,7 +798,7 @@ export const Sidebar = React.memo(function Sidebar({
         {
           currentSessionEngineId: selectedSidebarAgentSession?.engineId,
           currentSessionModelId: selectedSidebarAgentSession?.modelId,
-          preferredEngineId: preferences.codeEngineId,
+          preferredEngineId: preferences.agentEngineId,
           preferredModelId: preferences.codeModelId,
         },
         preferences,
@@ -813,7 +813,7 @@ export const Sidebar = React.memo(function Sidebar({
       ).map((engine) => ({
         id: engine.id,
         label: engine.label,
-        modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
+        modelId: resolveWorkbenchAgentEngineSelectedModelId(engine.id, preferences),
         terminalProfileId: null,
       })),
     [newSessionEngineCatalog.availableEngines, preferences, workbenchMode],
@@ -1699,7 +1699,7 @@ export const Sidebar = React.memo(function Sidebar({
             }
             projectCount={workModeProjectEntries.length}
             scrollRegionRef={scrollRegionRef}
-            selectedEngineId={preferences.codeEngineId}
+            selectedEngineId={preferences.agentEngineId}
             selectedModelId={preferences.codeModelId}
             selectedProjectId={selectedProjectId}
             taskContent={
@@ -1734,7 +1734,7 @@ export const Sidebar = React.memo(function Sidebar({
           newSessionInCurrentProjectLabel={t('app.newSessionInCurrentProject')}
           selectProjectFirstLabel={t('code.selectProjectFirst')}
           providersUnavailableLabel={t('app.codingProvidersUnavailable')}
-          selectedEngineId={preferences.codeEngineId}
+          selectedEngineId={preferences.agentEngineId}
           selectedModelId={preferences.codeModelId}
           sessionsLabel={t('app.projects')}
           newProjectLabel={t('app.newProject')}

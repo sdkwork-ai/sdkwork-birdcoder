@@ -7,9 +7,9 @@ import {
   type BirdCoderWorkProviderInstallationResult,
 } from '@sdkwork/birdcoder-pc-infrastructure/platform/workProviderInstallation';
 import {
-  loadWorkbenchCodeEngineCatalog,
-  resetWorkbenchCodeEngineCatalog,
-} from './codeEngineCatalog.ts';
+  loadWorkbenchAgentEngineCatalog,
+  resetWorkbenchAgentEngineCatalog,
+} from './agentEngineCatalog.ts';
 import { matchesWorkbenchModeCatalogEngine, WORKBENCH_MODE_PROVIDERS } from './workbenchMode.ts';
 
 export { BirdCoderWorkProviderInstallationError };
@@ -45,9 +45,9 @@ export async function installWorkbenchWorkProvider(
     );
   }
 
-  resetWorkbenchCodeEngineCatalog();
+  resetWorkbenchAgentEngineCatalog();
   try {
-    const engines = await loadWorkbenchCodeEngineCatalog();
+    const engines = await loadWorkbenchAgentEngineCatalog();
     return {
       ...installation,
       availableAfterRefresh: engines.some((engine) =>

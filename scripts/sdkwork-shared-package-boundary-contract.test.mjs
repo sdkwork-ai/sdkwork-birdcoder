@@ -30,6 +30,13 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(workspaceRoot, relativePath), 'utf8'));
 }
 
+// TypeScript accepts both `./apps/...` (no baseUrl) and `apps/...` (baseUrl)
+// forms for the same resolved module; normalize the leading `./` so the
+// boundary assertion is about the target file, not the tsconfig path style.
+function normalizeTsconfigTarget(target) {
+  return String(target).replace(/\\/gu, '/').replace(/^\.\//u, '');
+}
+
 for (const relativePath of tsconfigRelativePaths) {
   const tsconfig = readJson(relativePath);
   const paths = tsconfig.compilerOptions?.paths ?? {};
@@ -38,7 +45,7 @@ for (const relativePath of tsconfigRelativePaths) {
     const configuredTargets = paths[specifier];
     if (relativePath === 'tsconfig.json') {
       assert.deepEqual(
-        configuredTargets,
+        (configuredTargets ?? []).map(normalizeTsconfigTarget),
         [requiredSharedTypeBoundaryPaths.get(specifier)],
         `${relativePath} must map ${specifier} to the BirdCoder-owned public type boundary only.`,
       );
@@ -54,7 +61,7 @@ for (const relativePath of tsconfigRelativePaths) {
 
   for (const [specifier, targets] of Object.entries(paths)) {
     for (const target of targets ?? []) {
-      const normalizedTarget = String(target).replace(/\\/gu, '/');
+      const normalizedTarget = normalizeTsconfigTarget(target);
       if (/\.\.\/sdkwork-appbase\/packages\/.*\/src(?:\/index\.(?:ts|tsx))?$/u.test(normalizedTarget)) {
         const allowedDirectMappings = [
           '@sdkwork/auth-runtime-pc-react',

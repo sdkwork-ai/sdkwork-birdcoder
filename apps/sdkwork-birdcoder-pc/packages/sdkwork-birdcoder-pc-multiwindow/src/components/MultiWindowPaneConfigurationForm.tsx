@@ -1,11 +1,11 @@
 import {
-  findWorkbenchCodeEngineDefinition,
-  listWorkbenchServerImplementedCodeEngines,
+  findWorkbenchAgentEngineDefinition,
+  listWorkbenchServerImplementedAgentEngines,
   normalizeWorkbenchCodeModelId,
-  resolveWorkbenchCodeEngineSelectedModelId,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+  resolveWorkbenchAgentEngineSelectedModelId,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -29,12 +29,12 @@ export const MultiWindowPaneConfigurationForm = memo(function MultiWindowPaneCon
   onChange,
 }: MultiWindowPaneConfigurationFormProps) {
   const { t } = useTranslation();
-  const availableEngines = listWorkbenchServerImplementedCodeEngines(preferences);
+  const availableEngines = listWorkbenchServerImplementedAgentEngines(preferences);
   const selectedEngineId = pane.selectedEngineId;
   const selectedModelId = pane.selectedModelId;
   const mode = pane.mode;
   const selectedEngine =
-    findWorkbenchCodeEngineDefinition(selectedEngineId, preferences) ??
+    findWorkbenchAgentEngineDefinition(selectedEngineId, preferences) ??
     availableEngines[0] ??
     null;
   const modelOptions = selectedEngine?.modelCatalog ?? [];
@@ -56,14 +56,14 @@ export const MultiWindowPaneConfigurationForm = memo(function MultiWindowPaneCon
   };
 
   const handleEngineChange = (engineId: string) => {
-    const nextEngine = findWorkbenchCodeEngineDefinition(engineId, preferences) ?? selectedEngine;
+    const nextEngine = findWorkbenchAgentEngineDefinition(engineId, preferences) ?? selectedEngine;
     if (!nextEngine) {
       return;
     }
 
     updatePane({
       selectedEngineId: nextEngine.id,
-      selectedModelId: resolveWorkbenchCodeEngineSelectedModelId(nextEngine.id, preferences),
+      selectedModelId: resolveWorkbenchAgentEngineSelectedModelId(nextEngine.id, preferences),
     });
   };
 
@@ -112,7 +112,7 @@ export const MultiWindowPaneConfigurationForm = memo(function MultiWindowPaneCon
         {t('multiWindow.model')}
         <div className="mt-1 flex items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#101114]">
-            <WorkbenchCodeEngineIcon engineId={selectedEngineId} />
+            <WorkbenchAgentEngineIcon engineId={selectedEngineId} />
           </div>
           <select
             className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#101114] px-2 py-2 text-xs text-gray-200 outline-none focus:border-blue-400/50"

@@ -147,10 +147,53 @@ function resolveRequiredServerBinaryPath({
     );
   }
 
+  assertServerBinaryPlatformConsistency({
+    binaryPath,
+    binaryFileName,
+    descriptor,
+  });
+
   return {
     binaryFileName,
     binaryPath,
   };
+}
+
+/// Linux server and container release assets must never be packaged from a
+/// host-native (Windows) fallback binary: the Windows PE executable would be
+/// silently renamed without the `.exe` extension and shipped in a bundle that
+/// cannot execute on the target Linux runtime. Packaging fails closed with a
+/// diagnostic instead of producing a non-runnable release artifact.
+function assertServerBinaryPlatformConsistency({
+  binaryPath,
+  binaryFileName,
+  descriptor,
+}) {
+  const normalizedTarget = String(descriptor?.target ?? '').trim().toLowerCase();
+  const normalizedPlatform = String(descriptor?.platform ?? '').trim().toLowerCase();
+  const linuxTargetRequested = (
+    normalizedTarget.includes('linux')
+    || normalizedPlatform === 'linux'
+    || normalizedPlatform === ''
+  );
+  if (!linuxTargetRequested) {
+    return;
+  }
+  const resolvedFileName = path.basename(binaryPath);
+  if (resolvedFileName.toLowerCase().endsWith('.exe')) {
+    throw new Error(
+      `Refusing to package ${descriptor?.family ?? 'server'} release assets for Linux from the Windows host-native binary: ${binaryPath}. ` +
+      `Build the server binary in a Linux environment (or a cross-compilation target such as \`x86_64-unknown-linux-gnu\`) before packaging. ` +
+      `Run \`pnpm build:server\` on the Linux CI runner.`,
+    );
+  }
+  const headerBytes = fs.readFileSync(binaryPath).subarray(0, 2);
+  if (headerBytes[0] === 0x4d && headerBytes[1] === 0x5a) {
+    throw new Error(
+      `Refusing to package ${descriptor?.family ?? 'server'} release assets for Linux: ${binaryPath} is a Windows PE executable (MZ header) without the .exe extension. ` +
+      `Build the Linux server binary in a Linux environment before packaging.`,
+    );
+  }
 }
 
 function copyRequiredServerBinary({
@@ -773,6 +816,33 @@ function writeContainerReleaseSidecars(bundleRoot, descriptor) {
   });
 }
 
+/// The source-tree docker-compose files reference the Dockerfile through the
+/// repository layout (`deployments/docker/Dockerfile`). Inside a packaged
+/// bundle the compose file lives at `deploy/docker/docker-compose.yml` and the
+/// build context is the unpacked bundle root, so the Dockerfile reference must
+/// be rewritten to the bundle-relative `deploy/docker/Dockerfile` path;
+/// otherwise `docker compose up` from the bundle fails to locate the Dockerfile.
+function rewriteBundledDockerComposeDockerfilePath(bundleRoot) {
+  for (const composeFileName of [
+    'docker-compose.yml',
+    'docker-compose.nvidia-cuda.yml',
+    'docker-compose.amd-rocm.yml',
+  ]) {
+    const composePath = path.join(bundleRoot, 'deploy', 'docker', composeFileName);
+    if (!fs.existsSync(composePath)) {
+      continue;
+    }
+    const original = fs.readFileSync(composePath, 'utf8');
+    const rewritten = original.replace(
+      /dockerfile:\s*deployments\/docker\/Dockerfile/u,
+      'dockerfile: deploy/docker/Dockerfile',
+    );
+    if (rewritten !== original) {
+      fs.writeFileSync(composePath, rewritten, 'utf8');
+    }
+  }
+}
+
 function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   writeJson(path.join(bundleRoot, 'release-descriptor.json'), descriptor);
 
@@ -819,6 +889,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'container') {
     copyIfExists(path.join(rootDir, 'deployments', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
+    rewriteBundledDockerComposeDockerfilePath(bundleRoot);
     copyRequiredFile({
       sourcePath: path.join(rootDir, 'sdks', 'sdkwork-birdcoder-app-sdk', 'openapi', 'sdkwork-birdcoder-app-api.openapi.json'),
       targetPath: path.join(bundleRoot, 'openapi', 'birdcoder-app-api.openapi.json'),

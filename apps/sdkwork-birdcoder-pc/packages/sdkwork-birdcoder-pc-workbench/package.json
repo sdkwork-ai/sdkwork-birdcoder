@@ -318,10 +318,10 @@
       "import": "./src/workbench/agentTurnDeliveryOutcome.ts",
       "default": "./src/workbench/agentTurnDeliveryOutcome.ts"
     },
-    "./workbench/codeEngineCatalog": {
-      "types": "./src/workbench/codeEngineCatalog.ts",
-      "import": "./src/workbench/codeEngineCatalog.ts",
-      "default": "./src/workbench/codeEngineCatalog.ts"
+    "./workbench/agentEngineCatalog": {
+      "types": "./src/workbench/agentEngineCatalog.ts",
+      "import": "./src/workbench/agentEngineCatalog.ts",
+      "default": "./src/workbench/agentEngineCatalog.ts"
     },
     "./workbench/desktopTraySessionMenu": {
       "types": "./src/workbench/desktopTraySessionMenu.ts",

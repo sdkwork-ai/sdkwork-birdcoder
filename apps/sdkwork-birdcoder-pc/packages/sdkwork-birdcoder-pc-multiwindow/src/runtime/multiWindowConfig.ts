@@ -1,9 +1,9 @@
 import {
   normalizeWorkbenchCodeModelId,
-  normalizeWorkbenchServerImplementedCodeEngineId,
-  resolveWorkbenchCodeEngineSelectedModelId,
-  type WorkbenchCodeEngineSettingsCarrier,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+  normalizeWorkbenchServerImplementedAgentEngineId,
+  resolveWorkbenchAgentEngineSelectedModelId,
+  type WorkbenchAgentEngineSettingsCarrier,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
@@ -20,7 +20,7 @@ import type {
 interface BuildInitialMultiWindowPaneConfigsOptions {
   initialAgentSessionId?: string | null;
   initialProjectId?: string | null;
-  preferences?: WorkbenchCodeEngineSettingsCarrier | null;
+  preferences?: WorkbenchAgentEngineSettingsCarrier | null;
   projects: readonly AgentProjectView[];
 }
 
@@ -48,15 +48,15 @@ export function createDefaultMultiWindowPaneConfig(
     projectId?: string | null;
     title?: string | null;
   } = {},
-  preferences?: WorkbenchCodeEngineSettingsCarrier | null,
+  preferences?: WorkbenchAgentEngineSettingsCarrier | null,
 ): MultiWindowPaneConfig {
-  const selectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+  const selectedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
     options.engineId,
     preferences,
   );
   const selectedModelId = options.modelId?.trim()
     ? normalizeWorkbenchCodeModelId(selectedEngineId, options.modelId, preferences)
-    : resolveWorkbenchCodeEngineSelectedModelId(selectedEngineId, preferences);
+    : resolveWorkbenchAgentEngineSelectedModelId(selectedEngineId, preferences);
 
   return {
     agentSessionId: normalizeText(options.agentSessionId),

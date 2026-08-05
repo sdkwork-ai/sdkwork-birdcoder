@@ -41,10 +41,10 @@ or before a build to reject missing or stale derived profiles.
 
 ## Code-engine sandbox policy
 
-`code-engine-sandbox.json` defines the safe, tracked default for code-agent process access. The
+`agent-engine-sandbox.json` defines the safe, tracked default for agent process access. The
 default `all-drives` mode maps to Codex `danger-full-access`: it can use every filesystem path the
 current operating-system process account can access, but it does not bypass operating-system ACLs.
-Set `BIRDCODER_CODE_ENGINE_SANDBOX_CONFIG` only when an operator needs to load the same schema from
+Set `BIRDCODER_AGENT_ENGINE_SANDBOX_CONFIG` only when an operator needs to load the same schema from
 another runtime-managed path.
 
 Supported `accessMode` values are `all-drives`, `directories`, and `read-only`. A `directories`
@@ -57,14 +57,14 @@ Authenticated administrator overrides are stored through the existing IAM policy
 its database/audit flow. The effective order is user policy, tenant policy, this `etc` default, then
 the built-in `all-drives` fallback. Use these policy codes:
 
-- Tenant: `birdcoder.code-engine-sandbox.tenant`
-- User: `birdcoder.code-engine-sandbox.user.<userId>`
+- Tenant: `birdcoder.agent-engine-sandbox.tenant`
+- User: `birdcoder.agent-engine-sandbox.user.<userId>`
 
 The `policyJson` value uses this shape:
 
 ```json
 {
-  "policyCategory": "code-engine-sandbox",
+  "policyCategory": "agent-engine-sandbox",
   "scopeType": "tenant",
   "scopeId": "authenticated-tenant-id",
   "accessMode": "directories",
@@ -73,4 +73,4 @@ The `policyJson` value uses this shape:
 ```
 
 For a user policy, set `scopeType` to `user` and `scopeId` to the authenticated user ID. Invalid or
-scope-mismatched active policies fail closed and prevent code-engine execution until corrected.
+scope-mismatched active policies fail closed and prevent agent-engine execution until corrected.

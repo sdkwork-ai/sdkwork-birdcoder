@@ -6,10 +6,10 @@ import type {
 import type { BirdcoderRiskLevel } from './governance.ts';
 import { parseBirdCoderApiJson } from './json.ts';
 
-export const BIRDCODER_CODE_ENGINE_USER_QUESTION_TOOL_NAME = 'user_question';
-export const BIRDCODER_CODE_ENGINE_PERMISSION_REQUEST_TOOL_NAME = 'permission_request';
+export const BIRDCODER_AGENT_ENGINE_USER_QUESTION_TOOL_NAME = 'user_question';
+export const BIRDCODER_AGENT_ENGINE_PERMISSION_REQUEST_TOOL_NAME = 'permission_request';
 
-export type BirdCoderCodeEngineToolLifecycleStatus =
+export type BirdCoderAgentEngineToolLifecycleStatus =
   | 'awaiting_approval'
   | 'awaiting_user'
   | 'running'
@@ -17,9 +17,9 @@ export type BirdCoderCodeEngineToolLifecycleStatus =
   | 'failed'
   | 'cancelled';
 
-export type BirdCoderCodeEngineCommandStatus = 'running' | 'success' | 'error';
+export type BirdCoderAgentEngineCommandStatus = 'running' | 'success' | 'error';
 
-export type BirdCoderCodeEngineToolKind =
+export type BirdCoderAgentEngineToolKind =
   | 'approval'
   | 'command'
   | 'file_change'
@@ -27,19 +27,19 @@ export type BirdCoderCodeEngineToolKind =
   | 'tool'
   | 'user_question';
 
-export interface BirdCoderCodeEngineProviderToolNameInput {
+export interface BirdCoderAgentEngineProviderToolNameInput {
   fallbackToolName?: string;
   provider?: unknown;
   toolName: unknown;
 }
 
-export interface BirdCoderCodeEngineCommandTextInput {
+export interface BirdCoderAgentEngineCommandTextInput {
   fallbackArguments?: string;
   toolArguments?: Record<string, unknown> | null;
   toolName: unknown;
 }
 
-export interface BirdCoderCodeEngineInteractionRuntimeStatusInput {
+export interface BirdCoderAgentEngineInteractionRuntimeStatusInput {
   hasAnswer?: boolean;
   phase?: unknown;
   runtimeStatus?: unknown;
@@ -47,20 +47,20 @@ export interface BirdCoderCodeEngineInteractionRuntimeStatusInput {
   status?: unknown;
 }
 
-export interface BirdCoderCodeEngineToolKindInput {
+export interface BirdCoderAgentEngineToolKindInput {
   hasCommandArguments?: boolean;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   toolArguments?: unknown;
   toolName: unknown;
 }
 
-export interface BirdCoderCodeEngineToolClassificationInput {
-  toolKind?: BirdCoderCodeEngineToolKind;
+export interface BirdCoderAgentEngineToolClassificationInput {
+  toolKind?: BirdCoderAgentEngineToolKind;
   toolName: unknown;
 }
 
-export interface BirdCoderCodeEngineCommandInteractionStateInput {
-  kind?: BirdCoderCodeEngineToolKind;
+export interface BirdCoderAgentEngineCommandInteractionStateInput {
+  kind?: BirdCoderAgentEngineToolKind;
   requiresApproval?: unknown;
   requiresApprovalValues?: readonly unknown[];
   requiresReply?: unknown;
@@ -69,26 +69,26 @@ export interface BirdCoderCodeEngineCommandInteractionStateInput {
   status?: unknown;
 }
 
-export interface BirdCoderCodeEngineCommandInteractionState {
+export interface BirdCoderAgentEngineCommandInteractionState {
   isRunning: boolean;
   requiresApproval: boolean;
   requiresReply: boolean;
 }
 
-export interface BirdCoderCodeEngineCommandSnapshot {
+export interface BirdCoderAgentEngineCommandSnapshot {
   command: string;
-  kind?: BirdCoderCodeEngineToolKind;
+  kind?: BirdCoderAgentEngineToolKind;
   output?: string;
   requiresApproval?: boolean;
   requiresReply?: boolean;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
-  status: BirdCoderCodeEngineCommandStatus;
+  status: BirdCoderAgentEngineCommandStatus;
   toolCallId?: string;
   toolName?: string;
 }
 
-export interface BirdCoderCodeEngineCommandStatusInput {
-  defaultStatus?: BirdCoderCodeEngineCommandStatus;
+export interface BirdCoderAgentEngineCommandStatusInput {
+  defaultStatus?: BirdCoderAgentEngineCommandStatus;
   exitCode?: unknown;
   phase?: unknown;
   runtimeStatus?: unknown;
@@ -96,7 +96,7 @@ export interface BirdCoderCodeEngineCommandStatusInput {
   status?: unknown;
 }
 
-export interface BirdCoderCodeEngineToolCallDelta {
+export interface BirdCoderAgentEngineToolCallDelta {
   id?: string;
   index?: number;
   type?: 'function' | string;
@@ -106,7 +106,7 @@ export interface BirdCoderCodeEngineToolCallDelta {
   };
 }
 
-export interface BirdCoderCodeEnginePendingToolCallDelta {
+export interface BirdCoderAgentEnginePendingToolCallDelta {
   id: string;
   type: 'function';
   function: {
@@ -115,24 +115,24 @@ export interface BirdCoderCodeEnginePendingToolCallDelta {
   };
 }
 
-export interface BirdCoderCodeEngineToolCallDeltaAccumulator {
+export interface BirdCoderAgentEngineToolCallDeltaAccumulator {
   pendingToolCallOrder: string[];
-  pendingToolCalls: Map<string, BirdCoderCodeEnginePendingToolCallDelta>;
+  pendingToolCalls: Map<string, BirdCoderAgentEnginePendingToolCallDelta>;
 }
 
-export interface BirdCoderCodeEngineToolCallDeltaInput
-  extends BirdCoderCodeEngineToolCallDeltaAccumulator {
-  toolCall: BirdCoderCodeEngineToolCallDelta;
+export interface BirdCoderAgentEngineToolCallDeltaInput
+  extends BirdCoderAgentEngineToolCallDeltaAccumulator {
+  toolCall: BirdCoderAgentEngineToolCallDelta;
 }
 
-export interface BirdCoderCodeEngineIdentityInput {
+export interface BirdCoderAgentEngineIdentityInput {
   checkpointState?: Record<string, unknown> | null;
   payload?: Record<string, unknown> | null;
   toolArguments?: Record<string, unknown> | null;
 }
 
-export interface BirdCoderCodeEngineUserQuestionIdentityInput
-  extends BirdCoderCodeEngineIdentityInput {
+export interface BirdCoderAgentEngineUserQuestionIdentityInput
+  extends BirdCoderAgentEngineIdentityInput {
   toolCallId?: unknown;
 }
 
@@ -190,7 +190,7 @@ const COMMAND_TEXT_ARGUMENT_KEYS = [
   'target_file',
 ] as const;
 
-const CODE_ENGINE_PATH_ARGUMENT_KEYS = [
+const AGENT_ENGINE_PATH_ARGUMENT_KEYS = [
   'path',
   'filePath',
   'file_path',
@@ -199,14 +199,14 @@ const CODE_ENGINE_PATH_ARGUMENT_KEYS = [
   'target_file',
 ] as const;
 
-const CODE_ENGINE_PROMPT_ARGUMENT_KEYS = [
+const AGENT_ENGINE_PROMPT_ARGUMENT_KEYS = [
   'question',
   'prompt',
   'title',
   'header',
 ] as const;
 
-const CODE_ENGINE_TOOL_CALL_ID_KEYS = [
+const AGENT_ENGINE_TOOL_CALL_ID_KEYS = [
   'toolCallId',
   'toolCallID',
   'tool_call_id',
@@ -219,7 +219,7 @@ const CODE_ENGINE_TOOL_CALL_ID_KEYS = [
   'id',
 ] as const;
 
-const CODE_ENGINE_USER_QUESTION_ID_KEYS = [
+const AGENT_ENGINE_USER_QUESTION_ID_KEYS = [
   'questionId',
   'questionID',
   'question_id',
@@ -232,7 +232,7 @@ const CODE_ENGINE_USER_QUESTION_ID_KEYS = [
   'id',
 ] as const;
 
-const CODE_ENGINE_APPROVAL_ID_KEYS = [
+const AGENT_ENGINE_APPROVAL_ID_KEYS = [
   'approvalId',
   'approvalID',
   'approval_id',
@@ -245,32 +245,32 @@ const CODE_ENGINE_APPROVAL_ID_KEYS = [
   'id',
 ] as const;
 
-const CODE_ENGINE_CHECKPOINT_ID_KEYS = [
+const AGENT_ENGINE_CHECKPOINT_ID_KEYS = [
   'checkpointId',
   'checkpointID',
   'checkpoint_id',
 ] as const;
 
-const CODE_ENGINE_PERMISSION_ROOT_TARGET_KEYS = [
+const AGENT_ENGINE_PERMISSION_ROOT_TARGET_KEYS = [
   'title',
   'tool',
   'command',
-  ...CODE_ENGINE_PATH_ARGUMENT_KEYS,
+  ...AGENT_ENGINE_PATH_ARGUMENT_KEYS,
   'permission',
   'pattern',
 ] as const;
 
-const CODE_ENGINE_PERMISSION_NAMED_TARGET_KEYS = [
+const AGENT_ENGINE_PERMISSION_NAMED_TARGET_KEYS = [
   'title',
   'command',
   'tool',
   'name',
 ] as const;
 
-const CODE_ENGINE_PERMISSION_REQUEST_ARGUMENT_KEYS = [
+const AGENT_ENGINE_PERMISSION_REQUEST_ARGUMENT_KEYS = [
   'command',
   'cmd',
-  ...CODE_ENGINE_PATH_ARGUMENT_KEYS,
+  ...AGENT_ENGINE_PATH_ARGUMENT_KEYS,
 ] as const;
 
 const FILE_CHANGE_TOOL_NAME_ALIASES = new Set([
@@ -358,7 +358,7 @@ const CLAUDE_CODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['write', 'write_file'],
 ]);
 
-const CODE_ENGINE_CANONICAL_TOOL_NAME_ALIASES = new Map<string, string>([
+const AGENT_ENGINE_CANONICAL_TOOL_NAME_ALIASES = new Map<string, string>([
   ['bash', 'run_command'],
   ['command', 'run_command'],
   ['command_execution', 'run_command'],
@@ -454,7 +454,7 @@ const RUNTIME_STATUS_ALIASES = new Map<string, AgentSessionRuntimeDisplayStatus>
 
 const TOOL_LIFECYCLE_STATUS_ALIASES = new Map<
   string,
-  BirdCoderCodeEngineToolLifecycleStatus
+  BirdCoderAgentEngineToolLifecycleStatus
 >([
   ['abort', 'cancelled'],
   ['aborted', 'cancelled'],
@@ -517,7 +517,7 @@ const TOOL_LIFECYCLE_STATUS_ALIASES = new Map<
   ['yes', 'completed'],
 ]);
 
-export function normalizeBirdCoderCodeEngineDialectKey(
+export function normalizeBirdCoderAgentEngineDialectKey(
   value: unknown,
 ): string | undefined {
   if (typeof value !== 'string') {
@@ -532,36 +532,36 @@ export function normalizeBirdCoderCodeEngineDialectKey(
   return normalizedValue.length > 0 ? normalizedValue : undefined;
 }
 
-export function isBirdCoderCodeEngineUserQuestionToolName(
+export function isBirdCoderAgentEngineUserQuestionToolName(
   value: unknown,
 ): boolean {
-  const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
+  const normalizedValue = normalizeBirdCoderAgentEngineDialectKey(value);
   return normalizedValue ? USER_QUESTION_TOOL_NAME_ALIASES.has(normalizedValue) : false;
 }
 
-export function isBirdCoderCodeEngineApprovalToolName(
+export function isBirdCoderAgentEngineApprovalToolName(
   value: unknown,
 ): boolean {
-  const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
+  const normalizedValue = normalizeBirdCoderAgentEngineDialectKey(value);
   return normalizedValue ? APPROVAL_TOOL_NAME_ALIASES.has(normalizedValue) : false;
 }
 
-export function canonicalizeBirdCoderCodeEngineToolName(value: string): string {
-  const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
-  if (isBirdCoderCodeEngineUserQuestionToolName(normalizedValue)) {
-    return BIRDCODER_CODE_ENGINE_USER_QUESTION_TOOL_NAME;
+export function canonicalizeBirdCoderAgentEngineToolName(value: string): string {
+  const normalizedValue = normalizeBirdCoderAgentEngineDialectKey(value);
+  if (isBirdCoderAgentEngineUserQuestionToolName(normalizedValue)) {
+    return BIRDCODER_AGENT_ENGINE_USER_QUESTION_TOOL_NAME;
   }
-  if (isBirdCoderCodeEngineApprovalToolName(normalizedValue)) {
-    return BIRDCODER_CODE_ENGINE_PERMISSION_REQUEST_TOOL_NAME;
+  if (isBirdCoderAgentEngineApprovalToolName(normalizedValue)) {
+    return BIRDCODER_AGENT_ENGINE_PERMISSION_REQUEST_TOOL_NAME;
   }
 
   const canonicalToolName = normalizedValue
-    ? CODE_ENGINE_CANONICAL_TOOL_NAME_ALIASES.get(normalizedValue)
+    ? AGENT_ENGINE_CANONICAL_TOOL_NAME_ALIASES.get(normalizedValue)
     : undefined;
   return canonicalToolName ?? value.trim();
 }
 
-function stringifyBirdCoderCodeEngineToolName(value: unknown): string {
+function stringifyBirdCoderAgentEngineToolName(value: unknown): string {
   if (typeof value === 'string') {
     return value.trim();
   }
@@ -573,12 +573,12 @@ function stringifyBirdCoderCodeEngineToolName(value: unknown): string {
   return String(value).trim();
 }
 
-function resolveBirdCoderCodeEngineProviderToolNameAlias(
+function resolveBirdCoderAgentEngineProviderToolNameAlias(
   provider: unknown,
   toolName: string,
 ): string | undefined {
-  const providerKey = normalizeBirdCoderCodeEngineDialectKey(provider);
-  const toolNameKey = normalizeBirdCoderCodeEngineDialectKey(toolName);
+  const providerKey = normalizeBirdCoderAgentEngineDialectKey(provider);
+  const toolNameKey = normalizeBirdCoderAgentEngineDialectKey(toolName);
   if (!providerKey || !toolNameKey) {
     return undefined;
   }
@@ -602,30 +602,30 @@ function resolveBirdCoderCodeEngineProviderToolNameAlias(
   return undefined;
 }
 
-export function canonicalizeBirdCoderCodeEngineProviderToolName(
-  input: BirdCoderCodeEngineProviderToolNameInput,
+export function canonicalizeBirdCoderAgentEngineProviderToolName(
+  input: BirdCoderAgentEngineProviderToolNameInput,
 ): string {
-  const fallbackToolName = stringifyBirdCoderCodeEngineToolName(
+  const fallbackToolName = stringifyBirdCoderAgentEngineToolName(
     input.fallbackToolName,
   ) || 'tool_use';
-  const rawToolName = stringifyBirdCoderCodeEngineToolName(input.toolName);
+  const rawToolName = stringifyBirdCoderAgentEngineToolName(input.toolName);
   if (!rawToolName) {
     return fallbackToolName;
   }
 
   const providerToolName =
-    resolveBirdCoderCodeEngineProviderToolNameAlias(input.provider, rawToolName) ??
+    resolveBirdCoderAgentEngineProviderToolNameAlias(input.provider, rawToolName) ??
     rawToolName;
-  return canonicalizeBirdCoderCodeEngineToolName(providerToolName);
+  return canonicalizeBirdCoderAgentEngineToolName(providerToolName);
 }
 
-function isBirdCoderCodeEnginePayloadRecord(
+function isBirdCoderAgentEnginePayloadRecord(
   value: unknown,
 ): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function normalizeBirdCoderCodeEngineIdentifier(value: unknown): string | undefined {
+function normalizeBirdCoderAgentEngineIdentifier(value: unknown): string | undefined {
   if (typeof value === 'string') {
     const normalizedValue = value.trim();
     return normalizedValue.length > 0 ? normalizedValue : undefined;
@@ -647,12 +647,12 @@ function normalizeBirdCoderCodeEngineIdentifier(value: unknown): string | undefi
   return undefined;
 }
 
-export function readBirdCoderCodeEngineIdentifier(
+export function readBirdCoderAgentEngineIdentifier(
   record: Record<string, unknown> | null | undefined,
   fieldNames: readonly string[],
 ): string | undefined {
   for (const fieldName of fieldNames) {
-    const value = normalizeBirdCoderCodeEngineIdentifier(record?.[fieldName]);
+    const value = normalizeBirdCoderAgentEngineIdentifier(record?.[fieldName]);
     if (value) {
       return value;
     }
@@ -661,13 +661,13 @@ export function readBirdCoderCodeEngineIdentifier(
   return undefined;
 }
 
-function readBirdCoderCodeEngineIdentityFromRecords(
+function readBirdCoderAgentEngineIdentityFromRecords(
   fieldNames: readonly string[],
   records: ReadonlyArray<Record<string, unknown> | null | undefined>,
 ): string | undefined {
   for (const fieldName of fieldNames) {
     for (const record of records) {
-      const value = normalizeBirdCoderCodeEngineIdentifier(record?.[fieldName]);
+      const value = normalizeBirdCoderAgentEngineIdentifier(record?.[fieldName]);
       if (value) {
         return value;
       }
@@ -677,51 +677,51 @@ function readBirdCoderCodeEngineIdentityFromRecords(
   return undefined;
 }
 
-export function resolveBirdCoderCodeEngineToolCallId(
-  input: BirdCoderCodeEngineIdentityInput,
+export function resolveBirdCoderAgentEngineToolCallId(
+  input: BirdCoderAgentEngineIdentityInput,
 ): string | undefined {
-  return readBirdCoderCodeEngineIdentityFromRecords(CODE_ENGINE_TOOL_CALL_ID_KEYS, [
+  return readBirdCoderAgentEngineIdentityFromRecords(AGENT_ENGINE_TOOL_CALL_ID_KEYS, [
     input.payload,
     input.toolArguments,
     input.checkpointState,
   ]);
 }
 
-export function resolveBirdCoderCodeEngineUserQuestionId(
-  input: BirdCoderCodeEngineUserQuestionIdentityInput,
+export function resolveBirdCoderAgentEngineUserQuestionId(
+  input: BirdCoderAgentEngineUserQuestionIdentityInput,
 ): string | undefined {
   return (
-    readBirdCoderCodeEngineIdentityFromRecords(CODE_ENGINE_USER_QUESTION_ID_KEYS, [
+    readBirdCoderAgentEngineIdentityFromRecords(AGENT_ENGINE_USER_QUESTION_ID_KEYS, [
       input.toolArguments,
       input.payload,
       input.checkpointState,
     ]) ??
-    normalizeBirdCoderCodeEngineIdentifier(input.toolCallId) ??
-    resolveBirdCoderCodeEngineToolCallId(input)
+    normalizeBirdCoderAgentEngineIdentifier(input.toolCallId) ??
+    resolveBirdCoderAgentEngineToolCallId(input)
   );
 }
 
-export function resolveBirdCoderCodeEngineApprovalId(
-  input: BirdCoderCodeEngineIdentityInput,
+export function resolveBirdCoderAgentEngineApprovalId(
+  input: BirdCoderAgentEngineIdentityInput,
 ): string | undefined {
-  return readBirdCoderCodeEngineIdentityFromRecords(CODE_ENGINE_APPROVAL_ID_KEYS, [
+  return readBirdCoderAgentEngineIdentityFromRecords(AGENT_ENGINE_APPROVAL_ID_KEYS, [
     input.payload,
     input.toolArguments,
     input.checkpointState,
   ]);
 }
 
-export function resolveBirdCoderCodeEngineCheckpointId(
-  input: BirdCoderCodeEngineIdentityInput,
+export function resolveBirdCoderAgentEngineCheckpointId(
+  input: BirdCoderAgentEngineIdentityInput,
 ): string | undefined {
-  return readBirdCoderCodeEngineIdentityFromRecords(CODE_ENGINE_CHECKPOINT_ID_KEYS, [
+  return readBirdCoderAgentEngineIdentityFromRecords(AGENT_ENGINE_CHECKPOINT_ID_KEYS, [
     input.payload,
     input.toolArguments,
     input.checkpointState,
   ]);
 }
 
-function readBirdCoderCodeEngineRecordString(
+function readBirdCoderAgentEngineRecordString(
   record: Record<string, unknown> | null | undefined,
   fieldNames: readonly string[],
 ): string | undefined {
@@ -735,12 +735,12 @@ function readBirdCoderCodeEngineRecordString(
   return undefined;
 }
 
-function resolveBirdCoderCodeEnginePromptText(
+function resolveBirdCoderAgentEnginePromptText(
   args: Record<string, unknown> | null,
 ): string | undefined {
-  const directPrompt = readBirdCoderCodeEngineRecordString(
+  const directPrompt = readBirdCoderAgentEngineRecordString(
     args,
-    CODE_ENGINE_PROMPT_ARGUMENT_KEYS,
+    AGENT_ENGINE_PROMPT_ARGUMENT_KEYS,
   );
   if (directPrompt) {
     return directPrompt;
@@ -748,13 +748,13 @@ function resolveBirdCoderCodeEnginePromptText(
 
   const questions = Array.isArray(args?.questions) ? args.questions : [];
   for (const question of questions) {
-    if (!isBirdCoderCodeEnginePayloadRecord(question)) {
+    if (!isBirdCoderAgentEnginePayloadRecord(question)) {
       continue;
     }
 
-    const questionText = readBirdCoderCodeEngineRecordString(
+    const questionText = readBirdCoderAgentEngineRecordString(
       question,
-      CODE_ENGINE_PROMPT_ARGUMENT_KEYS,
+      AGENT_ENGINE_PROMPT_ARGUMENT_KEYS,
     );
     if (questionText) {
       return questionText;
@@ -764,87 +764,87 @@ function resolveBirdCoderCodeEnginePromptText(
   return undefined;
 }
 
-function resolveBirdCoderCodeEnginePermissionRequestText(
+function resolveBirdCoderAgentEnginePermissionRequestText(
   args: Record<string, unknown> | null,
 ): string {
-  const details = isBirdCoderCodeEnginePayloadRecord(args?.details)
+  const details = isBirdCoderAgentEnginePayloadRecord(args?.details)
     ? args.details
     : null;
-  const metadata = isBirdCoderCodeEnginePayloadRecord(args?.metadata)
+  const metadata = isBirdCoderAgentEnginePayloadRecord(args?.metadata)
     ? args.metadata
     : null;
-  const request = isBirdCoderCodeEnginePayloadRecord(args?.request)
+  const request = isBirdCoderAgentEnginePayloadRecord(args?.request)
     ? args.request
     : null;
-  const requestArgs = isBirdCoderCodeEnginePayloadRecord(request?.args)
+  const requestArgs = isBirdCoderAgentEnginePayloadRecord(request?.args)
     ? request.args
     : null;
   const target =
-    readBirdCoderCodeEngineRecordString(
+    readBirdCoderAgentEngineRecordString(
       details,
-      CODE_ENGINE_PERMISSION_NAMED_TARGET_KEYS,
+      AGENT_ENGINE_PERMISSION_NAMED_TARGET_KEYS,
     ) ??
-    readBirdCoderCodeEngineRecordString(
+    readBirdCoderAgentEngineRecordString(
       metadata,
-      CODE_ENGINE_PERMISSION_NAMED_TARGET_KEYS,
+      AGENT_ENGINE_PERMISSION_NAMED_TARGET_KEYS,
     ) ??
-    readBirdCoderCodeEngineRecordString(
+    readBirdCoderAgentEngineRecordString(
       args,
-      CODE_ENGINE_PERMISSION_ROOT_TARGET_KEYS,
+      AGENT_ENGINE_PERMISSION_ROOT_TARGET_KEYS,
     ) ??
-    readBirdCoderCodeEngineRecordString(
+    readBirdCoderAgentEngineRecordString(
       requestArgs,
-      CODE_ENGINE_PERMISSION_REQUEST_ARGUMENT_KEYS,
+      AGENT_ENGINE_PERMISSION_REQUEST_ARGUMENT_KEYS,
     ) ??
-    readBirdCoderCodeEngineRecordString(request, ['name', 'tool']);
+    readBirdCoderAgentEngineRecordString(request, ['name', 'tool']);
 
   return target ? `Permission required: ${target}` : 'Permission required';
 }
 
-function resolveBirdCoderCodeEngineChangePaths(
+function resolveBirdCoderAgentEngineChangePaths(
   args: Record<string, unknown> | null,
 ): string[] {
   const changes = Array.isArray(args?.changes) ? args.changes : [];
   return changes.flatMap((change) => {
-    if (!isBirdCoderCodeEnginePayloadRecord(change)) {
+    if (!isBirdCoderAgentEnginePayloadRecord(change)) {
       return [];
     }
 
-    const path = readBirdCoderCodeEngineRecordString(
+    const path = readBirdCoderAgentEngineRecordString(
       change,
-      CODE_ENGINE_PATH_ARGUMENT_KEYS,
+      AGENT_ENGINE_PATH_ARGUMENT_KEYS,
     );
     return path ? [path] : [];
   });
 }
 
-export function resolveBirdCoderCodeEngineCommandText(
-  input: BirdCoderCodeEngineCommandTextInput,
+export function resolveBirdCoderAgentEngineCommandText(
+  input: BirdCoderAgentEngineCommandTextInput,
 ): string {
-  const toolName = stringifyBirdCoderCodeEngineToolName(input.toolName) || 'tool';
+  const toolName = stringifyBirdCoderAgentEngineToolName(input.toolName) || 'tool';
   const args = input.toolArguments ?? null;
-  const changePaths = resolveBirdCoderCodeEngineChangePaths(args);
+  const changePaths = resolveBirdCoderAgentEngineChangePaths(args);
   if (changePaths.length > 0) {
     return `${toolName}: ${changePaths.join(', ')}`;
   }
 
-  if (isBirdCoderCodeEngineApprovalToolName(toolName)) {
-    return resolveBirdCoderCodeEnginePermissionRequestText(args);
+  if (isBirdCoderAgentEngineApprovalToolName(toolName)) {
+    return resolveBirdCoderAgentEnginePermissionRequestText(args);
   }
 
-  const promptText = resolveBirdCoderCodeEnginePromptText(args);
+  const promptText = resolveBirdCoderAgentEnginePromptText(args);
   if (promptText) {
     return promptText;
   }
 
-  if (isBirdCoderCodeEngineUserQuestionToolName(toolName)) {
-    const answerText = readBirdCoderCodeEngineRecordString(args, ['answer']);
+  if (isBirdCoderAgentEngineUserQuestionToolName(toolName)) {
+    const answerText = readBirdCoderAgentEngineRecordString(args, ['answer']);
     if (answerText) {
       return answerText;
     }
   }
 
-  const commandCandidate = readBirdCoderCodeEngineRecordString(
+  const commandCandidate = readBirdCoderAgentEngineRecordString(
     args,
     COMMAND_TEXT_ARGUMENT_KEYS,
   );
@@ -852,13 +852,13 @@ export function resolveBirdCoderCodeEngineCommandText(
     return commandCandidate;
   }
 
-  const fallbackArguments = stringifyBirdCoderCodeEngineToolName(
+  const fallbackArguments = stringifyBirdCoderAgentEngineToolName(
     input.fallbackArguments,
   );
   return fallbackArguments ? `${toolName} ${fallbackArguments}` : toolName;
 }
 
-function hasBirdCoderCodeEngineCommandArgumentValue(value: unknown): boolean {
+function hasBirdCoderAgentEngineCommandArgumentValue(value: unknown): boolean {
   if (typeof value === 'string') {
     return value.trim().length > 0;
   }
@@ -866,28 +866,28 @@ function hasBirdCoderCodeEngineCommandArgumentValue(value: unknown): boolean {
   return value !== undefined && value !== null && value !== false;
 }
 
-export function hasBirdCoderCodeEngineCommandArguments(value: unknown): boolean {
-  if (!isBirdCoderCodeEnginePayloadRecord(value)) {
+export function hasBirdCoderAgentEngineCommandArguments(value: unknown): boolean {
+  if (!isBirdCoderAgentEnginePayloadRecord(value)) {
     return false;
   }
 
   return COMMAND_ARGUMENT_KEYS.some((key) =>
-    hasBirdCoderCodeEngineCommandArgumentValue(value[key]),
+    hasBirdCoderAgentEngineCommandArgumentValue(value[key]),
   );
 }
 
-export function resolveBirdCoderCodeEngineToolKind(
-  input: BirdCoderCodeEngineToolKindInput,
-): BirdCoderCodeEngineToolKind {
-  const normalizedToolName = normalizeBirdCoderCodeEngineDialectKey(input.toolName);
+export function resolveBirdCoderAgentEngineToolKind(
+  input: BirdCoderAgentEngineToolKindInput,
+): BirdCoderAgentEngineToolKind {
+  const normalizedToolName = normalizeBirdCoderAgentEngineDialectKey(input.toolName);
   if (
-    isBirdCoderCodeEngineUserQuestionToolName(normalizedToolName) ||
+    isBirdCoderAgentEngineUserQuestionToolName(normalizedToolName) ||
     input.runtimeStatus === 'awaiting_user'
   ) {
     return 'user_question';
   }
   if (
-    isBirdCoderCodeEngineApprovalToolName(normalizedToolName) ||
+    isBirdCoderAgentEngineApprovalToolName(normalizedToolName) ||
     input.runtimeStatus === 'awaiting_approval'
   ) {
     return 'approval';
@@ -895,7 +895,7 @@ export function resolveBirdCoderCodeEngineToolKind(
   if (
     (normalizedToolName ? COMMAND_TOOL_NAME_ALIASES.has(normalizedToolName) : false) ||
     input.hasCommandArguments === true ||
-    hasBirdCoderCodeEngineCommandArguments(input.toolArguments)
+    hasBirdCoderAgentEngineCommandArguments(input.toolArguments)
   ) {
     return 'command';
   }
@@ -909,10 +909,10 @@ export function resolveBirdCoderCodeEngineToolKind(
   return 'tool';
 }
 
-export function resolveBirdCoderCodeEngineArtifactKind(
-  input: BirdCoderCodeEngineToolClassificationInput,
+export function resolveBirdCoderAgentEngineArtifactKind(
+  input: BirdCoderAgentEngineToolClassificationInput,
 ): AgentSessionArtifactDisplayKind {
-  const normalizedToolName = normalizeBirdCoderCodeEngineDialectKey(input.toolName);
+  const normalizedToolName = normalizeBirdCoderAgentEngineDialectKey(input.toolName);
   if (normalizedToolName && PTY_TOOL_NAME_ALIASES.has(normalizedToolName)) {
     return 'pty-transcript';
   }
@@ -922,7 +922,7 @@ export function resolveBirdCoderCodeEngineArtifactKind(
 
   const toolKind =
     input.toolKind ??
-    resolveBirdCoderCodeEngineToolKind({
+    resolveBirdCoderAgentEngineToolKind({
       toolName: input.toolName,
     });
   switch (toolKind) {
@@ -937,10 +937,10 @@ export function resolveBirdCoderCodeEngineArtifactKind(
   }
 }
 
-export function resolveBirdCoderCodeEngineRiskLevel(
-  input: BirdCoderCodeEngineToolClassificationInput,
+export function resolveBirdCoderAgentEngineRiskLevel(
+  input: BirdCoderAgentEngineToolClassificationInput,
 ): BirdcoderRiskLevel {
-  const normalizedToolName = normalizeBirdCoderCodeEngineDialectKey(input.toolName);
+  const normalizedToolName = normalizeBirdCoderAgentEngineDialectKey(input.toolName);
   if (normalizedToolName && DIAGNOSTIC_TOOL_NAME_ALIASES.has(normalizedToolName)) {
     return 'P0';
   }
@@ -950,7 +950,7 @@ export function resolveBirdCoderCodeEngineRiskLevel(
 
   const toolKind =
     input.toolKind ??
-    resolveBirdCoderCodeEngineToolKind({
+    resolveBirdCoderAgentEngineToolKind({
       toolName: input.toolName,
     });
   switch (toolKind) {
@@ -966,27 +966,27 @@ export function resolveBirdCoderCodeEngineRiskLevel(
   }
 }
 
-export function normalizeBirdCoderCodeEngineRuntimeStatus(
+export function normalizeBirdCoderAgentEngineRuntimeStatus(
   value: unknown,
 ): AgentSessionRuntimeDisplayStatus | undefined {
-  const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
+  const normalizedValue = normalizeBirdCoderAgentEngineDialectKey(value);
   return normalizedValue ? RUNTIME_STATUS_ALIASES.get(normalizedValue) : undefined;
 }
 
-export function resolveBirdCoderCodeEngineSessionRuntimeStatus(
+export function resolveBirdCoderAgentEngineSessionRuntimeStatus(
   value: unknown,
 ): AgentSessionRuntimeDisplayStatus {
   if (value === undefined || value === null) {
     return 'completed';
   }
 
-  return normalizeBirdCoderCodeEngineRuntimeStatus(value) ?? 'ready';
+  return normalizeBirdCoderAgentEngineRuntimeStatus(value) ?? 'ready';
 }
 
-export function resolveBirdCoderCodeEngineSessionStatusFromRuntime(
+export function resolveBirdCoderAgentEngineSessionStatusFromRuntime(
   value: unknown,
 ): AgentSessionDisplayStatus {
-  const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(value);
+  const runtimeStatus = normalizeBirdCoderAgentEngineRuntimeStatus(value);
   switch (runtimeStatus) {
     case 'completed':
     case 'terminated':
@@ -1004,14 +1004,14 @@ export function resolveBirdCoderCodeEngineSessionStatusFromRuntime(
   }
 }
 
-export function normalizeBirdCoderCodeEngineToolLifecycleStatus(
+export function normalizeBirdCoderAgentEngineToolLifecycleStatus(
   value: unknown,
-): BirdCoderCodeEngineToolLifecycleStatus | undefined {
-  const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
+): BirdCoderAgentEngineToolLifecycleStatus | undefined {
+  const normalizedValue = normalizeBirdCoderAgentEngineDialectKey(value);
   return normalizedValue ? TOOL_LIFECYCLE_STATUS_ALIASES.get(normalizedValue) : undefined;
 }
 
-export function normalizeBirdCoderCodeEngineExitCode(value: unknown): number | undefined {
+export function normalizeBirdCoderAgentEngineExitCode(value: unknown): number | undefined {
   if (
     typeof value === 'number' &&
     Number.isInteger(value) &&
@@ -1040,7 +1040,7 @@ export function normalizeBirdCoderCodeEngineExitCode(value: unknown): number | u
   return Number(parsedValue);
 }
 
-export function normalizeBirdCoderCodeEngineBoolean(
+export function normalizeBirdCoderAgentEngineBoolean(
   value: unknown,
 ): boolean | undefined {
   if (typeof value === 'boolean') {
@@ -1072,27 +1072,27 @@ export function normalizeBirdCoderCodeEngineBoolean(
   return undefined;
 }
 
-function hasAffirmativeBirdCoderCodeEngineBoolean(
+function hasAffirmativeBirdCoderAgentEngineBoolean(
   value: unknown,
   values: readonly unknown[] | undefined,
 ): boolean {
-  if (normalizeBirdCoderCodeEngineBoolean(value) === true) {
+  if (normalizeBirdCoderAgentEngineBoolean(value) === true) {
     return true;
   }
 
-  return values?.some((item) => normalizeBirdCoderCodeEngineBoolean(item) === true) ?? false;
+  return values?.some((item) => normalizeBirdCoderAgentEngineBoolean(item) === true) ?? false;
 }
 
-export function resolveBirdCoderCodeEngineCommandInteractionState(
-  input: BirdCoderCodeEngineCommandInteractionStateInput,
-): BirdCoderCodeEngineCommandInteractionState {
+export function resolveBirdCoderAgentEngineCommandInteractionState(
+  input: BirdCoderAgentEngineCommandInteractionStateInput,
+): BirdCoderAgentEngineCommandInteractionState {
   const isRunning = input.status === 'running';
   return {
     isRunning,
     requiresApproval:
       isRunning &&
       (input.runtimeStatus === 'awaiting_approval' ||
-        hasAffirmativeBirdCoderCodeEngineBoolean(
+        hasAffirmativeBirdCoderAgentEngineBoolean(
           input.requiresApproval,
           input.requiresApprovalValues,
         ) ||
@@ -1100,7 +1100,7 @@ export function resolveBirdCoderCodeEngineCommandInteractionState(
     requiresReply:
       isRunning &&
       (input.runtimeStatus === 'awaiting_user' ||
-        hasAffirmativeBirdCoderCodeEngineBoolean(
+        hasAffirmativeBirdCoderAgentEngineBoolean(
           input.requiresReply,
           input.requiresReplyValues,
         ) ||
@@ -1108,9 +1108,9 @@ export function resolveBirdCoderCodeEngineCommandInteractionState(
   };
 }
 
-export function shouldPreserveBirdCoderCodeEngineCommandText(
-  existingCommand: BirdCoderCodeEngineCommandSnapshot,
-  nextCommand: BirdCoderCodeEngineCommandSnapshot,
+export function shouldPreserveBirdCoderAgentEngineCommandText(
+  existingCommand: BirdCoderAgentEngineCommandSnapshot,
+  nextCommand: BirdCoderAgentEngineCommandSnapshot,
 ): boolean {
   return (
     existingCommand.kind === nextCommand.kind &&
@@ -1120,10 +1120,10 @@ export function shouldPreserveBirdCoderCodeEngineCommandText(
   );
 }
 
-export function mergeBirdCoderCodeEngineCommandSnapshot<
-  TCommand extends BirdCoderCodeEngineCommandSnapshot,
+export function mergeBirdCoderAgentEngineCommandSnapshot<
+  TCommand extends BirdCoderAgentEngineCommandSnapshot,
 >(existingCommand: TCommand, nextCommand: TCommand): TCommand {
-  const shouldPreserveCommandText = shouldPreserveBirdCoderCodeEngineCommandText(
+  const shouldPreserveCommandText = shouldPreserveBirdCoderAgentEngineCommandText(
     existingCommand,
     nextCommand,
   );
@@ -1193,8 +1193,8 @@ export function mergeBirdCoderCodeEngineCommandSnapshot<
   return mergedCommand;
 }
 
-export function isBirdCoderCodeEngineSettledStatus(value: unknown): boolean {
-  const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(value);
+export function isBirdCoderAgentEngineSettledStatus(value: unknown): boolean {
+  const runtimeStatus = normalizeBirdCoderAgentEngineRuntimeStatus(value);
   if (
     runtimeStatus === 'awaiting_tool' ||
     runtimeStatus === 'completed' ||
@@ -1204,7 +1204,7 @@ export function isBirdCoderCodeEngineSettledStatus(value: unknown): boolean {
     return true;
   }
 
-  const lifecycleStatus = normalizeBirdCoderCodeEngineToolLifecycleStatus(value);
+  const lifecycleStatus = normalizeBirdCoderAgentEngineToolLifecycleStatus(value);
   return (
     lifecycleStatus === 'completed' ||
     lifecycleStatus === 'failed' ||
@@ -1212,7 +1212,7 @@ export function isBirdCoderCodeEngineSettledStatus(value: unknown): boolean {
   );
 }
 
-function isCompleteBirdCoderCodeEngineToolArguments(value: string): boolean {
+function isCompleteBirdCoderAgentEngineToolArguments(value: string): boolean {
   const normalizedValue = value.trim();
   if (!normalizedValue) {
     return false;
@@ -1226,7 +1226,7 @@ function isCompleteBirdCoderCodeEngineToolArguments(value: string): boolean {
   }
 }
 
-function mergeBirdCoderCodeEngineToolCallArguments(
+function mergeBirdCoderAgentEngineToolCallArguments(
   existingArguments: string,
   nextArguments: string,
 ): string {
@@ -1238,15 +1238,15 @@ function mergeBirdCoderCodeEngineToolCallArguments(
     return nextArguments;
   }
 
-  if (isCompleteBirdCoderCodeEngineToolArguments(nextArguments)) {
+  if (isCompleteBirdCoderAgentEngineToolArguments(nextArguments)) {
     return nextArguments;
   }
 
   return `${existingArguments}${nextArguments}`;
 }
 
-export function mergeBirdCoderCodeEngineToolCallDelta(
-  input: BirdCoderCodeEngineToolCallDeltaInput,
+export function mergeBirdCoderAgentEngineToolCallDelta(
+  input: BirdCoderAgentEngineToolCallDeltaInput,
 ): void {
   const { pendingToolCallOrder, pendingToolCalls, toolCall } = input;
   const key = Number.isInteger(toolCall.index)
@@ -1256,12 +1256,12 @@ export function mergeBirdCoderCodeEngineToolCallDelta(
         ? pendingToolCallOrder[0]
         : `order:${pendingToolCallOrder.length}`);
   const existingToolCall = pendingToolCalls.get(key);
-  const nextToolCall: BirdCoderCodeEnginePendingToolCallDelta = {
+  const nextToolCall: BirdCoderAgentEnginePendingToolCallDelta = {
     id: toolCall.id || existingToolCall?.id || key,
     type: 'function',
     function: {
       name: toolCall.function?.name || existingToolCall?.function.name || 'tool',
-      arguments: mergeBirdCoderCodeEngineToolCallArguments(
+      arguments: mergeBirdCoderAgentEngineToolCallArguments(
         existingToolCall?.function.arguments ?? '',
         toolCall.function?.arguments ?? '',
       ),
@@ -1274,9 +1274,9 @@ export function mergeBirdCoderCodeEngineToolCallDelta(
   pendingToolCalls.set(key, nextToolCall);
 }
 
-export function flushBirdCoderCodeEngineToolCallDeltas(
-  input: BirdCoderCodeEngineToolCallDeltaAccumulator,
-): BirdCoderCodeEnginePendingToolCallDelta[] {
+export function flushBirdCoderAgentEngineToolCallDeltas(
+  input: BirdCoderAgentEngineToolCallDeltaAccumulator,
+): BirdCoderAgentEnginePendingToolCallDelta[] {
   const { pendingToolCallOrder, pendingToolCalls } = input;
   const toolCalls = pendingToolCallOrder.flatMap((key) => {
     const toolCall = pendingToolCalls.get(key);
@@ -1288,34 +1288,34 @@ export function flushBirdCoderCodeEngineToolCallDeltas(
 }
 
 function firstRuntimeStatus(
-  input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
+  input: BirdCoderAgentEngineInteractionRuntimeStatusInput,
 ): AgentSessionRuntimeDisplayStatus | undefined {
   return (
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.runtimeStatus) ??
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.state) ??
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.phase)
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.runtimeStatus) ??
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.state) ??
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.phase)
   );
 }
 
 function statusTransitionsToAwaitingTool(value: unknown): boolean {
   return (
-    normalizeBirdCoderCodeEngineRuntimeStatus(value) === 'awaiting_tool' ||
-    normalizeBirdCoderCodeEngineToolLifecycleStatus(value) === 'completed'
+    normalizeBirdCoderAgentEngineRuntimeStatus(value) === 'awaiting_tool' ||
+    normalizeBirdCoderAgentEngineToolLifecycleStatus(value) === 'completed'
   );
 }
 
 function statusTransitionsToFailed(value: unknown): boolean {
-  const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(value);
+  const runtimeStatus = normalizeBirdCoderAgentEngineRuntimeStatus(value);
   if (runtimeStatus === 'failed' || runtimeStatus === 'terminated') {
     return true;
   }
 
-  const lifecycleStatus = normalizeBirdCoderCodeEngineToolLifecycleStatus(value);
+  const lifecycleStatus = normalizeBirdCoderAgentEngineToolLifecycleStatus(value);
   return lifecycleStatus === 'failed' || lifecycleStatus === 'cancelled';
 }
 
-export function resolveBirdCoderCodeEngineUserQuestionRuntimeStatus(
-  input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
+export function resolveBirdCoderAgentEngineUserQuestionRuntimeStatus(
+  input: BirdCoderAgentEngineInteractionRuntimeStatusInput,
 ): AgentSessionRuntimeDisplayStatus {
   const status = input.status;
   const explicitRuntimeStatus = firstRuntimeStatus(input);
@@ -1338,8 +1338,8 @@ export function resolveBirdCoderCodeEngineUserQuestionRuntimeStatus(
   return 'awaiting_user';
 }
 
-export function resolveBirdCoderCodeEngineApprovalRuntimeStatus(
-  input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
+export function resolveBirdCoderAgentEngineApprovalRuntimeStatus(
+  input: BirdCoderAgentEngineInteractionRuntimeStatusInput,
 ): AgentSessionRuntimeDisplayStatus {
   const status = input.status;
   if (statusTransitionsToAwaitingTool(status)) {
@@ -1360,19 +1360,19 @@ export function resolveBirdCoderCodeEngineApprovalRuntimeStatus(
   return 'awaiting_approval';
 }
 
-export function resolveBirdCoderCodeEngineCommandStatus(
-  input: BirdCoderCodeEngineCommandStatusInput,
-): BirdCoderCodeEngineCommandStatus {
-  const exitCode = normalizeBirdCoderCodeEngineExitCode(input.exitCode);
+export function resolveBirdCoderAgentEngineCommandStatus(
+  input: BirdCoderAgentEngineCommandStatusInput,
+): BirdCoderAgentEngineCommandStatus {
+  const exitCode = normalizeBirdCoderAgentEngineExitCode(input.exitCode);
   if (exitCode !== undefined) {
     return exitCode === 0 ? 'success' : 'error';
   }
 
   const lifecycleStatus =
-    normalizeBirdCoderCodeEngineToolLifecycleStatus(input.status) ??
-    normalizeBirdCoderCodeEngineToolLifecycleStatus(input.runtimeStatus) ??
-    normalizeBirdCoderCodeEngineToolLifecycleStatus(input.state) ??
-    normalizeBirdCoderCodeEngineToolLifecycleStatus(input.phase);
+    normalizeBirdCoderAgentEngineToolLifecycleStatus(input.status) ??
+    normalizeBirdCoderAgentEngineToolLifecycleStatus(input.runtimeStatus) ??
+    normalizeBirdCoderAgentEngineToolLifecycleStatus(input.state) ??
+    normalizeBirdCoderAgentEngineToolLifecycleStatus(input.phase);
   if (lifecycleStatus === 'completed') {
     return 'success';
   }
@@ -1388,10 +1388,10 @@ export function resolveBirdCoderCodeEngineCommandStatus(
   }
 
   const runtimeStatus =
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.runtimeStatus) ??
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.status) ??
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.state) ??
-    normalizeBirdCoderCodeEngineRuntimeStatus(input.phase);
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.runtimeStatus) ??
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.status) ??
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.state) ??
+    normalizeBirdCoderAgentEngineRuntimeStatus(input.phase);
   if (runtimeStatus === 'completed') {
     return 'success';
   }

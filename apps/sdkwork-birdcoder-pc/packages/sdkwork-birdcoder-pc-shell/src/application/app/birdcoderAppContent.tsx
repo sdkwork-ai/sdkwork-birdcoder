@@ -88,11 +88,11 @@ import {
   type SettingsTab,
 } from '@sdkwork/birdcoder-pc-settings';
 import {
-  loadWorkbenchCodeEngineCatalog,
-  resetWorkbenchCodeEngineCatalog,
-  resolveWorkbenchCodeEngineSelectedModelId,
+  loadWorkbenchAgentEngineCatalog,
+  resetWorkbenchAgentEngineCatalog,
+  resolveWorkbenchAgentEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import {
   filterWorkbenchModeCatalogEngines,
   normalizeWorkbenchMode,
@@ -186,19 +186,19 @@ export function AppContent() {
       return undefined;
     }
     if (!isAuthenticated) {
-      resetWorkbenchCodeEngineCatalog();
+      resetWorkbenchAgentEngineCatalog();
       return undefined;
     }
 
     let disposed = false;
-    void loadWorkbenchCodeEngineCatalog().catch((error) => {
+    void loadWorkbenchAgentEngineCatalog().catch((error) => {
       if (!disposed) {
-        console.warn('[sdkwork-agents] failed to load code-engine catalog:', error);
+        console.warn('[sdkwork-agents] failed to load agent-engine catalog:', error);
       }
     });
     return () => {
       disposed = true;
-      resetWorkbenchCodeEngineCatalog();
+      resetWorkbenchAgentEngineCatalog();
     };
     // Key the catalog lifecycle on the authenticated user identity, not the
     // token-pair revision: every token refresh bumps `sessionRevision` and
@@ -1954,7 +1954,7 @@ export function AppContent() {
         {
           currentSessionEngineId: activeAgentSession?.engineId,
           currentSessionModelId: activeAgentSession?.modelId,
-          preferredEngineId: preferences.codeEngineId,
+          preferredEngineId: preferences.agentEngineId,
           preferredModelId: preferences.codeModelId,
         },
         preferences,
@@ -1974,13 +1974,13 @@ export function AppContent() {
   );
   const availableNewSessionEngines = useMemo(() => modeAvailableNewSessionEngines.map((engine) => ({
     ...engine,
-    modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
+    modelId: resolveWorkbenchAgentEngineSelectedModelId(engine.id, preferences),
   })), [modeAvailableNewSessionEngines, preferences]);
   const modePreferredNewSessionEngine =
     modeAvailableNewSessionEngines.find(
       (engine) => engine.id === newSessionEngineCatalog.preferredSelection.engineId,
     ) ?? modeAvailableNewSessionEngines[0] ?? newSessionEngineCatalog.preferredSelection.engine;
-  const modePreferredNewSessionModelId = resolveWorkbenchCodeEngineSelectedModelId(
+  const modePreferredNewSessionModelId = resolveWorkbenchAgentEngineSelectedModelId(
     modePreferredNewSessionEngine.id,
     preferences,
   );

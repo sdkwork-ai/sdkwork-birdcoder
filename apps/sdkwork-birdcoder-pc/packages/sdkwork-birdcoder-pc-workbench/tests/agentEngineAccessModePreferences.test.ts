@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  replaceWorkbenchCodeEngineCatalogForTesting,
-  resetWorkbenchCodeEngineCatalog,
-  resolveWorkbenchCodeEngineSelectedAccessModeId,
-} from '../src/workbench/codeEngineCatalog.ts';
+  replaceWorkbenchAgentEngineCatalogForTesting,
+  resetWorkbenchAgentEngineCatalog,
+  resolveWorkbenchAgentEngineSelectedAccessModeId,
+} from '../src/workbench/agentEngineCatalog.ts';
 import {
   normalizeWorkbenchPreferences,
-  setWorkbenchCodeEngineAccessMode,
-  setWorkbenchCodeEngineDefaultModel,
+  setWorkbenchAgentEngineAccessMode,
+  setWorkbenchAgentEngineDefaultModel,
 } from '../src/workbench/preferences.ts';
 
 const catalogEntry = {
@@ -72,74 +72,75 @@ const catalogEntry = {
   ],
   providerId: 'provider.openai',
   tier: 'official-sdk',
+  engineKind: 'code' as const,
 };
 
-describe('code engine access mode preferences', () => {
+describe('agent engine access mode preferences', () => {
   beforeEach(() => {
-    replaceWorkbenchCodeEngineCatalogForTesting([catalogEntry]);
+    replaceWorkbenchAgentEngineCatalogForTesting([catalogEntry]);
   });
 
   afterEach(() => {
-    resetWorkbenchCodeEngineCatalog();
+    resetWorkbenchAgentEngineCatalog();
   });
 
   it('preserves an enabled per-engine access mode and falls back from invalid modes', () => {
     const preferences = normalizeWorkbenchPreferences({
-      codeEngineId: 'codex',
-      codeEngineSettings: {
+      agentEngineId: 'codex',
+      agentEngineSettings: {
         codex: {
           accessModeId: 'full_access',
           defaultModelId: 'codex-default',
         },
       },
     });
-    expect(resolveWorkbenchCodeEngineSelectedAccessModeId('codex', preferences)).toBe('full_access');
+    expect(resolveWorkbenchAgentEngineSelectedAccessModeId('codex', preferences)).toBe('full_access');
 
     const disabled = normalizeWorkbenchPreferences({
-      codeEngineId: 'codex',
-      codeEngineSettings: {
+      agentEngineId: 'codex',
+      agentEngineSettings: {
         codex: {
           accessModeId: 'approve_for_me',
           defaultModelId: 'codex-default',
         },
       },
     });
-    expect(disabled.codeEngineSettings.codex?.accessModeId).toBe('ask_for_approval');
+    expect(disabled.agentEngineSettings.codex?.accessModeId).toBe('ask_for_approval');
 
     const unknown = normalizeWorkbenchPreferences({
-      codeEngineId: 'codex',
-      codeEngineSettings: {
+      agentEngineId: 'codex',
+      agentEngineSettings: {
         codex: {
           accessModeId: 'unknown',
           defaultModelId: 'codex-default',
         },
       },
     });
-    expect(unknown.codeEngineSettings.codex?.accessModeId).toBe('ask_for_approval');
+    expect(unknown.agentEngineSettings.codex?.accessModeId).toBe('ask_for_approval');
   });
 
   it('updates model and access mode independently', () => {
     const initial = normalizeWorkbenchPreferences({
-      codeEngineId: 'codex',
-      codeEngineSettings: {
+      agentEngineId: 'codex',
+      agentEngineSettings: {
         codex: {
           accessModeId: 'full_access',
           defaultModelId: 'codex-default',
         },
       },
     });
-    const withModel = setWorkbenchCodeEngineDefaultModel(initial, 'codex', 'codex-fast');
-    expect(withModel.codeEngineSettings.codex).toEqual({
+    const withModel = setWorkbenchAgentEngineDefaultModel(initial, 'codex', 'codex-fast');
+    expect(withModel.agentEngineSettings.codex).toEqual({
       accessModeId: 'full_access',
       defaultModelId: 'codex-fast',
     });
 
-    const withAccessMode = setWorkbenchCodeEngineAccessMode(
+    const withAccessMode = setWorkbenchAgentEngineAccessMode(
       withModel,
       'codex',
       'ask_for_approval',
     );
-    expect(withAccessMode.codeEngineSettings.codex).toEqual({
+    expect(withAccessMode.agentEngineSettings.codex).toEqual({
       accessModeId: 'ask_for_approval',
       defaultModelId: 'codex-fast',
     });

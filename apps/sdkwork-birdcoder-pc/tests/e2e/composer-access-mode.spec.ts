@@ -52,7 +52,7 @@ async function bootstrapAuthenticatedSession(
 }
 
 async function disableApproveForMeMode(page: Page): Promise<void> {
-  await page.route('**/app/v3/api/ai/code_engines', async (route) => {
+  await page.route('**/app/v3/api/ai/agent_engines', async (route) => {
     const response = await route.fetch();
     const payload = await response.json() as {
       data: {

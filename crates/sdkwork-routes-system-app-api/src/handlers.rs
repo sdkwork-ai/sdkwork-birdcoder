@@ -14,6 +14,7 @@ use sdkwork_birdcoder_system_descriptor_service::domain::models::{
 use sdkwork_birdcoder_system_descriptor_service::service::system_service::{
     ManifestRouteCatalogProvider, SystemService,
 };
+use sdkwork_web_bootstrap::{AlwaysReady, ReadinessCheck};
 use sdkwork_web_contract::HttpRoute;
 
 pub type ConcreteSystemService = SystemService<ManifestRouteCatalogProvider>;
@@ -25,6 +26,7 @@ pub struct SystemAppState {
     pub runtime_host: String,
     pub runtime_port: u16,
     pub config_file_name: String,
+    pub readiness_check: Arc<dyn ReadinessCheck>,
 }
 
 impl SystemAppState {
@@ -46,7 +48,16 @@ impl SystemAppState {
             runtime_host: host.into(),
             runtime_port: port,
             config_file_name: config_file_name.into(),
+            readiness_check: Arc::new(AlwaysReady),
         }
+    }
+
+    /// Attaches the composed dependency readiness check so the System health
+    /// endpoint reports real dependency availability instead of a hard-coded
+    /// healthy status.
+    pub fn with_readiness_check(mut self, readiness_check: Arc<dyn ReadinessCheck>) -> Self {
+        self.readiness_check = readiness_check;
+        self
     }
 }
 
@@ -98,8 +109,13 @@ pub async fn get_health(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
 ) -> Json<ApiDataEnvelope<HealthPayload>> {
+    // The System health endpoint reports real dependency availability: the
+    // composed readiness check covers every mounted owner dependency, so a
+    // gateway whose dependencies are unavailable reports not_healthy instead
+    // of a hard-coded healthy status.
+    let healthy = state.readiness_check.check().await.is_ok();
     Json(build_data_envelope(
-        state.service.health(),
+        state.service.health(healthy),
         request_id(&web),
     ))
 }

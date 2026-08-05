@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 
 import type { AgentsAppSdkClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/sdk/agents-app-sdk.ts';
 import {
-  listBirdCoderCodeEngineCatalog,
-  type BirdCoderCodeEngineCatalogEntry,
+  listBirdCoderAgentEngineCatalog,
+  type BirdCoderAgentEngineCatalogEntry,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsCatalogService.ts';
 
 function createAgentsAppClientReturning(payload: unknown): AgentsAppSdkClient {
   return {
     ai: {
       agents: {
-        codeEngines: {
+        agentEngines: {
           async list() {
             return payload;
           },
@@ -20,7 +20,7 @@ function createAgentsAppClientReturning(payload: unknown): AgentsAppSdkClient {
   } as unknown as AgentsAppSdkClient;
 }
 
-function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
+function assertCatalogEntry(entry: BirdCoderAgentEngineCatalogEntry): void {
   assert.deepEqual(
     entry,
     {
@@ -32,6 +32,7 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
       healthy: true,
       defaultModelId: 'codex-1',
       tier: 'official-sdk',
+      engineKind: 'code',
       defaultAccessModeId: 'ask_for_approval',
       accessModes: [
         {
@@ -56,15 +57,16 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
         },
       ],
     },
-    'agents code engine catalog must preserve the generated SDK catalog fields',
+    'agents agent engine catalog must preserve the generated SDK catalog fields',
   );
 }
 
-const catalog = await listBirdCoderCodeEngineCatalog(
+const catalog = await listBirdCoderAgentEngineCatalog(
   createAgentsAppClientReturning({
     engines: [
       {
         engineKey: 'codex',
+        engineKind: 'code',
         agentId: 'agent.codex',
         bindingId: 'binding.codex',
         tier: 'official-sdk',
@@ -100,7 +102,7 @@ const catalog = await listBirdCoderCodeEngineCatalog(
 assert.equal(
   catalog.length,
   1,
-  'agents app SDK standard response must populate the code engine catalog',
+  'agents app SDK standard response must populate the agent engine catalog',
 );
 assertCatalogEntry(catalog[0]!);
 

@@ -1,7 +1,7 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { WorkbenchAgentEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 export interface UniversalChatNewSessionProviderOption {
   engineId: string;
@@ -84,7 +84,7 @@ export const UniversalChatNewSessionProviderSelector = memo(
           title={selectedProviderLabel}
           onClick={() => setIsOpen((previousState) => !previousState)}
         >
-          <WorkbenchCodeEngineIcon engineId={selectedEngineId} />
+          <WorkbenchAgentEngineIcon engineId={selectedEngineId} />
           <span className="min-w-0 truncate text-xs font-medium text-gray-100">
             {selectedProviderLabel}
           </span>
@@ -122,7 +122,7 @@ export const UniversalChatNewSessionProviderSelector = memo(
                   }}
                 >
                   <span className="flex min-w-0 items-center gap-2.5">
-                    <WorkbenchCodeEngineIcon engineId={option.engineId} />
+                    <WorkbenchAgentEngineIcon engineId={option.engineId} />
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-sm text-gray-100">{option.label}</span>
                       <span className="truncate text-[11px] text-gray-500">

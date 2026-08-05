@@ -2,18 +2,18 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
-  findWorkbenchCodeEngineDefinition,
-  getDefaultWorkbenchServerImplementedCodeEngineId,
-  getWorkbenchCodeEngineLabel,
+  findWorkbenchAgentEngineDefinition,
+  getDefaultWorkbenchServerImplementedAgentEngineId,
+  getWorkbenchAgentEngineLabel,
   isWorkbenchServerImplementedEngineId,
-  listWorkbenchServerImplementedCodeEngines,
-  loadWorkbenchCodeEngineCatalog,
+  listWorkbenchServerImplementedAgentEngines,
+  loadWorkbenchAgentEngineCatalog,
   normalizeWorkbenchCodeModelId,
-  normalizeWorkbenchServerImplementedCodeEngineId,
+  normalizeWorkbenchServerImplementedAgentEngineId,
   resolveWorkbenchPreferredNewSessionSelection,
   resolveWorkbenchRuntimeBindingIdentity,
-  useWorkbenchCodeEngineCatalog,
-} from '../workbench/codeEngineCatalog.ts';
+  useWorkbenchAgentEngineCatalog,
+} from '../workbench/agentEngineCatalog.ts';
 import {
   normalizeWorkbenchMode,
   resolveWorkbenchModeConstrainedEngineId,
@@ -24,7 +24,7 @@ import type { AgentSessionExecutionTarget } from '../workbench/agentSessionCreat
 import { useToast } from '../contexts/ToastProvider.ts';
 import {
   setWorkbenchActiveChatSelection,
-  setWorkbenchActiveCodeEngine,
+  setWorkbenchActiveAgentEngine,
   setWorkbenchActiveCodeModel,
   type WorkbenchPreferences,
 } from '../workbench/preferences.ts';
@@ -75,9 +75,9 @@ export function useWorkbenchChatSelection({
 }: UseWorkbenchChatSelectionOptions) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const codeEngineCatalog = useWorkbenchCodeEngineCatalog();
-  const selectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-    preferences.codeEngineId,
+  const agentEngineCatalog = useWorkbenchAgentEngineCatalog();
+  const selectedEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+    preferences.agentEngineId,
     preferences,
   );
   const selectedModelId = normalizeWorkbenchCodeModelId(
@@ -88,27 +88,27 @@ export function useWorkbenchChatSelection({
 
   const setSelectedEngineId = useCallback(
     (engineId: string) => {
-      const fallbackEngineId = getDefaultWorkbenchServerImplementedCodeEngineId();
+      const fallbackEngineId = getDefaultWorkbenchServerImplementedAgentEngineId();
       const resolvedRequestedEngineId =
-        findWorkbenchCodeEngineDefinition(engineId, preferences)?.id ?? null;
+        findWorkbenchAgentEngineDefinition(engineId, preferences)?.id ?? null;
       if (!resolvedRequestedEngineId || !isWorkbenchServerImplementedEngineId(engineId)) {
         addToast(
           t('settings.engines.serverUnavailable', {
-            engine: getWorkbenchCodeEngineLabel(engineId, preferences),
+            engine: getWorkbenchAgentEngineLabel(engineId, preferences),
           }),
           'error',
         );
         updatePreferences((previousState) =>
-          setWorkbenchActiveCodeEngine(
+          setWorkbenchActiveAgentEngine(
             previousState,
-            getDefaultWorkbenchServerImplementedCodeEngineId(),
+            getDefaultWorkbenchServerImplementedAgentEngineId(),
           ),
         );
         return;
       }
 
       updatePreferences((previousState) =>
-        setWorkbenchActiveCodeEngine(
+        setWorkbenchActiveAgentEngine(
           previousState,
           resolvedRequestedEngineId || fallbackEngineId,
         ),
@@ -143,8 +143,8 @@ export function useWorkbenchChatSelection({
       title?: string,
       options?: CreateAgentSessionWithSelectionOptions,
     ) => {
-      if (!codeEngineCatalog.loaded) {
-        await loadWorkbenchCodeEngineCatalog();
+      if (!agentEngineCatalog.loaded) {
+        await loadWorkbenchAgentEngineCatalog();
       }
       const requestedEngineId = options?.engineId?.trim() || undefined;
       const requestedModelId = options?.modelId?.trim() || undefined;
@@ -172,7 +172,7 @@ export function useWorkbenchChatSelection({
         : resolveWorkbenchModeConstrainedEngineId(
             normalizeWorkbenchMode(preferences.workbenchMode),
             preferredSelection.engineId,
-            listWorkbenchServerImplementedCodeEngines(preferences),
+            listWorkbenchServerImplementedAgentEngines(preferences),
           ) ?? preferredSelection.engineId;
       const resolvedModelId = requestedModelId
         ? normalizeWorkbenchCodeModelId(
@@ -202,7 +202,7 @@ export function useWorkbenchChatSelection({
     },
     [
       createAgentSession,
-      codeEngineCatalog.loaded,
+      agentEngineCatalog.loaded,
       currentSessionEngineId,
       currentSessionModelId,
       preferences,

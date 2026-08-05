@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   normalizeWorkbenchCodeModelId,
-  normalizeWorkbenchServerImplementedCodeEngineId,
-  useWorkbenchCodeEngineCatalog,
-  type WorkbenchCodeEngineId,
-} from '../workbench/codeEngineCatalog.ts';
+  normalizeWorkbenchServerImplementedAgentEngineId,
+  useWorkbenchAgentEngineCatalog,
+  type WorkbenchAgentEngineId,
+} from '../workbench/agentEngineCatalog.ts';
 
 import {
   DEFAULT_WORKBENCH_PREFERENCES,
@@ -23,16 +23,16 @@ type WorkbenchPreferencesListener = (preferences: WorkbenchPreferences) => void;
 let liveWorkbenchPreferences: WorkbenchPreferences | null = null;
 const workbenchPreferencesListeners = new Set<WorkbenchPreferencesListener>();
 
-function areWorkbenchCodeEngineSettingsEqual(
-  left: WorkbenchPreferences['codeEngineSettings'],
-  right: WorkbenchPreferences['codeEngineSettings'],
+function areWorkbenchAgentEngineSettingsEqual(
+  left: WorkbenchPreferences['agentEngineSettings'],
+  right: WorkbenchPreferences['agentEngineSettings'],
 ): boolean {
   if (left === right) {
     return true;
   }
 
-  const leftEngineIds = Object.keys(left ?? {}) as WorkbenchCodeEngineId[];
-  const rightEngineIds = Object.keys(right ?? {}) as WorkbenchCodeEngineId[];
+  const leftEngineIds = Object.keys(left ?? {}) as WorkbenchAgentEngineId[];
+  const rightEngineIds = Object.keys(right ?? {}) as WorkbenchAgentEngineId[];
   if (leftEngineIds.length !== rightEngineIds.length) {
     return false;
   }
@@ -64,9 +64,9 @@ function areWorkbenchCodeEngineSettingsEqual(
 function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreferences): boolean {
   return (
     left.workbenchMode === right.workbenchMode &&
-    left.codeEngineId === right.codeEngineId &&
+    left.agentEngineId === right.agentEngineId &&
     left.codeModelId === right.codeModelId &&
-    areWorkbenchCodeEngineSettingsEqual(left.codeEngineSettings, right.codeEngineSettings) &&
+    areWorkbenchAgentEngineSettingsEqual(left.agentEngineSettings, right.agentEngineSettings) &&
     left.unifiedCustomAgentModels.length === right.unifiedCustomAgentModels.length &&
     left.unifiedCustomAgentModels.every((model, index) => {
       const other = right.unifiedCustomAgentModels[index];
@@ -140,7 +140,7 @@ function publishWorkbenchPreferences(preferences: WorkbenchPreferences): void {
 }
 
 export function useWorkbenchPreferences() {
-  const codeEngineCatalog = useWorkbenchCodeEngineCatalog();
+  const agentEngineCatalog = useWorkbenchAgentEngineCatalog();
   const [storedPreferences, setStoredPreferences] = useState<WorkbenchPreferences>(
     () => liveWorkbenchPreferences ?? DEFAULT_WORKBENCH_PREFERENCES,
   );
@@ -204,20 +204,20 @@ export function useWorkbenchPreferences() {
 
   const preferences = useMemo(() => {
     const normalizedStoredPreferences = normalizeWorkbenchPreferences(storedPreferences);
-    const normalizedActiveEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-      normalizedStoredPreferences.codeEngineId,
+    const normalizedActiveEngineId = normalizeWorkbenchServerImplementedAgentEngineId(
+      normalizedStoredPreferences.agentEngineId,
       normalizedStoredPreferences,
     );
     return normalizeWorkbenchPreferences({
       ...normalizedStoredPreferences,
-      codeEngineId: normalizedActiveEngineId,
+      agentEngineId: normalizedActiveEngineId,
       codeModelId: normalizeWorkbenchCodeModelId(
         normalizedActiveEngineId,
         normalizedStoredPreferences.codeModelId,
         normalizedStoredPreferences,
       ),
     });
-  }, [codeEngineCatalog, storedPreferences]);
+  }, [agentEngineCatalog, storedPreferences]);
   const preferencesRef = useRef(preferences);
   preferencesRef.current = preferences;
 

@@ -1,7 +1,7 @@
 import {
   normalizeAgentSessionCommand,
   normalizeAgentSessionItemToolCalls,
-  resolveBirdCoderCodeEngineCommandInteractionState,
+  resolveBirdCoderAgentEngineCommandInteractionState,
   type AgentSessionItemView,
   type AgentSessionCommandView,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -34,7 +34,7 @@ export function resolveChatCommandLifecycleTone(
     return 'cancelled';
   }
 
-  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(command);
+  const interactionState = resolveBirdCoderAgentEngineCommandInteractionState(command);
   if (interactionState.requiresReply) {
     return 'reply';
   }

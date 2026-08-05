@@ -31,7 +31,7 @@ const sessionItemListCalls: Array<[
   Record<string, unknown>,
   { signal?: AbortSignal; timeout?: number },
 ]> = [];
-const codeEngineListCalls: Array<[{ signal?: AbortSignal; timeout?: number }]> = [];
+const agentEngineListCalls: Array<[{ signal?: AbortSignal; timeout?: number }]> = [];
 const missingSessionUserStateIds = new Set<string>();
 let runtimeBindingCreateError: Error | null = null;
 let recoveredRuntimeBinding: Record<string, unknown> | null = null;
@@ -116,9 +116,9 @@ const workspaceSessions = {
 const client = {
   ai: {
     agents: {
-      codeEngines: {
+      agentEngines: {
         async list(requestOptions: { signal?: AbortSignal; timeout?: number }) {
-          codeEngineListCalls.push([requestOptions]);
+          agentEngineListCalls.push([requestOptions]);
           return {
             engines: [
               { agentId: 'agent.birdcoder', engineKey: 'birdcoder', bindingId: '', models: [] },
@@ -574,7 +574,7 @@ assert.deepEqual(sessionRetrieveCalls, [[
   'session.recovery-target',
   { signal: recoveryReadController.signal, timeout: 2_000 },
 ]]);
-assert.deepEqual(codeEngineListCalls, []);
+assert.deepEqual(agentEngineListCalls, []);
 await service.listRuntimeBindings(recoveryIdentity);
 assert.deepEqual(runtimeBindingListCalls.at(-1), [
   'agent.codex',

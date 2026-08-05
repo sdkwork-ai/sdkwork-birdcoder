@@ -21,8 +21,8 @@ import {
 import type { AgentResourceUserStateRecord } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
-  resolveWorkbenchCodeEngineForRuntimeBinding,
-} from '../workbench/codeEngineCatalog.ts';
+  resolveWorkbenchAgentEngineForRuntimeBinding,
+} from '../workbench/agentEngineCatalog.ts';
 import { resolveAgentSessionActivityRuntimeStatus } from '../workbench/agentSessionActivity.ts';
 import {
   mergeAgentSessionProjectionForStore,
@@ -1302,7 +1302,7 @@ export function toAgentSessionViewFromActivitySummary(
   const providerId = hasCanonicalIdentitySource
     ? identity.providerId ?? undefined
     : identityBinding?.providerId ?? undefined;
-  const engine = resolveWorkbenchCodeEngineForRuntimeBinding({
+  const engine = resolveWorkbenchAgentEngineForRuntimeBinding({
     agentId: summary.session.agentId,
     modelId,
     providerBindingId,
@@ -1313,7 +1313,7 @@ export function toAgentSessionViewFromActivitySummary(
     // the authoritative engine signal, so resolve the engine from it before
     // degrading to the raw provider id (which would hide the Session from
     // the workbench-mode-filtered inbox).
-    ?? resolveWorkbenchCodeEngineForRuntimeBinding({
+    ?? resolveWorkbenchAgentEngineForRuntimeBinding({
       agentId: summary.session.agentId,
     });
   const activity = toAgentSessionActivityView(summary);
@@ -1503,7 +1503,7 @@ export async function loadAgentSessionView(
   );
   const engine = (
     currentBinding
-      ? resolveWorkbenchCodeEngineForRuntimeBinding({
+      ? resolveWorkbenchAgentEngineForRuntimeBinding({
           ...currentBinding,
           agentId: session.agentId,
         })
@@ -1512,7 +1512,7 @@ export async function loadAgentSessionView(
     // Same engine identity fallback as the activity summary projection: the
     // Agent id remains authoritative when the runtime binding carries a
     // user-configured model outside the catalog.
-    ?? resolveWorkbenchCodeEngineForRuntimeBinding({ agentId: session.agentId });
+    ?? resolveWorkbenchAgentEngineForRuntimeBinding({ agentId: session.agentId });
   const view = toAgentSessionView(session, {
     projectId,
     engineId: engine?.id

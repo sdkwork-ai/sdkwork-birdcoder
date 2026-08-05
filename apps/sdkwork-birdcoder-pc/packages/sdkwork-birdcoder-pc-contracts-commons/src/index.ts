@@ -12,7 +12,7 @@ export * from './agent-session-item-transcript.ts';
 export * from './agent-session-item-tool-calls.ts';
 export * from './agent-session-item-tool-results.ts';
 export * from './agent-session-item-presentation.ts';
-export * from './codeEngineDialect.ts';
+export * from './agentEngineDialect.ts';
 export * from './external-capability-view.ts';
 export * from './file-change.ts';
 export * from './fileSearch.ts';

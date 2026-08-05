@@ -9,7 +9,7 @@ import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-
 import {
   SettingsSidebar,
   GeneralSettings,
-  CodeEngineSettings,
+  AgentEngineSettings,
   ModelManagementSettings,
   AppearanceSettings,
   VoiceSettings,
@@ -92,8 +92,8 @@ export function SettingsPage({
     switch (activeTab) {
       case 'general':
         return <GeneralSettings {...props} />;
-      case 'codeEngines':
-        return <CodeEngineSettings {...props} />;
+      case 'agentEngines':
+        return <AgentEngineSettings {...props} />;
       case 'modelManagement':
         return <ModelManagementSettings />;
       case 'appearance':

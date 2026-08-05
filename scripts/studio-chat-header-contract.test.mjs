@@ -78,7 +78,7 @@ assert.ok(
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'getWorkbenchCodeEngineSessionSummary(',
+    'getWorkbenchAgentEngineSessionSummary(',
   ),
   'Studio chat sidebar header must use the strict session summary helper.',
 );
@@ -119,13 +119,13 @@ assert.ok(
   studioChatSidebarSource.includes(
     '<div className="flex min-w-0 items-center px-1 text-xs text-gray-400">',
   ),
-  'Studio chat sidebar should render the code engine as a borderless read-only label.',
+  'Studio chat sidebar should render the agent engine as a borderless read-only label.',
 );
 
 assert.doesNotMatch(
   studioChatSidebarSource,
   /rounded-lg border border-white\/10 px-3 py-1\.5 text-xs transition-colors/,
-  'Studio chat sidebar should not render the code engine using a bordered button treatment.',
+  'Studio chat sidebar should not render the agent engine using a bordered button treatment.',
 );
 
 assert.doesNotMatch(
@@ -325,8 +325,8 @@ assert.match(
 
 assert.doesNotMatch(
   studioChatSidebarSource,
-  /<WorkbenchCodeEngineIcon engineId=\{headerEngine\.id\} \/>/,
-  'Studio chat sidebar header should not render a code engine icon once the engine is shown as a fixed read-only label.',
+  /<WorkbenchAgentEngineIcon engineId=\{headerEngine\.id\} \/>/,
+  'Studio chat sidebar header should not render a agent engine icon once the engine is shown as a fixed read-only label.',
 );
 
 assert.ok(

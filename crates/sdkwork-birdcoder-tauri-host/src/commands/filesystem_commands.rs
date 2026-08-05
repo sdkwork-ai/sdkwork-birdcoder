@@ -124,7 +124,7 @@ pub(crate) fn authorize_provider_session_directory_identity(
 /// initialized or is empty, access is denied rather than granted. This prevents
 /// a race condition where filesystem commands could execute before
 /// `register_allowed_fs_root` has been called during startup.
-fn is_allowed_fs_root(path: &Path) -> bool {
+pub(crate) fn is_allowed_fs_root(path: &Path) -> bool {
     let Ok(canonical) = path.canonicalize() else {
         return false;
     };
@@ -1494,10 +1494,10 @@ mod tests {
     #[test]
     fn user_home_config_path_is_scoped_to_birdcoder_config_root() {
         let resolved_path =
-            resolve_user_home_config_path(".sdkwork/birdcoder/code-engine-models.json")
-                .expect("canonical code-engine model config path should be allowed");
+            resolve_user_home_config_path(".sdkwork/birdcoder/agent-engine-models.json")
+                .expect("canonical agent-engine model config path should be allowed");
 
-        assert!(resolved_path.ends_with(".sdkwork/birdcoder/code-engine-models.json"));
+        assert!(resolved_path.ends_with(".sdkwork/birdcoder/agent-engine-models.json"));
         assert!(resolve_user_home_config_path(".ssh/config").is_err());
     }
 
@@ -1599,14 +1599,14 @@ mod tests {
             return;
         }
 
-        let relative_path = ".sdkwork/birdcoder/code-engine-models.json";
+        let relative_path = ".sdkwork/birdcoder/agent-engine-models.json";
         let read_error = resolve_user_home_config_path_from_home(&home, relative_path)
             .expect_err("linked user config roots must not be readable");
         let write_error = prepare_user_home_config_write_path_from_home(&home, relative_path)
             .expect_err("linked user config roots must not be writable");
         assert!(read_error.contains("link or reparse point"));
         assert!(write_error.contains("link or reparse point"));
-        assert!(!outside.join("code-engine-models.json").exists());
+        assert!(!outside.join("agent-engine-models.json").exists());
 
         remove_directory_link(&config_link);
         fs::remove_dir_all(home).expect("user config home fixture must be removed");
@@ -1618,7 +1618,7 @@ mod tests {
         let home = create_filesystem_command_test_root("user-config-create");
         let path = prepare_user_home_config_write_path_from_home(
             &home,
-            ".sdkwork/birdcoder/nested/code-engine-models.json",
+            ".sdkwork/birdcoder/nested/agent-engine-models.json",
         )
         .expect("scoped user config directories should be created");
 

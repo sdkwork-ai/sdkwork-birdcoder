@@ -172,7 +172,7 @@ mod tests {
         }
 
         let store = tauri::async_runtime::block_on(
-            crate::host::user_model_config::initialize_user_model_config_store(),
+            crate::host::user_model_config::initialize_user_model_config_store_for_tests(),
         )
         .expect("store should initialize");
         let channels = tauri::async_runtime::block_on(store.list_channels()).expect("list channels");

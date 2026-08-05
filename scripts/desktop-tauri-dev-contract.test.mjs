@@ -806,8 +806,8 @@ assert.match(
 );
 assert.match(
   desktopTauriHostFileSystemSource,
-  /resolve_user_home_config_path\(\s*"\.sdkwork\/birdcoder\/code-engine-models\.json"\s*,?\s*\)/,
-  'Desktop Rust tests must cover the canonical code-engine model config path under ~/.sdkwork/birdcoder.',
+  /resolve_user_home_config_path\(\s*"\.sdkwork\/birdcoder\/agent-engine-models\.json"\s*,?\s*\)/,
+  'Desktop Rust tests must cover the canonical agent-engine model config path under ~/.sdkwork/birdcoder.',
 );
 assert.match(
   desktopTauriHostFileSystemSource,

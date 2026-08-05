@@ -33,7 +33,7 @@ assert.match(
 );
 assert.match(
   newSessionButtonSource,
-  /const engineModelId = resolveWorkbenchCodeEngineSelectedModelId\(\s*engine\.id,\s*preferences,?\s*\)[\s\S]*onCreateSession\(engine\.id,\s*engineModelId\)/,
+  /const engineModelId = resolveWorkbenchAgentEngineSelectedModelId\(\s*engine\.id,\s*preferences,?\s*\)[\s\S]*onCreateSession\(engine\.id,\s*engineModelId\)/,
   'WorkbenchNewSessionButton engine menu must create each engine with that engine owned selected model.',
 );
 assert.match(
@@ -73,13 +73,13 @@ assert.match(
 );
 assert.match(
   universalChatSource,
-  /const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId\(\s*selectedProvider,\s*preferences,\s*selectedProvider === resolvedSelectedEngineId \? currentModelId : undefined,\s*\)/s,
+  /const selectedProviderModelId = resolveWorkbenchAgentEngineSelectedModelId\(\s*selectedProvider,\s*preferences,\s*selectedProvider === resolvedSelectedEngineId \? currentModelId : undefined,\s*\)/s,
   'UniversalChat model menu must compute the selected model for the provider being viewed instead of reusing the active engine model.',
 );
 assert.match(
   chatSelectionSource,
-  /useWorkbenchCodeEngineCatalog\(\)[\s\S]*if \(!codeEngineCatalog\.loaded\) \{\s*await loadWorkbenchCodeEngineCatalog\(\);\s*\}/,
-  'Provider Session creation must subscribe to and await the Agents code-engine catalog before resolving runtime identity.',
+  /useWorkbenchAgentEngineCatalog\(\)[\s\S]*if \(!agentEngineCatalog\.loaded\) \{\s*await loadWorkbenchAgentEngineCatalog\(\);\s*\}/,
+  'Provider Session creation must subscribe to and await the Agents agent-engine catalog before resolving runtime identity.',
 );
 
 console.log('new session model selection contract passed.');

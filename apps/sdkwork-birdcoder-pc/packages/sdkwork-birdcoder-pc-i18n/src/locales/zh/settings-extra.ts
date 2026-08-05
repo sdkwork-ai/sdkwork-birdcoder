@@ -15,7 +15,7 @@ export default defineLocaleModule('settings/extra', {
         coding: '\u7f16\u7801',
         archive: '\u5df2\u5f52\u6863',
       },
-      codeEngines: '代码引擎与模型',
+      agentEngines: '\u667a\u80fd\u4f53\u5f15\u64ce\u4e0e\u6a21\u578b',
       modelManagement: '模型配置',
       appearance: '外观',
       voice: '\u8bed\u97f3',

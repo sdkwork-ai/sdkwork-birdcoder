@@ -210,26 +210,19 @@ export async function ensureBirdCoderAssistantSession(
   const agentId = resolveAgentId(options.agentId);
   const client = resolveClient(options);
   const { page_size: pageSize } = normalizeOffsetListQuery();
-  let page = 1;
+  let cursor: string | undefined;
 
   for (;;) {
-    const listed = await client.ai.agents.sessions.list(agentId, { page, pageSize });
+    const listed = await client.ai.agents.sessions.list(agentId, { cursor: cursor ?? undefined, pageSize });
     const existing = listed.items.find(isReusableAssistantSession);
     if (existing) {
       return toAssistantSessionView(existing);
     }
 
-    const hasMore = listed.pageInfo.hasMore
-      ?? (listed.pageInfo.totalPages === undefined
-        ? undefined
-        : page < listed.pageInfo.totalPages);
-    if (hasMore === false) {
+    if (listed.pageInfo.hasMore !== true || !listed.pageInfo.nextCursor) {
       break;
     }
-    if (hasMore !== true) {
-      throw new Error('Agents session pagination response is missing a usable continuation state.');
-    }
-    page += 1;
+    cursor = listed.pageInfo.nextCursor;
   }
 
   const requestedAt = new Date().toISOString();

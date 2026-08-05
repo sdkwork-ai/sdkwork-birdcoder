@@ -1,16 +1,18 @@
 import { useSyncExternalStore } from 'react';
 
 import {
-  listBirdCoderCodeEngineCatalog,
-  type BirdCoderCodeEngineAccessModeEntry,
-  type BirdCoderCodeEngineCatalogEntry,
+  listBirdCoderAgentEngineCatalog,
+  type BirdCoderAgentEngineAccessModeEntry,
+  type BirdCoderAgentEngineCatalogEntry,
+  type BirdCoderAgentEngineKind,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/agentsCatalogService';
 
-export type WorkbenchCodeEngineId = string;
+export type WorkbenchAgentEngineId = string;
 export type WorkbenchModelVendor = 'openai' | 'anthropic' | 'google' | 'opencode' | 'unknown';
 export type ModelVendor = WorkbenchModelVendor;
+export type WorkbenchAgentEngineKind = BirdCoderAgentEngineKind;
 
-export interface WorkbenchCodeEngineModelDefinition {
+export interface WorkbenchAgentEngineModelDefinition {
   id: string;
   label: string;
   description: string;
@@ -48,50 +50,51 @@ export interface WorkbenchModelAccessVendorOfferingDefinition {
   modelIds: string[];
 }
 
-export interface WorkbenchCodeEngineAccessModeDefinition
-  extends BirdCoderCodeEngineAccessModeEntry {
+export interface WorkbenchAgentEngineAccessModeDefinition
+  extends BirdCoderAgentEngineAccessModeEntry {
   id: string;
 }
 
-export interface WorkbenchCodeEngineDefinition {
-  id: WorkbenchCodeEngineId;
+export interface WorkbenchAgentEngineDefinition {
+  id: WorkbenchAgentEngineId;
   agentId: string;
   bindingId: string;
   label: string;
   aliases: readonly string[];
   defaultModelId: string;
-  models: readonly WorkbenchCodeEngineModelDefinition[];
-  modelCatalog: readonly WorkbenchCodeEngineModelDefinition[];
+  models: readonly WorkbenchAgentEngineModelDefinition[];
+  modelCatalog: readonly WorkbenchAgentEngineModelDefinition[];
   modelIds: readonly string[];
   tier: string;
+  engineKind: WorkbenchAgentEngineKind;
   defaultAccessModeId: string;
-  accessModes: readonly WorkbenchCodeEngineAccessModeDefinition[];
+  accessModes: readonly WorkbenchAgentEngineAccessModeDefinition[];
 }
 
-export interface WorkbenchCodeEngineSettings {
+export interface WorkbenchAgentEngineSettings {
   defaultModelId: string;
   accessModeId?: string;
   modelAccessChannelId?: string;
 }
 
-export type WorkbenchCodeEngineSettingsMap = Partial<
-  Record<WorkbenchCodeEngineId, WorkbenchCodeEngineSettings>
+export type WorkbenchAgentEngineSettingsMap = Partial<
+  Record<WorkbenchAgentEngineId, WorkbenchAgentEngineSettings>
 >;
 
-export interface WorkbenchCodeEngineSettingsCarrier {
-  codeEngineSettings?: unknown;
+export interface WorkbenchAgentEngineSettingsCarrier {
+  agentEngineSettings?: unknown;
   unifiedCustomAgentModels?: unknown;
   /** Legacy provider-partitioned preference key, read for migration only. */
   customCodeModels?: unknown;
 }
 
 export interface WorkbenchChatSelection {
-  codeEngineId: WorkbenchCodeEngineId;
+  agentEngineId: WorkbenchAgentEngineId;
   codeModelId: string;
 }
 
 export interface WorkbenchServerEngineSupportState {
-  engineId: WorkbenchCodeEngineId;
+  engineId: WorkbenchAgentEngineId;
   label: string;
   supported: boolean;
   serverImplemented: boolean;
@@ -99,7 +102,7 @@ export interface WorkbenchServerEngineSupportState {
   status: 'implemented' | 'unsupported';
 }
 
-export interface WorkbenchPreferredNewSessionInput extends WorkbenchCodeEngineSettingsCarrier {
+export interface WorkbenchPreferredNewSessionInput extends WorkbenchAgentEngineSettingsCarrier {
   requestedEngineId?: unknown;
   currentSessionEngineId?: unknown;
   currentSessionModelId?: unknown;
@@ -108,25 +111,25 @@ export interface WorkbenchPreferredNewSessionInput extends WorkbenchCodeEngineSe
 }
 
 export interface WorkbenchNewSessionSelection {
-  engineId: WorkbenchCodeEngineId;
+  engineId: WorkbenchAgentEngineId;
   modelId: string;
-  engine: WorkbenchCodeEngineDefinition;
+  engine: WorkbenchAgentEngineDefinition;
   supported: boolean;
 }
 
 export interface WorkbenchNewSessionEngineCatalog {
-  availableEngines: readonly WorkbenchCodeEngineDefinition[];
+  availableEngines: readonly WorkbenchAgentEngineDefinition[];
   preferredSelection: WorkbenchNewSessionSelection;
 }
 
-export interface WorkbenchCodeEngineCatalogSnapshot {
-  engines: readonly WorkbenchCodeEngineDefinition[];
+export interface WorkbenchAgentEngineCatalogSnapshot {
+  engines: readonly WorkbenchAgentEngineDefinition[];
   loaded: boolean;
 }
 
 export interface WorkbenchRuntimeBindingIdentity {
   agentId: string;
-  engineId: WorkbenchCodeEngineId;
+  engineId: WorkbenchAgentEngineId;
   modelId: string;
   providerBindingId: string;
   providerId: string;
@@ -140,13 +143,13 @@ export interface WorkbenchRuntimeBindingLookup {
   providerId?: string | null;
 }
 
-const EMPTY_CATALOG_SNAPSHOT: WorkbenchCodeEngineCatalogSnapshot = {
+const EMPTY_CATALOG_SNAPSHOT: WorkbenchAgentEngineCatalogSnapshot = {
   engines: [],
   loaded: false,
 };
 
 let catalogSnapshot = EMPTY_CATALOG_SNAPSHOT;
-let catalogLoad: Promise<readonly WorkbenchCodeEngineDefinition[]> | null = null;
+let catalogLoad: Promise<readonly WorkbenchAgentEngineDefinition[]> | null = null;
 let catalogGeneration = 0;
 const catalogListeners = new Set<() => void>();
 const MAX_UNIFIED_CUSTOM_AGENT_MODELS = 64;
@@ -334,9 +337,9 @@ export function normalizeWorkbenchUnifiedCustomAgentModels(
 }
 
 function includeUnifiedCustomAgentModels(
-  engine: WorkbenchCodeEngineDefinition,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): WorkbenchCodeEngineDefinition {
+  engine: WorkbenchAgentEngineDefinition,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): WorkbenchAgentEngineDefinition {
   const customModels = normalizeWorkbenchUnifiedCustomAgentModels(
     carrier?.unifiedCustomAgentModels ?? carrier?.customCodeModels,
   ).filter((model) => model.supportedProviderIds.includes(engine.id));
@@ -349,7 +352,7 @@ function includeUnifiedCustomAgentModels(
     return engine;
   }
   const knownModelIds = new Set(engine.models.map((model) => model.id));
-  const localModels: WorkbenchCodeEngineModelDefinition[] = [];
+  const localModels: WorkbenchAgentEngineModelDefinition[] = [];
   for (const configuration of customModels) {
     for (const modelId of configuration.supportedModelIds) {
       if (knownModelIds.has(modelId)) {
@@ -402,15 +405,15 @@ function vendorFromProvider(providerId: string): WorkbenchModelVendor {
 }
 
 function toWorkbenchDefinition(
-  entry: BirdCoderCodeEngineCatalogEntry,
-): WorkbenchCodeEngineDefinition | null {
+  entry: BirdCoderAgentEngineCatalogEntry,
+): WorkbenchAgentEngineDefinition | null {
   const id = normalizeKey(entry.engineId);
   if (!id) {
     return null;
   }
   const models = entry.models
     .filter((model) => model.modelId.trim().length > 0)
-    .map((model): WorkbenchCodeEngineModelDefinition => {
+    .map((model): WorkbenchAgentEngineModelDefinition => {
       const vendor = vendorFromProvider(model.providerId);
       return {
         id: model.modelId,
@@ -431,7 +434,7 @@ function toWorkbenchDefinition(
     '';
   const accessModes = entry.accessModes
     .filter((mode) => mode.modeId.trim().length > 0)
-    .map((mode): WorkbenchCodeEngineAccessModeDefinition => ({
+    .map((mode): WorkbenchAgentEngineAccessModeDefinition => ({
       ...mode,
       id: mode.modeId,
     }));
@@ -451,30 +454,31 @@ function toWorkbenchDefinition(
     modelCatalog: models,
     modelIds: models.map((model) => model.id),
     tier: entry.tier,
+    engineKind: entry.engineKind ?? 'unknown',
     defaultAccessModeId,
     accessModes,
   };
 }
 
-function publishCatalog(engines: readonly WorkbenchCodeEngineDefinition[]): void {
+function publishCatalog(engines: readonly WorkbenchAgentEngineDefinition[]): void {
   catalogSnapshot = { engines, loaded: true };
   for (const listener of catalogListeners) {
     listener();
   }
 }
 
-export async function loadWorkbenchCodeEngineCatalog(): Promise<
-  readonly WorkbenchCodeEngineDefinition[]
+export async function loadWorkbenchAgentEngineCatalog(): Promise<
+  readonly WorkbenchAgentEngineDefinition[]
 > {
   if (catalogLoad) {
     return catalogLoad;
   }
   const requestGeneration = catalogGeneration;
-  const loadPromise = listBirdCoderCodeEngineCatalog()
+  const loadPromise = listBirdCoderAgentEngineCatalog()
     .then((entries) => {
       const engines = entries
         .map(toWorkbenchDefinition)
-        .filter((entry): entry is WorkbenchCodeEngineDefinition => entry !== null);
+        .filter((entry): entry is WorkbenchAgentEngineDefinition => entry !== null);
       if (requestGeneration === catalogGeneration) {
         publishCatalog(engines);
       }
@@ -489,7 +493,7 @@ export async function loadWorkbenchCodeEngineCatalog(): Promise<
   return loadPromise;
 }
 
-export function resetWorkbenchCodeEngineCatalog(): void {
+export function resetWorkbenchAgentEngineCatalog(): void {
   catalogGeneration += 1;
   catalogLoad = null;
   catalogSnapshot = EMPTY_CATALOG_SNAPSHOT;
@@ -498,44 +502,44 @@ export function resetWorkbenchCodeEngineCatalog(): void {
   }
 }
 
-export function replaceWorkbenchCodeEngineCatalogForTesting(
-  entries: readonly BirdCoderCodeEngineCatalogEntry[],
+export function replaceWorkbenchAgentEngineCatalogForTesting(
+  entries: readonly BirdCoderAgentEngineCatalogEntry[],
 ): void {
   publishCatalog(
     entries
       .map(toWorkbenchDefinition)
-      .filter((entry): entry is WorkbenchCodeEngineDefinition => entry !== null),
+      .filter((entry): entry is WorkbenchAgentEngineDefinition => entry !== null),
   );
 }
 
-export function subscribeWorkbenchCodeEngineCatalog(listener: () => void): () => void {
+export function subscribeWorkbenchAgentEngineCatalog(listener: () => void): () => void {
   catalogListeners.add(listener);
   return () => catalogListeners.delete(listener);
 }
 
-export function getWorkbenchCodeEngineCatalogSnapshot(): WorkbenchCodeEngineCatalogSnapshot {
+export function getWorkbenchAgentEngineCatalogSnapshot(): WorkbenchAgentEngineCatalogSnapshot {
   return catalogSnapshot;
 }
 
-export function useWorkbenchCodeEngineCatalog(): WorkbenchCodeEngineCatalogSnapshot {
+export function useWorkbenchAgentEngineCatalog(): WorkbenchAgentEngineCatalogSnapshot {
   return useSyncExternalStore(
-    subscribeWorkbenchCodeEngineCatalog,
-    getWorkbenchCodeEngineCatalogSnapshot,
-    getWorkbenchCodeEngineCatalogSnapshot,
+    subscribeWorkbenchAgentEngineCatalog,
+    getWorkbenchAgentEngineCatalogSnapshot,
+    getWorkbenchAgentEngineCatalogSnapshot,
   );
 }
 
 export function useModelCatalogLoaded(): boolean {
-  return useWorkbenchCodeEngineCatalog().loaded;
+  return useWorkbenchAgentEngineCatalog().loaded;
 }
 
-export function listWorkbenchCodeEngines(
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): readonly WorkbenchCodeEngineDefinition[] {
+export function listWorkbenchAgentEngines(
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): readonly WorkbenchAgentEngineDefinition[] {
   return catalogSnapshot.engines.map((engine) => includeUnifiedCustomAgentModels(engine, carrier));
 }
 
-export function normalizeWorkbenchCodeEngineId(value: unknown): WorkbenchCodeEngineId | null {
+export function normalizeWorkbenchAgentEngineId(value: unknown): WorkbenchAgentEngineId | null {
   const key = normalizeKey(value);
   if (!key) {
     return null;
@@ -549,10 +553,10 @@ export function normalizeWorkbenchCodeEngineId(value: unknown): WorkbenchCodeEng
   return catalogSnapshot.loaded ? null : key;
 }
 
-export function findWorkbenchCodeEngineDefinition(
+export function findWorkbenchAgentEngineDefinition(
   value: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): WorkbenchCodeEngineDefinition | null {
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): WorkbenchAgentEngineDefinition | null {
   const key = normalizeKey(value);
   if (!key) {
     return null;
@@ -563,9 +567,9 @@ export function findWorkbenchCodeEngineDefinition(
   return engine ? includeUnifiedCustomAgentModels(engine, carrier) : null;
 }
 
-export function findWorkbenchCodeEngineDefinitionForAgentId(
+export function findWorkbenchAgentEngineDefinitionForAgentId(
   value: unknown,
-): WorkbenchCodeEngineDefinition | null {
+): WorkbenchAgentEngineDefinition | null {
   const agentId = String(value ?? '').trim();
   if (!agentId) {
     return null;
@@ -576,24 +580,24 @@ export function findWorkbenchCodeEngineDefinitionForAgentId(
 export function resolveWorkbenchRuntimeBindingIdentity(
   engineId: unknown,
   modelId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): WorkbenchRuntimeBindingIdentity {
-  const engine = findWorkbenchCodeEngineDefinition(engineId, carrier);
+  const engine = findWorkbenchAgentEngineDefinition(engineId, carrier);
   if (!engine) {
-    throw new Error(`Agents did not publish code engine "${String(engineId)}".`);
+    throw new Error(`Agents did not publish agent engine "${String(engineId)}".`);
   }
   const normalizedModelId = String(modelId ?? '').trim() || engine.defaultModelId;
   const model = engine.models.find((candidate) => candidate.id === normalizedModelId);
   if (!model) {
     throw new Error(
-      `Agents did not publish model "${normalizedModelId}" for code engine "${engine.id}".`,
+      `Agents did not publish model "${normalizedModelId}" for agent engine "${engine.id}".`,
     );
   }
   const providerBindingId = model.bindingId.trim() || engine.bindingId.trim();
   const providerId = model.providerId.trim();
   const agentId = engine.agentId.trim();
   if (!agentId || !providerBindingId || !providerId) {
-    throw new Error(`Agents published incomplete runtime identity for code engine "${engine.id}".`);
+    throw new Error(`Agents published incomplete runtime identity for agent engine "${engine.id}".`);
   }
   return {
     agentId,
@@ -604,9 +608,9 @@ export function resolveWorkbenchRuntimeBindingIdentity(
   };
 }
 
-export function resolveWorkbenchCodeEngineForRuntimeBinding(
+export function resolveWorkbenchAgentEngineForRuntimeBinding(
   binding: WorkbenchRuntimeBindingLookup,
-): WorkbenchCodeEngineDefinition | null {
+): WorkbenchAgentEngineDefinition | null {
   const agentId = String(binding.agentId ?? '').trim();
   const engineId = normalizeKey(binding.engineId);
   const providerBindingId = String(binding.providerBindingId ?? '').trim();
@@ -634,7 +638,7 @@ export function resolveWorkbenchCodeEngineForRuntimeBinding(
   return candidates.length === 1 ? candidates[0] ?? null : null;
 }
 
-function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefinition {
+function createUnknownEngineDefinition(value: unknown): WorkbenchAgentEngineDefinition {
   const id = normalizeKey(value);
   return {
     id,
@@ -647,24 +651,25 @@ function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefin
     modelCatalog: [],
     modelIds: [],
     tier: '',
+    engineKind: 'unknown',
     defaultAccessModeId: '',
     accessModes: [],
   };
 }
 
-export function getWorkbenchCodeEngineDefinition(
+export function getWorkbenchAgentEngineDefinition(
   value: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): WorkbenchCodeEngineDefinition {
-  return findWorkbenchCodeEngineDefinition(value, carrier) ?? createUnknownEngineDefinition(value);
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): WorkbenchAgentEngineDefinition {
+  return findWorkbenchAgentEngineDefinition(value, carrier) ?? createUnknownEngineDefinition(value);
 }
 
 export function hasWorkbenchCodeModel(
   engineId: unknown,
   modelId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): boolean {
-  const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
+  const definition = findWorkbenchAgentEngineDefinition(engineId, carrier);
   const id = String(modelId ?? '').trim();
   return Boolean(definition && id && definition.models.some((model) => model.id === id));
 }
@@ -672,11 +677,11 @@ export function hasWorkbenchCodeModel(
 export function normalizeWorkbenchCodeModelId(
   engineId: unknown,
   modelId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
   options: { allowUnknown?: boolean } = {},
 ): string {
   const candidate = String(modelId ?? '').trim();
-  const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
+  const definition = findWorkbenchAgentEngineDefinition(engineId, carrier);
   if (!definition) {
     return candidate;
   }
@@ -686,27 +691,27 @@ export function normalizeWorkbenchCodeModelId(
   return definition.defaultModelId;
 }
 
-export function findWorkbenchCodeEngineAccessMode(
+export function findWorkbenchAgentEngineAccessMode(
   engineId: unknown,
   accessModeId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): WorkbenchCodeEngineAccessModeDefinition | null {
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): WorkbenchAgentEngineAccessModeDefinition | null {
   const id = String(accessModeId ?? '').trim();
   if (!id) {
     return null;
   }
-  return findWorkbenchCodeEngineDefinition(engineId, carrier)?.accessModes.find(
+  return findWorkbenchAgentEngineDefinition(engineId, carrier)?.accessModes.find(
     (mode) => mode.id === id,
   ) ?? null;
 }
 
-export function normalizeWorkbenchCodeEngineAccessModeId(
+export function normalizeWorkbenchAgentEngineAccessModeId(
   engineId: unknown,
   accessModeId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): string {
   const candidate = String(accessModeId ?? '').trim();
-  const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
+  const definition = findWorkbenchAgentEngineDefinition(engineId, carrier);
   if (!definition) {
     return candidate;
   }
@@ -716,15 +721,15 @@ export function normalizeWorkbenchCodeEngineAccessModeId(
   return requestedMode?.id ?? definition.defaultAccessModeId;
 }
 
-export function normalizeWorkbenchCodeEngineSettingsMap(
+export function normalizeWorkbenchAgentEngineSettingsMap(
   value: unknown,
   options: {
     unifiedCustomAgentModels?: readonly WorkbenchUnifiedCustomAgentModelDefinition[];
     includeDefaults?: boolean;
   } = {},
-): WorkbenchCodeEngineSettingsMap {
+): WorkbenchAgentEngineSettingsMap {
   const source = isRecord(value) ? value : {};
-  const settings: WorkbenchCodeEngineSettingsMap = {};
+  const settings: WorkbenchAgentEngineSettingsMap = {};
   const engineIds = new Set([
     ...Object.keys(source),
     ...(options.includeDefaults ? catalogSnapshot.engines.map((engine) => engine.id) : []),
@@ -732,12 +737,12 @@ export function normalizeWorkbenchCodeEngineSettingsMap(
   for (const engineId of engineIds) {
     const entry = isRecord(source[engineId]) ? source[engineId] as Record<string, unknown> : {};
     const carrier = { unifiedCustomAgentModels: options.unifiedCustomAgentModels };
-    const definition = findWorkbenchCodeEngineDefinition(engineId, carrier);
+    const definition = findWorkbenchAgentEngineDefinition(engineId, carrier);
     const candidate = String(
       entry.defaultModelId ?? entry.selectedModelId ?? entry.modelId ?? definition?.defaultModelId ?? '',
     ).trim();
     const defaultModelId = normalizeWorkbenchCodeModelId(engineId, candidate, carrier);
-    const accessModeId = normalizeWorkbenchCodeEngineAccessModeId(
+    const accessModeId = normalizeWorkbenchAgentEngineAccessModeId(
       engineId,
       entry.accessModeId ?? definition?.defaultAccessModeId,
     );
@@ -755,14 +760,14 @@ export function normalizeWorkbenchCodeEngineSettingsMap(
   return settings;
 }
 
-export function resolveWorkbenchCodeEngineSelectedModelId(
+export function resolveWorkbenchAgentEngineSelectedModelId(
   engineId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
   explicitModelId?: string | null,
 ): string {
-  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId) ?? normalizeKey(engineId);
-  const rawSettings = isRecord(carrier?.codeEngineSettings)
-    ? carrier.codeEngineSettings[normalizedEngineId]
+  const normalizedEngineId = normalizeWorkbenchAgentEngineId(engineId) ?? normalizeKey(engineId);
+  const rawSettings = isRecord(carrier?.agentEngineSettings)
+    ? carrier.agentEngineSettings[normalizedEngineId]
     : undefined;
   const configuredModelId = isRecord(rawSettings)
     ? String(rawSettings.defaultModelId ?? rawSettings.selectedModelId ?? '').trim()
@@ -774,32 +779,32 @@ export function resolveWorkbenchCodeEngineSelectedModelId(
   );
 }
 
-export function resolveWorkbenchCodeEngineSelectedAccessModeId(
+export function resolveWorkbenchAgentEngineSelectedAccessModeId(
   engineId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
   explicitAccessModeId?: string | null,
 ): string {
-  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId) ?? normalizeKey(engineId);
-  const rawSettings = isRecord(carrier?.codeEngineSettings)
-    ? carrier.codeEngineSettings[normalizedEngineId]
+  const normalizedEngineId = normalizeWorkbenchAgentEngineId(engineId) ?? normalizeKey(engineId);
+  const rawSettings = isRecord(carrier?.agentEngineSettings)
+    ? carrier.agentEngineSettings[normalizedEngineId]
     : undefined;
   const configuredAccessModeId = isRecord(rawSettings)
     ? String(rawSettings.accessModeId ?? '').trim()
     : '';
-  return normalizeWorkbenchCodeEngineAccessModeId(
+  return normalizeWorkbenchAgentEngineAccessModeId(
     normalizedEngineId,
     explicitAccessModeId?.trim() || configuredAccessModeId,
     carrier,
   );
 }
 
-export function resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+export function resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
   engineId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): string {
-  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId) ?? normalizeKey(engineId);
-  const rawSettings = isRecord(carrier?.codeEngineSettings)
-    ? carrier.codeEngineSettings[normalizedEngineId]
+  const normalizedEngineId = normalizeWorkbenchAgentEngineId(engineId) ?? normalizeKey(engineId);
+  const rawSettings = isRecord(carrier?.agentEngineSettings)
+    ? carrier.agentEngineSettings[normalizedEngineId]
     : undefined;
   return isRecord(rawSettings)
     ? String(rawSettings.modelAccessChannelId ?? '').trim().slice(0, 160)
@@ -807,15 +812,15 @@ export function resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
 }
 
 export function resolveWorkbenchChatSelection(
-  input: { codeEngineId?: string | null; codeModelId?: string | null } | null | undefined,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  input: { agentEngineId?: string | null; codeModelId?: string | null } | null | undefined,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): WorkbenchChatSelection {
-  const requestedEngineId = normalizeWorkbenchCodeEngineId(input?.codeEngineId);
-  const codeEngineId = requestedEngineId ?? catalogSnapshot.engines[0]?.id ?? normalizeKey(input?.codeEngineId);
+  const requestedEngineId = normalizeWorkbenchAgentEngineId(input?.agentEngineId);
+  const agentEngineId = requestedEngineId ?? catalogSnapshot.engines[0]?.id ?? normalizeKey(input?.agentEngineId);
   return {
-    codeEngineId,
-    codeModelId: resolveWorkbenchCodeEngineSelectedModelId(
-      codeEngineId,
+    agentEngineId,
+    codeModelId: resolveWorkbenchAgentEngineSelectedModelId(
+      agentEngineId,
       carrier,
       input?.codeModelId,
     ),
@@ -823,36 +828,36 @@ export function resolveWorkbenchChatSelection(
 }
 
 export const DEFAULT_WORKBENCH_CHAT_SELECTION: WorkbenchChatSelection = {
-  codeEngineId: '',
+  agentEngineId: '',
   codeModelId: '',
 };
 
-export function getWorkbenchCodeEngineLabel(
+export function getWorkbenchAgentEngineLabel(
   engineId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): string {
-  return getWorkbenchCodeEngineDefinition(engineId, carrier).label;
+  return getWorkbenchAgentEngineDefinition(engineId, carrier).label;
 }
 
 export function getWorkbenchCodeModelLabel(
   engineId: unknown,
   modelId: unknown,
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): string {
   const id = String(modelId ?? '').trim();
-  return findWorkbenchCodeEngineDefinition(engineId, carrier)?.models.find(
+  return findWorkbenchAgentEngineDefinition(engineId, carrier)?.models.find(
     (model) => model.id === id,
   )?.label ?? id;
 }
 
-export function getWorkbenchCodeEngineSummary(engineId: unknown, modelId: unknown): string {
-  const engineLabel = getWorkbenchCodeEngineLabel(engineId);
+export function getWorkbenchAgentEngineSummary(engineId: unknown, modelId: unknown): string {
+  const engineLabel = getWorkbenchAgentEngineLabel(engineId);
   const modelLabel = getWorkbenchCodeModelLabel(engineId, modelId);
   return modelLabel ? `${engineLabel} / ${modelLabel}` : engineLabel;
 }
 
-export function getWorkbenchCodeEngineSessionSummary(engineId: unknown, modelId: unknown): string {
-  return getWorkbenchCodeEngineSummary(engineId, modelId);
+export function getWorkbenchAgentEngineSessionSummary(engineId: unknown, modelId: unknown): string {
+  return getWorkbenchAgentEngineSummary(engineId, modelId);
 }
 
 export function getWorkbenchModelVendorLabel(value: unknown): string {
@@ -864,41 +869,41 @@ export function getWorkbenchModelVendorLabel(value: unknown): string {
   return vendor || 'Unknown';
 }
 
-export function listWorkbenchServerImplementedCodeEngines(
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): readonly WorkbenchCodeEngineDefinition[] {
-  return listWorkbenchCodeEngines(carrier);
+export function listWorkbenchServerImplementedAgentEngines(
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): readonly WorkbenchAgentEngineDefinition[] {
+  return listWorkbenchAgentEngines(carrier);
 }
 
 export function isWorkbenchServerImplementedEngineId(
   value: unknown,
-): value is WorkbenchCodeEngineId {
-  return findWorkbenchCodeEngineDefinition(value) !== null;
+): value is WorkbenchAgentEngineId {
+  return findWorkbenchAgentEngineDefinition(value) !== null;
 }
 
-export function normalizeWorkbenchServerImplementedCodeEngineId(
+export function normalizeWorkbenchServerImplementedAgentEngineId(
   value: unknown,
-  _carrier?: WorkbenchCodeEngineSettingsCarrier | null,
-): WorkbenchCodeEngineId {
-  return findWorkbenchCodeEngineDefinition(value)?.id ?? catalogSnapshot.engines[0]?.id ?? '';
+  _carrier?: WorkbenchAgentEngineSettingsCarrier | null,
+): WorkbenchAgentEngineId {
+  return findWorkbenchAgentEngineDefinition(value)?.id ?? catalogSnapshot.engines[0]?.id ?? '';
 }
 
 export function assertWorkbenchServerImplementedEngineId(
   value: unknown,
-): asserts value is WorkbenchCodeEngineId {
+): asserts value is WorkbenchAgentEngineId {
   if (!isWorkbenchServerImplementedEngineId(value)) {
-    throw new Error(`Agents did not publish code engine "${String(value)}".`);
+    throw new Error(`Agents did not publish agent engine "${String(value)}".`);
   }
 }
 
-export function getDefaultWorkbenchServerImplementedCodeEngineId(): WorkbenchCodeEngineId {
+export function getDefaultWorkbenchServerImplementedAgentEngineId(): WorkbenchAgentEngineId {
   return catalogSnapshot.engines[0]?.id ?? '';
 }
 
 export function resolveWorkbenchServerEngineSupportState(
   value: unknown,
 ): WorkbenchServerEngineSupportState {
-  const definition = findWorkbenchCodeEngineDefinition(value);
+  const definition = findWorkbenchAgentEngineDefinition(value);
   const engineId = definition?.id ?? normalizeKey(value);
   const supported = definition !== null;
   return {
@@ -913,21 +918,21 @@ export function resolveWorkbenchServerEngineSupportState(
 
 export function resolveWorkbenchPreferredNewSessionSelection(
   input: WorkbenchPreferredNewSessionInput = {},
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): WorkbenchNewSessionSelection {
   const resolvedCarrier = carrier ?? input;
   const engineId =
-    normalizeWorkbenchCodeEngineId(input.requestedEngineId) ??
-    normalizeWorkbenchCodeEngineId(input.currentSessionEngineId) ??
-    normalizeWorkbenchCodeEngineId(input.preferredEngineId) ??
+    normalizeWorkbenchAgentEngineId(input.requestedEngineId) ??
+    normalizeWorkbenchAgentEngineId(input.currentSessionEngineId) ??
+    normalizeWorkbenchAgentEngineId(input.preferredEngineId) ??
     catalogSnapshot.engines[0]?.id ??
     '';
-  const engine = getWorkbenchCodeEngineDefinition(engineId, resolvedCarrier);
+  const engine = getWorkbenchAgentEngineDefinition(engineId, resolvedCarrier);
   const requestedModelId = String(input.preferredModelId ?? '').trim();
   const currentModelId = String(input.currentSessionModelId ?? '').trim();
   const modelId = normalizeWorkbenchCodeModelId(
     engineId,
-    requestedModelId || currentModelId || resolveWorkbenchCodeEngineSelectedModelId(engineId, resolvedCarrier),
+    requestedModelId || currentModelId || resolveWorkbenchAgentEngineSelectedModelId(engineId, resolvedCarrier),
     resolvedCarrier,
   );
   return {
@@ -940,12 +945,12 @@ export function resolveWorkbenchPreferredNewSessionSelection(
 
 export function resolveWorkbenchNewSessionEngineCatalog(
   input: WorkbenchPreferredNewSessionInput | null = {},
-  carrier?: WorkbenchCodeEngineSettingsCarrier | null,
+  carrier?: WorkbenchAgentEngineSettingsCarrier | null,
 ): WorkbenchNewSessionEngineCatalog {
   const resolvedInput = input ?? {};
   const resolvedCarrier = carrier ?? resolvedInput;
   return {
-    availableEngines: listWorkbenchCodeEngines(resolvedCarrier),
+    availableEngines: listWorkbenchAgentEngines(resolvedCarrier),
     preferredSelection: resolveWorkbenchPreferredNewSessionSelection(
       resolvedInput,
       resolvedCarrier,

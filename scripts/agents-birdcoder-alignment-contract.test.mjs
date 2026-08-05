@@ -150,7 +150,7 @@ assert.equal(
 );
 assert.deepEqual(spec.workbenchModes, {
   schemaVersion: 2,
-  catalogAuthority: 'sdkwork-agents code-engine catalog',
+  catalogAuthority: 'sdkwork-agents agent-engine catalog',
   defaultMode: 'coding',
   admissionPolicy: 'exact-engine-agent-tier-fail-closed',
   visibilityPolicy: {
@@ -178,7 +178,7 @@ assert.deepEqual(spec.workbenchModes, {
         browserBehavior: 'desktop-required',
         setupBehavior: 'noninteractive-install-with-onboarding-or-setup-deferred',
         postInstallAuthority:
-          'refresh-sdkwork-agents-code-engine-catalog-without-fabricated-availability',
+          'refresh-sdkwork-agents-agent-engine-catalog-without-fabricated-availability',
       },
       providers: [
         {

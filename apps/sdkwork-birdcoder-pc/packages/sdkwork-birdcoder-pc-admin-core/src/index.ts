@@ -13,10 +13,10 @@ export function createDefaultAdminConfig(): AdminConfig {
 }
 
 export type {
-  CodeEngineSandboxAccessMode,
-  CodeEngineSandboxScopeType,
+  AgentEngineSandboxAccessMode,
+  AgentEngineSandboxScopeType,
   IAdminPolicyService,
-  SaveCodeEngineSandboxPolicyInput,
+  SaveAgentEngineSandboxPolicyInput,
 } from './services/interfaces/IAdminPolicyService.ts';
 export type { IAuditService } from './services/interfaces/IAuditService.ts';
 export {

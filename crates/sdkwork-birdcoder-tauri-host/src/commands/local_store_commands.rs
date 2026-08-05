@@ -222,6 +222,33 @@ fn validate_local_store_access(scope: &str, key: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Validates a `project-device-mounts` value before persistence. Mount
+/// records carry a native directory path; the path must already be an
+/// authorized desktop filesystem root (a directory the user selected through
+/// the native picker). Without this check the renderer could register an
+/// arbitrary directory (for example a private user folder) as an allowed root
+/// through the mount record, defeating the host sandbox.
+fn validate_project_device_mount_value(value: &str) -> Result<(), String> {
+    let mount = serde_json::from_str::<StoredProjectDeviceMountIdentity>(value)
+        .map_err(|_| "project device mount value must be a valid mount identity".to_string())?;
+    let path = mount
+        .path
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "project device mount path is required".to_string())?;
+    let canonical = std::path::PathBuf::from(path).canonicalize().map_err(|_| {
+        "project device mount path must resolve to an existing directory".to_string()
+    })?;
+    if !canonical.is_dir() || !super::filesystem_commands::is_allowed_fs_root(&canonical) {
+        return Err(
+            "project device mount path is not an authorized desktop directory; select the directory through the native picker first"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 fn local_store_scope_is_enumerable(scope: &str) -> bool {
     scope == APP_SETTINGS_SCOPE
 }
@@ -268,6 +295,9 @@ pub async fn local_store_set(
         return Err(format!(
             "local store value exceeds the {MAX_DEVICE_STATE_VALUE_BYTES}-byte device-state limit"
         ));
+    }
+    if scope == PROJECT_DEVICE_MOUNTS_SCOPE {
+        validate_project_device_mount_value(&value)?;
     }
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_device_state(&app)?;
@@ -431,11 +461,14 @@ pub async fn desktop_runtime_location_install_identity(
 ) -> Result<DesktopRuntimeLocationInstallIdentity, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut connection = open_device_state(&app)?;
-        // The read-then-write path runs inside one transaction so two
-        // concurrent callers can never create two different installation
-        // identities (last-writer-wins would silently rotate the id).
+        // The read-then-write path runs inside one *immediate* transaction so
+        // two concurrent callers can never create two different installation
+        // identities (last-writer-wins would silently rotate the id). An
+        // immediate transaction takes the write lock up front; the default
+        // deferred transaction would let both callers read `None` and then
+        // fail one of them with a snapshot-upgrade conflict on commit.
         let transaction = connection
-            .transaction()
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|error| format!("failed to begin installation identity transaction: {error}"))?;
         let existing = transaction
             .query_row(
@@ -574,10 +607,10 @@ mod tests {
         create_prefixed_uuid, is_valid_prefixed_uuid, local_store_scope_and_key_are_allowed,
         local_store_scope_is_enumerable, normalize_project_device_mount_owner_keys,
         read_project_device_mount_by_identity,
-        resolve_project_mount_provider_session_directory_identity, APP_SETTINGS_KEY,
-        APP_SETTINGS_SCOPE, DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE,
-        DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX, DESKTOP_RUNTIME_TARGET_ID_PREFIX,
-        PROJECT_DEVICE_MOUNTS_SCOPE,
+        resolve_project_mount_provider_session_directory_identity,
+        validate_project_device_mount_value, APP_SETTINGS_KEY, APP_SETTINGS_SCOPE,
+        DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE, DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX,
+        DESKTOP_RUNTIME_TARGET_ID_PREFIX, PROJECT_DEVICE_MOUNTS_SCOPE,
     };
 
     #[test]
@@ -617,6 +650,72 @@ mod tests {
             DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE
         ));
         assert!(local_store_scope_is_enumerable(APP_SETTINGS_SCOPE));
+    }
+
+    #[test]
+    fn project_device_mount_value_requires_an_authorized_existing_directory() {
+        // A mount whose path is not an existing directory is rejected.
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("test clock")
+            .as_nanos();
+        let missing_dir = std::env::temp_dir().join(format!(
+            "birdcoder-mount-validation-missing-{}-{nonce}",
+            std::process::id()
+        ));
+        let missing_value = serde_json::json!({
+            "ownerKey": "a".repeat(64),
+            "path": missing_dir.to_string_lossy(),
+            "projectId": "project-1",
+            "version": 1
+        })
+        .to_string();
+        assert!(validate_project_device_mount_value(&missing_value).is_err());
+
+        // An existing directory that was never registered as an allowed root
+        // must also be rejected: only picker-selected directories are legal
+        // mount targets.
+        let existing_dir = std::env::temp_dir().join(format!(
+            "birdcoder-mount-validation-existing-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&existing_dir).expect("mount validation fixture");
+        let existing_value = serde_json::json!({
+            "ownerKey": "a".repeat(64),
+            "path": existing_dir.to_string_lossy(),
+            "projectId": "project-1",
+            "version": 1
+        })
+        .to_string();
+        assert!(validate_project_device_mount_value(&existing_value).is_err());
+        std::fs::remove_dir_all(&existing_dir).expect("mount validation fixture cleanup");
+
+        // Malformed mount JSON is rejected before any path check.
+        assert!(validate_project_device_mount_value("not-json").is_err());
+    }
+
+    #[test]
+    fn project_device_mount_value_accepts_an_authorized_directory() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("test clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "birdcoder-mount-validation-authorized-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).expect("authorized mount fixture");
+        super::super::filesystem_commands::register_allowed_fs_root(root.clone())
+            .expect("register authorized root");
+        let value = serde_json::json!({
+            "ownerKey": "a".repeat(64),
+            "path": root.to_string_lossy(),
+            "projectId": "project-1",
+            "version": 1
+        })
+        .to_string();
+        assert!(validate_project_device_mount_value(&value).is_ok());
+        std::fs::remove_dir_all(root).expect("authorized mount fixture cleanup");
     }
 
     #[test]

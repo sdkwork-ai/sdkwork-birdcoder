@@ -10,6 +10,10 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 const PROJECT_DEVICE_MOUNTS_SCOPE: &str = "project-device-mounts";
+/// Cap on rows scanned while resolving a provider Session project cwd. The
+/// device-state table is device-local, but a corrupted or hostile store must
+/// not force an unbounded in-memory materialization on the gateway hot path.
+const MAX_PROJECT_DEVICE_MOUNT_SCAN_ROWS: usize = 10_000;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,7 +48,14 @@ impl TauriProviderSessionProjectCwdResolver {
             .query_map([PROJECT_DEVICE_MOUNTS_SCOPE], |row| row.get::<_, String>(0))
             .map_err(runtime_error)?;
         let mut mounts = Vec::new();
+        let mut scanned_rows = 0usize;
         for row in rows {
+            scanned_rows += 1;
+            if scanned_rows > MAX_PROJECT_DEVICE_MOUNT_SCAN_ROWS {
+                return Err(RuntimeFacadeError::InvalidInput(format!(
+                    "project device mount store is too large; fail closed"
+                )));
+            }
             let value = row.map_err(runtime_error)?;
             if let Ok(mount) = serde_json::from_str::<StoredProjectMount>(&value) {
                 if mount.version == 1 && is_absolute_directory(&mount.path) {

@@ -18,7 +18,7 @@
       "id": "KBB-001",
       "phase": "boundary",
       "owner": "birdcoder",
-      "title": "Remove BirdCoder-owned Kernel bridges and code-engine authorities",
+      "title": "Remove BirdCoder-owned Kernel bridges and agent-engine authorities",
       "status": "done",
       "gate": true,
       "evidence": {

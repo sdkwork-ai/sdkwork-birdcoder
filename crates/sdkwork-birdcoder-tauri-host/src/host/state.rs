@@ -100,23 +100,33 @@ fn resolve_listener_api_base_url(listener: &std::net::TcpListener) -> Result<Str
 /// Declares an explicit IAM authentication path for the embedded loopback
 /// gateway before it starts serving protected routes.
 ///
-/// An operator that configures `SDKWORK_DATABASE_URL` gets
-/// database-backed IAM sessions. Otherwise the local development
-/// authentication fallback is enabled (loopback local-login flow); an
-/// explicit operator disable is respected and then fails closed in the
-/// gateway with a diagnostic instead of silently returning 401 for every
-/// protected route.
+/// The embedded gateway is fail-closed by default: an operator that configures
+/// `SDKWORK_DATABASE_URL` gets database-backed IAM sessions. Without a
+/// database the local development authentication fallback must be *explicitly*
+/// enabled with `SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK=1` (loopback local-login
+/// flow); the gateway refuses to start in any other state with a diagnostic
+/// instead of silently returning 401 for every protected route or silently
+/// enabling a development authentication path in a production desktop build.
 fn ensure_embedded_iam_authentication_path() -> Result<(), String> {
     if std::env::var("SDKWORK_DATABASE_URL").is_ok_and(|value| !value.trim().is_empty()) {
         return Ok(());
     }
-    if std::env::var_os("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK").is_none() {
-        std::env::set_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK", "1");
+    if std::env::var_os("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK")
+        .is_some_and(|value| value != "0")
+    {
         eprintln!(
-            "embedded BirdCoder gateway: local development authentication enabled for loopback local login; set SDKWORK_DATABASE_URL for database-backed sessions."
+            "embedded BirdCoder gateway: local development authentication enabled for loopback local login (SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK is set); configure SDKWORK_DATABASE_URL for database-backed sessions."
         );
+        return Ok(());
     }
-    Ok(())
+    Err(
+        "embedded BirdCoder gateway IAM authentication path is not configured: set \
+         SDKWORK_DATABASE_URL for database-backed sessions, or explicitly enable the \
+         loopback-local development authentication fallback with \
+         SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK=1; refusing to start in a silently \
+         unauthenticated state"
+            .to_owned(),
+    )
 }
 
 fn bind_embedded_api_listener() -> Result<(std::net::TcpListener, String), String> {
@@ -488,6 +498,42 @@ mod tests {
                     (forbidden_scope, "aggregate", "{}"),
                 )
                 .is_err());
+        }
+    }
+
+    #[test]
+    fn embedded_gateway_auth_path_is_fail_closed_without_explicit_configuration() {
+        unsafe {
+            std::env::remove_var("SDKWORK_DATABASE_URL");
+            std::env::remove_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK");
+        }
+        let error = ensure_embedded_iam_authentication_path()
+            .expect_err("missing authentication path must refuse to start");
+        assert!(
+            error.contains("refusing to start in a silently unauthenticated state"),
+            "unexpected diagnostic: {error}"
+        );
+
+        unsafe {
+            std::env::set_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK", "1");
+        }
+        assert!(
+            ensure_embedded_iam_authentication_path().is_ok(),
+            "explicitly enabled development authentication fallback must be accepted"
+        );
+        unsafe {
+            std::env::remove_var("SDKWORK_IAM_ALLOW_DEV_AUTH_FALLBACK");
+        }
+
+        unsafe {
+            std::env::set_var("SDKWORK_DATABASE_URL", "postgres://test");
+        }
+        assert!(
+            ensure_embedded_iam_authentication_path().is_ok(),
+            "database-backed sessions must be accepted"
+        );
+        unsafe {
+            std::env::remove_var("SDKWORK_DATABASE_URL");
         }
     }
 }

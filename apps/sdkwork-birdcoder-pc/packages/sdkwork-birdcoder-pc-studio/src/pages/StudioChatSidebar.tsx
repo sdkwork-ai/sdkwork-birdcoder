@@ -6,7 +6,7 @@ import {
   deduplicateAgentProjectsForRender,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
-import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
+import { getWorkbenchAgentEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/agentEngineCatalog';
 import { isAgentSessionVisibleInInbox } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 import type { WorkbenchMode } from '@sdkwork/birdcoder-pc-workbench/workbench/workbenchMode';
 import {
@@ -20,7 +20,7 @@ import {
 } from '@sdkwork/birdcoder-pc-ui';
 import {
   ResizeHandle,
-  WorkbenchCodeEngineIcon,
+  WorkbenchAgentEngineIcon,
   useDialogFocusManagement,
   useFixedSizeWindowedRange,
   useRelativeMinuteNow,
@@ -506,11 +506,11 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     ? (currentAgentSession.modelId?.trim() ?? '')
     : selectedModelId;
   const headerEngineSummary = currentAgentSession?.engineId?.trim()
-    ? getWorkbenchCodeEngineSessionSummary(
+    ? getWorkbenchAgentEngineSessionSummary(
         currentAgentSession.engineId,
         currentAgentSession.modelId,
       )
-    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId);
+    : getWorkbenchAgentEngineSessionSummary(selectedEngineId, selectedModelId);
   const isEngineBusyCurrentSession = isAgentSessionViewEngineBusy(currentAgentSession);
   const visibleMenuProjects = useMemo(() => {
     if (!showProjectMenu) {

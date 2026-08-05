@@ -143,8 +143,34 @@ const rootDir = process.cwd();
 const canonicalReleaseAssetsDir = path.join(rootDir, 'artifacts', 'release-openapi-canonical');
 const canonicalManifestPath = path.join(canonicalReleaseAssetsDir, 'release-manifest.json');
 
+// The canonical packaged-truth evidence is generated only by a finalized
+// release. In pre-launch the directory legitimately does not exist; the
+// closure check must then verify that the application is still declared
+// pre-launch (releaseEvidence blocked), so the missing evidence is an honest
+// blocked state instead of a silently passing or silently failing gate.
 if (!fs.existsSync(canonicalReleaseAssetsDir)) {
-  console.log('release-openapi-canonical quality evidence contract skipped: canonical release assets directory missing.');
+  const appConfigPath = path.join(rootDir, 'sdkwork.app.config.json');
+  assert.ok(
+    fs.existsSync(appConfigPath),
+    'release-openapi-canonical quality evidence contract requires sdkwork.app.config.json.',
+  );
+  const appConfig = readJson(appConfigPath);
+  const releaseStatus = String(
+    appConfig?.metadata?.releaseEvidence?.status
+    ?? appConfig?.releaseEvidence?.status
+    ?? '',
+  ).trim();
+  const publishStatus = String(appConfig?.publish?.status ?? '').trim();
+  const isPreLaunchBlocked = (
+    releaseStatus === 'blocked'
+    || (publishStatus === 'DRAFT' && appConfig?.publish?.preLaunch === true)
+  );
+  assert.equal(
+    isPreLaunchBlocked,
+    true,
+    'Missing canonical packaged release truth requires the application to be declared pre-launch/blocked; a ready release without canonical evidence is a closure failure.',
+  );
+  console.log('release-openapi-canonical quality evidence contract passed (pre-launch blocked state: canonical release truth not generated yet).');
   process.exit(0);
 }
 

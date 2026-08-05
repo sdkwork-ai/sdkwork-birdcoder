@@ -52,9 +52,9 @@ export interface WorkbenchEngineModelConfigTarget {
 
 export interface ResolveWorkbenchEngineModelConfigTargetInput {
   engineId: string;
-  /** `resolveWorkbenchCodeEngineSelectedModelAccessChannelId(...)` result. */
+  /** `resolveWorkbenchAgentEngineSelectedModelAccessChannelId(...)` result. */
   preferenceChannelId: string;
-  /** `resolveWorkbenchCodeEngineSelectedModelId(...)` result (may be empty). */
+  /** `resolveWorkbenchAgentEngineSelectedModelId(...)` result (may be empty). */
   selectedModelId: string;
   engineDefaultModelId: string;
   /** Model ids published by the engine definition. */

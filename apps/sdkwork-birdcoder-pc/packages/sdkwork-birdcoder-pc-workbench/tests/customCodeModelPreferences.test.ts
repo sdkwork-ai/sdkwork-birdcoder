@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  listWorkbenchServerImplementedCodeEngines,
-  replaceWorkbenchCodeEngineCatalogForTesting,
-  resetWorkbenchCodeEngineCatalog,
-  resolveWorkbenchCodeEngineSelectedModelAccessChannelId,
+  listWorkbenchServerImplementedAgentEngines,
+  replaceWorkbenchAgentEngineCatalogForTesting,
+  resetWorkbenchAgentEngineCatalog,
+  resolveWorkbenchAgentEngineSelectedModelAccessChannelId,
   resolveWorkbenchRuntimeBindingIdentity,
-} from '../src/workbench/codeEngineCatalog.ts';
+} from '../src/workbench/agentEngineCatalog.ts';
 import {
   normalizeWorkbenchPreferences,
   saveWorkbenchUnifiedCustomAgentModel,
-  setWorkbenchCodeEngineModelAccessChannel,
+  setWorkbenchAgentEngineModelAccessChannel,
 } from '../src/workbench/preferences.ts';
 
 const catalogEntry = {
@@ -32,6 +32,7 @@ const catalogEntry = {
   }],
   providerId: 'provider.openai',
   tier: 'official-sdk',
+  engineKind: 'code' as const,
 };
 
 const claudeCatalogEntry = {
@@ -54,7 +55,7 @@ const claudeCatalogEntry = {
 
 function saveUnifiedModel() {
   return saveWorkbenchUnifiedCustomAgentModel(
-    normalizeWorkbenchPreferences({ codeEngineId: 'codex' }),
+    normalizeWorkbenchPreferences({ agentEngineId: 'codex' }),
     {
       activeProviderId: 'codex',
       configurationId: 'model.custom.openai-compatible.gpt-5-custom',
@@ -76,11 +77,11 @@ function saveUnifiedModel() {
 
 describe('custom code model preferences', () => {
   beforeEach(() => {
-    replaceWorkbenchCodeEngineCatalogForTesting([catalogEntry, claudeCatalogEntry]);
+    replaceWorkbenchAgentEngineCatalogForTesting([catalogEntry, claudeCatalogEntry]);
   });
 
   afterEach(() => {
-    resetWorkbenchCodeEngineCatalog();
+    resetWorkbenchAgentEngineCatalog();
   });
 
   it('persists a bounded non-sensitive model definition and selects it', () => {
@@ -111,12 +112,12 @@ describe('custom code model preferences', () => {
     }]);
     expect(preferences.unifiedCustomAgentModels[0]).not.toHaveProperty('apiKey');
     expect(preferences.codeModelId).toBe('gpt-5-custom');
-    expect(preferences.codeEngineSettings.codex?.defaultModelId).toBe('gpt-5-custom');
+    expect(preferences.agentEngineSettings.codex?.defaultModelId).toBe('gpt-5-custom');
   });
 
   it('projects one unified model through every supported Agent provider binding', () => {
     const preferences = saveUnifiedModel();
-    const engines = listWorkbenchServerImplementedCodeEngines(preferences);
+    const engines = listWorkbenchServerImplementedAgentEngines(preferences);
 
     expect(engines).toHaveLength(2);
     for (const engine of engines) {
@@ -158,21 +159,21 @@ describe('custom code model preferences', () => {
   });
 
   it('persists a stable model access channel code for each Agent provider', () => {
-    const preferences = setWorkbenchCodeEngineModelAccessChannel(
+    const preferences = setWorkbenchAgentEngineModelAccessChannel(
       saveUnifiedModel(),
       'codex',
       'relay.team-gateway',
     );
 
-    expect(resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+    expect(resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
       'codex',
       preferences,
     )).toBe('relay.team-gateway');
-    expect(resolveWorkbenchCodeEngineSelectedModelAccessChannelId(
+    expect(resolveWorkbenchAgentEngineSelectedModelAccessChannelId(
       'claude-code',
       preferences,
     )).toBe('');
-    expect(preferences.codeEngineSettings.codex?.modelAccessChannelId)
+    expect(preferences.agentEngineSettings.codex?.modelAccessChannelId)
       .toBe('relay.team-gateway');
   });
 });

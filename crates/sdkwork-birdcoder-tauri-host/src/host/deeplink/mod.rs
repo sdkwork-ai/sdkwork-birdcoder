@@ -79,11 +79,28 @@ pub struct DeepLinkErrorSnapshot {
 static PENDING_IMPORT_REQUESTS: OnceLock<Mutex<VecDeque<DeepLinkImportRequest>>> =
     OnceLock::new();
 
+/// Upper bound on buffered cold-start import requests. Any local process can
+/// hand the OS arbitrary `birdcoder://` URLs (Windows URL scheme handlers do
+/// not prompt), so without a cap a flood of links would grow this buffer
+/// without limit. When the buffer is full the oldest request is dropped so
+/// the newest arrival stays observable.
+const MAX_PENDING_IMPORT_REQUESTS: usize = 64;
+
 fn lock_pending_requests() -> std::sync::MutexGuard<'static, VecDeque<DeepLinkImportRequest>> {
     PENDING_IMPORT_REQUESTS
         .get_or_init(|| Mutex::new(VecDeque::new()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Buffers a parsed import request for the cold-start drain, bounded by
+/// [`MAX_PENDING_IMPORT_REQUESTS`].
+fn buffer_pending_import_request(request: DeepLinkImportRequest) {
+    let mut pending = lock_pending_requests();
+    if pending.len() >= MAX_PENDING_IMPORT_REQUESTS {
+        pending.pop_front();
+    }
+    pending.push_back(request);
 }
 
 /// Registers the desktop URL protocol listener and replays any deep link that
@@ -147,17 +164,50 @@ fn handle_deeplink_url(app: &AppHandle, url: &Url) {
             // not mounted yet and would miss the event; the shell drains the
             // pending requests once on mount. Deduplication between the two
             // delivery paths happens in the shell (per-arrival `id`).
-            lock_pending_requests().push_back(request.clone());
+            buffer_pending_import_request(request.clone());
             let _ = app.emit(DEEPLINK_IMPORT_EVENT, &request);
         }
         Err(error) => {
             let snapshot = DeepLinkErrorSnapshot {
-                url: url.to_string(),
+                url: redact_deeplink_url(url),
                 error,
             };
             let _ = app.emit(DEEPLINK_ERROR_EVENT, &snapshot);
         }
     }
+}
+
+/// Removes credential-bearing query values (apiKey and friends) from a deep
+/// link before it is surfaced to the webview, so a parse failure never leaks
+/// a plaintext API key through the error event.
+fn redact_deeplink_url(url: &Url) -> String {
+    const REDACTED_QUERY_KEYS: &[&str] = &["apiKey", "api_key", "token", "accessToken", "secret"];
+    let pairs = url
+        .query_pairs()
+        .map(|(key, value)| {
+            let key_string = key.to_string();
+            let redacted = REDACTED_QUERY_KEYS
+                .iter()
+                .any(|candidate| key_string.eq_ignore_ascii_case(candidate));
+            (
+                key_string,
+                if redacted {
+                    "[redacted]".to_string()
+                } else {
+                    value.to_string()
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut redacted = url.clone();
+    redacted.set_query(None);
+    {
+        let mut query_pairs = redacted.query_pairs_mut();
+        for (key, value) in pairs {
+            query_pairs.append_pair(&key, &value);
+        }
+    }
+    redacted.to_string()
 }
 
 /// Returns every deep link import request that arrived before the webview
@@ -194,7 +244,10 @@ fn focus_main_window(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{deeplink_drain_pending_import_requests, lock_pending_requests};
+    use super::{
+        buffer_pending_import_request, deeplink_drain_pending_import_requests,
+        lock_pending_requests, redact_deeplink_url, MAX_PENDING_IMPORT_REQUESTS,
+    };
     use crate::host::deeplink::parser::{parse_deeplink_url, DeepLinkImportRequest};
     use tauri::Url;
 
@@ -221,5 +274,88 @@ mod tests {
         assert_eq!(drained[0].id, first.id);
         assert_eq!(drained[1].id, second.id);
         assert!(deeplink_drain_pending_import_requests().is_empty(), "buffer is cleared after drain");
+    }
+
+    #[test]
+    fn pending_buffer_is_bounded_and_drops_oldest() {
+        // A flood of cold-start links must never grow the buffer without
+        // limit; the oldest request is dropped so the newest stays visible.
+        let requests = (0..(MAX_PENDING_IMPORT_REQUESTS + 16))
+            .map(|_| sample_request())
+            .collect::<Vec<_>>();
+        for request in &requests {
+            buffer_pending_import_request(request.clone());
+        }
+        let drained = deeplink_drain_pending_import_requests();
+        assert_eq!(drained.len(), MAX_PENDING_IMPORT_REQUESTS);
+        assert_eq!(
+            drained.first().map(|request| request.id.as_str()),
+            requests
+                .iter()
+                .skip(16)
+                .next()
+                .map(|request| request.id.as_str()),
+            "the 16 oldest requests must have been dropped"
+        );
+        assert_eq!(
+            drained.last().map(|request| request.id.as_str()),
+            requests.last().map(|request| request.id.as_str()),
+            "the newest request must be retained"
+        );
+    }
+
+    #[test]
+    fn error_snapshot_redacts_credential_query_values() {
+        let url = Url::parse(
+            "birdcoder://v1/import?resource=provider&app=claude&name=X&endpoint=https%3A%2F%2Fapi.example.com&apiKey=sk-secret-123&token=abc",
+        )
+        .unwrap();
+        let redacted = redact_deeplink_url(&url);
+        assert!(!redacted.contains("sk-secret-123"), "apiKey value must be redacted");
+        assert!(!redacted.contains("abc"), "token value must be redacted");
+        // The marker is URL-encoded in the serialized query ([redacted] ->
+        // %5Bredacted%5D); decode the query back before asserting.
+        let decoded_query = urlencoding_decode_query(&redacted);
+        assert!(
+            decoded_query.contains("[redacted]"),
+            "redaction marker must be present: {redacted}"
+        );
+        assert!(redacted.contains("api.example.com"), "non-credential query values survive");
+    }
+
+    /// Minimal percent-decoding for the redaction test query only.
+    fn urlencoding_decode_query(value: &str) -> String {
+        let Some(query) = value.split_once('?').map(|(_, query)| query) else {
+            return value.to_string();
+        };
+        query
+            .split('&')
+            .filter_map(|pair| {
+                let (key, value) = pair.split_once('=')?;
+                Some(format!("{key}={}", percent_decode(value)))
+            })
+            .collect::<Vec<_>>()
+            .join("&")
+    }
+
+    fn percent_decode(value: &str) -> String {
+        let bytes = value.as_bytes();
+        let mut output = Vec::with_capacity(bytes.len());
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'%' && index + 3 <= bytes.len() {
+                let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).ok();
+                if let Some(hex) = hex {
+                    if let Ok(decoded) = u8::from_str_radix(hex, 16) {
+                        output.push(decoded);
+                        index += 3;
+                        continue;
+                    }
+                }
+            }
+            output.push(bytes[index]);
+            index += 1;
+        }
+        String::from_utf8_lossy(&output).to_string()
     }
 }

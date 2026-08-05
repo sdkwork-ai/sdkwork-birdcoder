@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 
 import {
-  replaceWorkbenchCodeEngineCatalogForTesting,
-  resetWorkbenchCodeEngineCatalog,
-  resolveWorkbenchCodeEngineForRuntimeBinding,
+  replaceWorkbenchAgentEngineCatalogForTesting,
+  resetWorkbenchAgentEngineCatalog,
+  resolveWorkbenchAgentEngineForRuntimeBinding,
   resolveWorkbenchRuntimeBindingIdentity,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codeEngineCatalog.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentEngineCatalog.ts';
 import {
   resolveBirdcoderWorkbenchHostMode,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtimeTarget.ts';
@@ -27,7 +27,7 @@ const testAccessModeCatalog = {
   tier: 'official-sdk',
 };
 
-replaceWorkbenchCodeEngineCatalogForTesting(engines.map((engineId) => ({
+replaceWorkbenchAgentEngineCatalogForTesting(engines.map((engineId) => ({
   ...testAccessModeCatalog,
   agentId: `agent.${engineId}`,
   bindingId: `binding.${engineId}`,
@@ -56,7 +56,7 @@ for (const engineId of engines) {
     providerId: `provider.${engineId}`,
   });
   assert.equal(
-    resolveWorkbenchCodeEngineForRuntimeBinding({
+    resolveWorkbenchAgentEngineForRuntimeBinding({
       agentId: identity.agentId,
       engineId: identity.engineId,
       modelId: identity.modelId,
@@ -67,7 +67,7 @@ for (const engineId of engines) {
   );
 }
 
-replaceWorkbenchCodeEngineCatalogForTesting([
+replaceWorkbenchAgentEngineCatalogForTesting([
   ...engines.map((engineId) => ({
     ...testAccessModeCatalog,
     agentId: `agent.${engineId}`,
@@ -107,7 +107,7 @@ replaceWorkbenchCodeEngineCatalogForTesting([
 ]);
 
 assert.equal(
-  resolveWorkbenchCodeEngineForRuntimeBinding({
+  resolveWorkbenchAgentEngineForRuntimeBinding({
     modelId: 'codex-default',
     providerId: 'provider.codex',
   }),
@@ -115,7 +115,7 @@ assert.equal(
   'Ambiguous provider/model lookup must fail closed when more than one engine matches.',
 );
 assert.equal(
-  resolveWorkbenchCodeEngineForRuntimeBinding({
+  resolveWorkbenchAgentEngineForRuntimeBinding({
     agentId: 'agent.codex',
     engineId: 'codex',
     modelId: 'codex-default',
@@ -163,5 +163,5 @@ if (previousIsTauri) {
   Reflect.deleteProperty(globalThis, 'isTauri');
 }
 
-resetWorkbenchCodeEngineCatalog();
+resetWorkbenchAgentEngineCatalog();
 console.log('agent session runtime identity contract passed.');

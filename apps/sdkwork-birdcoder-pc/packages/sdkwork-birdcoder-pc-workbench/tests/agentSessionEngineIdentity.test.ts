@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { AgentSessionActivitySummaryRecord } from '../src/services/agentSessionViewModels.ts';
 import { toAgentSessionViewFromActivitySummary } from '../src/services/agentSessionViewModels.ts';
 import {
-  replaceWorkbenchCodeEngineCatalogForTesting,
-} from '../src/workbench/codeEngineCatalog.ts';
+  replaceWorkbenchAgentEngineCatalogForTesting,
+} from '../src/workbench/agentEngineCatalog.ts';
 import { matchesWorkbenchModeEngineId } from '../src/workbench/workbenchMode.ts';
 
 const tenantId = '100001';
@@ -125,7 +125,7 @@ function summary(options: { sessionId?: string; binding?: RuntimeBinding | null 
 
 describe('Agent Session engine identity projection', () => {
   it('resolves the engine for catalog-bound Sessions', () => {
-    replaceWorkbenchCodeEngineCatalogForTesting([
+    replaceWorkbenchAgentEngineCatalogForTesting([
       {
         engineId: 'codex',
         agentId: 'agent.codex',
@@ -135,6 +135,7 @@ describe('Agent Session engine identity projection', () => {
         healthy: true,
         defaultModelId: 'gpt-5',
         tier: 't1-code',
+        engineKind: 'code',
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [
@@ -156,7 +157,7 @@ describe('Agent Session engine identity projection', () => {
   });
 
   it('keeps the engine identity for custom-model Sessions instead of degrading to provider id', () => {
-    replaceWorkbenchCodeEngineCatalogForTesting([
+    replaceWorkbenchAgentEngineCatalogForTesting([
       {
         engineId: 'codex',
         agentId: 'agent.codex',
@@ -166,6 +167,7 @@ describe('Agent Session engine identity projection', () => {
         healthy: true,
         defaultModelId: 'gpt-5',
         tier: 't1-code',
+        engineKind: 'code',
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [
@@ -199,7 +201,7 @@ describe('Agent Session engine identity projection', () => {
   });
 
   it('degrades to the provider id only when the Agent is unknown to the catalog', () => {
-    replaceWorkbenchCodeEngineCatalogForTesting([
+    replaceWorkbenchAgentEngineCatalogForTesting([
       {
         engineId: 'codex',
         agentId: 'agent.codex',
@@ -209,6 +211,7 @@ describe('Agent Session engine identity projection', () => {
         healthy: true,
         defaultModelId: 'gpt-5',
         tier: 't1-code',
+        engineKind: 'code',
         defaultAccessModeId: 'default',
         accessModes: [],
         models: [

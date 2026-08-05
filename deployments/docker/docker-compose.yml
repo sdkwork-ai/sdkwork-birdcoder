@@ -1,8 +1,20 @@
+# SDKWork BirdCoder container compose.
+#
+# The Dockerfile expects the unpacked container release bundle as its build
+# context (server/bin, openapi, and deploy/docker/profiles are bundle-relative
+# paths). Unpack the packaged bundle first, for example:
+#
+#   tar -xzf artifacts/release/container/linux/x64/cpu/sdkwork-birdcoder-container-release-local-linux-x64.tar.gz -C artifacts/release/container/linux/x64/cpu/
+#   docker compose -f deployments/docker/docker-compose.yml up -d
+#
+# The bundle-embedded compose (deploy/docker/docker-compose.yml inside the
+# unpacked bundle) is the canonical launcher and is rewritten by the packager
+# to reference the bundle-relative Dockerfile path.
 services:
   sdkwork-birdcoder:
     build:
-      context: ../..
-      dockerfile: deployments/docker/Dockerfile
+      context: ../../artifacts/release/container/linux/x64/cpu
+      dockerfile: sdkwork-birdcoder-container-release-local-linux-x64/deploy/docker/Dockerfile
     env_file:
       - profiles/default.env
     ports:

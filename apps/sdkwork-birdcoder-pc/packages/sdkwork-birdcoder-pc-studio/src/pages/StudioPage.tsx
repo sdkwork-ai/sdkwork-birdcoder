@@ -1440,7 +1440,10 @@ function StudioPageComponent({
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
         workbenchMode={normalizeWorkbenchMode(preferences.workbenchMode)}
-        hasMoreRemoteMessages={Boolean(selectedSession?.itemPageInfo?.hasMore)}
+        hasMoreRemoteMessages={Boolean(
+          selectedSession?.itemPageInfo?.hasMore
+          && selectedSession.itemPageInfo.retentionLimitReached !== true,
+        )}
         isLoadingMoreRemoteMessages={isLoadingEarlierSelectedAgentSessionItems}
         remoteMessagesLoadError={earlierAgentSessionItemsError}
         pendingApprovals={pendingApprovals}

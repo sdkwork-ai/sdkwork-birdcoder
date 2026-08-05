@@ -316,9 +316,12 @@ function recordImageMetadataCommand(target, env = process.env) {
       `const metadataPath = ${JSON.stringify(imageMetadataPath(target))};`,
       'fs.mkdirSync(path.dirname(metadataPath), { recursive: true });',
       'const digest = process.env.SDKWORK_PUBLISHED_IMAGE_DIGEST || process.env.BIRDCODER_PUBLISHED_IMAGE_DIGEST || "";',
+      'if (!/^sha256:[0-9a-f]{64}$/u.test(digest)) {',
+      '  throw new Error("published image digest must be a real sha256 reference (sha256:<64 hex chars>); refusing to record a placeholder digest");',
+      '}',
       'const imageRepository = process.env.BIRDCODER_CONTAINER_IMAGE_REPOSITORY || "ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server";',
       'const imageTag = process.env.SDKWORK_RELEASE_TAG || "release-local";',
-      'fs.writeFileSync(metadataPath, `${JSON.stringify({ imageRepository, imageTag, imageDigest: digest, imageReference: digest ? `${imageRepository}@${digest}` : "" }, null, 2)}\\n`);',
+      'fs.writeFileSync(metadataPath, `${JSON.stringify({ imageRepository, imageTag, imageDigest: digest, imageReference: `${imageRepository}@${digest}` }, null, 2)}\\n`);',
     ].join('\n'),
   ];
 }

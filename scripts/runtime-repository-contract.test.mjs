@@ -45,13 +45,13 @@ try {
   );
 
   await preferencesModule.writeWorkbenchPreferences({
-    codeEngineId: 'gemini',
+    agentEngineId: 'gemini',
     codeModelId: 'gemini-1.5-pro',
     terminalProfileId: 'gemini',
     defaultWorkingDirectory: 'D:/workspace',
   });
   const preferences = await preferencesModule.readWorkbenchPreferences();
-  assert.equal(preferences.codeEngineId, 'gemini');
+  assert.equal(preferences.agentEngineId, 'gemini');
 
   assert.equal(typeof runConfigsModule.getRunConfigurationRepository, 'function');
   assert.equal(

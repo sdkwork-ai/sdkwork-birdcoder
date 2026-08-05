@@ -14,7 +14,7 @@ import {
   createBirdCoderListEnvelope,
   createAgentSessionFixture,
   createAgentWorkspaceFixture,
-  createCodeEngineCatalogFixture,
+  createAgentEngineCatalogFixture,
   createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
   createIamSessionData,
@@ -2223,7 +2223,7 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  if (pathname === '/app/v3/api/ai/code_engines' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/agent_engines' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -2233,7 +2233,7 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderDataEnvelope(createCodeEngineCatalogFixture()),
+      payload: createBirdCoderDataEnvelope(createAgentEngineCatalogFixture()),
     };
   }
 
