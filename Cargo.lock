@@ -13147,7 +13147,7 @@ dependencies = [
  "sdkwork-drive-app-sdk-generated-rust",
  "sdkwork-drive-contract",
  "sdkwork-drive-internal-sdk-generated-rust",
- "sdkwork-knowledgebase-internal-sdk-generated-rust",
+ "sdkwork-knowledgebase-internal-sdk",
  "sdkwork-utils-rust",
  "serde_json",
  "tokio",
@@ -13703,7 +13703,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-knowledgebase-internal-sdk-generated-rust"
+name = "sdkwork-knowledgebase-internal-sdk"
 version = "0.1.0"
 dependencies = [
  "http 1.4.2",
