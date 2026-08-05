@@ -12271,6 +12271,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-agent-provider-mimo-code"
+version = "0.2.0"
+dependencies = [
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-plugin-core",
+ "sdkwork-agent-provider-core",
+ "sdkwork-agent-provider-spi",
+ "sdkwork-agent-provider-transport-core",
+ "sdkwork-agent-provider-transport-node",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "sdkwork-agent-provider-openclaw"
 version = "0.2.0"
 dependencies = [
@@ -12391,6 +12405,7 @@ dependencies = [
  "sdkwork-agent-provider-codex",
  "sdkwork-agent-provider-gemini-cli",
  "sdkwork-agent-provider-hermes",
+ "sdkwork-agent-provider-mimo-code",
  "sdkwork-agent-provider-openclaw",
  "sdkwork-agent-provider-opencode",
  "sdkwork-agent-provider-rig",
@@ -12477,8 +12492,10 @@ dependencies = [
  "sdkwork-agent-provider-core",
  "sdkwork-agent-provider-gemini-cli",
  "sdkwork-agent-provider-hermes",
+ "sdkwork-agent-provider-mimo-code",
  "sdkwork-agent-provider-openclaw",
  "sdkwork-agent-provider-opencode",
+ "sdkwork-agent-provider-rig",
  "sdkwork-agent-provider-spi",
  "sdkwork-utils-rust",
  "serde",
@@ -13618,6 +13635,7 @@ dependencies = [
  "sdkwork-deploy-drive-port",
  "sdkwork-deploy-runtime-compiler",
  "sdkwork-deploy-web-port",
+ "sdkwork-utils-rust",
  "serde_json",
  "tracing",
 ]
