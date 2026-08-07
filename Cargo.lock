@@ -2095,6 +2095,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cloudrouter-open-sdk"
+version = "0.1.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "clru"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12631,13 +12642,16 @@ dependencies = [
  "sdkwork-agents-database-host",
  "sdkwork-agents-kernel-bridge",
  "sdkwork-agents-runtime-facade",
+ "sdkwork-api-drive-assembly",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
+ "sdkwork-iam-web-adapter",
  "sdkwork-intelligence-agents-service",
  "sdkwork-routes-agents-app-api",
  "sdkwork-routes-agents-backend-api",
  "sdkwork-routes-agents-http-shared",
  "sdkwork-routes-agents-open-api",
+ "sdkwork-routes-drive-app-api",
  "sdkwork-routes-iam-app-api",
  "sdkwork-web-bootstrap",
  "sdkwork-web-contract",
@@ -12696,6 +12710,7 @@ name = "sdkwork-api-deployments-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-deploy-database-host",
  "sdkwork-deploy-service-host",
  "sdkwork-intelligence-deploy-service",
@@ -13337,6 +13352,7 @@ dependencies = [
  "async-trait",
  "hickory-resolver",
  "sdkwork-database-id",
+ "sdkwork-database-sqlx",
  "sdkwork-deploy-content-provider-port",
  "sdkwork-deploy-contract",
  "sdkwork-deploy-core",
@@ -13696,8 +13712,8 @@ dependencies = [
  "axum 0.8.9",
  "chrono",
  "chrono-tz",
+ "cloudrouter-open-sdk",
  "cron",
- "rusqlite",
  "sdkwork-agent-kernel",
  "sdkwork-agents-contract",
  "sdkwork-agents-runtime-facade",
@@ -13873,7 +13889,10 @@ dependencies = [
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
  "sdkwork-membership-database-host",
+ "sdkwork-membership-repository-sqlx",
  "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -14512,6 +14531,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tracing",
+ "urlencoding",
  "uuid",
 ]
 
