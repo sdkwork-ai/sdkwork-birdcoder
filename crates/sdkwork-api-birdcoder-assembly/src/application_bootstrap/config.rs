@@ -221,9 +221,15 @@ impl BirdServerConfig {
             .and_then(|v| v.parse().ok())
             .or_else(|| ingress_bind.as_ref().map(|(_, port)| *port))
             .unwrap_or(DEFAULT_PORT);
-        let allowed_origins = read_env(ALLOWED_ORIGINS_ENV)
-            .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
-            .unwrap_or_else(|| default_allowed_origins_for_host(&host));
+        let allowed_origins = {
+            let mut origins = sdkwork_web_bootstrap::cors_allowed_origins_from_env(&[
+                ALLOWED_ORIGINS_ENV,
+            ]);
+            if origins.is_empty() {
+                origins = default_allowed_origins_for_host(&host);
+            }
+            origins
+        };
         let rate_limit_enabled = std::env::var("BIRDCODER_RATE_LIMIT_ENABLED")
             .ok()
             .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))

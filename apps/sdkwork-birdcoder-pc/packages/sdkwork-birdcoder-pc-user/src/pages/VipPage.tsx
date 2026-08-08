@@ -20,7 +20,15 @@ function redirectToBirdCoderLogin(): void {
   if (typeof window === 'undefined') {
     return;
   }
-  const returnPath = window.location.hash || '#/vip';
+  // Use the path form of the current hash route as the return target (the
+  // consumer sanitizer rejects hash-prefixed values like "#/vip"), and never
+  // re-wrap when already on the auth surface.
+  const rawHash = window.location.hash;
+  const hashPath = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;
+  if (hashPath === '/auth' || hashPath.startsWith('/auth/')) {
+    return;
+  }
+  const returnPath = hashPath || '/vip';
   window.location.assign(`/#/auth/login?redirect=${encodeURIComponent(returnPath)}`);
 }
 

@@ -22,8 +22,8 @@ use sdkwork_web_core::{
 use std::sync::Arc;
 
 use sdkwork_api_birdcoder_assembly::bootstrap::config::{
-    default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
-    BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
+    is_loopback_bind_host, is_wildcard_bind_host, BirdDeploymentProfile, BirdEnvironment,
+    BirdRuntimeTarget, BirdServerConfig,
 };
 
 /// Product route packages declare public operations in the combined route
@@ -148,14 +148,27 @@ fn with_birdcoder_local_dev_header_relaxation(mut policy: CorsPolicy) -> CorsPol
     policy
 }
 
+/// Desktop webview origins that the framework policies cannot express:
+/// `development_loopback` / `development_private_network` are restricted to
+/// http(s) origins, while the Tauri production webview loads from the
+/// `tauri://` scheme. These are merged in for every local standalone profile
+/// (dev or not) so the desktop surface never hits CORS friction.
+const DESKTOP_WEBVIEW_ORIGINS: &[&str] =
+    &["tauri://localhost", "https://tauri.localhost"];
+
 pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
-    let uses_wildcard = config.allowed_origins.iter().any(|origin| origin == "*");
-    let mut explicit_origins: Vec<String> = config
-        .allowed_origins
-        .iter()
-        .filter(|origin| *origin != "*")
-        .cloned()
-        .collect();
+    // Canonical env allowlist via the official bootstrap helper:
+    // `SDKWORK_CORS_ALLOWED_ORIGINS` wins, the legacy
+    // `SDKWORK_BIRDCODER_ALLOWED_ORIGINS` key resolves as a compatibility
+    // fallback with a deprecation warning. Config-provided origins
+    // (host-derived defaults or programmatic construction) are merged on top.
+    let mut explicit_origins =
+        sdkwork_web_bootstrap::cors_allowed_origins_from_env(&["SDKWORK_BIRDCODER_ALLOWED_ORIGINS"]);
+    for origin in &config.allowed_origins {
+        if !explicit_origins.contains(origin) {
+            explicit_origins.push(origin.clone());
+        }
+    }
 
     let uses_development_private_network =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
@@ -163,58 +176,37 @@ pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
                 config.environment,
                 BirdEnvironment::Development | BirdEnvironment::Test
             );
-    if uses_development_private_network {
-        let mut policy = CorsPolicy::development_private_network();
-        for origin in explicit_origins {
-            if !policy.allowed_origins.contains(&origin) {
-                policy.allowed_origins.push(origin);
-            }
-        }
-        if uses_wildcard {
-            tracing::warn!(
-                "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using the development private-network policy and explicit origins only."
-            );
-        }
-        return with_birdcoder_local_dev_header_relaxation(with_birdcoder_sdk_cors_headers(policy));
-    }
-
     let is_local_standalone =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
             && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
-    if is_local_standalone {
-        for origin in default_loopback_browser_origins() {
-            if !explicit_origins.iter().any(|allowed| allowed == &origin) {
-                explicit_origins.push(origin);
+
+    // Framework-provided dev semantics supersede the hand-rolled loopback port
+    // table: `development_private_network` covers loopback and private-network
+    // dev-server origins; `development_loopback` covers loopback hosts for
+    // local standalone production profiles. Only the Tauri webview schemes are
+    // added explicitly on top. A literal "*" from the environment never matches
+    // a real origin, so no separate wildcard filtering/warning is needed.
+    let mut policy = if uses_development_private_network {
+        CorsPolicy::development_private_network()
+    } else if is_local_standalone {
+        CorsPolicy::development_loopback()
+    } else {
+        CorsPolicy::default()
+    };
+    for origin in explicit_origins {
+        if !policy.allowed_origins.contains(&origin) {
+            policy.allowed_origins.push(origin);
+        }
+    }
+    if uses_development_private_network || is_local_standalone {
+        for origin in DESKTOP_WEBVIEW_ORIGINS {
+            if !policy.allowed_origins.iter().any(|allowed| allowed == origin) {
+                policy.allowed_origins.push((*origin).to_owned());
             }
         }
     }
-
-    let mut policy = if uses_wildcard {
-        tracing::warn!(
-            "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using explicit origins only."
-        );
-        CorsPolicy {
-            allow_all_origins: false,
-            allowed_origins: explicit_origins,
-            ..CorsPolicy::default()
-        }
-    } else if explicit_origins.is_empty()
-        && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host))
-    {
-        CorsPolicy {
-            allow_all_origins: false,
-            allowed_origins: default_loopback_browser_origins(),
-            ..CorsPolicy::default()
-        }
-    } else {
-        CorsPolicy {
-            allow_all_origins: false,
-            allowed_origins: explicit_origins,
-            ..CorsPolicy::default()
-        }
-    };
     policy = with_birdcoder_sdk_cors_headers(policy);
-    if is_local_standalone {
+    if uses_development_private_network || is_local_standalone {
         policy = with_birdcoder_local_dev_header_relaxation(policy);
     }
     policy
@@ -241,6 +233,10 @@ mod tests {
     use sdkwork_api_birdcoder_assembly::bootstrap::config::BirdRuntimeTarget;
 
     fn test_config(deployment_profile: BirdDeploymentProfile) -> BirdServerConfig {
+        // Isolate the policy builder from any ambient CORS configuration so the
+        // assertions below are deterministic.
+        std::env::remove_var("SDKWORK_BIRDCODER_ALLOWED_ORIGINS");
+        std::env::remove_var("SDKWORK_CORS_ALLOWED_ORIGINS");
         BirdServerConfig {
             environment: BirdEnvironment::Development,
             deployment_profile,

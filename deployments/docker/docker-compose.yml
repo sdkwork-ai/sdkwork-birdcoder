@@ -1,51 +1,134 @@
-# SDKWork BirdCoder container compose.
+# sdkwork-birdcoder standalone container composition.
 #
-# The Dockerfile expects the unpacked container release bundle as its build
-# context (server/bin, openapi, and deploy/docker/profiles are bundle-relative
-# paths). Unpack the packaged bundle first, for example:
+# runtimeTarget = "container", deploymentProfile = "standalone".
+# Build the image first with `pnpm build:container` (produces birdcoder:local),
+# then `docker compose up -d`.
 #
-#   tar -xzf artifacts/release/container/linux/x64/cpu/sdkwork-birdcoder-container-release-local-linux-x64.tar.gz -C artifacts/release/container/linux/x64/cpu/
-#   docker compose -f deployments/docker/docker-compose.yml up -d
+# Port strategy: the container listens on 0.0.0.0:10240 (the application public
+# ingress). The host side maps 10243 -> 10240 so the container never collides
+# with `pnpm dev` (10240 gateway, 5173 vite). PostgreSQL stays on the compose
+# network and exposes no host ports, so the composition is conflict-free.
 #
-# The bundle-embedded compose (deploy/docker/docker-compose.yml inside the
-# unpacked bundle) is the canonical launcher and is rewritten by the packager
-# to reference the bundle-relative Dockerfile path.
+# The deployment nginx (WSL host, deployments/docker/docker/nginx/*.conf)
+# serves the portal SPA and proxies the canonical API prefixes to
+# 127.0.0.1:10243; the three test domains reach it through the Windows hosts
+# binding (see deployments/docker/README.md).
+
 services:
-  sdkwork-birdcoder:
-    build:
-      context: ../../artifacts/release/container/linux/x64/cpu
-      dockerfile: sdkwork-birdcoder-container-release-local-linux-x64/deploy/docker/Dockerfile
-    env_file:
-      - profiles/default.env
-    ports:
-      - "18989:18989"
+  postgres:
+    image: postgres:16-alpine
+    # Survive host/WSL restarts together with the gateway (commercial ops).
     restart: unless-stopped
+    # Server-side connection ceiling: sized for app pools (tune
+    # PG_MAX_CONNECTIONS together with BIRDCODER_DATABASE_MAX_CONNECTIONS).
+    command: ["postgres", "-c", "max_connections=${PG_MAX_CONNECTIONS:-200}"]
+    environment:
+      POSTGRES_DB: ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}
+      POSTGRES_USER: ${BIRDCODER_POSTGRES_USER:-sdkwork_ai_test}
+      POSTGRES_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:-sdkwork_ai_test}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates the same-named workspace schema on first initialization
+      # (the sdkwork-database lifecycle pins search_path to it).
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:18989/readyz"]
-      interval: 30s
+      test: ["CMD-SHELL", "pg_isready -U ${BIRDCODER_POSTGRES_USER:-sdkwork_ai_test} -d ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}"]
+      interval: 5s
       timeout: 5s
-      start_period: 15s
-      retries: 3
+      retries: 12
+
+  birdcoder:
+    image: birdcoder:local
+    ports:
+      - "10243:10240"
+    environment:
+      # Deployment identity (DEPLOYMENT_SPEC: standalone container).
+      SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: standalone
+      SDKWORK_BIRDCODER_RUNTIME_TARGET: container
+      SDKWORK_BIRDCODER_ENVIRONMENT: ${BIRDCODER_ENVIRONMENT:-test}
+      # IAM deployment posture: the test container runs in explicit
+      # development IAM mode so the IAM resolver accepts the gateway-issued
+      # bootstrap Access-Token and the development authentication fallback
+      # (credential-entry / verify-code login flow) for quick app testing.
+      # Production deployments must switch to a production posture instead.
+      SDKWORK_ENV: dev
+      SDKWORK_IM_ENVIRONMENT: dev
+      # IAM super-admin bootstrap password: when set, the IAM bootstrap
+      # provisions/updates the password credential for the default admin user.
+      # Override via .env (BIRDCODER_IAM_SUPER_ADMIN_PASSWORD).
+      SDKWORK_IAM_SUPER_ADMIN_PASSWORD: ${BIRDCODER_IAM_SUPER_ADMIN_PASSWORD:-}
+      # Application public ingress bind: topology-resolved, never hard-coded
+      # in source. Container-internal 10240 is the spec default; the host port
+      # mapping above keeps it off the `pnpm dev` ports.
+      SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND: 0.0.0.0:10240
+      SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: ${BIRDCODER_APPLICATION_PUBLIC_HTTP_URL:-http://testapidocker.sdkwork.com}
+      # Browser CORS allow-list for the API plane. The gateway runs in a
+      # production-ish posture (environment test), where cross-origin browser
+      # requests are rejected unless the origin is listed here. Add every
+      # public domain that serves the portal (see
+      # deployments/docker/docker/nginx/testapidocker-birdcoder.conf) plus
+      # local host ports used for direct access. SDKWORK_CORS_ALLOWED_ORIGINS
+      # is the canonical shared key for every SDKWork service (SOURCE_CONFIG_SPEC).
+      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
+      # Legacy compatibility key (deprecated fallback; keep aligned).
+      SDKWORK_BIRDCODER_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
+      # External dependencies are injected at runtime, not baked into the image.
+      # Split database fields (with explicit schema) so the lifecycle schema
+      # identity is unambiguous. Hosts/ports default to the compose services.
+      SDKWORK_DATABASE_ENGINE: postgresql
+      SDKWORK_DATABASE_HOST: ${BIRDCODER_POSTGRES_HOST:-postgres}
+      SDKWORK_DATABASE_PORT: ${BIRDCODER_POSTGRES_PORT:-5432}
+      SDKWORK_DATABASE_NAME: ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}
+      SDKWORK_DATABASE_SCHEMA: ${BIRDCODER_POSTGRES_SCHEMA:-sdkwork_ai_test}
+      SDKWORK_DATABASE_USERNAME: ${BIRDCODER_POSTGRES_USER:-sdkwork_ai_test}
+      SDKWORK_DATABASE_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:-sdkwork_ai_test}
+      SDKWORK_DATABASE_SSL_MODE: disable
+      # Every composed owner module (IAM, Agents, Models, Documents, Drive,
+      # Membership, Order, Prompts, Skills, Deployments) migrates its packaged
+      # module on startup when auto-migrate is enabled. The schema is created
+      # by the postgres init script before the gateway starts.
+      SDKWORK_DATABASE_AUTO_MIGRATE: "true"
+      # Connection pool sizing (tune via .env).
+      SDKWORK_DATABASE_MAX_CONNECTIONS: ${BIRDCODER_DATABASE_MAX_CONNECTIONS:-30}
+      SDKWORK_DATABASE_MIN_CONNECTIONS: ${BIRDCODER_DATABASE_MIN_CONNECTIONS:-3}
+      SDKWORK_DATABASE_ACQUIRE_TIMEOUT: ${BIRDCODER_DATABASE_ACQUIRE_TIMEOUT:-30}
+      SDKWORK_DATABASE_IDLE_TIMEOUT: ${BIRDCODER_DATABASE_IDLE_TIMEOUT:-600}
+      SDKWORK_DATABASE_MAX_LIFETIME: ${BIRDCODER_DATABASE_MAX_LIFETIME:-1800}
+      # Agents runtime: keep dev auth bypass off outside explicit dev runs.
+      SDKWORK_AGENTS_DEV_AUTH_BYPASS: "false"
+      # Process log level (tracing reads RUST_LOG directly).
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      # Durable data lives on a mounted volume (RUNTIME_DIRECTORY_SPEC).
+      - birdcoder-data:/var/lib/sdkwork/birdcoder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # Gateway readiness probe: compose can restart/replace the gateway when it
+    # stops answering, and orchestrators can schedule dependents on it.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:10240/readyz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    # Deployment guardrails: bound the gateway to predictable CPU and memory
+    # (tune via .env) so noisy neighbors cannot starve the host.
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 4G
+          cpus: ${BIRDCODER_CPU_LIMIT:-4.0}
+          memory: ${BIRDCODER_MEMORY_LIMIT:-4g}
         reservations:
-          cpus: '0.5'
-          memory: 512M
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    user: "10001:10001"
+          cpus: ${BIRDCODER_CPU_RESERVATION:-1.0}
+          memory: ${BIRDCODER_MEMORY_RESERVATION:-1g}
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  postgres-data:
+  birdcoder-data:
