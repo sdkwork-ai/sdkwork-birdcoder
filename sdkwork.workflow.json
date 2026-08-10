@@ -236,6 +236,13 @@
         "shell": "node",
         "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs publish"
       }
+    ],
+    "deploy": [
+      {
+        "name": "Apply immutable artifact through the SDKWork app facade",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm exec sdkwork-app deploy:workflow-apply"
+      }
     ]
   },
   "targets": [
@@ -671,5 +678,15 @@
       "release-assets/**/*"
     ],
     "retentionDays": 30
-  }
+  },
+  "deployments": [
+    {
+      "id": "standalone-production-server",
+      "environment": "production",
+      "targetId": "linux-x64-standalone-server-tar-gz",
+      "deploymentProfile": "standalone",
+      "lifecycle": "deploy",
+      "artifactEvidencePath": ".sdkwork/evidence/{packageId}.json"
+    }
+  ]
 }

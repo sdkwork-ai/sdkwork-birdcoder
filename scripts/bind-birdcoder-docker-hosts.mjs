@@ -14,7 +14,7 @@
  * (UAC prompt) and falls back to printing the exact commands when elevation
  * is not available.
  *
- * Public script: `pnpm hosts:bind`.
+ * Public script: `pnpm workflow:hosts:bind`.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';

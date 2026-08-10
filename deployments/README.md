@@ -3,6 +3,15 @@
 ## Purpose
 Deployment descriptors, environment topology, packaging handoff files, infrastructure examples, and release deployment documentation.
 
+`deployments/deploy.yaml` is a typed manifest v2 authority for `cloud.test`,
+`cloud.staging`, `cloud.production`, and `standalone.production`. The cloud
+profiles expose the registered `code` role host
+(`code-test.sdkwork.com` / `code-staging.sdkwork.com` / `code.sdkwork.com`)
+per `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_NAMING.md` section 9.2
+(`applicationCode = birdcoder` keeps the registered host precedence rule).
+Development profiles are source config under `etc/topology/` and are never
+deploy targets; standalone profiles fold SDK base URLs to loopback.
+
 ## Owner
 SDKWork Birdcoder team.
 
