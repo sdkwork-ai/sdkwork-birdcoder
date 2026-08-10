@@ -8,8 +8,8 @@
   "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE": "cloud",
   "SDKWORK_BIRDCODER_PROFILE_ID": "cloud.development",
   "SDKWORK_BIRDCODER_RUNTIME_TARGET": "flutter-android",
-  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://birdcoder-dev.sdkwork.com:10240",
+  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://code-dev.sdkwork.com:10240",
   "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api-dev.sdkwork.com",
-  "API_BASE_URL": "http://birdcoder-dev.sdkwork.com:10240",
+  "API_BASE_URL": "http://code-dev.sdkwork.com:10240",
   "SDKWORK_ACCESS_TOKEN": ""
 }

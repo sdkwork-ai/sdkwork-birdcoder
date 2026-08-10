@@ -73,10 +73,21 @@
   },
   "cloudPublicHosts": {
     "application.public-ingress": {
-      "httpHost": "birdcoder.sdkwork.com"
+      "httpHost": "code.sdkwork.com",
+      "note": "registered role host code.sdkwork.com with applicationCode=birdcoder per APP_RUNTIME_TOPOLOGY_NAMING.md section 9.2",
+      "environments": {
+        "development": { "httpHost": "code-dev.sdkwork.com" },
+        "test": { "httpHost": "code-test.sdkwork.com" },
+        "staging": { "httpHost": "code-staging.sdkwork.com" }
+      }
     },
     "platform.api-gateway": {
-      "httpHost": "api.sdkwork.com"
+      "httpHost": "api.sdkwork.com",
+      "environments": {
+        "development": { "httpHost": "api-dev.sdkwork.com" },
+        "test": { "httpHost": "api-test.sdkwork.com" },
+        "staging": { "httpHost": "api-staging.sdkwork.com" }
+      }
     }
   },
   "components": {

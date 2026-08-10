@@ -5,19 +5,19 @@
   "defaultProfile": "standalone.development",
   "environments": {
     "development": {
-      "applicationOrigin": "http://birdcoder-dev.sdkwork.com:10240/",
+      "applicationOrigin": "http://code-dev.sdkwork.com:10240/",
       "cloudApiBaseUrl": "https://api-dev.sdkwork.com/"
     },
     "test": {
-      "applicationOrigin": "https://birdcoder-test.sdkwork.com/",
+      "applicationOrigin": "https://code-test.sdkwork.com/",
       "cloudApiBaseUrl": "https://api-test.sdkwork.com/"
     },
     "staging": {
-      "applicationOrigin": "https://birdcoder-staging.sdkwork.com/",
+      "applicationOrigin": "https://code-staging.sdkwork.com/",
       "cloudApiBaseUrl": "https://api-staging.sdkwork.com/"
     },
     "production": {
-      "applicationOrigin": "https://birdcoder.sdkwork.com/",
+      "applicationOrigin": "https://code.sdkwork.com/",
       "cloudApiBaseUrl": "https://api.sdkwork.com/"
     }
   },

@@ -38,10 +38,12 @@ runtime:
   environment: production
   serverHost: "0.0.0.0"
   otelServiceName: sdkwork-api-birdcoder-standalone-gateway
-  # Replace the reserved hostname before enabling browser traffic. Wildcards
-  # are rejected by the server's cloud runtime validation.
+  # Registered public origin per APP_RUNTIME_TOPOLOGY_NAMING.md section 9.2;
+  # the operator supplies the matching ingress host and TLS secret before
+  # enabling browser traffic. Wildcards are rejected by the server's cloud
+  # runtime validation.
   allowedOrigins:
-    - "https://birdcoder.example.invalid"
+    - "https://code.sdkwork.com"
 
 auth:
   manageUsername: ""
