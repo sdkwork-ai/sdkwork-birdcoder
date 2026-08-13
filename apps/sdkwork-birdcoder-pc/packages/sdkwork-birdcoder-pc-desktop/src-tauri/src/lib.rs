@@ -206,10 +206,11 @@ async fn fs_get_directory_revisions(
 #[tauri::command]
 fn fs_watch_start(
     app: tauri::AppHandle,
+    window: tauri::Window,
     state: tauri::State<'_, host::FileSystemWatchState>,
     root_path: String,
 ) -> Result<host::FileSystemWatchRegistration, String> {
-    host::fs_watch_start(app, state, root_path)
+    host::fs_watch_start(app, window, state, root_path)
 }
 
 #[tauri::command]
@@ -519,6 +520,19 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .on_window_event(|window, event| {
+            // Tear down file-system watches owned by a window when it closes,
+            // so a closed WebView never leaks OS watch handles (the registry
+            // also caps the total at 64 as a second line of defense).
+            if matches!(
+                event,
+                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed
+            ) {
+                if let Some(watch_state) = window.try_state::<host::FileSystemWatchState>() {
+                    host::stop_watches_for_window(&watch_state, window.label());
+                }
+            }
+        })
         .setup(|app| {
             app.manage(host::FileSystemWatchState::new());
             host::setup_tauri_host(app.handle())?;

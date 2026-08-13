@@ -33,6 +33,9 @@ struct FileSystemWatchEventPayload {
 
 struct ActiveFileSystemWatch {
     _watcher: RecommendedWatcher,
+    /// Owning window label; watches are torn down when the window closes so a
+    /// closed WebView can never leak OS watch handles.
+    window_label: String,
 }
 
 #[derive(Default)]
@@ -108,9 +111,11 @@ fn build_watch_event_payload(
 #[tauri::command]
 pub fn fs_watch_start(
     app: AppHandle,
+    window: tauri::Window,
     state: State<'_, FileSystemWatchState>,
     root_path: String,
 ) -> Result<FileSystemWatchRegistration, String> {
+    let window_label = window.label().to_owned();
     let root_directory = resolve_root_directory_path(&root_path)?;
     let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
     if state
@@ -148,16 +153,12 @@ pub fn fs_watch_start(
         }
         Err(error) => {
             eprintln!(
-                "failed to receive mounted file-system watch event for '{}': {error}",
-                root_directory_for_events.display()
+                "failed to receive mounted file-system watch event: {error}"
             );
         }
     })
     .map_err(|error| {
-        format!(
-            "failed to initialize mounted file-system watcher for '{}': {error}",
-            root_directory.display()
-        )
+        format!("failed to initialize mounted file-system watcher: {error}")
     })?;
     watcher
         .watch(&root_directory, RecursiveMode::Recursive)
@@ -174,10 +175,34 @@ pub fn fs_watch_start(
         .map_err(|_| "file-system watch state mutex poisoned".to_string())?
         .insert(
             watch_id.clone(),
-            ActiveFileSystemWatch { _watcher: watcher },
+            ActiveFileSystemWatch {
+                _watcher: watcher,
+                window_label,
+            },
         );
 
     Ok(FileSystemWatchRegistration { watch_id })
+}
+
+/// Stops every file-system watch owned by `window_label`. Called from the
+/// window close/destroyed event so a closed WebView cannot leak OS watch
+/// handles or keep the watcher event loop alive for a dead window.
+pub fn stop_watches_for_window(
+    state: &FileSystemWatchState,
+    window_label: &str,
+) {
+    let Ok(mut watchers) = state.watchers.lock() else {
+        return;
+    };
+    let owned_ids = watchers
+        .iter()
+        .filter_map(|(watch_id, watch)| {
+            (watch.window_label == window_label).then(|| watch_id.clone())
+        })
+        .collect::<Vec<_>>();
+    for watch_id in owned_ids {
+        watchers.remove(&watch_id);
+    }
 }
 
 #[tauri::command]

@@ -1285,7 +1285,7 @@ const requiredBlockerContracts = [
       taskRecordSha256:
         "7dbae0b44d5dce107cf61f2894367e3706e102eab938ae33decff92c877aa06b",
       aiApiSha256:
-        "1410a30152ff6b98d28c61cfe5c0b59f131296eb1772053e256bc69e5c98ba4a",
+        "b3e03e29607988fe6c3a164d98412d879e21bbcfbccafc85263ced2e0db9e588",
     },
     requiredContractExtensions: [
       "expose generated App SDK operations for user-visible Run reconciliation and recovery",
@@ -1457,7 +1457,7 @@ const requiredBlockerContracts = [
           "mpsc::channel(TURN_STREAM_CHANNEL_CAPACITY)",
           "service.execute_turn_with_stream_sink(command, execution_sink);",
           "let first = receiver.recv().await",
-          "ReceiverStream::new(receiver)",
+          "tokio_stream::iter([first_bytes]).chain(futures_util::stream::unfold(",
           ".body(Body::from_stream(body_stream))",
         ],
         notContains: [".body(Body::from(body))"],
@@ -1473,7 +1473,7 @@ const requiredBlockerContracts = [
         orderedContains: [
           "fn complete_with_stream_sink(",
           "execute_runtime_facade_turn(input, true, Some(sink))",
-          "shared_agent_engine_host()",
+          "agent_engine_host_for(",
           "host.slot(engine_key)",
           "if prefer_stream {",
           "execute_agent_engine_turn_with_stream_sink(slot, &turn_input, &mut facade_sink)",

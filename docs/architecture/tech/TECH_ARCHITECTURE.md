@@ -533,9 +533,11 @@ login, and a state with neither fails closed with a diagnostic instead of
 silently returning 401 on every protected route. The desktop WebView also
 enforces a Content-Security-Policy (mirroring the renderer's HTML meta
 policy) as a defense-in-depth layer, and browser-local session persistence
-never stores the rotating refresh token — long-lived credentials are
-persisted only through the OS-level keyring-backed secure port and fail
-closed in-memory otherwise.
+never stores the rotating refresh token: the short-lived access and auth
+tokens are persisted in browser-local storage only for reload recovery and
+are protected by the strict CSP (`script-src 'self'`), while the long-lived
+rotating refresh token is persisted only through the OS-level keyring-backed
+secure port and fails closed in-memory otherwise.
 
 The gateway also mounts the SDKWork Deployments owner module as one of its
 owner API contributions when a workspace PostgreSQL profile is configured

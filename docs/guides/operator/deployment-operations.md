@@ -100,8 +100,10 @@ docker compose -f deployments/docker/docker-compose.yml up -d
 ```
 
 The Helm baseline deploys one stateless gateway. Use the HA overlay for
-replicas, autoscaling, Redis-backed realtime, disruption control, and production
-OpenTelemetry settings:
+replicas, autoscaling, disruption control, and production OpenTelemetry
+settings. The gateway is stateless: its bounded synchronization refresh cache
+and in-flight registry live in process memory, so horizontal scaling is safe
+without any external realtime store:
 
 ```bash
 helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
@@ -112,6 +114,18 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 
 The chart contains no persistence volume, database Secret, migration job, or
 backup job. It also does not enroll an execution target or expose a PC mount.
+
+## Rate Limiting And Multi-Replica Quotas
+
+The gateway rate limiter is process-local: each replica counts requests
+against its own window budget (the per-instance `BIRDCODER_RATE_LIMIT_*`
+values). With `N` replicas the effective aggregate budget is `N ×` the
+per-instance limit, which is correct for a stateless fleet but must be sized
+deliberately: when a tighter global ceiling is a product requirement, size the
+per-instance limit as `global_budget / replica_count` or front the ingress
+with a shared rate limit (for example the platform API gateway or an ingress
+`limit_req` zone). The default single-replica baseline keeps the published
+120 req/min window.
 
 ## Upgrade And Rollback
 

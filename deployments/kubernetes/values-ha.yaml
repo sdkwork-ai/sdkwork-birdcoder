@@ -1,18 +1,34 @@
 # Stateless high-availability overlay for SDKWork BirdCoder.
-# Apply with values.yaml after provisioning Redis HA and OpenTelemetry.
+# Apply with values.yaml after provisioning OpenTelemetry.
+#
+# The gateway is stateless: its bounded synchronization refresh cache and
+# in-flight registry live in process memory, so horizontal scaling is safe
+# without any external realtime store. Redis-backed realtime is not
+# implemented and is deliberately not advertised here.
 
 replicaCount: 3
 
-realtime:
-  backend: redis
+# Required pod anti-affinity plus a host-level topology spread: with three or
+# more replicas the gateway must land on distinct nodes so a single-node loss
+# never takes down the whole HA fleet (the base values only prefer it).
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - sdkwork-birdcoder
+        topologyKey: kubernetes.io/hostname
 
-redis:
-  enabled: true
-  host: redis-master
-  port: 6379
-  database: 0
-  keyPrefix: birdcoder
-  tls: true
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: sdkwork-birdcoder
 
 autoscaling:
   enabled: true

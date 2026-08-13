@@ -67,7 +67,6 @@ export function BirdCoderH5AuthLoginRoute() {
         onAuthenticated={() => {
           void completeAuthentication();
         }}
-        title="Sign in to BirdCoder"
       />
     </main>
   );

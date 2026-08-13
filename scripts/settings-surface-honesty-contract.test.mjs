@@ -94,8 +94,13 @@ assert.doesNotMatch(
 );
 assert.match(
   archivedSettingsSource,
-  /settings\.archived\.runtimeUnavailable/u,
-  'Archived settings must disclose runtime wiring is pending.',
+  /restoreArchivedSession[\s\S]*settings\.archived\.(?:restoredCount|restoreFailed)/u,
+  'Archived settings must wire real session restore and disclose per-session success or failure.',
+);
+assert.match(
+  archivedSettingsSource,
+  /deleteSession[\s\S]*settings\.archived\.(?:deletedCount|deleteFailed)/u,
+  'Archived settings must wire real permanent delete and disclose per-session success or failure.',
 );
 assert.doesNotMatch(
   configSettingsSource,
@@ -124,8 +129,8 @@ assert.match(
 );
 assert.match(
   terminalLaunchSource,
-  /evaluateCommand\(normalizedCommand\)[\s\S]*saveAuditRecord\([\s\S]*if \(!decision\.allowed\)/u,
-  'IDE-launched terminal commands must be evaluated and audited before a process launch plan is returned.',
+  /evaluateCommand\(command\)[\s\S]*recordDiagnostic\([\s\S]*decision\.allowed/u,
+  'IDE-launched terminal commands must be evaluated, audited, and blocked before a process launch plan is returned.',
 );
 for (const [surface, source] of [
   ['code', codeTerminalPanelSource],
@@ -138,15 +143,10 @@ for (const [surface, source] of [
     `${surface} terminal surface must surface blocked command feedback instead of failing silently.`,
   );
 }
-assert.match(
+assert.doesNotMatch(
   dockerDefaultEnv,
-  /SDKWORK_BIRDCODER_REALTIME_BACKEND=memory/u,
-  'Docker default env must default realtime backend to memory for single-replica deployments.',
-);
-assert.match(
-  dockerDefaultEnv,
-  /SDKWORK_BIRDCODER_REDIS_ENABLED=false/u,
-  'Docker default env must keep Redis disabled until HA overlay is applied.',
+  /SDKWORK_BIRDCODER_(?:REALTIME_BACKEND|REDIS_)/u,
+  'Docker default env must not advertise Redis-backed realtime configuration: the stateless gateway keeps its bounded synchronization cache and in-flight registry in process memory and owns no external realtime store.',
 );
 
 console.log('settings surface honesty contract passed.');

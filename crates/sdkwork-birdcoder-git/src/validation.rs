@@ -27,8 +27,26 @@ pub(crate) fn validate_git_branch_name(branch_name: &str) -> Result<(), GitMutat
 }
 
 pub(crate) fn validate_git_remote_name(remote_name: &str) -> Result<(), GitMutationError> {
+    // Remote names are refnames passed as argv (no shell injection), but a
+    // malformed name can still confuse refspec parsing (`..`, `@{`, `//`) or
+    // option parsing (`-`). Apply the same conservative rule set as branch
+    // names so a hostile remote name can never alter git's interpretation.
     let trimmed = remote_name.trim();
-    if trimmed.is_empty() || trimmed.starts_with('-') || trimmed.chars().any(char::is_whitespace) {
+    let is_invalid = trimmed.is_empty()
+        || trimmed.starts_with('-')
+        || trimmed.starts_with('.')
+        || trimmed.ends_with('/')
+        || trimmed.ends_with('.')
+        || trimmed.ends_with(".lock")
+        || trimmed.contains("..")
+        || trimmed.contains("@{")
+        || trimmed.contains("//")
+        || trimmed.chars().any(|ch| {
+            ch.is_control()
+                || ch.is_whitespace()
+                || matches!(ch, ':' | '?' | '*' | '[' | '\\' | '^' | '~')
+        });
+    if is_invalid {
         return Err(GitMutationError::Validation(
             "invalid remote name".to_owned(),
         ));

@@ -30,10 +30,14 @@ const values = read('deployments/kubernetes/values.yaml');
 const haValues = read('deployments/kubernetes/values-ha.yaml');
 const deployment = read('deployments/kubernetes/templates/deployment.yaml');
 
-assert.match(dockerCompose, /http:\/\/127\.0\.0\.1:18989\/readyz/u);
-assert.match(dockerfile, /http:\/\/127\.0\.0\.1:18989\/readyz/u);
-assert.match(dockerCompose, /deployments\/docker\/Dockerfile/u);
-assert.doesNotMatch(dockerCompose, /^volumes:/mu);
+assert.match(dockerCompose, /http:\/\/127\.0\.0\.1:10240\/readyz/u);
+assert.match(dockerfile, /http:\/\/127\.0\.0\.1:10240\/readyz/u);
+assert.match(dockerCompose, /pnpm build:container/u);
+// The compose harness legitimately declares owner-module persistence
+// (postgres-data) and the runtime directory (birdcoder-data); the gateway
+// itself stays stateless and must never mount a business-database or backup
+// volume.
+assert.doesNotMatch(dockerCompose, /- [^\r\n]*(?:business-database|backup)[^\r\n]*:/iu);
 assert.doesNotMatch(dockerfile, /COPY[^\r\n]+database|VOLUME\s*\[/iu);
 
 assert.match(values, /^replicaCount: 1$/mu);
@@ -41,7 +45,11 @@ assert.match(values, /autoscaling:\s*\n\s*enabled: false/u);
 assert.doesNotMatch(values, /^(?:database|persistence|backup):/mu);
 assert.match(haValues, /^replicaCount: 3$/mu);
 assert.match(haValues, /autoscaling:\s*\n\s*enabled: true/u);
-assert.match(haValues, /realtime:\s*\n\s*backend: redis/u);
+assert.doesNotMatch(
+  haValues,
+  /realtime:\s*\n\s*backend: redis|SDKWORK_BIRDCODER_REDIS/u,
+  'The HA overlay must not advertise Redis-backed realtime: the stateless gateway keeps its synchronization cache in process memory.',
+);
 assert.doesNotMatch(deployment, /persistentVolumeClaim/iu);
 
 assert.deepEqual(

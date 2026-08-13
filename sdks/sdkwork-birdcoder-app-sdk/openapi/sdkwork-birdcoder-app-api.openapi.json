@@ -55,7 +55,7 @@
             "AccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
@@ -106,7 +106,7 @@
             "AccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
@@ -157,7 +157,7 @@
             "AccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
@@ -208,7 +208,7 @@
             "AccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
@@ -537,17 +537,24 @@
           },
           "pageSize": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 200
           },
           "totalItems": {
-            "type": "string"
+            "type": "string",
+            "format": "int64",
+            "pattern": "^[0-9]+$",
+            "x-sdkwork-int64-string": true
           },
           "totalPages": {
             "type": "integer",
             "minimum": 0
           },
           "nextCursor": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "hasMore": {
             "type": "boolean"

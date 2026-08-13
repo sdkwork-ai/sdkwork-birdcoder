@@ -25,7 +25,11 @@ services:
     environment:
       POSTGRES_DB: ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}
       POSTGRES_USER: ${BIRDCODER_POSTGRES_USER:-sdkwork_ai_test}
-      POSTGRES_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:-sdkwork_ai_test}
+      # The password has no silent default: an operator must provide it (the
+      # deploy script copies docker/.env.example to .env, which carries a
+      # placeholder to change). A predictable built-in default would expose
+      # the database on a default install.
+      POSTGRES_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:?BIRDCODER_POSTGRES_PASSWORD must be set in deployments/docker/.env (see docker/.env.example)}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       # Creates the same-named workspace schema on first initialization
@@ -81,7 +85,7 @@ services:
       SDKWORK_DATABASE_NAME: ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}
       SDKWORK_DATABASE_SCHEMA: ${BIRDCODER_POSTGRES_SCHEMA:-sdkwork_ai_test}
       SDKWORK_DATABASE_USERNAME: ${BIRDCODER_POSTGRES_USER:-sdkwork_ai_test}
-      SDKWORK_DATABASE_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:-sdkwork_ai_test}
+      SDKWORK_DATABASE_PASSWORD: ${BIRDCODER_POSTGRES_PASSWORD:?BIRDCODER_POSTGRES_PASSWORD must be set in deployments/docker/.env (see docker/.env.example)}
       SDKWORK_DATABASE_SSL_MODE: disable
       # Every composed owner module (IAM, Agents, Models, Documents, Drive,
       # Membership, Order, Prompts, Skills, Deployments) migrates its packaged

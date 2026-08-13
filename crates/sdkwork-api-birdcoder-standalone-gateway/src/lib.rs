@@ -70,6 +70,13 @@ pub(crate) fn workspace_postgres_profile_configured() -> bool {
             .any(|key| std::env::var_os(key).is_some())
 }
 
+/// Serializes the temporary `SDKWORK_DATABASE_AUTO_MIGRATE` environment flip
+/// during startup so concurrent startup tasks cannot observe a half-set
+/// value. The flip itself is a process-global mutation (unsafe in Rust 2024
+/// editions); it is confined to the pre-serve startup window and guarded so
+/// it never interleaves with another reader of the same key.
+static DATABASE_AUTO_MIGRATE_FLIP: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Bootstraps the SDKWork Deploy module database (baseline + versioned
 /// migrations + drift gate) before owner contributions are assembled. The
 /// migration helper flips the process-wide `SDKWORK_DATABASE_AUTO_MIGRATE`
@@ -78,6 +85,13 @@ pub(crate) fn workspace_postgres_profile_configured() -> bool {
 /// workspace PostgreSQL profile is configured; the stateless profile skips
 /// this entirely (see `workspace_postgres_profile_configured`).
 async fn migrate_deployments_database() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let _flip_guard = DATABASE_AUTO_MIGRATE_FLIP
+        .lock()
+        .map_err(|_| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(std::io::Error::other(
+                "database auto-migrate environment flip lock poisoned",
+            ))
+        })?;
     let previous_auto_migrate = std::env::var("SDKWORK_DATABASE_AUTO_MIGRATE").ok();
     let result = sdkwork_api_deployments_assembly::migrate_database_from_env().await;
     match previous_auto_migrate {
@@ -135,6 +149,14 @@ async fn build_app_from_profile(
     let app = Router::new()
         .merge(protected)
         .route("/openapi.json", axum::routing::get(openapi_handler))
+        // The System descriptor advertises `/docs`; serve it as a redirect to
+        // the live OpenAPI document so the advertised path always resolves.
+        .route(
+            "/docs",
+            axum::routing::get(|| async {
+                axum::response::Redirect::temporary("/openapi.json")
+            }),
+        )
         .route(
             "/metrics",
             axum::routing::get({

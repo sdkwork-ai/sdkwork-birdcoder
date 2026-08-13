@@ -17,17 +17,20 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 
 Set a real image digest and replace the reserved origin before enabling public
 traffic. `auth.existingSecret` may reference an operator-managed Secret for
-gateway credentials and enabled Redis credentials. Database credentials do not
-belong in this chart.
+gateway credentials. Database credentials do not belong in this chart.
 
 Use an immutable image tag, and pin the matching `sha256` digest during
 production promotion so a tag cannot resolve to different bytes later.
 
 ## High Availability
 
-`values-ha.yaml` scales the stateless gateway, enables Redis-backed realtime,
-sets a three-replica autoscaling floor, configures a disruption budget, and
-publishes the production OpenTelemetry collector endpoint.
+`values-ha.yaml` scales the stateless gateway to three replicas with a
+three-replica autoscaling floor, configures a disruption budget, and publishes
+the production OpenTelemetry collector endpoint. The gateway is stateless: its
+bounded synchronization refresh cache and in-flight registry live in process
+memory, so horizontal scaling is safe without any external realtime store.
+Redis-backed realtime is not implemented and is deliberately not advertised
+here.
 
 ```bash
 helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
@@ -36,12 +39,9 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
   --set image.digest='sha256:<immutable-image-digest>'
 ```
 
-Redis credentials must come from `auth.existingSecret`; do not place them in
-Helm values or command-line arguments.
-
 ## Observability
 
 The chart exposes `/healthz`, `/readyz`, and `/metrics`. The ConfigMap publishes
 the lifecycle environment, deployment profile, runtime target, exact CORS
-origins, Redis settings, and OpenTelemetry settings only. It intentionally
-publishes no database or device-state configuration.
+origins, and OpenTelemetry settings only. It intentionally publishes no
+database, device-state, or realtime-store configuration.

@@ -134,7 +134,7 @@ impl DesktopTerminalRuntimeState {
         limit: Option<usize>,
     ) -> Result<DesktopSessionReplaySnapshot, String> {
         validate_required_text("session id", session_id, MAX_METADATA_BYTES)?;
-        let runtime = self.lock_runtime()?;
+        let mut runtime = self.lock_runtime()?;
         let replay = runtime
             .replay(
                 session_id,
@@ -482,13 +482,15 @@ impl DesktopTerminalRuntimeState {
         tags: Vec<String>,
     ) -> Result<(SessionRecord, AttachmentRecord), String> {
         let mut runtime = self.lock_runtime()?;
-        let session = runtime.create_session(SessionCreateRequest {
-            workspace_id,
-            target,
-            mode_tags: vec!["cli-native".to_string()],
-            tags,
-            launch_intent: None,
-        });
+        let session = runtime
+            .create_session(SessionCreateRequest {
+                workspace_id,
+                target,
+                mode_tags: vec!["cli-native".to_string()],
+                tags,
+                launch_intent: None,
+            })
+            .map_err(|error| error.to_string())?;
         let attachment = runtime
             .attach(&session.session_id)
             .map_err(|error| error.to_string())?;
