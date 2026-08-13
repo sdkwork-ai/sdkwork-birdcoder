@@ -101,13 +101,11 @@ impl ProviderSessionProjectCwdResolver for TauriProviderSessionProjectCwdResolve
                 // project record after the project was re-imported (stale
                 // project id). The mount is keyed by project path, so a
                 // same-basename mount remains the authoritative desktop root
-                // for the project directory. Never match another subject's
-                // mount: a mount whose owner key is present but differs is
-                // excluded even when its project id is stale.
-                let owner_matches = mount
-                    .owner_key
-                    .as_deref()
-                    .is_none_or(|key| key == expected_owner_key.as_str());
+                // for the project directory. The owner key must be present
+                // and match exactly: an ownerless mount is never matched for
+                // another subject (fail closed).
+                let owner_matches = mount.owner_key.as_deref()
+                    == Some(expected_owner_key.as_str());
                 let exact_identity = mount.project_id.as_deref()
                     == Some(selector.project_id.as_str())
                     && mount.owner_key.as_deref() == Some(expected_owner_key.as_str());

@@ -297,7 +297,12 @@ fn apply_client_local_models_catalog_root(app: &AppHandle) -> Result<(), String>
     if resource_models.join("sdkwork-models.json").is_file() {
         std::env::set_var("SDKWORK_MODELS_CATALOG_ROOT", &resource_models);
         tracing::info!(
-            catalog_root = %resource_models.display(),
+            // Log only the directory name; full native paths must not enter
+            // normal logs (TECH_ARCHITECTURE §7).
+            catalog_root_name = %resource_models
+                .file_name()
+                .map(|value| value.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "models-catalog".to_owned()),
             "resolved bundled models catalog root",
         );
     }
@@ -321,7 +326,15 @@ fn apply_client_local_sqlite_database_url(app: &AppHandle) -> Result<(), String>
     models_db_path.push(BIRDCODER_MODELS_DATABASE_FILE_NAME);
     let database_url = format!("sqlite:{}", models_db_path.display());
     std::env::set_var("SDKWORK_DATABASE_SQLITE_URL", &database_url);
-    tracing::info!(%database_url, "resolved client-local SQLite database URL");
+    tracing::info!(
+        // Log only the file name; the app-data directory path must not enter
+        // normal logs (TECH_ARCHITECTURE §7).
+        sqlite_database_file = %models_db_path
+            .file_name()
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "models.sqlite3".to_owned()),
+        "resolved client-local SQLite database URL"
+    );
     Ok(())
 }
 
@@ -370,7 +383,8 @@ fn configure_device_state_connection(connection: &Connection) -> Result<(), Stri
         .map_err(|_| "failed to configure sqlite busy timeout".to_string())?;
     connection
         .execute_batch(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;",
+            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; \
+             PRAGMA wal_autocheckpoint = 1000; PRAGMA journal_size_limit = 67108864;",
         )
         .map_err(|_| "failed to configure sqlite connection pragmas".to_string())
 }
@@ -379,15 +393,15 @@ fn ensure_device_state_ready(
     connection: &Connection,
     device_state_path: &Path,
 ) -> Result<(), String> {
+    // Idempotent schema creation runs on every connection open so a
+    // device-state file deleted or replaced while the app is running is
+    // re-created instead of failing with "no such table" until restart.
+    initialize_device_state_schema(connection)?;
     let initialized_paths =
         INITIALIZED_DEVICE_STATE_PATHS.get_or_init(|| Mutex::new(HashSet::new()));
     let mut guard = initialized_paths
         .lock()
         .map_err(|error| format!("failed to lock device-state initialization guard: {error}"))?;
-    if guard.contains(device_state_path) {
-        return Ok(());
-    }
-    initialize_device_state_schema(connection)?;
     guard.insert(device_state_path.to_path_buf());
     Ok(())
 }
@@ -407,7 +421,7 @@ fn initialize_device_state_schema(connection: &Connection) -> Result<(), String>
                     OR (
                         scope = 'project-device-mounts'
                         AND length(key) = 64
-                        AND key NOT GLOB '*[^0-9A-Fa-f]*'
+                        AND key NOT GLOB '*[^0-9a-f]*'
                     )
                     OR (
                         scope = 'desktop-runtime-location-identity'
@@ -471,7 +485,9 @@ mod tests {
         assert_eq!(foreign_keys, 1);
         assert_eq!(busy_timeout, 5_000);
         assert_eq!(journal_mode, "wal");
-        assert_eq!(synchronous, 1);
+        // FULL (2) rather than NORMAL (1): device-state rows are durable
+        // capability material and must survive a crash.
+        assert_eq!(synchronous, 2);
 
         drop(connection);
         let _ = std::fs::remove_file(device_state_path.with_extension("sqlite3-shm"));

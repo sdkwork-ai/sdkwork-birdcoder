@@ -32,8 +32,31 @@ fn build_route_catalog_entry(route: &HttpRoute) -> RouteCatalogEntryPayload {
         operation_id: route.operation_id.to_string(),
         path: route.path.to_string(),
         surface: route_catalog_surface_label(surface).to_string(),
-        summary: route.operation_id.to_string(),
+        summary: route_catalog_summary(route),
     }
+}
+
+/// Derives a human-readable summary from the operation id (for example
+/// `routes.list` -> "List routes", `descriptor.retrieve` -> "Get system
+/// descriptor") instead of echoing the operation id verbatim.
+fn route_catalog_summary(route: &HttpRoute) -> String {
+    let operation = route
+        .operation_id
+        .rsplit_once('.')
+        .map(|(_, name)| name)
+        .unwrap_or(route.operation_id);
+    let readable = operation.replace('_', " ");
+    let verb = if operation == "list" {
+        "List"
+    } else {
+        match route.method {
+            HttpMethod::Get => "Get",
+            HttpMethod::Post => "Create",
+            HttpMethod::Put | HttpMethod::Patch => "Update",
+            HttpMethod::Delete => "Delete",
+        }
+    };
+    format!("{verb} {readable}")
 }
 
 fn route_catalog_surface_label(surface: ApiSurface) -> &'static str {

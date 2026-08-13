@@ -9,18 +9,13 @@ data:
   SDKWORK_BIRDCODER_SERVER_HOST: {{ .Values.runtime.serverHost | quote }}
   SDKWORK_BIRDCODER_ALLOWED_ORIGINS: {{ join "," .Values.runtime.allowedOrigins | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
-  SDKWORK_BIRDCODER_REALTIME_BACKEND: {{ .Values.realtime.backend | quote }}
-  SDKWORK_BIRDCODER_REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
-  SDKWORK_BIRDCODER_REDIS_HOST: {{ .Values.redis.host | quote }}
-  SDKWORK_BIRDCODER_REDIS_PORT: {{ .Values.redis.port | quote }}
-  SDKWORK_BIRDCODER_REDIS_DATABASE: {{ .Values.redis.database | quote }}
-  SDKWORK_BIRDCODER_REDIS_KEY_PREFIX: {{ .Values.redis.keyPrefix | quote }}
-  SDKWORK_BIRDCODER_REDIS_TLS: {{ .Values.redis.tls | quote }}
-  # Rate limiting resolves the same SDKWORK_BIRDCODER_REDIS_* configuration as
-  # realtime. Do not materialize a credential-bearing Redis URL in a ConfigMap.
+  # The stateless gateway keeps its bounded synchronization refresh cache and
+  # in-flight registry in process memory; no external realtime store is
+  # configured. Redis-backed realtime is not implemented and must not be
+  # advertised through environment configuration.
   SDKWORK_BIRDCODER_SERVER_PORT: {{ .Values.service.port | quote }}
-  SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork-birdcoder"
-  SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json"
+  SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork/birdcoder"
+  SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork/birdcoder/openapi/birdcoder-app-api.openapi.json"
   {{- if .Values.observability }}
   {{- with .Values.observability }}
   RUST_LOG: {{ .logLevel | default "info" | quote }}

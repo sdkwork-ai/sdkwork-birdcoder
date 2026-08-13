@@ -124,7 +124,6 @@ export interface AgentSessionItemSynchronizationView {
 export interface CreateAgentSessionInput {
   agentId?: string;
   projectId: string;
-  sessionId?: string;
   title?: string;
   sourceContextId?: string;
   sourceContextKind?: string;

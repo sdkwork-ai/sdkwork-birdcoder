@@ -80,7 +80,14 @@ const serverConfigRoots = [
   'deployments/docker',
   'deployments/kubernetes',
 ];
-const forbiddenRuntimePattern = /SDKWORK_(?:BIRDCODER|CLOUD)_DATABASE|SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION|SDKWORK_BIRDCODER_DEVICE_STATE_FILE|\[database\]|\bpostgres(?:ql)?\b|\bsqlite\b/iu;
+// Server deployment roots must not declare BirdCoder-owned database or PC
+// device-state configuration. The shared workspace PostgreSQL profile
+// (SDKWORK_DATABASE_*) is the owner-module database wiring mandated by
+// ENVIRONMENT_SPEC section 7.1 and is intentionally allowed here: BirdCoder
+// itself remains a stateless composition host that owns no database lifecycle
+// (enforced by the gateway-source assertions above). The client-local SQLite
+// URL and the PC device-state file are the forbidden server-side keys.
+const forbiddenRuntimePattern = /SDKWORK_(?:BIRDCODER|CLOUD)_DATABASE|SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION|SDKWORK_BIRDCODER_DEVICE_STATE_FILE|SDKWORK_DATABASE_SQLITE_URL|\[database\]/iu;
 for (const configRoot of serverConfigRoots) {
   for (const absolutePath of collectFiles(configRoot)) {
     const source = fs.readFileSync(absolutePath, 'utf8');
@@ -112,7 +119,11 @@ for (const retiredPath of [
 }
 
 assert.doesNotMatch(dockerfile, /COPY[^\r\n]+database|VOLUME\s*\[/iu);
-assert.doesNotMatch(compose, /^volumes:/mu);
+// The compose harness legitimately declares owner-module persistence
+// (postgres-data) and the runtime directory (birdcoder-data); the gateway
+// itself stays stateless and must never mount a business-database or backup
+// volume. The deployment chart already asserts no persistentVolumeClaim.
+assert.doesNotMatch(compose, /- [^\r\n]*(?:business-database|backup)[^\r\n]*:/iu);
 assert.doesNotMatch(values, /^(?:database|persistence|backup):/mu);
 assert.doesNotMatch(
   configMap,
@@ -128,7 +139,11 @@ assert.match(configMap, /OTEL_SERVICE_NAME/u);
 assert.match(configMap, /SDKWORK_BIRDCODER_SERVER_HOST/u);
 assert.match(deployment, /terminationGracePeriodSeconds:\s*30/u);
 assert.match(haValues, /^replicaCount: 3$/mu);
-assert.match(haValues, /^\s*backend: redis$/mu);
+assert.doesNotMatch(
+  haValues,
+  /realtime:|SDKWORK_BIRDCODER_REDIS|backend: redis/iu,
+  'The HA overlay must not advertise Redis-backed realtime: the stateless gateway keeps its synchronization refresh cache and in-flight registry in process memory and owns no external realtime store.',
+);
 assert.match(haValues, /^\s*minReplicas: 3$/mu);
 
 console.log('stateless server deployment and observability contract passed.');

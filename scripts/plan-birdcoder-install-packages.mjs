@@ -192,6 +192,19 @@ export function createInstallPackagePlan({
         mode: 0o644,
         required: false,
       },
+      {
+        archivePath: 'openapi/birdcoder-app-api.openapi.json',
+        sourcePath: path.join(
+          workspaceRootDir,
+          'deployments',
+          'server-windows',
+          'x64',
+          'openapi',
+          'birdcoder-app-api.openapi.json',
+        ),
+        mode: 0o644,
+        required: true,
+      },
     ],
     // Federated database modules installed under <install root>/database-modules
     // (sdkwork-database-spi packaged module root resolution).

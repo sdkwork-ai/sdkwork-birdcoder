@@ -21,6 +21,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -198,8 +199,19 @@ function ensureEnvFile() {
   const envTemplate = path.join(workspaceRoot, 'deployments', 'docker', 'docker', '.env.example');
   const envFile = path.join(workspaceRoot, 'deployments', 'docker', '.env');
   if (!existsSync(envFile)) {
-    writeFileSync(envFile, readFileSync(envTemplate, 'utf8'), 'utf8');
-    console.log('[birdcoder-deploy] created deployments/docker/.env from template');
+    let template = readFileSync(envTemplate, 'utf8');
+    // Generate a fresh random PostgreSQL password so an auto-created .env
+    // never reuses a predictable template default. The template keeps a
+    // placeholder value for manual copies; this script replaces it.
+    const generatedPassword = randomBytes(24).toString('hex');
+    template = template.replace(
+      /^BIRDCODER_POSTGRES_PASSWORD=.*$/m,
+      `BIRDCODER_POSTGRES_PASSWORD=${generatedPassword}`,
+    );
+    writeFileSync(envFile, template, 'utf8');
+    console.log(
+      '[birdcoder-deploy] created deployments/docker/.env from template with a generated PostgreSQL password',
+    );
   }
   return envFile;
 }

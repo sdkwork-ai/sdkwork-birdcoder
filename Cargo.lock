@@ -205,6 +205,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "asn1-rs"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f43a50ac4fdca5df8e885c21b835997f0a1cdee65494a6847694a98652d9d8"
+dependencies = [
+ "asn1-rs-derive",
+ "asn1-rs-impl",
+ "displaydoc",
+ "nom",
+ "num-traits",
+ "rusticata-macros",
+ "thiserror 2.0.18",
+ "time",
+]
+
+[[package]]
+name = "asn1-rs-derive"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3109e49b1e4909e9db6515a30c633684d68cdeaa252f215214cb4fa1a5bfee2c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+ "synstructure",
+]
+
+[[package]]
+name = "asn1-rs-impl"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1911,6 +1950,20 @@ dependencies = [
  "const-oid",
  "pem-rfc7468",
  "zeroize",
+]
+
+[[package]]
+name = "der-parser"
+version = "10.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07da5016415d5a3c4dd39b11ed26f915f52fc4e0dc197d87908bc916e51bc1a6"
+dependencies = [
+ "asn1-rs",
+ "displaydoc",
+ "nom",
+ "num-bigint",
+ "num-traits",
+ "rusticata-macros",
 ]
 
 [[package]]
@@ -4681,6 +4734,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "oid-registry"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12f40cff3dde1b6087cc5d5f5d4d65712f34016a03ed60e9c08dcc392736b5b7"
+dependencies = [
+ "asn1-rs",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5871,12 +5933,14 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls 0.26.4",
+ "tokio-util",
  "tower 0.5.3",
  "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots 1.0.8",
 ]
@@ -5922,7 +5986,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
+ "wasm-streams 0.5.0",
  "web-sys",
 ]
 
@@ -6093,6 +6157,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rusticata-macros"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faf0c4a6ece9950b9abdb62b1cfcf2a68b3b67a10ba445b3bb85be2a293d0632"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -6720,6 +6793,7 @@ version = "0.1.0"
 dependencies = [
  "cloudrouter-open-sdk",
  "sdkwork-agent-kernel",
+ "sdkwork-agent-provider-rig",
  "sdkwork-agents-tool-contract",
  "serde_json",
  "tokio",
@@ -6810,6 +6884,7 @@ dependencies = [
  "sdkwork-agents-kernel-bridge",
  "sdkwork-agents-runtime-facade",
  "sdkwork-api-drive-assembly",
+ "sdkwork-database-sqlx",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
  "sdkwork-iam-web-adapter",
@@ -7231,6 +7306,37 @@ name = "sdkwork-code-kernel"
 version = "0.1.0"
 dependencies = [
  "sdkwork-agent-kernel",
+]
+
+[[package]]
+name = "sdkwork-commerce-partner-repository-sqlx"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "sdkwork-account-repository-sqlx",
+ "sdkwork-account-service",
+ "sdkwork-commerce-partner-service",
+ "sdkwork-contract-service",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "sdkwork-commerce-partner-service"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "sdkwork-contract-service",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "uuid",
 ]
 
 [[package]]
@@ -7881,6 +7987,7 @@ dependencies = [
  "chrono-tz",
  "cloudrouter-open-sdk",
  "cron",
+ "futures-util",
  "reqwest 0.12.28",
  "sdkwork-agent-kernel",
  "sdkwork-agents-contract",
@@ -8234,6 +8341,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-order-integration-partner"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-commerce-partner-repository-sqlx",
+ "sdkwork-commerce-partner-service",
+ "sdkwork-contract-service",
+ "sdkwork-database-sqlx",
+ "sdkwork-order-service",
+ "sqlx",
+ "tracing",
+]
+
+[[package]]
 name = "sdkwork-order-integration-payment"
 version = "0.1.0"
 dependencies = [
@@ -8241,12 +8361,14 @@ dependencies = [
  "sdkwork-contract-service",
  "sdkwork-database-config",
  "sdkwork-database-sqlx",
+ "sdkwork-order-repository-sqlx",
  "sdkwork-order-service",
  "sdkwork-payment-providers",
  "sdkwork-payment-repository-sqlx",
  "sdkwork-payment-service",
  "serde_json",
  "sqlx",
+ "tracing",
 ]
 
 [[package]]
@@ -8265,6 +8387,7 @@ dependencies = [
  "sdkwork-shop-service",
  "serde_json",
  "sqlx",
+ "tracing",
 ]
 
 [[package]]
@@ -8290,6 +8413,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tracing",
  "uuid",
 ]
 
@@ -8315,11 +8439,17 @@ dependencies = [
  "sdkwork-order-database-host",
  "sdkwork-order-integration-account",
  "sdkwork-order-integration-membership",
+ "sdkwork-order-integration-partner",
  "sdkwork-order-integration-payment",
  "sdkwork-order-integration-physical-commerce",
  "sdkwork-order-integration-promotion",
+ "sdkwork-order-repository-sqlx",
  "sdkwork-order-service",
+ "sdkwork-payment-providers",
+ "sdkwork-payment-repository-sqlx",
  "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -8331,6 +8461,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "hmac 0.12.1",
+ "rand 0.8.7",
  "reqwest 0.12.28",
  "ring",
  "rsa",
@@ -8343,6 +8474,7 @@ dependencies = [
  "tokio",
  "urlencoding",
  "uuid",
+ "x509-parser",
 ]
 
 [[package]]
@@ -8806,6 +8938,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
  "sdkwork-iam-web-adapter",
+ "sdkwork-order-integration-payment",
  "sdkwork-order-repository-sqlx",
  "sdkwork-order-service",
  "sdkwork-order-service-host",
@@ -9202,7 +9335,7 @@ name = "sdkwork-web-internal-sdk"
 version = "1.0.0"
 dependencies = [
  "http 1.4.2",
- "reqwest 0.12.28",
+ "reqwest 0.13.4",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -11540,6 +11673,19 @@ dependencies = [
 
 [[package]]
 name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "wasm-streams"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d1ec4f6517c9e11ae630e200b2b65d193279042e28edd4a2cda233e46670bbb"
@@ -12368,6 +12514,23 @@ dependencies = [
  "libc",
  "once_cell",
  "pkg-config",
+]
+
+[[package]]
+name = "x509-parser"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4569f339c0c402346d4a75a9e39cf8dad310e287eef1ff56d4c68e5067f53460"
+dependencies = [
+ "asn1-rs",
+ "data-encoding",
+ "der-parser",
+ "lazy_static",
+ "nom",
+ "oid-registry",
+ "rusticata-macros",
+ "thiserror 2.0.18",
+ "time",
 ]
 
 [[package]]

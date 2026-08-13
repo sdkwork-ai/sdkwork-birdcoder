@@ -9,6 +9,14 @@
 //! usable vendors and models right away.
 
 use serde::Deserialize;
+use std::time::Duration;
+
+/// Wall-clock budget for the gateway vendor catalog fetch so a hung or
+/// malicious gateway can never pin the import task indefinitely.
+const VENDOR_CATALOG_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+/// Upper bound on the vendor catalog response body so a malicious gateway can
+/// never force the host to materialize an unbounded payload (OOM guard).
+const VENDOR_CATALOG_MAX_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 
 /// One vendor entry fetched from the gateway.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +58,41 @@ struct VendorModelPayload {
     max_output_tokens: Option<i64>,
 }
 
+/// Rejects link-local and cloud-metadata targets for the outbound vendor
+/// catalog fetch while keeping loopback reachable (local self-hosted
+/// gateways are a supported import target). Literal IPv4/6 addresses in
+/// reserved metadata ranges must never receive the caller's API key.
+fn reject_link_local_target(base_url: &str) -> Result<(), String> {
+    let parsed = tauri::Url::parse(base_url)
+        .map_err(|_| "gateway vendor catalog base URL is invalid".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("gateway vendor catalog base URL must use http or https".to_string());
+    }
+    // `host_str` keeps the brackets for IPv6 hosts; strip them before the
+    // reserved-address checks. An unbracketed IPv6 literal does not parse as
+    // a URL host and is rejected by the parse above.
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "gateway vendor catalog base URL must include a host".to_string())?
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    if host.eq_ignore_ascii_case("0.0.0.0") || host.eq_ignore_ascii_case("::") {
+        return Err("gateway vendor catalog target is a reserved address".to_string());
+    }
+    let octets: Vec<u8> = host
+        .split('.')
+        .filter_map(|part| part.parse::<u8>().ok())
+        .collect();
+    if octets.len() == 4 && octets[0] == 169 && octets[1] == 254 {
+        // 169.254.0.0/16 includes the cloud metadata endpoint 169.254.169.254.
+        return Err("gateway vendor catalog target is a link-local address".to_string());
+    }
+    if host.to_ascii_lowercase().starts_with("fe80:") {
+        return Err("gateway vendor catalog target is a link-local address".to_string());
+    }
+    Ok(())
+}
+
 /// Fetches the vendor catalog the gateway key can reach. Non-2xx responses
 /// and unparseable bodies fail so the import can fall back to the legacy
 /// `vendor` parameters instead of importing a silently empty channel.
@@ -57,14 +100,22 @@ pub async fn fetch_vendor_catalog(
     models_base_url: &str,
     api_key: &str,
 ) -> Result<Vec<VendorCatalogEntry>, String> {
-    let url = format!("{}/vendors", models_base_url.trim_end_matches('/'));
+    let base_url = models_base_url.trim().trim_end_matches('/');
+    if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
+        return Err("gateway vendor catalog base URL must use http or https".to_string());
+    }
+    reject_link_local_target(base_url)?;
+    let url = format!("{base_url}/vendors");
     // The gateway is the user's own relay (often local/self-hosted); bypass
     // the system proxy so the request always reaches the configured host.
+    // The overall fetch is wall-clock bounded and the response body is
+    // streamed under a hard byte cap.
     let client = reqwest::Client::builder()
         .no_proxy()
+        .timeout(VENDOR_CATALOG_FETCH_TIMEOUT)
         .build()
         .map_err(|error| format!("failed to build gateway http client: {error}"))?;
-    let response = client
+    let mut response = client
         .get(url)
         .header("Authorization", format!("Bearer {api_key}"))
         .send()
@@ -76,9 +127,21 @@ pub async fn fetch_vendor_catalog(
             response.status()
         ));
     }
-    let payload: VendorCatalogPayload = response
-        .json()
-        .await
+    let mut body = Vec::new();
+    loop {
+        let chunk = response
+            .chunk()
+            .await
+            .map_err(|error| format!("failed to read gateway vendor catalog response: {error}"))?;
+        let Some(chunk) = chunk else {
+            break;
+        };
+        if body.len() + chunk.len() > VENDOR_CATALOG_MAX_RESPONSE_BYTES as usize {
+            return Err("gateway vendor catalog response exceeds the size limit".to_string());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    let payload: VendorCatalogPayload = serde_json::from_slice(&body)
         .map_err(|error| format!("gateway vendor catalog response is invalid: {error}"))?;
     let mut entries = Vec::new();
     for vendor in payload.data {
@@ -204,6 +267,38 @@ mod tests {
                 }],
             },
         ]
+    }
+
+    #[test]
+    fn rejects_link_local_and_reserved_catalog_targets() {
+        use super::reject_link_local_target;
+        for url in [
+            "http://169.254.169.254/latest/meta-data",
+            "http://169.254.1.1/vendors",
+            "http://0.0.0.0/vendors",
+            "http://[fe80::1]/vendors",
+            "http://fe80::1/vendors",
+        ] {
+            assert!(
+                reject_link_local_target(url).is_err(),
+                "link-local/reserved target must be rejected: {url}"
+            );
+        }
+        for url in [
+            "http://127.0.0.1:8080",
+            "http://localhost:8080",
+            "https://gateway.example.com",
+            "http://192.168.1.10:3000",
+            "http://10.0.0.5:8080",
+        ] {
+            assert!(
+                reject_link_local_target(url).is_ok(),
+                "loopback/private/public target must be allowed: {url}"
+            );
+        }
+        // A non-URL string is invalid and must fail closed, never reach a
+        // fetch target.
+        assert!(reject_link_local_target("not-a-url").is_err());
     }
 
     #[test]

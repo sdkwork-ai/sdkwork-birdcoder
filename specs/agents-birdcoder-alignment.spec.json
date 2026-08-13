@@ -340,7 +340,7 @@
           },
           {
             "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
-            "pattern": "provider_session_id: session_runtime_binding\\.provider_session_id\\.clone\\(\\)[\\s\\S]*persist_turn_provider_session_identity"
+            "pattern": "provider_session_id: session_runtime_binding(?:\\s*\\.as_ref\\(\\)\\s*\\.and_then\\(\\|binding\\| binding\\.provider_session_id\\.clone\\(\\)\\)|\\.provider_session_id\\.clone\\(\\))[\\s\\S]*persist_turn_provider_session_identity"
           },
           {
             "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/turn_runtime.rs",

@@ -47,17 +47,19 @@ pub fn build_list_envelope<T: Serialize>(
 /// set in one response still emit accurate `pageInfo` metadata. The payload is
 /// defensively capped at the standard maximum page size so `pageInfo.pageSize`
 /// and the returned item count stay self-consistent even if the caller's
-/// bounded collection grows beyond its documented ceiling.
+/// bounded collection grows beyond its documented ceiling; `totalItems` still
+/// reports the true collection size so consumers can observe the cap.
 pub fn build_unbounded_list_envelope<T: Serialize>(
     items: Vec<T>,
     trace_id: &str,
 ) -> ApiListEnvelope<T> {
+    let total = items.len();
     let bounded_items: Vec<T> = items
         .into_iter()
         .take(usize::try_from(MAX_LIST_PAGE_SIZE).unwrap_or(usize::MAX))
         .collect();
-    let total = bounded_items.len();
-    build_offset_list_envelope(bounded_items, 0, total.max(1), total, trace_id)
+    let served = bounded_items.len();
+    build_offset_list_envelope(bounded_items, 0, served.max(1), total, trace_id)
 }
 
 pub fn build_offset_list_envelope<T: Serialize>(
@@ -163,6 +165,6 @@ mod tests {
             "pageInfo.pageSize must never exceed the standard maximum"
         );
         assert_eq!(i64::try_from(items.len()).expect("item count fits i64"), page_size);
-        assert_eq!(json["data"]["pageInfo"]["totalItems"].as_str().expect("totalItems string"), "200");
+        assert_eq!(json["data"]["pageInfo"]["totalItems"].as_str().expect("totalItems string"), "250");
     }
 }

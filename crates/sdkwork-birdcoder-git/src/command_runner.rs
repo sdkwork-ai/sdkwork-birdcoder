@@ -336,7 +336,6 @@ fn git_executable_candidates() -> Vec<PathBuf> {
     {
         push_candidate(&mut candidates, PathBuf::from(configured));
     }
-    push_candidate(&mut candidates, PathBuf::from("git"));
 
     #[cfg(windows)]
     {
@@ -367,6 +366,11 @@ fn git_executable_candidates() -> Vec<PathBuf> {
             push_candidate(&mut candidates, PathBuf::from(candidate));
         }
     }
+
+    // The bare "git" name resolves through PATH and is the last resort: a
+    // malicious directory earlier in PATH must never shadow the absolute
+    // fallback candidates above (Windows desktop PATH-hijack surface).
+    push_candidate(&mut candidates, PathBuf::from("git"));
 
     candidates
 }

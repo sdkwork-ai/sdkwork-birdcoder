@@ -33,6 +33,14 @@ pub const SUPPORTED_APPS: &[&str] = &[
 ];
 /// Upper bound for the number of vendors a single import link may carry.
 pub const MAX_IMPORT_VENDORS: usize = 16;
+/// Field length bounds for deep link parameters. Values are bounded before
+/// they reach the model configuration store, the OS keyring (apiKey), or the
+/// UI confirmation dialog, so a hostile link cannot force unbounded
+/// allocation or oversized persistence.
+pub const MAX_IMPORT_NAME_LENGTH: usize = 256;
+pub const MAX_IMPORT_MODEL_LENGTH: usize = 256;
+pub const MAX_IMPORT_URL_LENGTH: usize = 8 * 1024;
+pub const MAX_IMPORT_API_KEY_LENGTH: usize = 8 * 1024;
 
 /// Parsed deep link payload forwarded to the webview for confirmation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,6 +182,21 @@ pub fn validate_provider_import_request(request: &DeepLinkImportRequest) -> Resu
     if request.name.is_empty() {
         return Err("deep link import is missing the required \"name\" parameter".to_owned());
     }
+    if request.name.len() > MAX_IMPORT_NAME_LENGTH {
+        return Err(format!(
+            "deep link \"name\" exceeds the {MAX_IMPORT_NAME_LENGTH}-character limit"
+        ));
+    }
+    if request.model.len() > MAX_IMPORT_MODEL_LENGTH {
+        return Err(format!(
+            "deep link \"model\" exceeds the {MAX_IMPORT_MODEL_LENGTH}-character limit"
+        ));
+    }
+    if request.endpoint.len() > MAX_IMPORT_URL_LENGTH {
+        return Err(format!(
+            "deep link \"endpoint\" exceeds the {MAX_IMPORT_URL_LENGTH}-character limit"
+        ));
+    }
     let parsed_endpoint = Url::parse(&request.endpoint)
         .map_err(|_| "deep link import is missing a valid \"endpoint\" parameter".to_owned())?;
     if parsed_endpoint.scheme() != "http" && parsed_endpoint.scheme() != "https" {
@@ -182,7 +205,17 @@ pub fn validate_provider_import_request(request: &DeepLinkImportRequest) -> Resu
     if request.api_key.is_empty() {
         return Err("deep link import is missing the required \"apiKey\" parameter".to_owned());
     }
+    if request.api_key.len() > MAX_IMPORT_API_KEY_LENGTH {
+        return Err(format!(
+            "deep link \"apiKey\" exceeds the {MAX_IMPORT_API_KEY_LENGTH}-character limit"
+        ));
+    }
     if !request.models_base_url.is_empty() {
+        if request.models_base_url.len() > MAX_IMPORT_URL_LENGTH {
+            return Err(format!(
+                "deep link \"modelsBaseUrl\" exceeds the {MAX_IMPORT_URL_LENGTH}-character limit"
+            ));
+        }
         let parsed_models_base = Url::parse(&request.models_base_url)
             .map_err(|_| "deep link \"modelsBaseUrl\" must be a valid URL".to_owned())?;
         if parsed_models_base.scheme() != "http" && parsed_models_base.scheme() != "https" {

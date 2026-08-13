@@ -188,16 +188,22 @@ fn error_snapshot(path: &Path, kind: &str, message: String) -> LocalPluginLoadEr
 
 /// Reads a plugin payload up to `max_bytes`. Files larger than the budget are
 /// rejected instead of being materialized in host memory, so a hostile or
-/// corrupted plugin directory cannot force an unbounded allocation.
+/// corrupted plugin directory cannot force an unbounded allocation. The read
+/// itself is capped with `take(max_bytes + 1)` so a file that grows between
+/// inspection and read can never exceed the budget (TOCTOU guard).
 fn read_file_bounded(path: &Path, max_bytes: u64) -> Result<String, String> {
-    let metadata =
-        fs::metadata(path).map_err(|error| format!("failed to inspect plugin file: {error}"))?;
-    if metadata.len() > max_bytes {
+    use std::io::Read;
+    let file = fs::File::open(path).map_err(|error| format!("failed to open plugin file: {error}"))?;
+    let mut buffer = Vec::new();
+    file.take(max_bytes + 1)
+        .read_to_end(&mut buffer)
+        .map_err(|error| format!("failed to read plugin file: {error}"))?;
+    if buffer.len() as u64 > max_bytes {
         return Err(format!(
             "plugin file exceeds the {max_bytes}-byte discovery budget"
         ));
     }
-    fs::read_to_string(path).map_err(|error| format!("failed to read plugin file: {error}"))
+    String::from_utf8(buffer).map_err(|_| "plugin file is not valid UTF-8".to_string())
 }
 
 fn default_roots(provider_id: &str) -> Vec<PathBuf> {
@@ -314,8 +320,9 @@ fn discover_simple_provider(
                 } else {
                     continue;
                 };
-                let Ok(raw) = fs::read_to_string(&manifest_path) else {
-                    continue;
+                let raw = match read_file_bounded(&manifest_path, MAX_PLUGIN_MANIFEST_BYTES) {
+                    Ok(raw) => raw,
+                    Err(_) => continue,
                 };
                 let Ok(value) = serde_json::from_str::<Value>(&raw) else {
                     continue;
@@ -378,18 +385,24 @@ pub async fn local_plugin_catalog_discover(
         });
         return Ok(snapshot);
     }
-    let configured_roots = if roots.is_empty() {
-        default_roots(&provider_id)
-    } else {
+    let renderer_supplied_roots = !roots.is_empty();
+    let configured_roots = if renderer_supplied_roots {
         roots.into_iter().map(PathBuf::from).collect()
+    } else {
+        default_roots(&provider_id)
     };
     // Every discovery root must be an authorized desktop filesystem root. The
     // renderer supplies paths, so an arbitrary directory (for example a
     // private user folder) must not be readable through plugin discovery:
     // authorization fails closed with a diagnostic instead of enumerating it.
+    // Only host-derived default roots may be registered lazily here; a
+    // renderer-supplied root is never registered and must already be an
+    // authorized root (registered through the native picker or a project
+    // mount) to pass.
+    let register_default_roots = !renderer_supplied_roots;
     let mut authorized_roots = Vec::<PathBuf>::new();
     for root in &configured_roots {
-        match resolve_authorized_plugin_root(root) {
+        match resolve_authorized_plugin_root(root, register_default_roots) {
             Ok(canonical_root) => authorized_roots.push(canonical_root),
             Err(error) => snapshot.errors.push(LocalPluginLoadErrorSnapshot {
                 provider_id: provider_id.clone(),
@@ -430,11 +443,18 @@ pub async fn local_plugin_catalog_discover(
 /// authorization boundary. The root must exist, be a directory, and be
 /// registered as an allowed filesystem root (either through the mount
 /// registry or the default provider plugin roots).
-fn resolve_authorized_plugin_root(root: &Path) -> Result<PathBuf, String> {
-    // Default provider roots live under the user home or the current
-    // directory; registering them through the same boundary used by the
-    // desktop host keeps plugin discovery inside the host authorization
-    // model instead of a separate trust domain.
-    register_allowed_fs_root(root.to_path_buf())?;
+///
+/// `register_default_root` is true only for host-derived default roots: they
+/// live under the user home or the current directory and are registered
+/// through the same boundary used by the desktop host. A renderer-supplied
+/// root is never registered here — it must already be an authorized root, so
+/// an arbitrary directory can never self-register through plugin discovery.
+fn resolve_authorized_plugin_root(
+    root: &Path,
+    register_default_root: bool,
+) -> Result<PathBuf, String> {
+    if register_default_root {
+        register_allowed_fs_root(root.to_path_buf())?;
+    }
     resolve_root_directory_path(&root.to_string_lossy())
 }

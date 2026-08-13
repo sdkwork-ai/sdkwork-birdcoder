@@ -76,8 +76,12 @@ fn local_store_key_targets_authority_tables(key: &str) -> bool {
 }
 
 fn is_project_device_mount_key(key: &str) -> bool {
+    // The spec requires a 64-character lowercase SHA-256 hex digest; a
+    // renderer-supplied key in any other form is rejected.
     key.len() == PROJECT_DEVICE_MOUNT_KEY_HEX_LENGTH
-        && key.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && key
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 fn normalize_project_device_mount_owner_keys(

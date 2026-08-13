@@ -1141,8 +1141,10 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     const projectId = normalizeProjectId(input.projectId);
     const agentId = resolveAgentId(input.agentId ?? this.agentId);
     const requestedAt = new Date().toISOString();
+    // The Agents contract generates the canonical `sessionId` server-side;
+    // the client must not supply one. The idempotency payload hash covers
+    // exactly the fields that are actually sent.
     const sessionPayload = {
-      sessionId: input.sessionId,
       projectId,
       sessionKind: 'coding' as const,
       entrySurface: 'pc' as const,
@@ -1155,15 +1157,7 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     };
     const response = await this.client.ai.agents.projectSessions.create(projectId, {
       agentId,
-      sessionId: sessionPayload.sessionId,
-      sessionKind: sessionPayload.sessionKind,
-      entrySurface: sessionPayload.entrySurface,
-      sourceModule: sessionPayload.sourceModule,
-      sourceContextKind: sessionPayload.sourceContextKind,
-      sourceContextId: sessionPayload.sourceContextId,
-      parentSessionId: sessionPayload.parentSessionId,
-      forkedFromTurnId: sessionPayload.forkedFromTurnId,
-      title: sessionPayload.title,
+      ...sessionPayload,
       idempotencyKey: uuid(),
       payloadHash: hashPayload(sessionPayload),
       requestedAt,

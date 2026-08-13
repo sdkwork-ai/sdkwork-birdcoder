@@ -136,11 +136,11 @@ fn with_birdcoder_sdk_cors_headers(policy: CorsPolicy) -> CorsPolicy {
     policy
 }
 
-/// Local development must never produce CORS friction: loopback-bound
+/// Local development must never produce CORS friction: dev/test loopback-bound
 /// standalone gateways allow any preflight request header so desktop/webview
 /// browser surfaces are not broken whenever the SDK grows a new request
-/// header. Production policies are rejected by
-/// `CorsPolicy::validate_for_production`.
+/// header. Production policies never apply this relaxation — they are rejected
+/// by `CorsPolicy::validate_for_production` and use exact origin allowlists.
 fn with_birdcoder_local_dev_header_relaxation(mut policy: CorsPolicy) -> CorsPolicy {
     if !policy.allowed_headers.iter().any(|allowed| allowed == "*") {
         policy.allowed_headers.push("*".to_owned());
@@ -178,14 +178,23 @@ pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
             );
     let is_local_standalone =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
+            && matches!(
+                config.environment,
+                BirdEnvironment::Development | BirdEnvironment::Test
+            )
             && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
 
     // Framework-provided dev semantics supersede the hand-rolled loopback port
     // table: `development_private_network` covers loopback and private-network
     // dev-server origins; `development_loopback` covers loopback hosts for
-    // local standalone production profiles. Only the Tauri webview schemes are
-    // added explicitly on top. A literal "*" from the environment never matches
-    // a real origin, so no separate wildcard filtering/warning is needed.
+    // local standalone development/test profiles. Production standalone
+    // profiles always use the strict default policy plus the configured
+    // explicit origins, so a production gateway never inherits the
+    // development preflight relaxation (SECURITY_SPEC: production runtimes
+    // must reject the development policy). Only the Tauri webview schemes are
+    // added explicitly on top for dev/test local profiles. A literal "*" from
+    // the environment never matches a real origin, so no separate wildcard
+    // filtering/warning is needed.
     let mut policy = if uses_development_private_network {
         CorsPolicy::development_private_network()
     } else if is_local_standalone {
@@ -275,14 +284,13 @@ mod tests {
     }
 
     #[test]
-    fn standalone_production_cors_allows_desktop_renderer_origin_preflight() {
-        // Regression: the desktop webview (vite dev on 1520) fetches the
-        // gateway cross-origin even when the standalone gateway runs under a
-        // production topology profile. Outside the development private-network
-        // policy the loopback allowlist must still include the desktop
-        // renderer dev port, otherwise the browser preflight receives a 403.
-        // Loopback-bound standalone gateways also relax the preflight header
-        // gate, so arbitrary SDK headers never surface as CORS failures.
+    fn standalone_production_cors_uses_strict_policy_without_header_relaxation() {
+        // Production standalone must never inherit the development CORS
+        // policy: an unlisted loopback renderer origin is rejected and the
+        // preflight header gate is not relaxed to "*" (SECURITY_SPEC §4:
+        // production runtimes must reject the development policy). The
+        // desktop webview always talks to the embedded Development gateway,
+        // which keeps the development policies.
         let config = BirdServerConfig {
             environment: BirdEnvironment::Production,
             ..test_config(BirdDeploymentProfile::Standalone)
@@ -301,17 +309,20 @@ mod tests {
             .expect("build desktop renderer preflight request");
 
         assert!(
-            policy.validate_origin(&request).is_ok(),
-            "desktop renderer origin must be allowed under standalone production"
+            policy.validate_origin(&request).is_err(),
+            "unlisted loopback origin must be rejected under standalone production"
         );
         assert!(
-            policy.validate_preflight(&request).is_ok(),
-            "desktop renderer preflight must be allowed under standalone production"
+            !policy.allowed_headers.iter().any(|allowed| allowed == "*"),
+            "standalone production must not relax preflight headers"
         );
-        assert!(
-            policy.allowed_headers.iter().any(|allowed| allowed == "*"),
-            "loopback-bound standalone policy must relax preflight headers"
-        );
+
+        // The configured explicit operator origin stays allowed.
+        let configured_origin = Request::builder()
+            .header("origin", "https://operator.example.test")
+            .body(axum::body::Body::empty())
+            .expect("build configured origin request");
+        assert!(policy.validate_origin(&configured_origin).is_ok());
     }
 
     #[test]

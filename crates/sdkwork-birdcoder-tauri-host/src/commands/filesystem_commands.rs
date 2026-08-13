@@ -859,6 +859,10 @@ fn read_mounted_file_to_string(
         if max_bytes == 0 {
             return Err("max_bytes must be greater than zero".to_string());
         }
+        // The host caps any caller-requested read at the text-editor limit so
+        // a compromised or buggy renderer can never force the host to
+        // materialize an arbitrarily large file in memory (OOM guard).
+        let max_bytes = max_bytes.min(DEFAULT_FS_READ_FILE_MAX_BYTES);
         let file = fs::File::open(file_path).map_err(|error| {
             format!(
                 "failed to open mounted file '{}': {error}",

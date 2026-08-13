@@ -393,20 +393,25 @@ try {
   fs.rmSync(aggregateFixtureRoot, { recursive: true, force: true });
 }
 
+// The committed container Dockerfile copies the unpacked install-package
+// context (bin/, portal/, database-modules/, data/sdkwork-models/, openapi/,
+// sdkwork.app.config.json, container/) into /opt/sdkwork/birdcoder and runs
+// as the non-root `sdkwork` user. These assertions pin that real layout so a
+// future refactor cannot silently break the release-flow contract.
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder deploy\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
-  'Container Dockerfile must copy default.env from the unpacked bundle deploy/docker context used by docker buildx.',
+  /COPY \. \$\{INSTALL_ROOT\}/u,
+  'Container Dockerfile must copy the unpacked bundle context into the install root.',
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder server\/bin\/sdkwork-birdcoder-standalone-gateway \/opt\/sdkwork-birdcoder\/server\/bin\/sdkwork-birdcoder-standalone-gateway/u,
-  'Container Dockerfile must copy the packaged Linux server binary from the unpacked bundle into the image.',
+  /USER sdkwork/u,
+  'Container Dockerfile must run as the non-root sdkwork user.',
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder openapi\/birdcoder-app-api\.openapi\.json \/opt\/sdkwork-birdcoder\/openapi\/birdcoder-app-api\.openapi\.json/u,
-  'Container Dockerfile must copy the packaged OpenAPI snapshot from the unpacked bundle into the image.',
+  /bin\/\$\{GATEWAY_BINARY\}/u,
+  'Container Dockerfile must expose the packaged Linux server binary under bin/.',
 );
 assert.doesNotMatch(
   dockerfileSource,

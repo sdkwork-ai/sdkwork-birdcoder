@@ -14,19 +14,6 @@ service:
 # Stateless cloud gateway baseline.
 replicaCount: 1
 
-realtime:
-  backend: memory
-
-redis:
-  enabled: false
-  host: redis
-  port: 6379
-  database: 0
-  keyPrefix: birdcoder
-  tls: false
-  username: ""
-  password: ""
-
 ingress:
   # Leave disabled until a real public host, TLS secret, and matching explicit
   # runtime.allowedOrigins value are supplied by an operator.
@@ -141,6 +128,8 @@ nodeSelector: {}
 
 tolerations: []
 
+topologySpreadConstraints: []
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -167,6 +156,16 @@ serviceMonitor:
   path: /metrics
   interval: 30s
   scrapeTimeout: 10s
+
+prometheusRule:
+  enabled: false
+  additionalLabels: {}
+  # The contract-mismatch and release-drift alerts depend on metrics that are
+  # platform or release-pipeline provided. Enable them by supplying the exact
+  # expression for your monitoring stack; the gateway itself exposes
+  # `birdcoder_workbench_api_request_total` and `sdkwork_health_status`.
+  contractMismatchRule: {}
+  releaseDriftRule: {}
 
 observability:
   logLevel: info
