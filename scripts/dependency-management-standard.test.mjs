@@ -140,7 +140,7 @@ function assertDependencyDeclaration() {
   }
   for (const dependency of workflow.dependencies || []) {
     assert(typeof dependency.id === 'string' && expectedDependencyIds.includes(dependency.id), `unexpected dependency id ${dependency.id}`);
-    assert(/^Sdkwork-Cloud\/sdkwork-[a-z0-9-]+$/.test(dependency.repository || ''), `${dependency.id} must use owner/repo repository form`);
+    assert(/^sdkwork-ai\/sdkwork-[a-z0-9-]+$/.test(dependency.repository || ''), `${dependency.id} must use owner/repo repository form`);
     assert(Boolean(dependency.ref || dependency.refInput), `${dependency.id} must declare ref or refInput`);
     assert(dependency.tokenSecret === 'SDKWORK_RELEASE_TOKEN', `${dependency.id} must use SDKWORK_RELEASE_TOKEN`);
     assert(!Object.hasOwn(dependency, 'path'), `${dependency.id} must omit dependencies[].path`);

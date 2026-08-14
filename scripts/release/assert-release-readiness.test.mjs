@@ -89,7 +89,7 @@ function writeReadyReleaseFixture({
       profileId,
       productName: 'SDKWork BirdCoder',
       releaseTag: 'release-2026-04-12-01',
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       generatedAt: '2026-04-12T01:02:03.000Z',
       checksumFileName,
       releaseCoverage,
@@ -112,7 +112,7 @@ function writeReadyReleaseFixture({
     path.join(releaseAssetsDir, 'release-attestations.json'),
     `${JSON.stringify({
       schemaVersion: 1,
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseTag: 'release-2026-04-12-01',
       sourceRef: 'refs/tags/release-2026-04-12-01',
       generatedAt: '2026-04-12T02:03:04.000Z',
@@ -122,7 +122,7 @@ function writeReadyReleaseFixture({
         {
           relativePath: artifactRelativePath,
           sha256: artifactSha256,
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseTag: 'release-2026-04-12-01',
       sourceRef: 'refs/tags/release-2026-04-12-01',
       predicateType: 'https://slsa.dev/provenance/v1',
@@ -393,7 +393,7 @@ test('release readiness assertion rejects unsafe artifact paths on every host pl
         profileId: 'sdkwork-birdcoder',
         productName: 'SDKWork BirdCoder',
         releaseTag: 'release-2026-04-12-01',
-        repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+        repository: 'sdkwork-ai/sdkwork-birdcoder',
         generatedAt: '2026-04-12T01:02:03.000Z',
         checksumFileName: 'SHA256SUMS.txt',
         releaseCoverage: {

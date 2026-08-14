@@ -91,7 +91,7 @@ assert.match(packageWorkflow, /name:\s*Package Application/u);
 assert.match(packageWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/u);
 assert.match(
   packageWorkflow,
-  new RegExp(`uses:\\s*Sdkwork-Cloud/sdkwork-github-workflow/\\.github/workflows/sdkwork-package\\.yml@${frameworkRef}`, 'u'),
+  new RegExp(`uses:\\s*sdkwork-ai/sdkwork-github-workflow/\\.github/workflows/sdkwork-package\\.yml@${frameworkRef}`, 'u'),
   'package workflow must call the pinned shared sdkwork-github-workflow reusable workflow.',
 );
 assert.match(packageWorkflow, new RegExp(`framework_ref:\\s*${frameworkRef}`, 'u'));
@@ -130,7 +130,7 @@ assert.equal(workflowConfig.schemaVersion, '2026-06-06.sdkwork.workflow.v1');
 assert.deepEqual(workflowConfig.app, {
   id: 'sdkwork-birdcoder',
   name: 'SDKWork BirdCoder',
-  repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+  repository: 'sdkwork-ai/sdkwork-birdcoder',
   sourcePath: '.',
   configPath: 'sdkwork.app.config.json',
 });
@@ -282,7 +282,7 @@ assert.match(desktopMsiPackagePlan, /package-release-assets\.mjs desktop[\s\S]*-
 const cpuContainerPackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
   SDKWORK_PACKAGE_TARGET_ID: 'container-x64-cloud-container-cpu-tar-gz',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
-  GITHUB_REPOSITORY: 'Sdkwork-Cloud/sdkwork-birdcoder',
+  GITHUB_REPOSITORY: 'sdkwork-ai/sdkwork-birdcoder',
   GITHUB_SHA: '0123456789abcdef',
 }));
 assert.match(cpuContainerPackagePlan, /package-release-assets\.mjs container/u);
@@ -382,7 +382,7 @@ try {
     SDKWORK_RELEASE_AGGREGATE: 'true',
     SDKWORK_AGGREGATE_ARTIFACT_PATH: aggregateReleaseAssetsDir,
     SDKWORK_RELEASE_TAG: 'release-0.1.0',
-    GITHUB_REPOSITORY: 'Sdkwork-Cloud/sdkwork-birdcoder',
+    GITHUB_REPOSITORY: 'sdkwork-ai/sdkwork-birdcoder',
   }));
   assert.match(aggregatePublishPlan, /render-release-notes\.mjs/u);
   assert.match(aggregatePublishPlan, /finalize-release-assets\.mjs[\s\S]*--release-kind formal[\s\S]*--rollout-stage general-availability/u);

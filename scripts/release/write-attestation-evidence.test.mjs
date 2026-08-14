@@ -24,7 +24,7 @@ function sha256(value) {
 function writeManifestFixture({
   releaseAssetsDir,
   releaseTag = 'release-2026-04-12-01',
-  repository = 'Sdkwork-Cloud/sdkwork-birdcoder',
+  repository = 'sdkwork-ai/sdkwork-birdcoder',
   artifactRelativePath = 'web/sdkwork-birdcoder-web-assets-release-2026-04-12-01.tar.gz',
   artifactContent = 'web-assets',
 } = {}) {
@@ -92,7 +92,7 @@ test('attestation evidence writer verifies finalized artifacts and writes machin
     const result = evidence.writeAttestationEvidence({
       profileId: 'sdkwork-birdcoder',
       releaseAssetsDir,
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseTag: 'release-2026-04-12-01',
       now: () => '2026-04-12T02:03:04.000Z',
       execFileSyncImpl(command, args) {
@@ -123,7 +123,7 @@ test('attestation evidence writer verifies finalized artifacts and writes machin
 
     const written = JSON.parse(readFileSync(result.evidencePath, 'utf8'));
     assert.equal(written.schemaVersion, 1);
-    assert.equal(written.repository, 'Sdkwork-Cloud/sdkwork-birdcoder');
+    assert.equal(written.repository, 'sdkwork-ai/sdkwork-birdcoder');
     assert.equal(written.releaseTag, 'release-2026-04-12-01');
     assert.equal(written.predicateType, 'https://slsa.dev/provenance/v1');
     assert.equal(written.signerWorkflow, '.github/workflows/package.yml');
@@ -143,7 +143,7 @@ test('attestation evidence writer verifies finalized artifacts and writes machin
       {
         relativePath: artifactRelativePath,
         sha256: artifactSha256,
-        repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+        repository: 'sdkwork-ai/sdkwork-birdcoder',
         releaseTag: 'release-2026-04-12-01',
         sourceRef: 'refs/tags/release-2026-04-12-01',
         predicateType: 'https://slsa.dev/provenance/v1',
@@ -174,7 +174,7 @@ test('attestation evidence writer rejects verification output that does not bind
       () => evidence.writeAttestationEvidence({
         profileId: 'sdkwork-birdcoder',
         releaseAssetsDir,
-        repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+        repository: 'sdkwork-ai/sdkwork-birdcoder',
         releaseTag: 'release-2026-04-12-01',
         execFileSyncImpl() {
           return JSON.stringify([
@@ -200,7 +200,7 @@ test('attestation evidence writer rejects verification output that does not bind
       () => evidence.writeAttestationEvidence({
         profileId: 'sdkwork-birdcoder',
         releaseAssetsDir,
-        repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+        repository: 'sdkwork-ai/sdkwork-birdcoder',
         releaseTag: 'release-2026-04-12-01',
         execFileSyncImpl() {
           return '{not-json';

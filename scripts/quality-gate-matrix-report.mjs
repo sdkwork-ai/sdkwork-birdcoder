@@ -94,7 +94,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
     workflowBinding: Object.freeze({
       kind: 'standard-sdkwork-workflow',
       requiredCommands: Object.freeze([
-        'Sdkwork-Cloud/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33',
+        'sdkwork-ai/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33',
         'config_path: sdkwork.workflow.json',
         'publish_release: true',
         'upload_artifact: true',

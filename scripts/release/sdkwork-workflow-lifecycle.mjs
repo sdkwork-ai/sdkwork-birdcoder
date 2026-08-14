@@ -454,7 +454,7 @@ function containerPackageCommands(target, env = process.env) {
         '--tag',
         `${repository}:${tag}`,
         '--label',
-        `org.opencontainers.image.source=https://github.com/${nonEmpty(env.GITHUB_REPOSITORY, 'Sdkwork-Cloud/sdkwork-birdcoder')}`,
+        `org.opencontainers.image.source=https://github.com/${nonEmpty(env.GITHUB_REPOSITORY, 'sdkwork-ai/sdkwork-birdcoder')}`,
         '--label',
         `org.opencontainers.image.version=${tag}`,
         '--label',
@@ -701,7 +701,7 @@ function buildValidateCommands(target) {
 
 function buildPublishCommands(env = process.env) {
   const releaseAssetsDir = nonEmpty(env.SDKWORK_AGGREGATE_ARTIFACT_PATH, AGGREGATE_RELEASE_ASSETS_DIR);
-  const repository = nonEmpty(env.GITHUB_REPOSITORY, 'Sdkwork-Cloud/sdkwork-birdcoder');
+  const repository = nonEmpty(env.GITHUB_REPOSITORY, 'sdkwork-ai/sdkwork-birdcoder');
   const releaseTag = normalizeReleaseTag(env);
   return [
     nodeCommand([

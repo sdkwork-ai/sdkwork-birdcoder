@@ -1,23 +1,23 @@
 {
   "sources": {
     "sdkwork-appbase": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-appbase.git",
+      "repoUrl": "https://github.com/sdkwork-ai/sdkwork-appbase.git",
       "ref": "main"
     },
     "sdkwork-core": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-core.git",
+      "repoUrl": "https://github.com/sdkwork-ai/sdkwork-core.git",
       "ref": "main"
     },
     "sdkwork-ui": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-ui.git",
+      "repoUrl": "https://github.com/sdkwork-ai/sdkwork-ui.git",
       "ref": "main"
     },
     "sdkwork-terminal": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-terminal.git",
+      "repoUrl": "https://github.com/sdkwork-ai/sdkwork-terminal.git",
       "ref": "main"
     },
     "sdkwork-sdk-commons": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-sdk-commons.git",
+      "repoUrl": "https://github.com/sdkwork-ai/sdkwork-sdk-commons.git",
       "ref": "main"
     }
   }
