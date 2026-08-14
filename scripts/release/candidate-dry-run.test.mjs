@@ -54,7 +54,7 @@ try {
     {
       profileId: 'sdkwork-birdcoder',
       releaseTag: 'release-candidate-dry-run',
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseAssetsDir: path.join(fixtureRoot, 'custom-release-candidate-assets'),
       reportPath: path.join(fixtureRoot, 'custom-release-candidate-assets', 'release-candidate-dry-run-report.json'),
       clean: true,
@@ -68,7 +68,7 @@ try {
       '--release-tag',
       'release-candidate-2026.04.12',
       '--repository',
-      'Sdkwork-Cloud/sdkwork-birdcoder',
+      'sdkwork-ai/sdkwork-birdcoder',
       '--release-assets-dir',
       path.join(fixtureRoot, 'release-candidate-dry-run'),
       '--report-path',
@@ -78,7 +78,7 @@ try {
     {
       profileId: 'sdkwork-birdcoder',
       releaseTag: 'release-candidate-2026.04.12',
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseAssetsDir: path.join(fixtureRoot, 'release-candidate-dry-run'),
       reportPath: path.join(fixtureRoot, 'candidate-report.json'),
       clean: false,
@@ -114,7 +114,7 @@ try {
   const result = runReleaseCandidateDryRun({
     profileId: 'sdkwork-birdcoder',
     releaseTag: 'release-candidate-test',
-    repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+    repository: 'sdkwork-ai/sdkwork-birdcoder',
     releaseAssetsDir,
     reportPath,
     now: () => new Date('2026-04-12T01:02:03.000Z'),
@@ -123,7 +123,7 @@ try {
   assert.equal(result.status, 'passed');
   assert.equal(result.profileId, 'sdkwork-birdcoder');
   assert.equal(result.releaseTag, 'release-candidate-test');
-  assert.equal(result.repository, 'Sdkwork-Cloud/sdkwork-birdcoder');
+  assert.equal(result.repository, 'sdkwork-ai/sdkwork-birdcoder');
   assert.equal(result.releaseAssetsDir, releaseAssetsDir);
   assert.equal(result.reportPath, reportPath);
   assert.equal(result.artifactCount, 33);

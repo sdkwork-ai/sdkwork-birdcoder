@@ -26,7 +26,7 @@ try {
     path.join(repoRoot, 'artifacts', 'release-readiness-fixture'),
   );
   assert.equal(DEFAULT_RELEASE_TAG, 'release-fixture');
-  assert.equal(DEFAULT_REPOSITORY, 'Sdkwork-Cloud/sdkwork-birdcoder');
+  assert.equal(DEFAULT_REPOSITORY, 'sdkwork-ai/sdkwork-birdcoder');
   assert.throws(
     () => parseArgs(['--release-assets-dir']),
     /Missing value for --release-assets-dir/,
@@ -42,7 +42,7 @@ try {
       '--release-tag',
       'release-2026.04.12',
       '--repository',
-      'Sdkwork-Cloud/sdkwork-birdcoder',
+      'sdkwork-ai/sdkwork-birdcoder',
       '--release-assets-dir',
       path.join(fixtureRoot, 'custom-release-readiness-fixture'),
       '--no-assert-ready',
@@ -51,7 +51,7 @@ try {
     {
       profileId: 'sdkwork-birdcoder',
       releaseTag: 'release-2026.04.12',
-      repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+      repository: 'sdkwork-ai/sdkwork-birdcoder',
       releaseAssetsDir: path.join(fixtureRoot, 'custom-release-readiness-fixture'),
       assertReady: false,
       clean: false,
@@ -82,7 +82,7 @@ try {
   const result = writeReleaseReadinessFixture({
     releaseAssetsDir: staleFixtureDir,
     releaseTag: 'release-fixture-test',
-    repository: 'Sdkwork-Cloud/sdkwork-birdcoder',
+    repository: 'sdkwork-ai/sdkwork-birdcoder',
   });
 
   assert.equal(fs.existsSync(path.join(staleFixtureDir, 'stale.txt')), false);
@@ -99,7 +99,7 @@ try {
   const manifest = JSON.parse(fs.readFileSync(result.manifestPath, 'utf8'));
   assert.equal(manifest.profileId, 'sdkwork-birdcoder');
   assert.equal(manifest.releaseTag, 'release-fixture-test');
-  assert.equal(manifest.repository, 'Sdkwork-Cloud/sdkwork-birdcoder');
+  assert.equal(manifest.repository, 'sdkwork-ai/sdkwork-birdcoder');
   assert.equal(manifest.releaseCoverage.status, 'complete');
   assert.equal(manifest.releaseCoverage.allowPartialRelease, false);
   assert.equal(manifest.releaseCoverage.requiredTargets.length, 27);

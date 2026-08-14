@@ -39,7 +39,7 @@ const rootDir = path.resolve(__dirname, '..', '..');
 
 export const DEFAULT_RELEASE_ASSETS_DIR = path.join(rootDir, 'artifacts', 'release-readiness-fixture');
 export const DEFAULT_RELEASE_TAG = 'release-fixture';
-export const DEFAULT_REPOSITORY = 'Sdkwork-Cloud/sdkwork-birdcoder';
+export const DEFAULT_REPOSITORY = 'sdkwork-ai/sdkwork-birdcoder';
 
 const DEFAULT_GENERATED_AT = '2026-04-12T00:00:00.000Z';
 const DEFAULT_VERIFIED_AT = '2026-04-12T00:00:01.000Z';

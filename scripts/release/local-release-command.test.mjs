@@ -141,11 +141,11 @@ const finalizeWithRepository = parseArgs([
   '--rollback-command',
   'gh workflow run rollback.yml --ref main',
   '--repository',
-  'Sdkwork-Cloud/sdkwork-birdcoder',
+  'sdkwork-ai/sdkwork-birdcoder',
   '--quality-execution-report-path',
   'artifacts/quality/quality-gate-execution-report.json',
 ]);
-assert.equal(finalizeWithRepository.repository, 'Sdkwork-Cloud/sdkwork-birdcoder');
+assert.equal(finalizeWithRepository.repository, 'sdkwork-ai/sdkwork-birdcoder');
 assert.equal(finalizeWithRepository.releaseKind, 'canary');
 assert.equal(finalizeWithRepository.rolloutStage, 'ring-1');
 assert.equal(finalizeWithRepository.monitoringWindowMinutes, 45);

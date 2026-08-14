@@ -216,7 +216,7 @@ function main() {
   );
   assert.match(
     workflow,
-    /Sdkwork-Cloud\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33/,
+    /sdkwork-ai\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33/,
     'release workflow must use the pinned shared sdkwork-github-workflow package workflow',
   );
   assert.match(

@@ -165,7 +165,7 @@ permissions:
 
 jobs:
   package:
-    uses: Sdkwork-Cloud/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
+    uses: sdkwork-ai/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
     with:
       config_path: sdkwork.workflow.json
       tag: ${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}

@@ -210,7 +210,7 @@ function createGitSshCloneSpawn({
 
         assert.match(
           repoUrl,
-          /^git@github\.com:Sdkwork-Cloud\/(?:sdkwork-(?:appbase|core|ui|terminal)|sdkwork-sdk-commons)\.git$/u,
+          /^git@github\.com:sdkwork-ai\/(?:sdkwork-(?:appbase|core|ui|terminal)|sdkwork-sdk-commons)\.git$/u,
           'shared SDK SSH mode must clone governed GitHub sources through the passwordless SSH remote.',
         );
         assert.equal(
@@ -495,7 +495,7 @@ test('git mode authenticates GitHub HTTPS clones without embedding tokens in clo
       specs.map((spec) => [
         spec.id,
         {
-          repoUrl: `https://github.com/Sdkwork-Cloud/${spec.id}.git`,
+          repoUrl: `https://github.com/sdkwork-ai/${spec.id}.git`,
           ref: 'main',
         },
       ]),
@@ -519,7 +519,7 @@ test('git mode authenticates GitHub HTTPS clones without embedding tokens in clo
     assert.equal(result.changed, true);
     assert.equal(cloneCalls.length, 5);
     assert.ok(
-      cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/Sdkwork-Cloud/')),
+      cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/sdkwork-ai/')),
       'all governed shared SDK repositories should clone from configured GitHub HTTPS URLs',
     );
   } finally {
@@ -539,7 +539,7 @@ test('git mode can materialize GitHub release sources over SSH without rewriting
       specs.map((spec) => [
         spec.id,
         {
-          repoUrl: `https://github.com/Sdkwork-Cloud/${spec.id}.git`,
+          repoUrl: `https://github.com/sdkwork-ai/${spec.id}.git`,
           ref: 'main',
         },
       ]),
@@ -561,7 +561,7 @@ test('git mode can materialize GitHub release sources over SSH without rewriting
     assert.equal(result.changed, true);
     assert.equal(cloneCalls.length, 5);
     assert.ok(
-      cloneCalls.every((call) => call.repoUrl.startsWith('git@github.com:Sdkwork-Cloud/')),
+      cloneCalls.every((call) => call.repoUrl.startsWith('git@github.com:sdkwork-ai/')),
       'all governed shared SDK repositories should clone from GitHub over SSH when SSH transport is requested.',
     );
   } finally {
@@ -654,7 +654,7 @@ test('git mode rejects sibling repositories whose remote URL drifts away from th
     const { repoStates, sharedRepos } = createBirdCoderSharedRepos(workspaceRootDir);
     createReleaseConfig(workspaceRootDir, createDefaultSourceEntries(sharedRepos));
     repoStates.get(sharedRepos['sdkwork-core'].root).originUrl =
-      'git@github.com:Sdkwork-Cloud/sdkwork-core-unexpected.git';
+      'git@github.com:sdkwork-ai/sdkwork-core-unexpected.git';
 
     assert.throws(
       () => ensureSharedSdkGitSources({

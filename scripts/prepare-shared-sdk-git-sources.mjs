@@ -31,11 +31,11 @@ export const SHARED_UI_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_UI_GIT_REF';
 export const SHARED_TERMINAL_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_TERMINAL_GIT_REF';
 export const SHARED_SDK_COMMONS_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_SDK_COMMONS_GIT_REF';
 
-export const DEFAULT_SHARED_APPBASE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-appbase.git';
-export const DEFAULT_SHARED_CORE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-core.git';
-export const DEFAULT_SHARED_UI_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-ui.git';
-export const DEFAULT_SHARED_TERMINAL_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-terminal.git';
-export const DEFAULT_SHARED_SDK_COMMONS_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-sdk-commons.git';
+export const DEFAULT_SHARED_APPBASE_REPO_URL = 'https://github.com/sdkwork-ai/sdkwork-appbase.git';
+export const DEFAULT_SHARED_CORE_REPO_URL = 'https://github.com/sdkwork-ai/sdkwork-core.git';
+export const DEFAULT_SHARED_UI_REPO_URL = 'https://github.com/sdkwork-ai/sdkwork-ui.git';
+export const DEFAULT_SHARED_TERMINAL_REPO_URL = 'https://github.com/sdkwork-ai/sdkwork-terminal.git';
+export const DEFAULT_SHARED_SDK_COMMONS_REPO_URL = 'https://github.com/sdkwork-ai/sdkwork-sdk-commons.git';
 export const DEFAULT_SHARED_SDK_RELEASE_CONFIG_PATH = 'tools/shared-sdk-release-sources.json';
 const SHARED_SDK_AUTH_TOKEN_ENV_VARS = Object.freeze([
   SHARED_SDK_GITHUB_TOKEN_ENV_VAR,
