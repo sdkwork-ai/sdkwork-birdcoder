@@ -1,8 +1,8 @@
-import { createClient as createDeployAppClient } from '@sdkwork/deployments-app-sdk';
 import {
+  createDeployAppSdkClient as createDeployAppClient,
   createDeployApplicationPublisher,
   type DeployApplicationPublisher,
-} from '@sdkwork/deployments-app-sdk/application-publisher';
+} from '@sdkwork/birdcoder-pc-core';
 
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { getBirdCoderDriveAppClient } from './iamRuntime.ts';
