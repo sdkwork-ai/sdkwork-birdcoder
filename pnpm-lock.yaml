@@ -2433,6 +2433,9 @@ importers:
       '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-contracts-commons
+      '@sdkwork/deployments-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript
       '@sdkwork/documents-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript

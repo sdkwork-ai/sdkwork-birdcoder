@@ -4,7 +4,7 @@ import type {
   ApplicationPublishRequest as DeployApplicationPublishRequest,
   ApplicationPublishResult as DeployApplicationPublishResult,
   DeployApplicationPublisher,
-} from '@sdkwork/deployments-app-sdk/application-publisher';
+} from '@sdkwork/birdcoder-pc-core';
 
 import { TauriApplicationPublishHost } from '../applicationPublishHost.ts';
 import { ApplicationPublishService } from './ApplicationPublishService.ts';

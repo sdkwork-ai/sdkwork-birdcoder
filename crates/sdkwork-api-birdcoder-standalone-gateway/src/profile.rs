@@ -3,13 +3,11 @@ use std::sync::Arc;
 
 use axum::Router;
 use sdkwork_api_birdcoder_assembly::bootstrap::config::BirdServerConfig;
-use sdkwork_intelligence_deploy_service::DeployService;
-use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck, ReadinessFuture};
+use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck};
 use sdkwork_web_contract::{route_inventory_from_openapi, route_inventory_from_routes, HttpRoute};
 use sdkwork_web_core::{DomainContextInjector, HttpRouteManifest};
 
 const STANDALONE_OPENAPI_TITLE: &str = "SDKWork BirdCoder Standalone App API";
-const DEPLOYMENTS_OPENAPI_TITLE: &str = "SDKWork Deploy App API";
 
 pub(crate) struct StandaloneApiProfile {
     pub router: Router,
@@ -30,29 +28,10 @@ struct OwnerApiContribution {
     readiness_check: Arc<dyn ReadinessCheck>,
 }
 
-/// Readiness check backed by the composed SDKWork Deploy service host.
-struct DeployServiceReadinessCheck {
-    service: Arc<DeployService>,
-}
-
-impl ReadinessCheck for DeployServiceReadinessCheck {
-    fn check(&self) -> ReadinessFuture<'_> {
-        let service = self.service.clone();
-        Box::pin(async move {
-            service
-                .ready_check()
-                .await
-                .map_err(|error| error.to_string())
-        })
-    }
-}
-
 /// Assembles the SDKWork Deploy owner App API contribution from the
-/// sdkwork-deployments service host (API_ASSEMBLY_SPEC §3/§6.1): the service
-/// host bootstraps its own PostgreSQL repository, drive port, and content
-/// provider from the environment, and the route crate exposes the bare router
-/// plus its route manifest so the gateway composes it under the single shared
-/// web framework layer.
+/// sdkwork-deployments API assembly (API_ASSEMBLY_SPEC §3/§6.1): the assembly
+/// owns the service host bootstrap, the route crate, and the readiness check,
+/// and the gateway only consumes the host-neutral contribution.
 ///
 /// Returns `None` for the documented stateless profile: without an explicit
 /// workspace PostgreSQL profile the Deployments module is not mounted, so a
@@ -63,28 +42,18 @@ async fn assemble_deployments_contribution(
     if !crate::workspace_postgres_profile_configured() {
         return Ok(None);
     }
-    let host = sdkwork_deploy_service_host::bootstrap_deploy_service_host_from_env()
-        .await
-        .map_err(|error| format!("assemble Deployments owner App API failed: {error}"))?;
-    let router =
-        sdkwork_routes_deploy_app_api::build_router_with_shared_app_api(host.service.clone());
-    let route_manifest = sdkwork_routes_deploy_app_api::app_route_manifest();
-    let permission_catalog = permission_catalog(route_manifest.routes());
-    let openapi = sdkwork_web_contract::build_openapi_document(
-        DEPLOYMENTS_OPENAPI_TITLE,
-        route_manifest.routes(),
-    );
-
+    let contribution =
+        sdkwork_api_deployments_assembly::assemble_app_api_contribution_from_env()
+            .await
+            .map_err(|error| format!("assemble Deployments owner App API failed: {error}"))?;
     Ok(Some(OwnerApiContribution {
-        owner: "sdkwork-deployments",
-        router,
-        route_manifest,
-        openapi,
-        permission_catalog,
-        domain_context_injectors: sdkwork_routes_deploy_app_api::deploy_app_api_domain_context_injectors(),
-        readiness_check: Arc::new(DeployServiceReadinessCheck {
-            service: host.service,
-        }),
+        owner: contribution.owner,
+        router: contribution.router,
+        route_manifest: contribution.route_manifest,
+        openapi: contribution.openapi,
+        permission_catalog: contribution.permission_catalog,
+        domain_context_injectors: contribution.domain_context_injectors,
+        readiness_check: contribution.readiness_check,
     }))
 }
 

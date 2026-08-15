@@ -1,4 +1,4 @@
-import type { ApplicationPublishProgress as DeployApplicationPublishProgress } from '@sdkwork/deployments-app-sdk/application-publisher';
+import type { ApplicationPublishProgress as DeployApplicationPublishProgress } from '@sdkwork/birdcoder-pc-core';
 
 import type {
   NativeApplicationPublishPreflightSnapshot,

@@ -1,4 +1,4 @@
-import type { DeployApplicationPublisher } from '@sdkwork/deployments-app-sdk/application-publisher';
+import type { DeployApplicationPublisher } from '@sdkwork/birdcoder-pc-core';
 
 import {
   DEPLOY_TYPE_UPLOAD,
