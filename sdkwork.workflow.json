@@ -172,6 +172,18 @@
       "ref": "36c8561050ce5938dad7f296eee840865c2210c7",
       "refInput": "SDKWORK_DOCUMENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-deployments",
+      "repository": "sdkwork-ai/sdkwork-deployments",
+      "refInput": "SDKWORK_DEPLOYMENTS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-mcp",
+      "repository": "sdkwork-ai/sdkwork-mcp",
+      "refInput": "SDKWORK_MCP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     }
   ],
   "toolchains": {
