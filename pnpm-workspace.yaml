@@ -50,7 +50,6 @@ packages:
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
   - "../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript"
   - "../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript"
-  - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi"
   - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript"
   - "../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript"
   - "../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker"
