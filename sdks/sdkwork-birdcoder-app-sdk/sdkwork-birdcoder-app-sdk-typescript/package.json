@@ -11,9 +11,12 @@
     }
   },
   "dependencies": {
-    "@sdkwork/sdk-common": "workspace:*"
+    "@sdkwork/sdk-common": "^1.0.5"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
-  }
+  },
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts"
 }
