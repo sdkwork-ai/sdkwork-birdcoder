@@ -20,7 +20,7 @@ services:
     # Survive host/WSL restarts together with the gateway (commercial ops).
     restart: unless-stopped
     # Server-side connection ceiling: sized for app pools (tune
-    # PG_MAX_CONNECTIONS together with BIRDCODER_DATABASE_MAX_CONNECTIONS).
+    # PG_MAX_CONNECTIONS together with SDKWORK_DATABASE_MAX_CONNECTIONS).
     command: ["postgres", "-c", "max_connections=${PG_MAX_CONNECTIONS:-200}"]
     environment:
       POSTGRES_DB: ${BIRDCODER_POSTGRES_DB:-sdkwork_ai_test}
@@ -93,11 +93,11 @@ services:
       # by the postgres init script before the gateway starts.
       SDKWORK_DATABASE_AUTO_MIGRATE: "true"
       # Connection pool sizing (tune via .env).
-      SDKWORK_DATABASE_MAX_CONNECTIONS: ${BIRDCODER_DATABASE_MAX_CONNECTIONS:-30}
-      SDKWORK_DATABASE_MIN_CONNECTIONS: ${BIRDCODER_DATABASE_MIN_CONNECTIONS:-3}
-      SDKWORK_DATABASE_ACQUIRE_TIMEOUT: ${BIRDCODER_DATABASE_ACQUIRE_TIMEOUT:-30}
-      SDKWORK_DATABASE_IDLE_TIMEOUT: ${BIRDCODER_DATABASE_IDLE_TIMEOUT:-600}
-      SDKWORK_DATABASE_MAX_LIFETIME: ${BIRDCODER_DATABASE_MAX_LIFETIME:-1800}
+      SDKWORK_DATABASE_MAX_CONNECTIONS: ${SDKWORK_DATABASE_MAX_CONNECTIONS:-30}
+      SDKWORK_DATABASE_MIN_CONNECTIONS: ${SDKWORK_DATABASE_MIN_CONNECTIONS:-3}
+      SDKWORK_DATABASE_ACQUIRE_TIMEOUT: ${SDKWORK_DATABASE_ACQUIRE_TIMEOUT:-30}
+      SDKWORK_DATABASE_IDLE_TIMEOUT: ${SDKWORK_DATABASE_IDLE_TIMEOUT:-600}
+      SDKWORK_DATABASE_MAX_LIFETIME: ${SDKWORK_DATABASE_MAX_LIFETIME:-1800}
       # Agents runtime: keep dev auth bypass off outside explicit dev runs.
       SDKWORK_AGENTS_DEV_AUTH_BYPASS: "false"
       # Process log level (tracing reads RUST_LOG directly).
