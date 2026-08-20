@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { BirdCoderApiRouteCatalogEntry, BirdCoderApplicationDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, PageInfo } from '../types';
 
@@ -13,8 +13,8 @@ export class SystemRuntimeApi {
 
 
 /** Get runtime metadata */
-  async retrieve(): Promise<BirdCoderCoreRuntimeSummary> {
-    return this.client.get<BirdCoderCoreRuntimeSummary>(appApiPath(`/system/runtime`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<BirdCoderCoreRuntimeSummary> {
+    return this.client.request<BirdCoderCoreRuntimeSummary>(appApiPath(`/system/runtime`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -27,8 +27,8 @@ export class SystemRoutesApi {
 
 
 /** List unified API routes */
-  async list(): Promise<{ items: BirdCoderApiRouteCatalogEntry[]; pageInfo: PageInfo; }> {
-    return this.client.get<{ items: BirdCoderApiRouteCatalogEntry[]; pageInfo: PageInfo; }>(appApiPath(`/system/routes`));
+  async list(requestOptions?: ApiRequestOptions): Promise<{ items: BirdCoderApiRouteCatalogEntry[]; pageInfo: PageInfo; }> {
+    return this.client.request<{ items: BirdCoderApiRouteCatalogEntry[]; pageInfo: PageInfo; }>(appApiPath(`/system/routes`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -41,8 +41,8 @@ export class SystemHealthApi {
 
 
 /** Get BirdCoder application health */
-  async retrieve(): Promise<BirdCoderCoreHealthSummary> {
-    return this.client.get<BirdCoderCoreHealthSummary>(appApiPath(`/system/health`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<BirdCoderCoreHealthSummary> {
+    return this.client.request<BirdCoderCoreHealthSummary>(appApiPath(`/system/health`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -55,20 +55,18 @@ export class SystemDescriptorApi {
 
 
 /** Get BirdCoder application descriptor */
-  async retrieve(): Promise<BirdCoderApplicationDescriptor> {
-    return this.client.get<BirdCoderApplicationDescriptor>(appApiPath(`/system/descriptor`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<BirdCoderApplicationDescriptor> {
+    return this.client.request<BirdCoderApplicationDescriptor>(appApiPath(`/system/descriptor`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class SystemApi {
-
   public readonly descriptor: SystemDescriptorApi;
   public readonly health: SystemHealthApi;
   public readonly routes: SystemRoutesApi;
   public readonly runtime: SystemRuntimeApi;
 
   constructor(client: HttpClient) {
-
     this.descriptor = new SystemDescriptorApi(client);
     this.health = new SystemHealthApi(client);
     this.routes = new SystemRoutesApi(client);
