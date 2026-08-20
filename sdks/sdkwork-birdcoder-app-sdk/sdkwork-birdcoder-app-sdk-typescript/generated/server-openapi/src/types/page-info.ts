@@ -4,6 +4,6 @@ export interface PageInfo {
   pageSize?: number;
   totalItems?: string;
   totalPages?: number;
-  nextCursor?: string;
+  nextCursor?: string | null;
   hasMore?: boolean;
 }

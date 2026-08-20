@@ -15,6 +15,9 @@ pub type RequestHeaders = HashMap<String, String>;
 
 const SDKWORK_V3_ENVELOPE: bool = true;
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 16 * 1024 * 1024;
+/// Diagnostic budget for non-success streaming responses: small enough to
+/// keep error handling bounded while still carrying a useful message.
+const ERROR_RESPONSE_BODY_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct SdkworkConfig {
@@ -53,6 +56,8 @@ pub enum SdkworkError {
     ResponseBodyTooLarge { maximum_bytes: usize },
     #[error("SDKWork API returned code {code} (traceId={trace_id})")]
     ApiStatus { code: i64, trace_id: String },
+    #[error("access-token-only request requires Access-Token before request dispatch")]
+    MissingAccessToken,
 }
 
 #[derive(Clone)]
@@ -70,6 +75,47 @@ pub struct SseStream<T> {
 impl<T> SseStream<T> {
     pub fn next(&mut self) -> Option<Result<T, SdkworkError>> {
         self.events.pop_front()
+    }
+}
+
+/// Bounded streaming reader over a binary response body. The 'next_chunk'
+/// method yields one transport chunk at a time under the client's byte
+/// budget, so a large payload is never materialized in memory
+/// (PAGINATION_SPEC §2 / PERFORMANCE_SPEC bounded-body requirements).
+pub struct BinaryResponseStream {
+    response: Option<Response>,
+    remaining_bytes: usize,
+}
+
+impl BinaryResponseStream {
+    /// Bytes still available before the client's response budget is
+    /// exhausted.
+    pub fn remaining_bytes(&self) -> usize {
+        self.remaining_bytes
+    }
+
+    /// Declared 'Content-Length' of the response, when the server sent one.
+    pub fn content_length(&self) -> Option<u64> {
+        self.response.as_ref().and_then(|response| response.content_length())
+    }
+
+    /// Reads the next bounded chunk; 'Ok(None)' marks the end of the body.
+    pub async fn next_chunk(&mut self) -> Result<Option<Vec<u8>>, SdkworkError> {
+        let Some(response) = self.response.as_mut() else {
+            return Ok(None);
+        };
+        let Some(chunk) = response.chunk().await? else {
+            self.response = None;
+            return Ok(None);
+        };
+        if chunk.len() > self.remaining_bytes {
+            self.response = None;
+            return Err(SdkworkError::ResponseBodyTooLarge {
+                maximum_bytes: self.remaining_bytes,
+            });
+        }
+        self.remaining_bytes -= chunk.len();
+        Ok(Some(chunk.to_vec()))
     }
 }
 
@@ -109,7 +155,7 @@ impl SdkworkHttpClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, path, query, Option::<&Value>::None, headers, None, false).await
+        self.request(Method::GET, path, query, Option::<&Value>::None, headers, None, false, false).await
     }
 
     pub async fn post<T, B>(
@@ -124,7 +170,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::POST, path, query, body, headers, content_type, false).await
+        self.request(Method::POST, path, query, body, headers, content_type, false, false).await
     }
 
     pub async fn put<T, B>(
@@ -139,7 +185,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::PUT, path, query, body, headers, content_type, false).await
+        self.request(Method::PUT, path, query, body, headers, content_type, false, false).await
     }
 
     pub async fn patch<T, B>(
@@ -154,7 +200,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::PATCH, path, query, body, headers, content_type, false).await
+        self.request(Method::PATCH, path, query, body, headers, content_type, false, false).await
     }
 
     pub async fn delete<T>(
@@ -166,7 +212,7 @@ impl SdkworkHttpClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::DELETE, path, query, Option::<&Value>::None, headers, None, false).await
+        self.request(Method::DELETE, path, query, Option::<&Value>::None, headers, None, false, false).await
     }
 
     pub async fn request_method<T, B>(
@@ -178,12 +224,13 @@ impl SdkworkHttpClient {
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
         skip_auth: bool,
+        access_token_only: bool,
     ) -> Result<T, SdkworkError>
     where
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(method, path, query, body, headers, content_type, skip_auth).await
+        self.request(method, path, query, body, headers, content_type, skip_auth, access_token_only).await
     }
 
     pub async fn request_bytes<B>(
@@ -195,6 +242,7 @@ impl SdkworkHttpClient {
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
         skip_auth: bool,
+        access_token_only: bool,
     ) -> Result<Vec<u8>, SdkworkError>
     where
         B: Serialize + ?Sized,
@@ -203,12 +251,53 @@ impl SdkworkHttpClient {
         if let Some(query_values) = query {
             request = request.query(&normalize_query(query_values));
         }
-        request = request.headers(self.merge_headers(headers, skip_auth)?);
+        request = request.headers(self.merge_headers(headers, skip_auth, access_token_only)?);
         if let Some(payload) = body {
             request = apply_body(request, payload, content_type)?;
         }
         let response = request.send().await?;
         decode_binary_response(response, self.max_response_body_bytes).await
+    }
+
+    /// Streams a binary response body in bounded chunks without
+    /// materializing the whole payload in memory. Non-success statuses are
+    /// read into a small diagnostic buffer before the error is returned.
+    pub async fn request_bytes_stream<B>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&B>,
+        query: Option<&QueryParams>,
+        headers: Option<&RequestHeaders>,
+        content_type: Option<&str>,
+        skip_auth: bool,
+        access_token_only: bool,
+    ) -> Result<BinaryResponseStream, SdkworkError>
+    where
+        B: Serialize + ?Sized,
+    {
+        let mut request = self.client.request(method, self.build_url(path));
+        if let Some(query_values) = query {
+            request = request.query(&normalize_query(query_values));
+        }
+        request = request.headers(self.merge_headers(headers, skip_auth, access_token_only)?);
+        if let Some(payload) = body {
+            request = apply_body(request, payload, content_type)?;
+        }
+        let response = request.send().await?;
+        let status = response.status();
+        if !status.is_success() {
+            let error_body =
+                read_response_body_bounded(response, ERROR_RESPONSE_BODY_BYTES).await?;
+            return Err(SdkworkError::HttpStatus {
+                status: status.as_u16(),
+                body: String::from_utf8_lossy(&error_body).to_string(),
+            });
+        }
+        Ok(BinaryResponseStream {
+            response: Some(response),
+            remaining_bytes: self.max_response_body_bytes,
+        })
     }
 
     pub async fn stream<T, B>(
@@ -220,6 +309,7 @@ impl SdkworkHttpClient {
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
         skip_auth: bool,
+        access_token_only: bool,
     ) -> Result<SseStream<T>, SdkworkError>
     where
         T: DeserializeOwned,
@@ -230,7 +320,7 @@ impl SdkworkHttpClient {
             request = request.query(&normalize_query(query_values));
         }
 
-        let mut merged_headers = self.merge_headers(headers, skip_auth)?;
+        let mut merged_headers = self.merge_headers(headers, skip_auth, access_token_only)?;
         merged_headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
         request = request.headers(merged_headers);
 
@@ -274,6 +364,7 @@ impl SdkworkHttpClient {
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
         skip_auth: bool,
+        access_token_only: bool,
     ) -> Result<T, SdkworkError>
     where
         T: DeserializeOwned,
@@ -284,7 +375,7 @@ impl SdkworkHttpClient {
             request = request.query(&normalize_query(query_values));
         }
 
-        let merged_headers = self.merge_headers(headers, skip_auth)?;
+        let merged_headers = self.merge_headers(headers, skip_auth, access_token_only)?;
         request = request.headers(merged_headers);
 
         if let Some(payload) = body {
@@ -305,20 +396,51 @@ impl SdkworkHttpClient {
         format!("{}/{}", self.base_url, path)
     }
 
-    fn merge_headers(&self, headers: Option<&RequestHeaders>, skip_auth: bool) -> Result<HeaderMap, SdkworkError> {
+    fn merge_headers(
+        &self,
+        headers: Option<&RequestHeaders>,
+        skip_auth: bool,
+        access_token_only: bool,
+    ) -> Result<HeaderMap, SdkworkError> {
         let mut merged = HeaderMap::new();
-        if !skip_auth {
-            for (key, value) in self.headers.read().expect("sdk headers poisoned").iter() {
+        let stored_headers = self.headers.read().expect("sdk headers poisoned");
+        if !skip_auth && !access_token_only {
+            for (key, value) in stored_headers.iter() {
                 insert_header(&mut merged, key, value)?;
             }
         }
         if let Some(values) = headers {
             for (key, value) in values {
-                insert_header(&mut merged, key, value)?;
+                if (!skip_auth && !access_token_only) || !is_credential_header(key) {
+                    insert_header(&mut merged, key, value)?;
+                }
             }
+        }
+        if access_token_only {
+            let access_token = stored_headers.iter()
+                .find(|(key, value)| key.eq_ignore_ascii_case("Access-Token") && !value.trim().is_empty())
+                .map(|(_, value)| value.trim())
+                .ok_or(SdkworkError::MissingAccessToken)?;
+            insert_header(&mut merged, "Access-Token", access_token)?;
         }
         Ok(merged)
     }
+}
+
+fn is_credential_header(key: &str) -> bool {
+    matches!(
+        key.to_ascii_lowercase().as_str(),
+        "authorization"
+            | "access-token"
+            | "x-api-key"
+            | "x-tenant-id"
+            | "x-organization-id"
+            | "x-platform"
+            | "x-user-id"
+            | "x-sdkwork-tenant-id"
+            | "x-sdkwork-organization-id"
+            | "x-sdkwork-user-id"
+    )
 }
 
 fn apply_body<B>(

@@ -12,7 +12,7 @@
   "generatedFiles": [
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "582c020e50ece8a369ab0c5b2f18d6efe16a54d7c46cd4b29d0a2d560ea07d6c"
+      "sha256": "a47e95119bf3eafcbcb2102f7024c147f967924e4e3f343d1a29effb4b6765df"
     },
     {
       "path": "bin/publish.ps1",
@@ -40,11 +40,11 @@
     },
     {
       "path": "package.json",
-      "sha256": "ddca69367c111ccff29a4cf465df980c518809b0df1e566defb897354e2b0f58"
+      "sha256": "9ce3f7a5d28a998b193b39e0e6ef7c3866d3dfa2a1cb1dbec03d983a88a332a1"
     },
     {
       "path": "README.md",
-      "sha256": "5b2e631a1c9f0c984120c1bc0d0802be672074dd6b7ada5104fdd765adca0d69"
+      "sha256": "8dfdf909a8ef3126c37da033bdef7cc54b2aa075413d3355f1253ae0a3ec8677"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -52,7 +52,7 @@
     },
     {
       "path": "src/api/base.ts",
-      "sha256": "02ad25e6bf331ff241ba387c2947ddf1900dd849038e08c2757416a3aa788a04"
+      "sha256": "94d136c54a008dfe7602e373a0b2c79176bbf2fc6e7c899fc23b1f12f750380f"
     },
     {
       "path": "src/api/index.ts",
@@ -64,7 +64,7 @@
     },
     {
       "path": "src/api/system.ts",
-      "sha256": "a54d6f970fb3d60aa8da3e6c9c3b3d2b522050b5be90471b644f959f4a98a5ca"
+      "sha256": "5a1b61b5cfa4d28201c2eef7007d4e89e6610ef0f9d58507aa73b6244f44cd56"
     },
     {
       "path": "src/auth/index.ts",
@@ -72,7 +72,7 @@
     },
     {
       "path": "src/http/client.ts",
-      "sha256": "902ecbf9b15072c147ac9716f22209cd50b770e517b55d1ce1583671ab4d2c3e"
+      "sha256": "868b7785497a93658b628de2d9b520d9d2456406bcf2ef717319beaa6913146d"
     },
     {
       "path": "src/http/index.ts",
@@ -136,7 +136,7 @@
     },
     {
       "path": "src/types/page-info.ts",
-      "sha256": "7629917241738413c7655b80cf6d0560dc9c1267964d4cd7e374701084408511"
+      "sha256": "0bf2b44313bc24851eb9ffb6063c1b9eb043e1e5721c8ace8882a3cfa21c932a"
     },
     {
       "path": "src/types/problem-detail.ts",
