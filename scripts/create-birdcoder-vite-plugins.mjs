@@ -1025,8 +1025,32 @@ export function resolveBirdcoderViteDevServer(
   runtimeEnvSource = {},
   fallbackBind = '127.0.0.1:5173',
 ) {
+  // Adaptive Web: private Vite renderer ports (INTERNAL) win over the retired
+  // public PC_DEV_BIND. Browser-visible ingress is WEB_DEV_INGRESS_BIND only.
+  const runtimeTarget = String(
+    runtimeEnvSource.VITE_SDKWORK_RUNTIME_TARGET
+      ?? runtimeEnvSource.SDKWORK_BIRDCODER_RUNTIME_TARGET
+      ?? '',
+  ).trim().toLowerCase();
+  const internalPortKey = runtimeTarget === 'h5'
+    ? 'SDKWORK_BIRDCODER_H5_INTERNAL_DEV_PORT'
+    : 'SDKWORK_BIRDCODER_PC_INTERNAL_DEV_PORT';
+  const internalPort = String(runtimeEnvSource[internalPortKey] ?? '').trim();
+  if (/^\d+$/u.test(internalPort)) {
+    const port = Number(internalPort);
+    if (Number.isSafeInteger(port) && port >= 1 && port <= 65_535) {
+      return {
+        host: '127.0.0.1',
+        port,
+        strictPort: true,
+      };
+    }
+  }
+
   const bind = String(
-    runtimeEnvSource.SDKWORK_BIRDCODER_PC_DEV_BIND ?? fallbackBind,
+    runtimeEnvSource.SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND
+      ?? runtimeEnvSource.SDKWORK_BIRDCODER_PC_DEV_BIND
+      ?? fallbackBind,
   ).trim();
   const separatorIndex = bind.lastIndexOf(':');
   const host = bind.slice(0, separatorIndex).trim();
@@ -1042,7 +1066,7 @@ export function resolveBirdcoderViteDevServer(
     || port > 65_535
   ) {
     throw new Error(
-      'SDKWORK_BIRDCODER_PC_DEV_BIND must use the <host>:<port> format with a port from 1 to 65535.',
+      'SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND (or legacy PC_DEV_BIND) must use the <host>:<port> format with a port from 1 to 65535.',
     );
   }
 

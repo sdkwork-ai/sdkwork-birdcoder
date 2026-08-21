@@ -213,7 +213,12 @@ export function createBirdcoderViteProfileValues({
   const platformUrl = commonValues.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
   return {
     ...commonValues,
-    ...(devBind ? { SDKWORK_BIRDCODER_PC_DEV_BIND: devBind } : {}),
+    ...(devBind
+      ? {
+          SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND: devBind,
+          SDKWORK_BIRDCODER_PC_DEV_BIND: devBind,
+        }
+      : {}),
     VITE_SDKWORK_ENVIRONMENT: environment,
     VITE_SDKWORK_DEPLOYMENT_PROFILE: deploymentProfile,
     VITE_SDKWORK_PROFILE_ID: commonValues.SDKWORK_PROFILE_ID,

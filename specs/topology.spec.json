@@ -76,17 +76,29 @@
       "httpHost": "code.sdkwork.com",
       "note": "registered role host code.sdkwork.com with applicationCode=birdcoder per APP_RUNTIME_TOPOLOGY_NAMING.md section 9.2",
       "environments": {
-        "development": { "httpHost": "code-dev.sdkwork.com" },
-        "test": { "httpHost": "code-test.sdkwork.com" },
-        "staging": { "httpHost": "code-staging.sdkwork.com" }
+        "development": {
+          "httpHost": "code-dev.sdkwork.com"
+        },
+        "test": {
+          "httpHost": "code-test.sdkwork.com"
+        },
+        "staging": {
+          "httpHost": "code-staging.sdkwork.com"
+        }
       }
     },
     "platform.api-gateway": {
       "httpHost": "api.sdkwork.com",
       "environments": {
-        "development": { "httpHost": "api-dev.sdkwork.com" },
-        "test": { "httpHost": "api-test.sdkwork.com" },
-        "staging": { "httpHost": "api-staging.sdkwork.com" }
+        "development": {
+          "httpHost": "api-dev.sdkwork.com"
+        },
+        "test": {
+          "httpHost": "api-test.sdkwork.com"
+        },
+        "staging": {
+          "httpHost": "api-staging.sdkwork.com"
+        }
       }
     }
   },
@@ -120,43 +132,18 @@
             "role": "api-standalone-gateway"
           },
           {
-            "id": "pc-web-renderer",
+            "id": "birdcoder-browser",
+            "role": "client",
             "applicationRoot": "apps/sdkwork-birdcoder-pc",
-            "package": "@sdkwork/birdcoder-pc-web",
-            "script": "start:browser",
+            "bindEnv": "SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
               "browser"
             ],
             "clientArchitectures": [
-              "pc-web"
-            ],
-            "env": {
-              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser"
-            },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
-            "required": true,
-            "role": "client"
-          },
-          {
-            "id": "h5-browser-renderer",
-            "applicationRoot": "apps/sdkwork-birdcoder-h5",
-            "package": "@sdkwork/birdcoder-h5",
-            "script": "start:browser",
-            "runtimeTargets": [
-              "browser"
-            ],
-            "clientArchitectures": [
+              "pc-web",
               "h5"
             ],
-            "env": {
-              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_RUNTIME_TARGET": "h5"
-            },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
-            "required": true,
-            "role": "client"
+            "required": true
           },
           {
             "id": "h5-capacitor-renderer",
@@ -173,7 +160,7 @@
             "env": {
               "VITE_SDKWORK_RUNTIME_TARGET": "capacitor"
             },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "bindEnv": "SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND",
             "required": true,
             "role": "client"
           },
@@ -234,53 +221,91 @@
               "SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner",
               "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner"
             },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "bindEnv": "SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND",
             "required": true,
             "role": "client"
           }
         ],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": [
+          {
+            "id": "birdcoder-adaptive-web",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "birdcoder-browser",
+            "apiSurfaceId": "application.public-ingress",
+            "preserveCanonicalPaths": true,
+            "tabletArchitecture": "pc-web",
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
+                "command": "node",
+                "args": [
+                  "../../../../scripts/run-vite-host.mjs",
+                  "serve",
+                  "--mode",
+                  "development",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 5175,
+                "portEnv": "SDKWORK_BIRDCODER_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-birdcoder-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/run-vite-host.mjs",
+                  "serve",
+                  "--mode",
+                  "development",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 5176,
+                "portEnv": "SDKWORK_BIRDCODER_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_RUNTIME_TARGET": "h5",
+                  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
+          }
+        ]
       },
       "cloud.development": {
         "processes": [
           {
-            "id": "pc-web-renderer",
+            "id": "birdcoder-browser",
+            "role": "client",
             "applicationRoot": "apps/sdkwork-birdcoder-pc",
-            "package": "@sdkwork/birdcoder-pc-web",
-            "script": "start:browser",
+            "bindEnv": "SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
               "browser"
             ],
             "clientArchitectures": [
-              "pc-web"
-            ],
-            "env": {
-              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser"
-            },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
-            "required": true,
-            "role": "client"
-          },
-          {
-            "id": "h5-browser-renderer",
-            "applicationRoot": "apps/sdkwork-birdcoder-h5",
-            "package": "@sdkwork/birdcoder-h5",
-            "script": "start:browser",
-            "runtimeTargets": [
-              "browser"
-            ],
-            "clientArchitectures": [
+              "pc-web",
               "h5"
             ],
-            "env": {
-              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
-              "VITE_SDKWORK_RUNTIME_TARGET": "h5"
-            },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
-            "required": true,
-            "role": "client"
+            "required": true
           },
           {
             "id": "pc-desktop-renderer",
@@ -313,7 +338,7 @@
               "SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner",
               "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner"
             },
-            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "bindEnv": "SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND",
             "required": true,
             "role": "client"
           }
@@ -321,6 +346,69 @@
         "healthSurfaces": [
           "application.public-ingress",
           "platform.api-gateway"
+        ],
+        "browserDeliveries": [
+          {
+            "id": "birdcoder-adaptive-web",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "birdcoder-browser",
+            "apiSurfaceId": "application.public-ingress",
+            "preserveCanonicalPaths": true,
+            "tabletArchitecture": "pc-web",
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
+                "command": "node",
+                "args": [
+                  "../../../../scripts/run-vite-host.mjs",
+                  "serve",
+                  "--mode",
+                  "development",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 5175,
+                "portEnv": "SDKWORK_BIRDCODER_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-birdcoder-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/run-vite-host.mjs",
+                  "serve",
+                  "--mode",
+                  "development",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 5176,
+                "portEnv": "SDKWORK_BIRDCODER_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+                  "VITE_SDKWORK_RUNTIME_TARGET": "h5",
+                  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
+          }
         ]
       },
       "cloud.production": {

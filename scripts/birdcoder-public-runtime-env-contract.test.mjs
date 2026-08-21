@@ -24,7 +24,7 @@ assert.equal(mergedRuntimeEnv.SDKWORK_ACCESS_TOKEN, 'process-token');
 assert.equal(mergedRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, 'http://127.0.0.1:10240');
 assert.deepEqual(
   resolveBirdcoderViteDevServer({
-    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:5173',
+    SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND: '127.0.0.1:5173',
   }),
   {
     host: '127.0.0.1',
@@ -32,17 +32,39 @@ assert.deepEqual(
     strictPort: true,
   },
 );
-assert.throws(
-  () => resolveBirdcoderViteDevServer({
-    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:not-a-port',
+assert.deepEqual(
+  resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_PC_INTERNAL_DEV_PORT: '5175',
+    VITE_SDKWORK_RUNTIME_TARGET: 'browser',
   }),
-  /SDKWORK_BIRDCODER_PC_DEV_BIND/u,
+  {
+    host: '127.0.0.1',
+    port: 5175,
+    strictPort: true,
+  },
+);
+assert.deepEqual(
+  resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_H5_INTERNAL_DEV_PORT: '5176',
+    VITE_SDKWORK_RUNTIME_TARGET: 'h5',
+  }),
+  {
+    host: '127.0.0.1',
+    port: 5176,
+    strictPort: true,
+  },
 );
 assert.throws(
   () => resolveBirdcoderViteDevServer({
-    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:70000',
+    SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND: '127.0.0.1:not-a-port',
   }),
-  /SDKWORK_BIRDCODER_PC_DEV_BIND/u,
+  /SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND/u,
+);
+assert.throws(
+  () => resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND: '127.0.0.1:70000',
+  }),
+  /SDKWORK_BIRDCODER_WEB_DEV_INGRESS_BIND/u,
 );
 assert.equal(
   resolveBirdcoderDevelopmentApiEnvDefines('test')[

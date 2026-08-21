@@ -74,3 +74,28 @@ The `policyJson` value uses this shape:
 
 For a user policy, set `scopeType` to `user` and `scopeId` to the authenticated user ID. Invalid or
 scope-mismatched active policies fail closed and prevent agent-engine execution until corrected.
+
+<!-- SDKWORK-DEPLOY-LAYOUT: v1 -->
+## Installed Runtime Paths
+
+Authority: `APPLICATION_DEPLOY_LAYOUT_SPEC.md` (`../sdkwork-specs/`).
+
+| Item | Value |
+| --- | --- |
+| `appId` | `sdkwork-birdcoder` |
+| `runtimeCode` | `birdcoder` |
+| Config root | `/etc/sdkwork/birdcoder/` |
+| Runtime TOML | `/etc/sdkwork/birdcoder/config.toml` |
+| Secrets | `/etc/sdkwork/birdcoder/secrets/` |
+| Override | `SDKWORK_BIRDCODER_CONFIG_FILE` |
+
+Source profiles live under `etc/` (`sdkwork.deployment.config.json` index). Deploy manifest: `deployments/deploy.yaml`. Web data-plane source: `deployments/webserver/` (`SDKWORK_WEBSERVER_SPEC.md` layout v2).
+
+```bash
+node ../sdkwork-specs/tools/check-source-config-standard.mjs --root .
+node ../sdkwork-specs/tools/check-application-deploy-layout.mjs --root .
+node ../sdkwork-specs/tools/check-webserver-toml-standard.mjs --root deployments/webserver
+```
+<!-- /SDKWORK-DEPLOY-LAYOUT -->
+
+
