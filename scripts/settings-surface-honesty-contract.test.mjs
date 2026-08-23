@@ -54,8 +54,18 @@ assert.match(
 );
 assert.match(
   mcpSettingsSource,
-  /function createMcpServerId\(\): string[\s\S]*globalThis\.crypto\?\.randomUUID[\s\S]*Math\.random\(\)/u,
-  'MCP settings must remain usable in older WebViews that do not expose crypto.randomUUID.',
+  /import \{ uuid \} from '@sdkwork\/utils\/id'/u,
+  'MCP settings must generate server ids via @sdkwork/utils/id.',
+);
+assert.match(
+  mcpSettingsSource,
+  /function createMcpServerId\(\): string[\s\S]*return uuid\(\);/u,
+  'MCP settings must use uuid() for MCP server ids instead of hand-rolled Web Crypto fallbacks.',
+);
+assert.doesNotMatch(
+  mcpSettingsSource,
+  /globalThis\.crypto\?\.randomUUID|Math\.random\(\)/u,
+  'MCP settings must not keep local crypto.randomUUID or Math.random UUID fallbacks.',
 );
 assert.doesNotMatch(
   mcpSettingsSource,

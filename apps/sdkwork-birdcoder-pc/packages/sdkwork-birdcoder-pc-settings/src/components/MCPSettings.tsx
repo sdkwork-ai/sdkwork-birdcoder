@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench';
+import { uuid } from '@sdkwork/utils/id';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 
@@ -13,12 +14,7 @@ type McpServerRecord = {
 const EMPTY_MCP_SERVERS: McpServerRecord[] = [];
 
 function createMcpServerId(): string {
-  const randomUuid = globalThis.crypto?.randomUUID;
-  if (typeof randomUuid === 'function') {
-    return randomUuid.call(globalThis.crypto);
-  }
-
-  return `mcp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return uuid();
 }
 
 function normalizeMcpServers(value: unknown): McpServerRecord[] {
