@@ -1,3 +1,11 @@
+import { resolveBrowserDistOutDir } from '../../../sdkwork-specs/tools/browser-dist-layout.mjs';
+function resolveViteEnvironment(mode, processEnv = process.env) {
+  const profileMatch = /^(standalone|cloud)\.(development|test|staging|production)$/u.exec(mode ?? '');
+  return profileMatch?.[2]
+    ?? (['development', 'test', 'staging', 'production'].includes(processEnv.SDKWORK_ENVIRONMENT ?? '')
+      ? processEnv.SDKWORK_ENVIRONMENT
+      : 'production');
+}
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-credential-entry/vite';
@@ -48,6 +56,7 @@ export default defineConfig(({ command, mode }) => {
       include: [...BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE],
     },
     build: {
+      outDir: resolveBrowserDistOutDir(resolveViteEnvironment(mode, process.env)),
       minify: resolveBirdcoderProductionMinify(mode),
       cssMinify: resolveBirdcoderProductionCssMinify(mode),
       rollupOptions: {

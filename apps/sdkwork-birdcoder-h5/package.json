@@ -28,7 +28,7 @@
     "dev:capacitor-ios": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-ios --deployment-profile standalone",
     "dev:capacitor-android": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-android --deployment-profile standalone",
     "build": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile cloud --runtime-target browser",
-    "build:prod": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile cloud --runtime-target browser",
+    "build:prod": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -44,8 +44,8 @@
     "dev:browser": "pnpm dev:browser:standalone",
     "build:local": "tsc && node ../../scripts/run-vite-host.mjs build --mode development --environment development --deployment-profile standalone --runtime-target browser",
     "build:cloud": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile cloud --runtime-target browser",
-    "build:test": "tsc && node ../../scripts/run-vite-host.mjs build --mode test --environment test --deployment-profile standalone --runtime-target browser",
-    "build:staging": "tsc && node ../../scripts/run-vite-host.mjs build --mode staging --environment staging --deployment-profile cloud --runtime-target browser",
+    "build:test": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test",
+    "build:staging": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging",
     "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone",
     "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile cloud",
     "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone",
@@ -53,7 +53,8 @@
     "stop": "pnpm exec sdkwork-app stop --root ../..",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "verify": "pnpm check",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:dev": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment dev"
   },
   "exports": {
     ".": {
