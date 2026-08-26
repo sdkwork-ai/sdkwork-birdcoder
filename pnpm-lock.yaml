@@ -469,7 +469,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       tsx:
@@ -490,9 +490,6 @@ importers:
 
   ../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react:
     dependencies:
-      '@sdkwork/base-data-backend-sdk':
-        specifier: workspace:*
-        version: link:../../../../sdks/sdkwork-base-data-backend-sdk/sdkwork-base-data-backend-sdk-typescript
       '@sdkwork/runtime-bootstrap':
         specifier: workspace:*
         version: link:../../../common/foundation/sdkwork-runtime-bootstrap
@@ -528,7 +525,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-core/sdkwork-core-pc-react:
@@ -571,11 +568,14 @@ importers:
   ../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript:
     dependencies:
       '@sdkwork/drive-app-sdk':
-        specifier: workspace:*
+        specifier: ^0.1.1
         version: link:../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: ^0.11.0
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       rollup:
         specifier: ^4.0.0
@@ -961,7 +961,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript:
@@ -970,7 +970,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-iam/sdks/sdkwork-iam-open-sdk/sdkwork-iam-open-sdk-typescript:
@@ -1197,10 +1197,14 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -1376,32 +1380,27 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
-  ../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi:
+  ../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: workspace:*
-        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
       rollup:
         specifier: ^4.0.0
-        version: 4.60.1
+        version: 4.62.4
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
 
-  ../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript:
-    dependencies:
-      '@sdkwork/sdk-common':
-        specifier: workspace:*
-        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
-      sdkwork-prompts-app-sdk-generated-typescript:
-        specifier: workspace:*
-        version: link:../generated/server-openapi
-
   ../sdkwork-sdk-commons/sdkwork-sdk-common-typescript:
+    dependencies:
+      '@sdkwork/utils':
+        specifier: ^0.11.0
+        version: link:../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
@@ -1492,7 +1491,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/utils':
-        specifier: workspace:*
+        specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       typescript:
@@ -1806,7 +1805,7 @@ importers:
         version: link:../../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
     devDependencies:
       '@sdkwork/sdk-generator':
-        specifier: workspace:*
+        specifier: ^1.0.10
         version: link:../../../../../../sdkwork-sdk-generator
       typescript:
         specifier: ^5.8.2
@@ -1868,6 +1867,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@sdkwork/utils':
+        specifier: ^0.11.0
+        version: link:../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2782,6 +2784,9 @@ importers:
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)

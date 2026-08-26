@@ -1,7 +1,0 @@
-{
-  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://localhost:10240",
-  "appVersion": "0.1.0",
-  "deploymentProfile": "standalone",
-  "environment": "development",
-  "runtimeTarget": "browser"
-}

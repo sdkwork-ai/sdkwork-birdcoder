@@ -1,0 +1,15 @@
+{
+  "environment": "production",
+  "deploymentProfile": "cloud",
+  "profileId": "cloud.production",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "cross-origin",
+  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://localhost:10240",
+  "appVersion": "0.1.0",
+  "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api.sdkwork.com",
+  "appApiBaseUrl": "https://api.sdkwork.com",
+  "backendApiBaseUrl": "https://api.sdkwork.com",
+  "driveAppApiBaseUrl": "https://api.sdkwork.com",
+  "appbaseAppApiBaseUrl": "https://api.sdkwork.com",
+  "deployAppApiBaseUrl": "https://api.sdkwork.com"
+}

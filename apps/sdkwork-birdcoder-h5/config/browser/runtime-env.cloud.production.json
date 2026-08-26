@@ -1,0 +1,14 @@
+{
+  "environment": "production",
+  "deploymentProfile": "cloud",
+  "profileId": "cloud.production",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "cross-origin",
+  "apiBaseUrl": "http://localhost:3000",
+  "appVersion": "0.1.0",
+  "appApiBaseUrl": "https://api.sdkwork.com",
+  "backendApiBaseUrl": "https://api.sdkwork.com",
+  "driveAppApiBaseUrl": "https://api.sdkwork.com",
+  "appbaseAppApiBaseUrl": "https://api.sdkwork.com",
+  "deployAppApiBaseUrl": "https://api.sdkwork.com"
+}

@@ -25,6 +25,18 @@
       ],
       "@sdkwork/birdcoder-app-sdk": [
         "../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
+      "react-dom": [
+        "./node_modules/@types/react-dom"
+      ],
+      "react-dom/*": [
+        "./node_modules/@types/react-dom/*"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common/*": [
+        "../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
       ]
     }
   },

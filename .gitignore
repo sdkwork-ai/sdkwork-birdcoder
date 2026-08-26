@@ -123,3 +123,6 @@ Thumbs.db
 # Diagnostic output artifacts (runtime-generated, not source)
 diag-out.txt
 **/diag-out.txt
+
+# Runtime-generated env config (modified by local dev server)
+**/public/runtime-env.json
