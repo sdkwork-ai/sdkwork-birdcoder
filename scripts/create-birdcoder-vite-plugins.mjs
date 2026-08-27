@@ -907,6 +907,7 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
       warningMessage.includes('plugin `vite:terser`')
       || [
         'sdkwork-birdcoder-h5-',
+        'sdkwork-birdcoder-pc-',
         'sdkwork-birdcoder-pc-desktop-',
         'sdkwork-birdcoder-pc-web-',
       ].some((pluginPrefix) => warningMessage.includes(pluginPrefix))
