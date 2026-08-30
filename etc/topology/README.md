@@ -14,6 +14,8 @@ Pattern: `{deploymentProfile}.{environment}.env`
 | `cloud.test` | `cloud.test.env` |
 | `cloud.staging` | `cloud.staging.env` |
 | `cloud.production` | `cloud.production.env` |
+| `standalone.demo` | `standalone.demo.env` |
+| `cloud.demo` | `cloud.demo.env` |
 
 Retired `hosting` / `serviceLayout` tokens are not used.
 

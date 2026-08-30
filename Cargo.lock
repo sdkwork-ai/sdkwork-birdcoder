@@ -6780,6 +6780,7 @@ dependencies = [
 name = "sdkwork-agents-tool-audio"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "cloudrouter-open-sdk",
  "sdkwork-agent-kernel",
  "sdkwork-agents-tool-cloudrouter",
@@ -6792,6 +6793,7 @@ name = "sdkwork-agents-tool-cloudrouter"
 version = "0.1.0"
 dependencies = [
  "cloudrouter-open-sdk",
+ "reqwest 0.12.28",
  "sdkwork-agent-kernel",
  "sdkwork-agent-provider-rig",
  "sdkwork-agents-tool-contract",
@@ -6883,7 +6885,9 @@ dependencies = [
  "sdkwork-agents-database-host",
  "sdkwork-agents-kernel-bridge",
  "sdkwork-agents-runtime-facade",
+ "sdkwork-api-assets-assembly",
  "sdkwork-api-drive-assembly",
+ "sdkwork-api-generations-assembly",
  "sdkwork-database-sqlx",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
@@ -6899,6 +6903,23 @@ dependencies = [
  "sdkwork-web-contract",
  "sdkwork-web-core",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "sdkwork-api-assets-assembly"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-database-sqlx",
+ "sdkwork-drive-http",
+ "sdkwork-drive-workspace-service",
+ "sdkwork-routes-assets-app-api",
+ "sdkwork-routes-drive-app-api",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
+ "serde_json",
+ "sqlx",
  "tokio",
 ]
 
@@ -6998,6 +7019,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-api-generations-assembly"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.9",
+ "chrono",
+ "sdkwork-api-assets-assembly",
+ "sdkwork-database-sqlx",
+ "sdkwork-generations-database-host",
+ "sdkwork-generations-provider-adapter",
+ "sdkwork-iam-database-host",
+ "sdkwork-iam-embedded-application-bootstrap",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-intelligence-generations-service",
+ "sdkwork-routes-generations-app-api",
+ "sdkwork-routes-generations-backend-api",
+ "sdkwork-routes-generations-http-shared",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-contract",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "sdkwork-api-iam-assembly"
 version = "0.1.0"
 dependencies = [
@@ -7041,6 +7092,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "sdkwork-models-catalog-repository-sqlx",
  "sdkwork-models-contract-service",
+ "sdkwork-models-database-host",
  "sdkwork-models-service-host",
  "sdkwork-routes-models-catalog-app-api",
  "sdkwork-routes-models-catalog-backend-api",
@@ -7551,7 +7603,7 @@ dependencies = [
  "sdkwork-drive-app-sdk-generated-rust",
  "sdkwork-drive-contract",
  "sdkwork-drive-internal-sdk-generated-rust",
- "sdkwork-knowledgebase-internal-sdk",
+ "sdkwork-knowledgebase-internal-sdk-generated-rust",
  "sdkwork-utils-rust",
  "serde_json",
  "tokio",
@@ -7865,6 +7917,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-generations-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+]
+
+[[package]]
+name = "sdkwork-generations-provider-adapter"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "cloudrouter-open-sdk",
+ "sdkwork-intelligence-generations-service",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "sdkwork-iam-bootstrap"
 version = "0.1.0"
 dependencies = [
@@ -8061,6 +8137,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-intelligence-generations-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.9",
+ "chrono",
+ "sdkwork-database-id",
+ "sdkwork-database-sqlx",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "sdkwork-intelligence-prompts-ai-contract"
 version = "0.1.0"
 dependencies = [
@@ -8123,7 +8220,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-knowledgebase-internal-sdk"
+name = "sdkwork-knowledgebase-internal-sdk-generated-rust"
 version = "0.1.0"
 dependencies = [
  "http 1.4.2",
@@ -8213,6 +8310,8 @@ dependencies = [
 name = "sdkwork-models"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "chrono-tz",
  "serde",
  "serde_json",
 ]
@@ -8240,6 +8339,7 @@ dependencies = [
  "axum 0.8.9",
  "bytes",
  "chrono",
+ "chrono-tz",
  "sdkwork-cloudrouter-http",
  "sdkwork-models",
  "sdkwork-models-contract-service",
@@ -8277,6 +8377,8 @@ dependencies = [
 name = "sdkwork-models-service-host"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "chrono-tz",
  "dotenvy",
  "sdkwork-database-sqlx",
  "sdkwork-models",
@@ -8590,6 +8692,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-routes-assets-app-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "chrono",
+ "sdkwork-drive-contract",
+ "sdkwork-drive-http",
+ "sdkwork-drive-workspace-service",
+ "sdkwork-routes-drive-app-api",
+ "sdkwork-utils-rust",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tower 0.5.3",
+]
+
+[[package]]
 name = "sdkwork-routes-deploy-app-api"
 version = "0.1.0"
 dependencies = [
@@ -8790,6 +8910,54 @@ dependencies = [
  "tower 0.5.3",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "sdkwork-routes-generations-app-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-intelligence-generations-service",
+ "sdkwork-routes-generations-http-shared",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "sdkwork-routes-generations-backend-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-intelligence-generations-service",
+ "sdkwork-routes-generations-http-shared",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "sdkwork-routes-generations-http-shared"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-intelligence-generations-service",
+ "sdkwork-web-axum",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-contract",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

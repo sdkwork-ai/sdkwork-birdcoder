@@ -18,112 +18,15 @@
   },
   "dependencies": [
     {
-      "id": "sdkwork-appbase",
-      "repository": "sdkwork-ai/sdkwork-appbase",
-      "ref": "b74a1413d387c803b524df96dc150fb02ce8c25f",
-      "refInput": "SDKWORK_APPBASE_REF",
+      "id": "sdkwork-account",
+      "repository": "sdkwork-ai/sdkwork-account",
+      "refInput": "SDKWORK_ACCOUNT_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-iam",
-      "repository": "sdkwork-ai/sdkwork-iam",
-      "ref": "0c112a7e5fcf1fa07431c5ededb56ea7c5f9d473",
-      "refInput": "SDKWORK_IAM_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-core",
-      "repository": "sdkwork-ai/sdkwork-core",
-      "ref": "864d0264d9e170ea0d1820402f46195be62fecf6",
-      "refInput": "SDKWORK_CORE_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-ui",
-      "repository": "sdkwork-ai/sdkwork-ui",
-      "ref": "e2dea9c788f93c3a59d25c1791c7bb8c0ad0bb38",
-      "refInput": "SDKWORK_UI_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-drive",
-      "repository": "sdkwork-ai/sdkwork-drive",
-      "ref": "20966a79da72984a67495c329416a10715b4857e",
-      "refInput": "SDKWORK_DRIVE_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-messaging",
-      "repository": "sdkwork-ai/sdkwork-messaging",
-      "ref": "3d403ddf424dcdfb441d34d4ee71e942bb041498",
-      "refInput": "SDKWORK_MESSAGING_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-sdk-commons",
-      "repository": "sdkwork-ai/sdkwork-sdk-commons",
-      "ref": "c9adc5a02fed0d9ce70ab719e5d2155ed40676da",
-      "refInput": "SDKWORK_SDK_COMMONS_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-search",
-      "repository": "sdkwork-ai/sdkwork-search",
-      "ref": "b209e9477549a2e8984e3390253457584cf8a8ba",
-      "refInput": "SDKWORK_SEARCH_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-terminal",
-      "repository": "sdkwork-ai/sdkwork-terminal",
-      "ref": "c1ede947442bf65ac0b3f7b370891d3664cff8e7",
-      "refInput": "SDKWORK_TERMINAL_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-sdk-generator",
-      "repository": "sdkwork-ai/sdkwork-sdk-generator",
-      "ref": "0b0e984ffbdec49a28c2da3edebcdddab4087e62",
-      "refInput": "SDKWORK_SDK_GENERATOR_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-membership",
-      "repository": "sdkwork-ai/sdkwork-membership",
-      "ref": "32d1f981b3be085e93aaca3de177d482c2f75fe7",
-      "refInput": "SDKWORK_MEMBERSHIP_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-promotion",
-      "repository": "sdkwork-ai/sdkwork-promotion",
-      "ref": "f1238eda5ef661641cf7445fec3103a45b3c55e8",
-      "refInput": "SDKWORK_PROMOTION_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-order",
-      "repository": "sdkwork-ai/sdkwork-order",
-      "ref": "5f4c1fa702d37b9226072483fc4686a115c53fb8",
-      "refInput": "SDKWORK_ORDER_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-web-framework",
-      "repository": "sdkwork-ai/sdkwork-web-framework",
-      "refInput": "SDKWORK_WEB_FRAMEWORK_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-database",
-      "repository": "sdkwork-ai/sdkwork-database",
-      "refInput": "SDKWORK_DATABASE_REF",
-      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
-    },
-    {
-      "id": "sdkwork-utils",
-      "repository": "sdkwork-ai/sdkwork-utils",
-      "refInput": "SDKWORK_UTILS_REF",
+      "id": "sdkwork-agents",
+      "repository": "sdkwork-ai/sdkwork-agents",
+      "refInput": "SDKWORK_AGENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
@@ -134,36 +37,41 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-models",
-      "repository": "sdkwork-ai/sdkwork-models",
-      "ref": "39e1950a73500387352be00ef245c0d701dd0313",
-      "refInput": "SDKWORK_MODELS_REF",
+      "id": "sdkwork-appbase",
+      "repository": "sdkwork-ai/sdkwork-appbase",
+      "ref": "b74a1413d387c803b524df96dc150fb02ce8c25f",
+      "refInput": "SDKWORK_APPBASE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-kernel",
-      "repository": "sdkwork-ai/sdkwork-kernel",
-      "refInput": "SDKWORK_KERNEL_REF",
+      "id": "sdkwork-assets",
+      "repository": "sdkwork-ai/sdkwork-assets",
+      "refInput": "SDKWORK_ASSETS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-agents",
-      "repository": "sdkwork-ai/sdkwork-agents",
-      "refInput": "SDKWORK_AGENTS_REF",
+      "id": "sdkwork-cloudrouter",
+      "repository": "sdkwork-ai/sdkwork-cloudrouter",
+      "refInput": "SDKWORK_CLOUDROUTER_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-skills",
-      "repository": "sdkwork-ai/sdkwork-skills",
-      "ref": "4893f1dc190ea8bc976795c900dbf92d02480a68",
-      "refInput": "SDKWORK_SKILLS_REF",
+      "id": "sdkwork-core",
+      "repository": "sdkwork-ai/sdkwork-core",
+      "ref": "864d0264d9e170ea0d1820402f46195be62fecf6",
+      "refInput": "SDKWORK_CORE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-prompts",
-      "repository": "sdkwork-ai/sdkwork-prompts",
-      "ref": "5779986572ac172dc62b9686df0aef8da3f79456",
-      "refInput": "SDKWORK_PROMPTS_REF",
+      "id": "sdkwork-database",
+      "repository": "sdkwork-ai/sdkwork-database",
+      "refInput": "SDKWORK_DATABASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-deployments",
+      "repository": "sdkwork-ai/sdkwork-deployments",
+      "refInput": "SDKWORK_DEPLOYMENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
@@ -174,15 +82,179 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-deployments",
-      "repository": "sdkwork-ai/sdkwork-deployments",
-      "refInput": "SDKWORK_DEPLOYMENTS_REF",
+      "id": "sdkwork-drive",
+      "repository": "sdkwork-ai/sdkwork-drive",
+      "ref": "20966a79da72984a67495c329416a10715b4857e",
+      "refInput": "SDKWORK_DRIVE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-generations",
+      "repository": "sdkwork-ai/sdkwork-generations",
+      "refInput": "SDKWORK_GENERATIONS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-iam",
+      "repository": "sdkwork-ai/sdkwork-iam",
+      "ref": "0c112a7e5fcf1fa07431c5ededb56ea7c5f9d473",
+      "refInput": "SDKWORK_IAM_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-id",
+      "repository": "sdkwork-ai/sdkwork-id",
+      "refInput": "SDKWORK_ID_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-kernel",
+      "repository": "sdkwork-ai/sdkwork-kernel",
+      "refInput": "SDKWORK_KERNEL_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-knowledgebase",
+      "repository": "sdkwork-ai/sdkwork-knowledgebase",
+      "refInput": "SDKWORK_KNOWLEDGEBASE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
       "id": "sdkwork-mcp",
       "repository": "sdkwork-ai/sdkwork-mcp",
       "refInput": "SDKWORK_MCP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-membership",
+      "repository": "sdkwork-ai/sdkwork-membership",
+      "ref": "32d1f981b3be085e93aaca3de177d482c2f75fe7",
+      "refInput": "SDKWORK_MEMBERSHIP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-merchandise",
+      "repository": "sdkwork-ai/sdkwork-merchandise",
+      "refInput": "SDKWORK_MERCHANDISE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-messaging",
+      "repository": "sdkwork-ai/sdkwork-messaging",
+      "ref": "3d403ddf424dcdfb441d34d4ee71e942bb041498",
+      "refInput": "SDKWORK_MESSAGING_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-models",
+      "repository": "sdkwork-ai/sdkwork-models",
+      "ref": "39e1950a73500387352be00ef245c0d701dd0313",
+      "refInput": "SDKWORK_MODELS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-order",
+      "repository": "sdkwork-ai/sdkwork-order",
+      "ref": "5f4c1fa702d37b9226072483fc4686a115c53fb8",
+      "refInput": "SDKWORK_ORDER_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-partner",
+      "repository": "sdkwork-ai/sdkwork-partner",
+      "refInput": "SDKWORK_PARTNER_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-payment",
+      "repository": "sdkwork-ai/sdkwork-payment",
+      "refInput": "SDKWORK_PAYMENT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-promotion",
+      "repository": "sdkwork-ai/sdkwork-promotion",
+      "ref": "f1238eda5ef661641cf7445fec3103a45b3c55e8",
+      "refInput": "SDKWORK_PROMOTION_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-prompts",
+      "repository": "sdkwork-ai/sdkwork-prompts",
+      "ref": "5779986572ac172dc62b9686df0aef8da3f79456",
+      "refInput": "SDKWORK_PROMPTS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sandbox",
+      "repository": "sdkwork-ai/sdkwork-sandbox",
+      "refInput": "SDKWORK_SANDBOX_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-commons",
+      "repository": "sdkwork-ai/sdkwork-sdk-commons",
+      "ref": "c9adc5a02fed0d9ce70ab719e5d2155ed40676da",
+      "refInput": "SDKWORK_SDK_COMMONS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-generator",
+      "repository": "sdkwork-ai/sdkwork-sdk-generator",
+      "ref": "0b0e984ffbdec49a28c2da3edebcdddab4087e62",
+      "refInput": "SDKWORK_SDK_GENERATOR_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-search",
+      "repository": "sdkwork-ai/sdkwork-search",
+      "ref": "b209e9477549a2e8984e3390253457584cf8a8ba",
+      "refInput": "SDKWORK_SEARCH_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-shop",
+      "repository": "sdkwork-ai/sdkwork-shop",
+      "refInput": "SDKWORK_SHOP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-skills",
+      "repository": "sdkwork-ai/sdkwork-skills",
+      "ref": "4893f1dc190ea8bc976795c900dbf92d02480a68",
+      "refInput": "SDKWORK_SKILLS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-terminal",
+      "repository": "sdkwork-ai/sdkwork-terminal",
+      "ref": "c1ede947442bf65ac0b3f7b370891d3664cff8e7",
+      "refInput": "SDKWORK_TERMINAL_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-ui",
+      "repository": "sdkwork-ai/sdkwork-ui",
+      "ref": "e2dea9c788f93c3a59d25c1791c7bb8c0ad0bb38",
+      "refInput": "SDKWORK_UI_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-utils",
+      "repository": "sdkwork-ai/sdkwork-utils",
+      "refInput": "SDKWORK_UTILS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-web-framework",
+      "repository": "sdkwork-ai/sdkwork-web-framework",
+      "refInput": "SDKWORK_WEB_FRAMEWORK_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-webserver",
+      "repository": "sdkwork-ai/sdkwork-webserver",
+      "refInput": "SDKWORK_WEBSERVER_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     }
   ],
