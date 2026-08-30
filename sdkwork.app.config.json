@@ -70,25 +70,26 @@
         "fileSizeBytes": 524288,
         "alphaChannel": false,
         "sortOrder": 0,
-        "enabled": false,
+        "enabled": true,
         "metadata": {
-          "generatedPlaceholder": true,
-          "preLaunch": true
+          "generatedPlaceholder": true
         }
       },
       "platform": [],
-      "metadata": {}
+      "metadata": {
+        "generatedPlaceholder": true
+      }
     },
     "screenshots": [
       {
-        "id": "sdkwork-birdcoder-desktop_windows-screenshot",
+        "id": "sdkwork-birdcoder-web-screenshot",
         "type": "SCREENSHOT",
         "purpose": "CATALOG_SCREENSHOT",
-        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/desktop_windows-screenshot.png",
-        "platform": "DESKTOP_WINDOWS",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/web-screenshot.png",
+        "platform": "WEB",
         "locale": "en-US",
-        "deviceClass": "DESKTOP",
-        "displayType": "DESKTOP_16_10",
+        "deviceClass": "BROWSER",
+        "displayType": "WEB_DESKTOP",
         "width": 1920,
         "height": 1080,
         "format": "PNG",
@@ -96,10 +97,9 @@
         "alphaChannel": false,
         "caption": "SDKWork Birdcoder product screenshot.",
         "sortOrder": 0,
-        "enabled": false,
+        "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "preLaunch": true,
           "altText": "SDKWork Birdcoder app screenshot."
         }
       }
@@ -110,7 +110,7 @@
         "type": "PREVIEW_IMAGE",
         "purpose": "CATALOG_PREVIEW",
         "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/preview-cover.png",
-        "platform": "DESKTOP_WINDOWS",
+        "platform": "WEB",
         "locale": "en-US",
         "width": 1600,
         "height": 900,
@@ -119,10 +119,9 @@
         "alphaChannel": false,
         "caption": "SDKWork Birdcoder preview.",
         "sortOrder": 0,
-        "enabled": false,
+        "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "preLaunch": true,
           "altText": "SDKWork Birdcoder preview cover."
         }
       }
@@ -267,19 +266,20 @@
     "currentVersion": "0.1.0",
     "defaultChannel": "INTERNAL",
     "latest": {
+      "STABLE": "0.1.0",
       "INTERNAL": "0.1.0"
     },
     "notes": [
       {
         "version": "0.1.0",
         "releaseChannel": "INTERNAL",
-        "title": "SDKWork BirdCoder 0.1.0 pre-launch",
-        "summary": "Internal pre-launch build; every install package remains disabled until governed artifacts are signed and verified.",
-        "content": "BirdCoder owns the coding workbench only. Workspace, Agent Project, Session, Turn, Session Item, and Interaction facts are owned by sdkwork-agents; skills are owned by sdkwork-skills; human Conversation and Message facts are owned by sdkwork-im.",
+        "title": "SDKWork Birdcoder 0.1.0",
+        "summary": "SDKWork Birdcoder initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder.",
         "highlights": [
-          "BirdCoder is a stateless coding-workbench composition host with no application-owned business tables",
-          "BirdCoder exposes four System App API operations and no Backend API or Open API operations",
-          "Workspace, Agent Project, composition, Session, Turn, Item, and runtime bindings are consumed from sdkwork-agents"
+          "SDKWork App Standard v3 configuration initialized",
+          "platform_app projection metadata standardized",
+          "Download package matrix normalized"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -287,6 +287,7 @@
           "macos-universal-standalone-desktop-dmg",
           "linux-x64-standalone-desktop-appimage"
         ],
+        "publishedAt": "2026-05-07T00:00:00Z",
         "current": true,
         "forceUpdate": false,
         "minSupportedVersion": "0.1.0",

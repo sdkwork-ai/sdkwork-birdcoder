@@ -220,60 +220,60 @@
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "applicationModule": {
-        "manifestRef": "../../../../../specs/iam.module.manifest.json"
+        "manifestRef": "../../../../specs/iam.module.manifest.json"
       },
       "moduleCatalogRefs": [
         {
           "moduleId": "ai",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "documents",
-          "manifestRef": "../../../../../../sdkwork-documents/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "drive",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "iam-kernel",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": false
-        },
-        {
-          "moduleId": "messaging",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "prompts",
-          "manifestRef": "../../../../../../sdkwork-prompts/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "skills",
-          "manifestRef": "../../../../../../sdkwork-skills/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "mcp",
-          "manifestRef": "../../../../../../sdkwork-mcp/specs/iam.module.manifest.json",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "birdcoder",
-          "manifestRef": "../../../../../specs/iam.module.manifest.json",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "documents",
+          "manifestRef": "../../../../../sdkwork-documents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "drive",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "iam-kernel",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": false
+        },
+        {
+          "moduleId": "mcp",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/mcp/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "messaging",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "prompts",
+          "manifestRef": "../../../../../sdkwork-prompts/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "skills",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/skills/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }

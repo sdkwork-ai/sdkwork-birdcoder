@@ -67,21 +67,21 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "ai",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "birdcoder",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "iam-kernel",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
-        },
-        {
-          "moduleId": "birdcoder",
-          "manifestRef": "../../../../../specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
         }
       ],
       "bootstrapAccessTokenScope": {
@@ -100,7 +100,7 @@
         "allowFrontendHintsWithoutServerDuplication": true
       },
       "applicationModule": {
-        "manifestRef": "../../../../../specs/iam.module.manifest.json"
+        "manifestRef": "../../../../specs/iam.module.manifest.json"
       }
     }
   }

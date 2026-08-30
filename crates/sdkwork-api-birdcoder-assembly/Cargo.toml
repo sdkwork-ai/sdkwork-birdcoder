@@ -13,8 +13,8 @@ path = "src/lib.rs"
 axum.workspace = true
 tokio.workspace = true
 sdkwork-web-bootstrap.workspace = true
-serde_json.workspace = true
 sdkwork-web-core.workspace = true
+serde_json.workspace = true
 sdkwork-web-contract.workspace = true
 sdkwork-routes-system-app-api.workspace = true
 

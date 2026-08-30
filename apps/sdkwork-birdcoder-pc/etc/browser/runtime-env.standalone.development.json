@@ -1,0 +1,17 @@
+{
+  "environment": "development",
+  "deploymentProfile": "standalone",
+  "profileId": "standalone.development",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "same-origin",
+  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://localhost:10240",
+  "appVersion": "0.1.0",
+  "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api.sdkwork.com",
+  "appApiBaseUrl": "/",
+  "backendApiBaseUrl": "/",
+  "driveAppApiBaseUrl": "/",
+  "appbaseAppApiBaseUrl": "/",
+  "deployAppApiBaseUrl": "/",
+  "openApiBaseUrl": "/",
+  "sdkBaseUrl": "/"
+}

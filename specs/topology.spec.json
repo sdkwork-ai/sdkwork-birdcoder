@@ -649,9 +649,47 @@
             },
             "required": true,
             "role": "client"
+          },
+          {
+            "id": "application.public-ingress",
+            "role": "api-standalone-gateway",
+            "script": "_sdkwork:gateway:standalone",
+            "required": true
           }
         ],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": [
+          {
+            "id": "birdcoder-static-pc-web",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
+            "clientArchitectures": [
+              "pc-web"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "gateway-static",
+            "apiSurfaceId": "application.public-ingress",
+            "hostProcessId": "application.public-ingress",
+            "buildOutput": "apps/sdkwork-birdcoder-pc/dist",
+            "runtimeRootEnv": "SDKWORK_BIRDCODER_PC_STATIC_ROOT",
+            "mountPath": "/",
+            "spaFallback": "/index.html"
+          },
+          {
+            "id": "birdcoder-static-h5",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
+            "clientArchitectures": [
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "gateway-static",
+            "apiSurfaceId": "application.public-ingress",
+            "hostProcessId": "application.public-ingress",
+            "buildOutput": "apps/sdkwork-birdcoder-pc/dist",
+            "runtimeRootEnv": "SDKWORK_BIRDCODER_PC_STATIC_ROOT",
+            "mountPath": "/",
+            "spaFallback": "/index.html"
+          }
+        ]
       },
       "standalone.test": {
         "processes": [
@@ -674,7 +712,8 @@
             "role": "client"
           }
         ],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": []
       },
       "standalone.staging": {
         "processes": [
@@ -697,7 +736,8 @@
             "role": "client"
           }
         ],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": []
       },
       "cloud.test": {
         "processes": [
@@ -751,7 +791,8 @@
       },
       "standalone.demo": {
         "processes": [],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": []
       },
       "cloud.demo": {
         "processes": [],
