@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 axum.workspace = true
+tokio.workspace = true
 tracing = "0.1"
 serde_json.workspace = true
 sdkwork-web-bootstrap.workspace = true
