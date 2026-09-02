@@ -12,7 +12,8 @@ pub mod observability;
 pub mod openapi;
 
 pub use assembly_entry::{
-    assemble_api_router, assemble_api_router_with_readiness, ApiAssembly,
+    assemble_api_router, assemble_api_router_with_readiness, web_module, web_module_with_config,
+    ApiAssembly,
 };
 
 pub fn assembly_route_count() -> usize {

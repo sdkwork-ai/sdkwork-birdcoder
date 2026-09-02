@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use sdkwork_api_birdcoder_assembly::bootstrap::config::BirdServerConfig;
-use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck};
+use sdkwork_web_bootstrap::{ApiModuleRegistry, CompositeReadinessCheck, ReadinessCheck};
 use sdkwork_web_contract::{route_inventory_from_openapi, route_inventory_from_routes, HttpRoute};
 use sdkwork_web_core::{DomainContextInjector, HttpRouteManifest};
 
@@ -112,10 +112,11 @@ pub(crate) async fn assemble_standalone_profile(
         skills.readiness_check.clone(),
         models.readiness_check.clone(),
     ]));
-    let birdcoder =
-        sdkwork_api_birdcoder_assembly::assemble_api_router_with_readiness(config, Some(dependency_readiness))
+    let mut module_registry = ApiModuleRegistry::new();
+    module_registry.add_module(sdkwork_api_birdcoder_assembly::assemble_api_router_with_readiness(config, Some(dependency_readiness))
             .await
-            .map_err(|error| format!("assemble BirdCoder owner App API failed: {error:#}"))?;
+            .map_err(|error| format!("assemble BirdCoder owner App API failed: {error:#}"))?);
+    let birdcoder = module_registry.try_compose("SDKWork Birdcoder API")?;
     let mut contributions = vec![
         OwnerApiContribution {
             owner: "sdkwork-birdcoder",

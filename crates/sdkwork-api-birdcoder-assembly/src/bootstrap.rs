@@ -1,5 +1,5 @@
 use axum::Router;
-use sdkwork_web_bootstrap::{AlwaysReady, ReadinessCheck};
+use sdkwork_web_bootstrap::{ApiAssemblyContribution, AlwaysReady, ReadinessCheck, WebModule};
 use sdkwork_web_core::{DomainContextInjector, HttpRouteManifest};
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -66,4 +66,33 @@ pub async fn assemble_api_router_with_readiness(
         domain_context_injectors: Vec::new(),
         readiness_check: readiness_check.unwrap_or_else(|| Arc::new(AlwaysReady)),
     })
+}
+
+/// Installs BirdCoder as a Web Module with a caller-supplied server
+/// configuration and optional composed dependency readiness check
+/// (API_ASSEMBLY_SPEC §4.1.1).
+pub async fn web_module_with_config(
+    config: &BirdServerConfig,
+    readiness_check: Option<Arc<dyn ReadinessCheck>>,
+) -> Result<WebModule, String> {
+    let assembly = assemble_api_router_with_readiness(config, readiness_check).await?;
+    Ok(WebModule::from_contribution(
+        ApiAssemblyContribution::try_new(
+            "sdkwork-birdcoder",
+            assembly.router,
+            assembly.route_manifest,
+            assembly.openapi,
+            assembly.permission_catalog,
+            assembly.domain_context_injectors,
+            assembly.readiness_check,
+        )?,
+    ))
+}
+
+/// Canonical Web Module definition for this application
+/// (API_ASSEMBLY_SPEC §4.1.1): the complete HTTP surface — every route,
+/// manifest, and OpenAPI document of this owner — as one installable module.
+pub async fn web_module() -> Result<WebModule, String> {
+    let config = BirdServerConfig::from_env().map_err(|error| error.to_string())?;
+    web_module_with_config(&config, None).await
 }
