@@ -38,10 +38,13 @@ pub async fn assemble_api_router_with_readiness(
     let birdcoder = bootstrap::build_application(config, readiness_check.clone())
         .await
         .map_err(|error| error.to_string())?;
-    let openapi = sdkwork_web_contract::build_openapi_document(
+    // Owned OpenAPI document: stamps x-sdkwork-owner and x-sdkwork-api-authority
+    // on every operation so gateway composition ownership validation passes.
+    let openapi = sdkwork_web_contract::build_owned_openapi_document(
         "SDKWork BirdCoder App API",
+        "sdkwork-birdcoder",
         birdcoder.route_manifest.routes(),
-    );
+    )?;
     let permission_catalog = birdcoder
         .route_manifest
         .routes()

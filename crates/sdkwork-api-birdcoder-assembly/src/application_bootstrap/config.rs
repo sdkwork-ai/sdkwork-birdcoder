@@ -47,6 +47,7 @@ pub enum BirdEnvironment {
     Test,
     Staging,
     Production,
+    Demo,
 }
 
 impl BirdEnvironment {
@@ -56,6 +57,7 @@ impl BirdEnvironment {
             Self::Test => "test",
             Self::Staging => "staging",
             Self::Production => "production",
+            Self::Demo => "demo",
         }
     }
 
@@ -65,6 +67,7 @@ impl BirdEnvironment {
             "test" => Ok(Self::Test),
             "staging" => Ok(Self::Staging),
             "production" => Ok(Self::Production),
+            "demo" => Ok(Self::Demo),
             _ => Err(BirdServerConfigError::InvalidEnvironment(value.to_owned())),
         }
     }
@@ -160,7 +163,7 @@ impl fmt::Display for BirdServerConfigError {
             ),
             Self::InvalidEnvironment(value) => write!(
                 formatter,
-                "{ENVIRONMENT_ENV} must be development, test, staging, or production, got {value:?}"
+                "{ENVIRONMENT_ENV} must be development, test, staging, production, or demo, got {value:?}"
             ),
             Self::InvalidRuntimeTarget(value) => write!(
                 formatter,
