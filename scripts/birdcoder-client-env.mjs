@@ -205,6 +205,12 @@ function createCommonProfileValues({
     ...(platformUrl
       ? { SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: platformUrl }
       : {}),
+    // Browser-visible anchor (APP_RUNTIME_TOPOLOGY_SPEC section 4.2, SDK_SPEC
+    // section 5.1 step 2): frontend SDK integrations read the local gateway
+    // before any checked-in environment domain fallback.
+    ...(deploymentProfile === 'cloud' && environment === 'development' && localGatewayUrl
+      ? { VITE_SDKWORK_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL: localGatewayUrl }
+      : {}),
   };
 }
 
