@@ -179,7 +179,19 @@ function createCommonProfileValues({
 }) {
   const profileId = createBirdcoderProfileId(deploymentProfile, environment);
   const applicationUrl = topologyValues.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;
-  const platformUrl = topologyValues.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
+  // PNPM_SCRIPT_SPEC section 3: cloud-mode development binds the platform
+  // gateway base URL to the locally started sdkwork-api-cloud-gateway
+  // (SDKWORK_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL, bind 127.0.0.1:3900) so
+  // dev:cloud quick-starts and debugs against the local process. Domain edges
+  // stay authoritative for cloud-mode builds and deployed services.
+  const localGatewayUrl = String(
+    topologyValues.SDKWORK_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL ?? '',
+  ).trim();
+  const platformUrl = deploymentProfile === 'cloud'
+    && environment === 'development'
+    && /^https?:\/\//u.test(localGatewayUrl)
+    ? localGatewayUrl
+    : topologyValues.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
   return {
     SDKWORK_ENVIRONMENT: environment,
     SDKWORK_DEPLOYMENT_PROFILE: deploymentProfile,
