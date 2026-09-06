@@ -28,6 +28,7 @@
     "dev:capacitor-ios": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-ios --deployment-profile standalone",
     "dev:capacitor-android": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-android --deployment-profile standalone",
     "build": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile cloud --runtime-target browser",
+    "build:demo": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment demo",
     "build:prod": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -58,6 +59,7 @@
     "build:dev:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment dev --deployment-profile cloud",
     "build:test:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test --deployment-profile cloud",
     "build:staging:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging --deployment-profile cloud",
+    "build:demo:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment demo --deployment-profile cloud",
     "build:prod:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod --deployment-profile cloud"
   },
   "exports": {

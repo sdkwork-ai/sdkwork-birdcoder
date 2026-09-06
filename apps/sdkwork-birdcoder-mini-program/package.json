@@ -10,6 +10,7 @@
     "stop": "node scripts/stop-dev.mjs",
     "build": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment production",
     "build:staging": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment staging",
+    "build:demo": "pnpm build",
     "build:prod": "pnpm build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "node scripts/static-boundary-check.mjs",
