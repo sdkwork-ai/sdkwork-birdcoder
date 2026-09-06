@@ -73,9 +73,9 @@ services:
       # deployments/docker/docker/nginx/testapidocker-birdcoder.conf) plus
       # local host ports used for direct access. SDKWORK_CORS_ALLOWED_ORIGINS
       # is the canonical shared key for every SDKWork service (SOURCE_CONFIG_SPEC).
-      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
+      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.noaper.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
       # Legacy compatibility key (deprecated fallback; keep aligned).
-      SDKWORK_BIRDCODER_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
+      SDKWORK_BIRDCODER_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.noaper.com,http://testapidocker.dtupay.com,http://localhost:10243,http://127.0.0.1:10243}
       # External dependencies are injected at runtime, not baked into the image.
       # Split database fields (with explicit schema) so the lifecycle schema
       # identity is unambiguous. Hosts/ports default to the compose services.
