@@ -126,3 +126,4 @@ diag-out.txt
 
 # Runtime-generated env config (modified by local dev server)
 **/public/runtime-env.json
+/bin/
