@@ -6,8 +6,8 @@
  * reaches the WSL nginx through the WSL2 localhost forwarding:
  *
  *   testapidocker.sdkwork.com
- *   testapidocker.birdcoder.com
- *   testapidocker.dtupay.com
+ *   testapidocker.birdcoder.com testapidocker.noaper.com
+ *   testapidocker.dtupay.com testapidocker.noaper.com
  *
  * Writing C:\Windows\System32\drivers\etc\hosts requires administrator
  * rights. This script attempts an elevated write through PowerShell

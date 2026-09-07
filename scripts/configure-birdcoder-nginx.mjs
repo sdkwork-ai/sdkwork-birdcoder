@@ -9,11 +9,11 @@
  * (127.0.0.1:10243). The three docker test domains share one server block:
  *
  *   testapidocker.sdkwork.com
- *   testapidocker.birdcoder.com
- *   testapidocker.dtupay.com
+ *   testapidocker.birdcoder.com testapidocker.noaper.com
+ *   testapidocker.dtupay.com testapidocker.noaper.com
  *
  * Windows hosts binding (admin):
- *   127.0.0.1 testapidocker.sdkwork.com testapidocker.birdcoder.com testapidocker.dtupay.com
+ *   127.0.0.1 testapidocker.sdkwork.com testapidocker.birdcoder.com testapidocker.noaper.com testapidocker.dtupay.com
  *
  * Public scripts: `pnpm nginx:plan` / `pnpm nginx:render` / `pnpm nginx:deploy`.
  */
