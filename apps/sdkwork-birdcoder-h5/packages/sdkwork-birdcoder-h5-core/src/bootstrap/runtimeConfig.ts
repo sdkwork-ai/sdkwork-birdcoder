@@ -1,3 +1,5 @@
+import { readRuntimeEnv, resolveBaseUrl } from '@sdkwork/sdk-common';
+
 export interface BirdCoderH5RuntimeConfig {
   agentsAppApiBaseUrl?: string;
   apiBaseUrl?: string;
@@ -6,15 +8,14 @@ export interface BirdCoderH5RuntimeConfig {
   executionAuthorityMode?: 'auto' | 'remote-required';
 }
 
+/** Single shared API base-url key resolved through `@sdkwork/sdk-common`. */
+const SDKWORK_API_BASE_URL_ENV_KEY = 'SDKWORK_API_BASE_URL';
+
 interface BirdCoderPublicRuntimeEnv {
   VITE_BIRDCODER_API_BASE_URL?: string;
-  VITE_SDKWORK_AGENTS_APP_API_BASE_URL?: string;
-  VITE_SDKWORK_APPBASE_APP_API_BASE_URL?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
   VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
-  VITE_SDKWORK_DRIVE_APP_API_BASE_URL?: string;
-  VITE_SDKWORK_IAM_APP_API_BASE_URL?: string;
 }
 
 function isStandaloneProfile(): boolean {
@@ -48,6 +49,15 @@ function defaultBrowserOrigin(): string | undefined {
     : undefined;
 }
 
+function resolveSharedSdkApiBaseUrl(): string | undefined {
+  if (!readRuntimeEnv(SDKWORK_API_BASE_URL_ENV_KEY)) {
+    return undefined;
+  }
+
+  const { url } = resolveBaseUrl({ envKey: SDKWORK_API_BASE_URL_ENV_KEY });
+  return url || undefined;
+}
+
 function resolveRequiredDependencyApiBaseUrl(
   dependencyName: string,
   ...values: Array<string | undefined>
@@ -76,6 +86,7 @@ export function resolveBirdCoderH5ApplicationApiBaseUrl(): string {
   const env = readPublicRuntimeEnv();
   const value = firstNonBlank(
     boundRuntimeConfig.apiBaseUrl,
+    resolveSharedSdkApiBaseUrl(),
     env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
     env.VITE_BIRDCODER_API_BASE_URL,
     defaultBrowserOrigin(),
@@ -93,7 +104,7 @@ export function resolveBirdCoderH5AgentsAppApiBaseUrl(): string {
     : resolveRequiredDependencyApiBaseUrl(
         'Agents',
         boundRuntimeConfig.agentsAppApiBaseUrl,
-        env.VITE_SDKWORK_AGENTS_APP_API_BASE_URL,
+        resolveSharedSdkApiBaseUrl(),
         env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
       );
   return configured.endsWith('/app/v3/api')
@@ -109,7 +120,7 @@ export function resolveBirdCoderH5DriveAppApiBaseUrl(): string {
   return resolveRequiredDependencyApiBaseUrl(
     'Drive',
     boundRuntimeConfig.driveAppApiBaseUrl,
-    env.VITE_SDKWORK_DRIVE_APP_API_BASE_URL,
+    resolveSharedSdkApiBaseUrl(),
     env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
   );
 }
@@ -122,8 +133,7 @@ export function resolveBirdCoderH5AppbaseAppApiBaseUrl(): string {
   return resolveRequiredDependencyApiBaseUrl(
     'IAM',
     boundRuntimeConfig.appbaseAppApiBaseUrl,
-    env.VITE_SDKWORK_APPBASE_APP_API_BASE_URL,
-    env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
+    resolveSharedSdkApiBaseUrl(),
     env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
   );
 }

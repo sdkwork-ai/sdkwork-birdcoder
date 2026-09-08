@@ -1,9 +1,13 @@
+import { resolveBaseUrl } from '@sdkwork/sdk-common';
+
 const BIRDCODER_APPLICATION_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL';
 const BIRDCODER_PLATFORM_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL';
 const BIRDCODER_DEPLOYMENT_PROFILE_ENV =
   'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE';
+/** Single shared API base-url key resolved through `@sdkwork/sdk-common`. */
+const SDKWORK_API_BASE_URL_ENV = 'SDKWORK_API_BASE_URL';
 const GENERATED_APP_API_PATH = '/app/v3/api';
 const FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH = /^\/(?:__sdkwork|proxy|gateway|platform)(?:\/|$)/u;
 
@@ -50,6 +54,31 @@ export function readBirdCoderRuntimeEnv(name: string): string | undefined {
     env?: Record<string, string | boolean | undefined>;
   };
   return readNonBlankString(meta.env?.[name]);
+}
+
+/**
+ * Resolve the shared SDK API base url through `@sdkwork/sdk-common`.
+ *
+ * `SDKWORK_API_BASE_URL` is the single supported base-url key; the per-app
+ * `VITE_SDKWORK_<APP>_APP_API_BASE_URL` keys are deprecated and only survive
+ * as a lower-priority fallback. The shared resolver picks the API host that
+ * matches the current page environment + brand, preferring the current
+ * protocol, and returns a bare gateway origin — generated SDK clients append
+ * `/app/v3/api` themselves, so path preservation stays off.
+ *
+ * Returns `undefined` when the shared key is not configured so callers keep
+ * their explicit "base url is required" error instead of inventing a host.
+ */
+export function resolveBirdCoderSharedSdkBaseUrl(): string | undefined {
+  if (!readBirdCoderRuntimeEnv(SDKWORK_API_BASE_URL_ENV)) {
+    return undefined;
+  }
+
+  const { url } = resolveBaseUrl({
+    envKey: SDKWORK_API_BASE_URL_ENV,
+    readEnv: readBirdCoderRuntimeEnv,
+  });
+  return url || undefined;
 }
 
 function parseBirdCoderSdkBaseUrl(value: string, label: string): URL {
@@ -127,9 +156,11 @@ function requireBirdCoderSdkBaseUrl(
 
 export function resolveBirdCoderApplicationSdkBaseUrl(explicit?: string): string {
   return requireBirdCoderSdkBaseUrl(
-    explicit ?? readBirdCoderRuntimeEnv(BIRDCODER_APPLICATION_HTTP_ENV),
+    explicit
+      ?? resolveBirdCoderSharedSdkBaseUrl()
+      ?? readBirdCoderRuntimeEnv(BIRDCODER_APPLICATION_HTTP_ENV),
     'BirdCoder application SDK base URL',
-    [BIRDCODER_APPLICATION_HTTP_ENV],
+    [SDKWORK_API_BASE_URL_ENV, BIRDCODER_APPLICATION_HTTP_ENV],
   );
 }
 
@@ -138,9 +169,11 @@ export function resolveBirdCoderPlatformSdkBaseUrl(explicit?: string): string {
     return resolveBirdCoderApplicationSdkBaseUrl();
   }
   return requireBirdCoderSdkBaseUrl(
-    explicit ?? readBirdCoderRuntimeEnv(BIRDCODER_PLATFORM_HTTP_ENV),
+    explicit
+      ?? resolveBirdCoderSharedSdkBaseUrl()
+      ?? readBirdCoderRuntimeEnv(BIRDCODER_PLATFORM_HTTP_ENV),
     'SDKWork platform API gateway base URL',
-    [BIRDCODER_PLATFORM_HTTP_ENV],
+    [SDKWORK_API_BASE_URL_ENV, BIRDCODER_PLATFORM_HTTP_ENV],
   );
 }
 
@@ -156,19 +189,22 @@ export function resolveBirdCoderDependencySdkBaseUrl(
   const overrideFromEnv = overrideEnvNames
     .map((envName) => readBirdCoderRuntimeEnv(envName))
     .find((value): value is string => Boolean(value));
-  const dependencyOverride = options.dependencyApiBaseUrl ?? overrideFromEnv;
+  const dependencyOverride = options.dependencyApiBaseUrl
+    ?? resolveBirdCoderSharedSdkBaseUrl()
+    ?? overrideFromEnv;
   if (dependencyOverride) {
     return requireBirdCoderSdkBaseUrl(
       dependencyOverride,
       `${dependencyName} app SDK base URL`,
-      overrideEnvNames,
+      [SDKWORK_API_BASE_URL_ENV, ...overrideEnvNames],
     );
   }
 
   return requireBirdCoderSdkBaseUrl(
     options.platformApiGatewayBaseUrl
+      ?? resolveBirdCoderSharedSdkBaseUrl()
       ?? readBirdCoderRuntimeEnv(BIRDCODER_PLATFORM_HTTP_ENV),
     `${dependencyName} app SDK base URL`,
-    [...overrideEnvNames, BIRDCODER_PLATFORM_HTTP_ENV],
+    [SDKWORK_API_BASE_URL_ENV, ...overrideEnvNames, BIRDCODER_PLATFORM_HTTP_ENV],
   );
 }

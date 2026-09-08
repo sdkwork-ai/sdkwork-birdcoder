@@ -213,22 +213,19 @@ interface BirdCoderRuntimeSdkBaseUrls {
 function resolveBirdCoderRuntimeSdkBaseUrls(): BirdCoderRuntimeSdkBaseUrls {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   return {
+    // The per-app `VITE_SDKWORK_<APP>_APP_API_BASE_URL` keys are deprecated;
+    // dependency base urls now come from the single shared
+    // `SDKWORK_API_BASE_URL` resolved through `@sdkwork/sdk-common`.
     appbaseAppApiBaseUrl: resolveBirdCoderDependencySdkBaseUrl('IAM', {
-      overrideEnvNames: [
-        'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
-        'VITE_SDKWORK_IAM_APP_API_BASE_URL',
-      ],
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     }),
     birdcoderAppApiBaseUrl: resolveBirdCoderApplicationSdkBaseUrl(
       runtimeConfig.applicationApiBaseUrl,
     ),
     driveAppApiBaseUrl: resolveBirdCoderDependencySdkBaseUrl('Drive', {
-      overrideEnvNames: ['VITE_SDKWORK_DRIVE_APP_API_BASE_URL'],
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     }),
     messagingAppApiBaseUrl: resolveBirdCoderDependencySdkBaseUrl('Messaging', {
-      overrideEnvNames: ['VITE_SDKWORK_MESSAGING_APP_API_BASE_URL'],
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     }),
   };
@@ -438,10 +435,6 @@ function installBirdCoderCurrentUserAuthority(
       baseUrl: runtime.config.appApiBaseUrl ?? resolveBirdCoderDependencySdkBaseUrl(
         'IAM',
         {
-          overrideEnvNames: [
-            'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
-            'VITE_SDKWORK_IAM_APP_API_BASE_URL',
-          ],
           platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
         },
       ),
