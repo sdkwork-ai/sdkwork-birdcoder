@@ -1,3 +1,5 @@
+import { resolveBaseUrl, splitBaseUrls } from '@sdkwork/sdk-common';
+
 export const BIRDCODER_DEPLOYMENT_PROFILES = ['standalone', 'cloud'] as const;
 export const BIRDCODER_ENVIRONMENTS = [
   'development',
@@ -51,6 +53,44 @@ function requireHttpUrl(value: string | undefined, label: string): string {
   return value.replace(/\/$/u, '');
 }
 
+const APP_API_PREFIX = '/app/v3/api';
+const API_BASE_URL_ENV_KEY = 'SDKWORK_API_BASE_URL';
+
+/**
+ * Reduce a base-url candidate to its bare origin, stripping any `/app/v3/api`
+ * suffix and trailing slash. String-only (no global `URL`) so it runs in the
+ * mini-program runtime which lacks the DOM `URL` global.
+ */
+function normalizeApiBaseUrl(apiBaseUrl: string): string {
+  const trimmed = apiBaseUrl.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  let base = trimmed.replace(/\/+$/u, '');
+  if (base === APP_API_PREFIX) {
+    return '';
+  }
+  if (base.endsWith(APP_API_PREFIX)) {
+    base = base.slice(0, -APP_API_PREFIX.length);
+  }
+  return base.replace(/\/+$/u, '');
+}
+
+/**
+ * Resolve the BirdCoder application API base url.
+ *
+ * Mini programs have no browser location context, so the host normally injects
+ * an explicit URL. When none is injected the shared `SDKWORK_API_BASE_URL` is
+ * resolved through `@sdkwork/sdk-common`, which picks the API host matching the
+ * current page environment + brand (or the first configured candidate).
+ */
+export function resolveBirdCoderApplicationApiBaseUrl(apiBaseUrl?: string): string {
+  const [configured = ''] = splitBaseUrls(
+    apiBaseUrl ?? resolveBaseUrl({ envKey: API_BASE_URL_ENV_KEY }).url,
+  );
+  return normalizeApiBaseUrl(configured);
+}
+
 export function parseBirdCoderMiniProgramRuntimeConfig(
   input: BirdCoderMiniProgramRuntimeInput,
 ): BirdCoderMiniProgramRuntimeConfig {
@@ -88,7 +128,9 @@ export function parseBirdCoderMiniProgramRuntimeConfig(
     runtimeTarget,
     profileId,
     applicationApiBaseUrl: requireHttpUrl(
-      input.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+      resolveBirdCoderApplicationApiBaseUrl(
+        input.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+      ),
       'BirdCoder application API URL',
     ),
     ...(platformApiGatewayBaseUrl ? { platformApiGatewayBaseUrl } : {}),
