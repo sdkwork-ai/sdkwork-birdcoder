@@ -177,6 +177,10 @@ export function resolveBirdCoderBrowserServerBaseUrl(
     return normalizedApiBaseUrl;
   }
 
+  // base-url-check: exempt — desktop embedded-server LAN rebind, not a §6.3
+  // cloud/standalone API gateway base: the embedded desktop server owns its
+  // own scheme (loopback API must stay reachable even when the UI host uses a
+  // different scheme), so page-protocol alignment must NOT be applied here.
   apiUrl.hostname = browserUrl.hostname;
   return normalizeBirdCoderServerBaseUrl(apiUrl.toString());
 }

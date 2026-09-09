@@ -134,6 +134,20 @@ export function normalizeBirdCoderSdkBaseUrl(
     );
   }
 
+  // ENVIRONMENT_SPEC §6.3 protocol adaptation: the serving edge terminates
+  // HTTP and HTTPS on the same gateway host, so a browser-resolved base origin
+  // MUST use the page scheme (http page -> http origin, https page -> https).
+  // Server/native runtimes keep the authored scheme.
+  if (typeof window !== 'undefined') {
+    const pageProtocol = window.location.protocol;
+    if (
+      (pageProtocol === 'http:' || pageProtocol === 'https:')
+      && parsedUrl.protocol !== pageProtocol
+    ) {
+      parsedUrl.protocol = pageProtocol;
+    }
+  }
+
   return pathname && pathname !== '/'
     ? `${parsedUrl.origin}${pathname}`
     : parsedUrl.origin;
