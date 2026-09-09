@@ -1,3 +1,5 @@
+import {resolveBaseUrlWithAlignProtocol} from '@sdkwork/sdk-common';
+
 const SETTINGS_STORAGE_KEY = 'sdkwork-birdcoder:settings:app';
 
 export interface ResolveBirdCoderBootstrapServerBaseUrlOptions {
@@ -54,5 +56,6 @@ export function resolveBirdCoderBootstrapServerBaseUrl({
 }: ResolveBirdCoderBootstrapServerBaseUrlOptions): string | undefined {
   return normalizeBirdCoderServerBaseUrl(runtimeApiBaseUrl)
     ?? normalizeBirdCoderServerBaseUrl(storedApiBaseUrl)
-    ?? normalizeBirdCoderServerBaseUrl(configuredApiBaseUrl);
+    ?? normalizeBirdCoderServerBaseUrl(configuredApiBaseUrl)
+    ?? resolveBaseUrlWithAlignProtocol().url;
 }

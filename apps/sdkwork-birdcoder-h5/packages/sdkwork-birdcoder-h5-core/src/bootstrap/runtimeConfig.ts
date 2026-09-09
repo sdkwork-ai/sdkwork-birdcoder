@@ -1,4 +1,4 @@
-import { readRuntimeEnv, resolveBaseUrl } from '@sdkwork/sdk-common';
+import {readRuntimeEnv, resolveBaseUrlWithAlignProtocol} from '@sdkwork/sdk-common';
 
 export interface BirdCoderH5RuntimeConfig {
   agentsAppApiBaseUrl?: string;
@@ -54,7 +54,7 @@ function resolveSharedSdkApiBaseUrl(): string | undefined {
     return undefined;
   }
 
-  const { url } = resolveBaseUrl({ envKey: SDKWORK_API_BASE_URL_ENV_KEY });
+  const { url } = resolveBaseUrlWithAlignProtocol({ envKey: SDKWORK_API_BASE_URL_ENV_KEY });
   return url || undefined;
 }
 
@@ -89,7 +89,7 @@ export function resolveBirdCoderH5ApplicationApiBaseUrl(): string {
     resolveSharedSdkApiBaseUrl(),
     env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
     env.VITE_BIRDCODER_API_BASE_URL,
-    defaultBrowserOrigin(),
+    resolveBaseUrlWithAlignProtocol().url,
   );
   if (!value) {
     throw new Error('BirdCoder H5 application API base URL is required.');

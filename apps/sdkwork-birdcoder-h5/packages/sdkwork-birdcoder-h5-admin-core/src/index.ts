@@ -1,3 +1,5 @@
+import {resolveBaseUrlWithAlignProtocol} from '@sdkwork/sdk-common';
+
 export const H5_ADMIN_CORE_VERSION = '0.1.0';
 
 export interface AdminConfig {
@@ -7,7 +9,7 @@ export interface AdminConfig {
 
 export function createDefaultAdminConfig(): AdminConfig {
   return {
-    apiBaseUrl: 'http://localhost:3000',
+    apiBaseUrl: resolveBaseUrlWithAlignProtocol().url,
     operatorId: '',
   };
 }

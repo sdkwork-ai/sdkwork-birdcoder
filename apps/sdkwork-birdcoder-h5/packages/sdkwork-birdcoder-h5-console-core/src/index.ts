@@ -1,3 +1,5 @@
+import { resolveBaseUrlWithAlignProtocol } from '@sdkwork/sdk-common';
+
 export const H5_CONSOLE_CORE_VERSION = '0.1.0';
 
 export interface ConsoleConfig {
@@ -7,7 +9,7 @@ export interface ConsoleConfig {
 
 export function createDefaultConsoleConfig(): ConsoleConfig {
   return {
-    apiBaseUrl: 'http://localhost:3000',
+    apiBaseUrl: resolveBaseUrlWithAlignProtocol().url,
     tenantId: '',
   };
 }

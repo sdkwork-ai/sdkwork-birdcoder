@@ -11,7 +11,8 @@
     }
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-host-core": "workspace:*"
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*"
   },
   "scripts": {}
 }

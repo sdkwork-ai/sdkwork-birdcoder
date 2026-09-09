@@ -1,3 +1,5 @@
+import { resolveBaseUrlWithAlignProtocol } from '@sdkwork/sdk-common';
+
 export const H5_CORE_VERSION = '0.1.0';
 
 export interface H5CoreConfig {
@@ -8,7 +10,7 @@ export interface H5CoreConfig {
 
 export function createDefaultH5CoreConfig(): H5CoreConfig {
   return {
-    apiBaseUrl: 'http://localhost:3000',
+    apiBaseUrl: resolveBaseUrlWithAlignProtocol().url,
     appVersion: '0.1.0',
     environment: 'development',
   };

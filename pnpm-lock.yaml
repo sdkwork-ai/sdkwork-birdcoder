@@ -37,8 +37,8 @@ catalogs:
       specifier: ^1.2.4
       version: 1.2.4
     '@tailwindcss/vite':
-      specifier: ^4.1.14
-      version: 4.2.2
+      specifier: ^4.3.3
+      version: 4.3.3
     '@tauri-apps/api':
       specifier: ~2.11.0
       version: 2.11.1
@@ -46,13 +46,13 @@ catalogs:
       specifier: ~2.11.0
       version: 2.11.1
     '@testing-library/dom':
-      specifier: ^10.4.1
+      specifier: 10.4.1
       version: 10.4.1
     '@testing-library/jest-dom':
-      specifier: ^6.9.1
-      version: 6.9.1
+      specifier: ^7.0.1
+      version: 7.0.1
     '@testing-library/react':
-      specifier: ^16.3.2
+      specifier: 16.3.2
       version: 16.3.2
     '@types/node':
       specifier: ^25.9.2
@@ -70,8 +70,8 @@ catalogs:
       specifier: ^1.3.0
       version: 1.3.0
     '@vitejs/plugin-react':
-      specifier: ^6.0.1
-      version: 6.0.1
+      specifier: ^6.0.5
+      version: 6.1.1
     '@xterm/addon-canvas':
       specifier: ^0.7.0
       version: 0.7.0
@@ -139,10 +139,10 @@ catalogs:
       specifier: ^3.0.1
       version: 3.0.1
     i18next:
-      specifier: ^26.1.0
+      specifier: ^26.3.6
       version: 26.3.6
     inline-style-parser:
-      specifier: ^0.2.9
+      specifier: ^0.2.7
       version: 0.2.9
     is-alphabetical:
       specifier: ^2.0.1
@@ -160,14 +160,14 @@ catalogs:
       specifier: ^4.1.0
       version: 4.1.0
     jsdom:
-      specifier: ^29.1.1
+      specifier: 29.1.1
       version: 29.1.1
     jsonc-parser:
       specifier: ^3.3.1
       version: 3.3.1
     lucide-react:
-      specifier: ^1.7.0
-      version: 1.7.0
+      specifier: ^1.31.0
+      version: 1.42.0
     mdast-util-from-markdown:
       specifier: ^2.0.3
       version: 2.0.3
@@ -226,25 +226,25 @@ catalogs:
       specifier: ^1.5.4
       version: 1.5.4
     react:
-      specifier: ^19.2.4
-      version: 19.2.4
+      specifier: ^19.2.8
+      version: 19.2.8
     react-dom:
-      specifier: ^19.2.4
-      version: 19.2.4
+      specifier: ^19.2.8
+      version: 19.2.8
     react-hook-form:
-      specifier: ^7.72.1
-      version: 7.75.0
+      specifier: ^7.85.0
+      version: 7.87.0
     react-i18next:
-      specifier: ^17.0.7
+      specifier: ^17.0.11
       version: 17.0.11
     react-markdown:
       specifier: ^10.1.0
       version: 10.1.0
     react-router:
-      specifier: ^7.15.0
-      version: 7.18.0
+      specifier: ^7.18.2
+      version: 7.18.2
     react-router-dom:
-      specifier: ^7.15.0
+      specifier: ^7.18.2
       version: 7.18.2
     remark-parse:
       specifier: ^11.0.0
@@ -268,11 +268,11 @@ catalogs:
       specifier: ^1.0.14
       version: 1.0.14
     tailwind-merge:
-      specifier: ^3.5.0
-      version: 3.5.0
+      specifier: ^3.6.0
+      version: 3.6.0
     tailwindcss:
-      specifier: ^4.1.14
-      version: 4.2.2
+      specifier: ^4.3.3
+      version: 4.3.3
     trim-lines:
       specifier: ^3.0.1
       version: 3.0.1
@@ -280,10 +280,10 @@ catalogs:
       specifier: ^2.2.0
       version: 2.2.0
     tsx:
-      specifier: ^4.21.0
-      version: 4.21.0
+      specifier: ^4.23.12
+      version: 4.23.13
     typescript:
-      specifier: ~6.0.2
+      specifier: ^6.0.2
       version: 6.0.3
     unified:
       specifier: ^11.0.5
@@ -316,11 +316,11 @@ catalogs:
       specifier: ^8.0.3
       version: 8.0.16
     vite-plugin-dts:
-      specifier: ^4.5.4
-      version: 4.5.4
+      specifier: ^5.0.3
+      version: 5.0.3
     vitest:
-      specifier: ^4.1.8
-      version: 4.1.8
+      specifier: ^4.1.10
+      version: 4.1.11
     yaml:
       specifier: ^2.4.2
       version: 2.8.3
@@ -382,28 +382,28 @@ importers:
         version: 26.3.6(typescript@6.0.3)
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-hook-form:
         specifier: 'catalog:'
-        version: 7.75.0(react@19.2.4)
+        version: 7.87.0(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       react-router:
         specifier: 'catalog:'
-        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router-dom:
         specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       use-sync-external-store:
         specifier: 'catalog:'
-        version: 1.6.0(react@19.2.4)
+        version: 1.6.0(react@19.2.8)
       void-elements:
         specifier: ^3.1.0
         version: 3.1.0
@@ -419,10 +419,10 @@ importers:
         version: link:../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tailwindcss/typography':
         specifier: ^0.5.20
-        version: 0.5.20(tailwindcss@4.2.2)
+        version: 0.5.20(tailwindcss@4.3.3)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
@@ -437,13 +437,13 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
       autoprefixer:
         specifier: ^10.5.4
         version: 10.5.4(postcss@8.5.22)
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.2
+        version: 4.3.3
       terser:
         specifier: ^5.49.0
         version: 5.49.0
@@ -455,10 +455,10 @@ importers:
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
       vitepress:
         specifier: ^1.6.4
-        version: 1.6.4(@algolia/client-search@5.50.1)(@types/node@25.9.4)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(terser@5.49.0)(typescript@6.0.3)
+        version: 1.6.4(@algolia/client-search@5.50.1)(@types/node@25.9.4)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(terser@5.49.0)(typescript@6.0.3)
       vue:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.3)
@@ -474,7 +474,7 @@ importers:
     devDependencies:
       tsx:
         specifier: 'catalog:'
-        version: 4.21.0
+        version: 4.23.13
 
   ../sdkwork-app-topology: {}
 
@@ -498,11 +498,17 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
@@ -517,7 +523,14 @@ importers:
         version: 26.3.1(typescript@6.0.3)
       react-i18next:
         specifier: ^17.0.7
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
 
   ../sdkwork-appbase/sdks/sdkwork-base-data-backend-sdk/sdkwork-base-data-backend-sdk-typescript:
     dependencies:
@@ -536,7 +549,7 @@ importers:
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -548,22 +561,22 @@ importers:
         version: 29.1.1
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
-        version: 5.8.3
+        version: 6.0.3
       vite:
         specifier: 8.1.5
-        version: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
       vite-plugin-dts:
         specifier: 'catalog:'
-        version: 4.5.4(@types/node@25.9.4)(rollup@4.62.4)(typescript@5.8.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.0.3(@microsoft/api-extractor@7.58.9(@types/node@25.9.4))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.2
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
 
   ../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript:
     dependencies:
@@ -581,11 +594,11 @@ importers:
         specifier: ^4.0.0
         version: 4.60.1
       typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
+        specifier: ^5.0.0
+        version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript:
     dependencies:
@@ -609,17 +622,17 @@ importers:
         version: link:../sdkwork-drive-pc-sandbox-contracts
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
     devDependencies:
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.1
       '@testing-library/react':
         specifier: 'catalog:'
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -631,7 +644,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter:
     dependencies:
@@ -647,7 +660,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript:
     dependencies:
@@ -802,7 +815,7 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       typescript:
         specifier: ^6.0.2
@@ -840,7 +853,7 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 0.546.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
@@ -850,10 +863,10 @@ importers:
         version: link:../../../../../sdkwork-core/sdkwork-core-pc-react
       '@testing-library/jest-dom':
         specifier: 'catalog:'
-        version: 6.9.1
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       '@testing-library/react':
         specifier: 'catalog:'
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/qrcode':
         specifier: 'catalog:'
         version: 1.5.6
@@ -871,7 +884,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react:
     dependencies:
@@ -896,13 +909,19 @@ importers:
     devDependencies:
       '@testing-library/jest-dom':
         specifier: 'catalog:'
-        version: 6.9.1
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-iam-react:
     dependencies:
@@ -910,6 +929,12 @@ importers:
         specifier: workspace:*
         version: link:../../../sdkwork-iam-common/packages/sdkwork-iam-runtime
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
@@ -920,6 +945,12 @@ importers:
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
@@ -940,7 +971,7 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       '@sdkwork/core-pc-react':
         specifier: workspace:*
@@ -1047,37 +1078,13 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
-
-  ../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-shell:
-    dependencies:
-      '@sdkwork/membership-pc-core':
-        specifier: workspace:*
-        version: link:../sdkwork-membership-pc-core
-      '@sdkwork/membership-pc-membership':
-        specifier: workspace:*
-        version: link:../sdkwork-membership-pc-membership
-      '@sdkwork/membership-pc-subscription':
-        specifier: workspace:*
-        version: link:../sdkwork-membership-pc-subscription
-      '@sdkwork/membership-service':
-        specifier: workspace:*
-        version: link:../../../sdkwork-membership-common/packages/sdkwork-membership-service
-      '@sdkwork/ui-pc-react':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
-      react:
-        specifier: 'catalog:'
-        version: 19.2.4
-      react-router-dom:
-        specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
 
   ../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription:
     dependencies:
@@ -1104,10 +1111,10 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
@@ -1120,10 +1127,10 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1169,14 +1176,14 @@ importers:
         version: link:../sdkwork-models-pc-picker
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1185,13 +1192,13 @@ importers:
     dependencies:
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -1243,7 +1250,7 @@ importers:
     dependencies:
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
@@ -1262,10 +1269,10 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1280,7 +1287,7 @@ importers:
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
@@ -1296,10 +1303,10 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1356,20 +1363,20 @@ importers:
         version: link:../../../sdkwork-promotion-common/packages/sdkwork-promotion-service
       lucide-react:
         specifier: ^1.7.0
-        version: 1.7.0(react@19.2.4)
+        version: 1.7.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
     devDependencies:
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
       '@testing-library/jest-dom':
         specifier: 'catalog:'
-        version: 6.9.1
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -1419,19 +1426,19 @@ importers:
         version: 25.7.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.59.2
-        version: 8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3))(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
+        version: 8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/parser':
         specifier: ^8.59.2
-        version: 8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
+        version: 8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
       eslint:
         specifier: ^10.3.0
-        version: 10.5.0(jiti@2.6.1)
+        version: 10.5.0(jiti@2.7.0)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
         specifier: ^8.1.5
-        version: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   ../sdkwork-sdk-generator:
     dependencies:
@@ -1477,13 +1484,13 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.3.1
-        version: 7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
       vite-plugin-dts:
         specifier: ^5.0.3
-        version: 5.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.5
-        version: 4.1.8(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.8(@types/node@20.19.43)(jsdom@29.1.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
 
   ../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts:
     dependencies:
@@ -1912,7 +1919,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: 4.2.2
-        version: 4.2.2(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.2.2(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1
@@ -1930,7 +1937,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: 6.0.1
-        version: 6.0.1(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.0.1(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
@@ -1954,16 +1961,16 @@ importers:
         version: 6.0.2
       vite:
         specifier: 8.1.5
-        version: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
       vite-plugin-dts:
         specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.7.0)(rollup@4.62.4)(typescript@6.0.2)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.5.4(@types/node@25.7.0)(rollup@4.62.4)(typescript@6.0.2)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vitepress:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.50.1)(@types/node@25.7.0)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(terser@5.49.0)(typescript@6.0.2)
       vitest:
         specifier: ^4.1.2
-        version: 4.1.8(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.8(@types/node@25.7.0)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vue:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.2)
@@ -1999,19 +2006,19 @@ importers:
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-router-dom:
         specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.2
+        version: 4.3.3
     devDependencies:
       '@capacitor/cli':
         specifier: 'catalog:'
@@ -2027,7 +2034,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core: {}
 
@@ -2123,7 +2130,7 @@ importers:
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth
       react-router-dom:
         specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
   apps/sdkwork-birdcoder-mini-program:
     dependencies:
@@ -2203,14 +2210,14 @@ importers:
         version: link:../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.2
+        version: 4.3.3
     devDependencies:
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core:
     dependencies:
@@ -2251,7 +2258,7 @@ importers:
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -2351,7 +2358,7 @@ importers:
         version: 4.1.0
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       mdast-util-from-markdown:
         specifier: 'catalog:'
         version: 2.0.3
@@ -2411,7 +2418,7 @@ importers:
         version: 1.5.4
       react-markdown:
         specifier: 'catalog:'
-        version: 10.1.0(@types/react@19.2.14)(react@19.2.4)
+        version: 10.1.0(@types/react@19.2.14)(react@19.2.8)
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -2463,10 +2470,10 @@ importers:
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-console-core: {}
 
@@ -2476,10 +2483,10 @@ importers:
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core:
     dependencies:
@@ -2528,13 +2535,13 @@ importers:
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop:
     dependencies:
@@ -2564,16 +2571,16 @@ importers:
         version: 2.11.1
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-router:
         specifier: 'catalog:'
-        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router-dom:
         specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       scheduler:
         specifier: ^0.27.0
         version: 0.27.0
@@ -2586,7 +2593,7 @@ importers:
         version: 29.0.3(rollup@4.62.4)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       '@tauri-apps/cli':
         specifier: 'catalog:'
         version: 2.11.1
@@ -2595,16 +2602,16 @@ importers:
         version: 25.9.4
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.2
+        version: 4.3.3
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-distribution:
     dependencies:
@@ -2642,10 +2649,10 @@ importers:
         version: 26.3.6(typescript@6.0.3)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       use-sync-external-store:
         specifier: 'catalog:'
-        version: 1.6.0(react@19.2.4)
+        version: 1.6.0(react@19.2.8)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam:
     dependencies:
@@ -2728,7 +2735,7 @@ importers:
     devDependencies:
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure-runtime:
     dependencies:
@@ -2752,16 +2759,16 @@ importers:
         version: link:../sdkwork-birdcoder-pc-workbench
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -2801,14 +2808,14 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell:
     dependencies:
@@ -2868,23 +2875,23 @@ importers:
         version: 3.0.1
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       use-sync-external-store:
         specifier: 'catalog:'
-        version: 1.6.0(react@19.2.4)
+        version: 1.6.0(react@19.2.8)
     devDependencies:
       '@testing-library/react':
         specifier: 'catalog:'
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -2899,7 +2906,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime:
     dependencies:
@@ -2926,7 +2933,7 @@ importers:
         version: link:../sdkwork-birdcoder-pc-workbench-storage
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -3023,7 +3030,7 @@ importers:
         version: 4.1.0
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       mdast-util-from-markdown:
         specifier: 'catalog:'
         version: 2.0.3
@@ -3080,7 +3087,7 @@ importers:
         version: 7.1.0
       react-markdown:
         specifier: 'catalog:'
-        version: 10.1.0(@types/react@19.2.14)(react@19.2.4)
+        version: 10.1.0(@types/react@19.2.14)(react@19.2.8)
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -3132,10 +3139,10 @@ importers:
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui:
     dependencies:
@@ -3147,7 +3154,7 @@ importers:
         version: 1.7.0
       '@monaco-editor/react':
         specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.56.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.7.0(monaco-editor@0.56.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-contracts-commons
@@ -3249,7 +3256,7 @@ importers:
         version: 1.20.0
       lucide-react:
         specifier: ^1.7.0
-        version: 1.7.0(react@19.2.4)
+        version: 1.7.0(react@19.2.8)
       mdast-util-from-markdown:
         specifier: 'catalog:'
         version: 2.0.3
@@ -3315,10 +3322,10 @@ importers:
         version: 7.1.0
       react-markdown:
         specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.2.14)(react@19.2.4)
+        version: 10.1.0(@types/react@19.2.14)(react@19.2.8)
       react-syntax-highlighter:
         specifier: ^16.1.1
-        version: 16.1.1(react@19.2.4)
+        version: 16.1.1(react@19.2.8)
       refractor:
         specifier: ^5.0.0
         version: 5.0.0
@@ -3388,16 +3395,16 @@ importers:
         version: 25.9.4
       '@vitejs/plugin-react':
         specifier: ^5.2.0
-        version: 5.2.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.2.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell:
     dependencies:
       '@radix-ui/react-slot':
         specifier: 'catalog:'
-        version: 1.2.4(@types/react@19.2.14)(react@19.2.4)
+        version: 1.2.4(@types/react@19.2.14)(react@19.2.8)
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -3406,17 +3413,17 @@ importers:
         version: 2.1.1
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       tailwind-merge:
         specifier: 'catalog:'
-        version: 3.5.0
+        version: 3.6.0
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user:
     dependencies:
@@ -3458,10 +3465,10 @@ importers:
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -3498,38 +3505,38 @@ importers:
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
       react:
         specifier: 'catalog:'
-        version: 19.2.4
+        version: 19.2.8
       react-dom:
         specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.8(react@19.2.8)
       react-router:
         specifier: 'catalog:'
-        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router-dom:
         specifier: 'catalog:'
-        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.2
+        version: 4.3.3
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.4
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-work-resources:
     dependencies:
@@ -3538,10 +3545,10 @@ importers:
         version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -3590,7 +3597,7 @@ importers:
         version: 2.11.1
       lucide-react:
         specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
+        version: 1.42.0(react@19.2.8)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -3600,16 +3607,16 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state:
     dependencies:
@@ -5733,8 +5740,17 @@ packages:
   '@tailwindcss/node@4.2.2':
     resolution: {integrity: sha512-pXS+wJ2gZpVXqFaUEjojq7jzMpTGf8rU6ipJz5ovJV6PUGmlJ+jvIwGrzdHdQ80Sg+wmQxUFuoW1UAAwHNEdFA==}
 
+  '@tailwindcss/node@4.3.3':
+    resolution: {integrity: sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg==}
+
   '@tailwindcss/oxide-android-arm64@4.2.2':
     resolution: {integrity: sha512-dXGR1n+P3B6748jZO/SvHZq7qBOqqzQ+yFrXpoOWWALWndF9MoSKAT3Q0fYgAzYzGhxNYOoysRvYlpixRBBoDg==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [android]
+
+  '@tailwindcss/oxide-android-arm64@4.3.3':
+    resolution: {integrity: sha512-Y85A2gmPSkl5Ve5qR86GL4HT509cFqQh1aes9p3sSkyTPwt0Pppf3GkwGe4JPACcRYjgJIEhQgM6dBClnr0NYw==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [android]
@@ -5745,8 +5761,20 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@tailwindcss/oxide-darwin-arm64@4.3.3':
+    resolution: {integrity: sha512-BiaWatpBcERQFDlOjRDpIVXuFK5PJez5SA4JMg6VYZdBYU+qKfV/vqjcIs+IYmtitf1xYQZTwXvU/8y4lfZUGw==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [darwin]
+
   '@tailwindcss/oxide-darwin-x64@4.2.2':
     resolution: {integrity: sha512-BlR+2c3nzc8f2G639LpL89YY4bdcIdUmiOOkv2GQv4/4M0vJlpXEa0JXNHhCHU7VWOKWT/CjqHdTP8aUuDJkuw==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tailwindcss/oxide-darwin-x64@4.3.3':
+    resolution: {integrity: sha512-fAeUqfV5ndhxRwai8cXGzdLvul9utWOmeTkv69unv4ZXixjn61Z+p9lCWdwOwA3TYboG3BwdVuN/RDjhBRl0mw==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [darwin]
@@ -5757,14 +5785,33 @@ packages:
     cpu: [x64]
     os: [freebsd]
 
+  '@tailwindcss/oxide-freebsd-x64@4.3.3':
+    resolution: {integrity: sha512-iyf5bV6+wnAlflVeEy7R25dupxTNECZN5QMI0qNT6eT+EgaGdZcKhGkr5SdoaWiLJ3spLqIY9VCeSGrwmtg4kw==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [freebsd]
+
   '@tailwindcss/oxide-linux-arm-gnueabihf@4.2.2':
     resolution: {integrity: sha512-FPdhvsW6g06T9BWT0qTwiVZYE2WIFo2dY5aCSpjG/S/u1tby+wXoslXS0kl3/KXnULlLr1E3NPRRw0g7t2kgaQ==}
     engines: {node: '>= 20'}
     cpu: [arm]
     os: [linux]
 
+  '@tailwindcss/oxide-linux-arm-gnueabihf@4.3.3':
+    resolution: {integrity: sha512-aAYUprJAJQWWbRrPvtjdroZ56Md+JM8pMiopS6xGEwDfLhqj+2ver2p4nU4Mb3CRqcMmNBjo8KkUgcxhkzVQGQ==}
+    engines: {node: '>= 20'}
+    cpu: [arm]
+    os: [linux]
+
   '@tailwindcss/oxide-linux-arm64-gnu@4.2.2':
     resolution: {integrity: sha512-4og1V+ftEPXGttOO7eCmW7VICmzzJWgMx+QXAJRAhjrSjumCwWqMfkDrNu1LXEQzNAwz28NCUpucgQPrR4S2yw==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tailwindcss/oxide-linux-arm64-gnu@4.3.3':
+    resolution: {integrity: sha512-nDxldcEENOxZRzC2uu9jrutZdAAQtb+8WWDCSnWL1zvBk1+FN+x6MtDViPB5AJMfttVCUhehGWus3XBPgatM/w==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
@@ -5777,6 +5824,13 @@ packages:
     os: [linux]
     libc: [musl]
 
+  '@tailwindcss/oxide-linux-arm64-musl@4.3.3':
+    resolution: {integrity: sha512-Md44bD6veX/PC5iyF8cDVnw4HBIANZepRZZ7a8DQOvkfo5WUBwcp6iAuCUz23u+4SUkhJlD3eL7hNdW8ezd/kA==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
   '@tailwindcss/oxide-linux-x64-gnu@4.2.2':
     resolution: {integrity: sha512-rTAGAkDgqbXHNp/xW0iugLVmX62wOp2PoE39BTCGKjv3Iocf6AFbRP/wZT/kuCxC9QBh9Pu8XPkv/zCZB2mcMg==}
     engines: {node: '>= 20'}
@@ -5784,8 +5838,22 @@ packages:
     os: [linux]
     libc: [glibc]
 
+  '@tailwindcss/oxide-linux-x64-gnu@4.3.3':
+    resolution: {integrity: sha512-tx7us1muwOKAKWao2v/GaafFeQboE6aj88vC6ziN2NCGcRm8gWUhwjzg+YdVB1e4boAtdtma4L43onunI6NS4w==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
   '@tailwindcss/oxide-linux-x64-musl@4.2.2':
     resolution: {integrity: sha512-XW3t3qwbIwiSyRCggeO2zxe3KWaEbM0/kW9e8+0XpBgyKU4ATYzcVSMKteZJ1iukJ3HgHBjbg9P5YPRCVUxlnQ==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@tailwindcss/oxide-linux-x64-musl@4.3.3':
+    resolution: {integrity: sha512-SJxX60smvHgasZoBy11dX6YRjXJFovwWBoedhbQPOBzgFWBHGB+TVPWB9BxzR7TTxU8FQZAI2AyiNCMzFm8Img==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
@@ -5803,8 +5871,26 @@ packages:
       - '@emnapi/wasi-threads'
       - tslib
 
+  '@tailwindcss/oxide-wasm32-wasi@4.3.3':
+    resolution: {integrity: sha512-jx1+rPhY/5Ympkktd656HBWEBLxP7dH06losBLjjf5vgCODXvi9KhtftWcMIwTFIDqBr7cRnQkdLnAG+IOlGvQ==}
+    engines: {node: '>=14.0.0'}
+    cpu: [wasm32]
+    bundledDependencies:
+      - '@napi-rs/wasm-runtime'
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@tybys/wasm-util'
+      - '@emnapi/wasi-threads'
+      - tslib
+
   '@tailwindcss/oxide-win32-arm64-msvc@4.2.2':
     resolution: {integrity: sha512-qPmaQM4iKu5mxpsrWZMOZRgZv1tOZpUm+zdhhQP0VhJfyGGO3aUKdbh3gDZc/dPLQwW4eSqWGrrcWNBZWUWaXQ==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@tailwindcss/oxide-win32-arm64-msvc@4.3.3':
+    resolution: {integrity: sha512-3rc292Ca2ceK6Ulcc/bAVnTs/3nDtoPhyEKlgPv+yQJQi/JS/AMJlqzxvlDacL1nekbrcf6bTqp/jV4qgnPxNQ==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [win32]
@@ -5815,8 +5901,18 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@tailwindcss/oxide-win32-x64-msvc@4.3.3':
+    resolution: {integrity: sha512-yJ0pwIVc/nYeGoV02WtsN8KYyLQv7kyI2wDnkezyJlGGjkd4QLwDGAwl47YpPJeuI0M0ObaXGSPjvWDPeTPggw==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [win32]
+
   '@tailwindcss/oxide@4.2.2':
     resolution: {integrity: sha512-qEUA07+E5kehxYp9BVMpq9E8vnJuBHfJEC0vPC5e7iL/hw7HR61aDKoVoKzrG+QKp56vhNZe4qwkRmMC0zDLvg==}
+    engines: {node: '>= 20'}
+
+  '@tailwindcss/oxide@4.3.3':
+    resolution: {integrity: sha512-krXjAikiaFSPaK/FkAQT5UTx3VormQaiZ5hBFlJZ9UFQGB/rwg1MZIhHAG9smMQRTdyJxP6Qt5MwMtdyU5FWrA==}
     engines: {node: '>= 20'}
 
   '@tailwindcss/typography@0.5.20':
@@ -5826,6 +5922,11 @@ packages:
 
   '@tailwindcss/vite@4.2.2':
     resolution: {integrity: sha512-mEiF5HO1QqCLXoNEfXVA1Tzo+cYsrqV7w9Juj2wdUFyW07JRenqMG225MvPwr3ZD9N1bFQj46X7r33iHxLUW0w==}
+    peerDependencies:
+      vite: ^5.2.0 || ^6 || ^7 || ^8
+
+  '@tailwindcss/vite@4.3.3':
+    resolution: {integrity: sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw==}
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
@@ -6002,6 +6103,16 @@ packages:
   '@testing-library/jest-dom@6.9.1':
     resolution: {integrity: sha512-zIcONa+hVtVSSep9UT3jZ5rizo2BsxgyDYU7WFD5eICBE7no3881HGeb/QkGfsJs6JTkY1aQhT7rIPC7e+0nnA==}
     engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
+
+  '@testing-library/jest-dom@7.0.1':
+    resolution: {integrity: sha512-oMDTC3oA+6CXSO2JZnvOI7CA6oVub6kij5ggk9ohwye5slmkwxYDXcPOVxgMw/RQlticjtO0C1RZkR97HgrWMw==}
+    engines: {node: '>=22', npm: '>=6', yarn: '>=1'}
+    peerDependencies:
+      '@testing-library/dom': '>=10 <11'
+      vitest: '>= 0.32'
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@testing-library/react@16.3.2':
     resolution: {integrity: sha512-XU5/SytQM+ykqMnAnvB2umaJNIOsLF3PVv//1Ew4CTcpz0/BRyy/af40qqrt7SjKpDdT1saBMc42CUok5gaw+g==}
@@ -6371,6 +6482,22 @@ packages:
       babel-plugin-react-compiler:
         optional: true
 
+  '@vitejs/plugin-react@6.1.1':
+    resolution: {integrity: sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0
+      babel-plugin-react-compiler: ^1.0.0
+      oxc-transform-react: ^0.145.0
+      vite: ^8.0.0
+    peerDependenciesMeta:
+      '@rolldown/plugin-babel':
+        optional: true
+      babel-plugin-react-compiler:
+        optional: true
+      oxc-transform-react:
+        optional: true
+
   '@vitejs/plugin-vue@5.2.4':
     resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -6378,8 +6505,22 @@ packages:
       vite: ^5.0.0 || ^6.0.0
       vue: ^3.2.25
 
+  '@vitest/expect@4.1.11':
+    resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
+
   '@vitest/expect@4.1.8':
     resolution: {integrity: sha512-h3nDO677RDLEGlBxyQ5CW8RlMThSKSRLUePLOx09gNIWRL40edgA1GCZSZgf1W55MFAG6/Sw14KeaAnqv0NKdQ==}
+
+  '@vitest/mocker@4.1.11':
+    resolution: {integrity: sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==}
+    peerDependencies:
+      msw: ^2.4.9
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      msw:
+        optional: true
+      vite:
+        optional: true
 
   '@vitest/mocker@4.1.8':
     resolution: {integrity: sha512-LEiN/xe4OSIbKe9HQIp5OC24agGD9J5CnmMgsLohVVoOPWL9a2sBoR6VBx43jQZb7Kr1l4RCuyCJzcAa0+dojw==}
@@ -6392,17 +6533,32 @@ packages:
       vite:
         optional: true
 
+  '@vitest/pretty-format@4.1.11':
+    resolution: {integrity: sha512-yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw==}
+
   '@vitest/pretty-format@4.1.8':
     resolution: {integrity: sha512-9GasEBxpZ1VYIpqHf/0+YGg121uSNwCKOJqIrTwWP/TB7DmFCiaBpNl3aPZzoLWfWkuqhbH8vJIVobZkvdo2cA==}
+
+  '@vitest/runner@4.1.11':
+    resolution: {integrity: sha512-LztvUgdwMNJMIkj3hQnnxiC2Xy1zNxq928W/xhjCLaNCzqTZOudjwbQf6v9IntZGPw132i2Lq2rgTRZHD3JHNw==}
 
   '@vitest/runner@4.1.8':
     resolution: {integrity: sha512-EmVxeBAfMJvycdjd6Hm+RbFBbA9fKvo0Kx37hNpBYoYeavH3RNsBXWDooR1mgD52dCrxIIuP7UotpfiwOikvcg==}
 
+  '@vitest/snapshot@4.1.11':
+    resolution: {integrity: sha512-pN7ikn1ON7h8ee4gIAp4AzyK+zBtJPzVbqOgu5LCEh4VaJVbPQcgYQYJIMGQPXVeJJq1fnfazis7a5pFNPahog==}
+
   '@vitest/snapshot@4.1.8':
     resolution: {integrity: sha512-acfZboRmAIf05DEKcBQy33VXojFJjtUdLyo7oOmV9kebb2xdU01UknNiPuPZoJZQyO7DF0gZdTGTpeAzET9QPQ==}
 
+  '@vitest/spy@4.1.11':
+    resolution: {integrity: sha512-apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA==}
+
   '@vitest/spy@4.1.8':
     resolution: {integrity: sha512-6EevtBp6OZOPF7bmz36HrGMeP3txgVSrgebWxHOafDXGkhIzfXK14f8KF6MuFfgXXUeHxmpD3BQxkV00/3s5mA==}
+
+  '@vitest/utils@4.1.11':
+    resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
 
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
@@ -7076,6 +7232,10 @@ packages:
     resolution: {integrity: sha512-Qohcme7V1inbAfvjItgw0EaxVX5q2rdVEZHRBrEQdRZTssLDGsL8Lwrznl8oQ/6kuTJONLaDcGjkNP247XEhcA==}
     engines: {node: '>=10.13.0'}
 
+  enhanced-resolve@5.24.5:
+    resolution: {integrity: sha512-L1l8TNvomm6UVW5B253AGxQagSQr+vGwhMlrrfRS2qmhx46AMpMVJKQYLvWYbysTMY8VoicOvzHzoHMbyzB+4A==}
+    engines: {node: '>=10.13.0'}
+
   entities@7.0.1:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
     engines: {node: '>=0.12'}
@@ -7473,6 +7633,10 @@ packages:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
+  jiti@2.7.0:
+    resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
+    hasBin: true
+
   jju@1.4.0:
     resolution: {integrity: sha512-8wb9Yw966OSxApiCt0K3yNJL8pnNeIv+OEq2YMidz4FKP6nonSRoOXc80iXY4JaN2FC11B9qsNmDsm+ZOfMROA==}
 
@@ -7670,6 +7834,11 @@ packages:
 
   lucide-react@0.546.0:
     resolution: {integrity: sha512-Z94u6fKT43lKeYHiVyvyR8fT7pwCzDu7RyMPpTvh054+xahSgj4HFQ+NmflvzdXsoAjYGdCguGaFKYuvq0ThCQ==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lucide-react@1.42.0:
+    resolution: {integrity: sha512-b3jprplnoLS8n5etw1z8xODe3hF/yjKATrTitsrKrnjUhCef5BdDct6Ppv3zVvzFwmtfWgLO6XNM3C9fAD93ug==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -8121,8 +8290,19 @@ packages:
     peerDependencies:
       react: ^19.2.4
 
+  react-dom@19.2.8:
+    resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
+    peerDependencies:
+      react: ^19.2.8
+
   react-hook-form@7.75.0:
     resolution: {integrity: sha512-Ovv94H+0p3sJ7B9B5QxPuCP1u8V/cHuVGyH55cSwodYDtoJwK+fqk3vjfIgSX59I2U/bU4z0nRJ9HMLpNiWEmw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      react: ^16.8.0 || ^17 || ^18 || ^19
+
+  react-hook-form@7.87.0:
+    resolution: {integrity: sha512-zhFzWvLxNHH+8839OnZcUxgMZw88ah2jZWDWvKWgF3Tpbnd0vKL+dlcuU3nZVWESZQjd81EW8K+wU+cYfYAc0w==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -8258,6 +8438,10 @@ packages:
 
   react@19.2.4:
     resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+    engines: {node: '>=0.10.0'}
+
+  react@19.2.8:
+    resolution: {integrity: sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==}
     engines: {node: '>=0.10.0'}
 
   readable-stream@3.6.2:
@@ -8515,11 +8699,21 @@ packages:
   tailwind-merge@3.5.0:
     resolution: {integrity: sha512-I8K9wewnVDkL1NTGoqWmVEIlUcB9gFriAEkXkfCjX5ib8ezGxtR3xD7iZIxrfArjEsH7F1CHD4RFUtxefdqV/A==}
 
+  tailwind-merge@3.6.0:
+    resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
+
   tailwindcss@4.2.2:
     resolution: {integrity: sha512-KWBIxs1Xb6NoLdMVqhbhgwZf2PGBpPEiwOqgI4pFIYbNTfBXiKYyWoTsXgBQ9WFg/OlhnvHaY+AEpW7wSmFo2Q==}
 
+  tailwindcss@4.3.3:
+    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
+
   tapable@2.3.2:
     resolution: {integrity: sha512-1MOpMXuhGzGL5TTCZFItxCc0AARf1EZFQkGqMm7ERKj8+Hgr5oLvJOVFcC+lRmR8hCe2S3jC4T5D7Vg/d7/fhA==}
+    engines: {node: '>=6'}
+
+  tapable@2.3.3:
+    resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
   tar@6.2.1:
@@ -8594,6 +8788,11 @@ packages:
 
   tsx@4.21.0:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
+  tsx@4.23.13:
+    resolution: {integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -8943,6 +9142,46 @@ packages:
       postcss:
         optional: true
 
+  vitest@4.1.11:
+    resolution: {integrity: sha512-fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw==}
+    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@opentelemetry/api': ^1.9.0
+      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 4.1.11
+      '@vitest/browser-preview': 4.1.11
+      '@vitest/browser-webdriverio': 4.1.11
+      '@vitest/coverage-istanbul': 4.1.11
+      '@vitest/coverage-v8': 4.1.11
+      '@vitest/ui': 4.1.11
+      happy-dom: '*'
+      jsdom: '*'
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@types/node':
+        optional: true
+      '@vitest/browser-playwright':
+        optional: true
+      '@vitest/browser-preview':
+        optional: true
+      '@vitest/browser-webdriverio':
+        optional: true
+      '@vitest/coverage-istanbul':
+        optional: true
+      '@vitest/coverage-v8':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+
   vitest@4.1.8:
     resolution: {integrity: sha512-flY6ScbCIt9HThs+C5HS7jvGOB560DJtk/Z15IQROTA6zEy49Nh8T/dofWTQL+n3vswqn87sbJNiuqw1SDp5Ig==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -8959,6 +9198,7 @@ packages:
       '@vitest/ui': 4.1.8
       happy-dom: '*'
       jsdom: '*'
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -9469,6 +9709,17 @@ snapshots:
       - react-dom
       - search-insights
 
+  '@docsearch/js@3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@docsearch/react': 3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      preact: 10.29.1
+    transitivePeerDependencies:
+      - '@algolia/client-search'
+      - '@types/react'
+      - react
+      - react-dom
+      - search-insights
+
   '@docsearch/react@3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@algolia/autocomplete-core': 1.17.7(@algolia/client-search@5.50.1)(algoliasearch@5.50.1)
@@ -9479,6 +9730,19 @@ snapshots:
       '@types/react': 19.2.14
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+    transitivePeerDependencies:
+      - '@algolia/client-search'
+
+  '@docsearch/react@3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@algolia/autocomplete-core': 1.17.7(@algolia/client-search@5.50.1)(algoliasearch@5.50.1)
+      '@algolia/autocomplete-preset-algolia': 1.17.7(@algolia/client-search@5.50.1)(algoliasearch@5.50.1)
+      '@docsearch/css': 3.8.2
+      algoliasearch: 5.50.1
+    optionalDependencies:
+      '@types/react': 19.2.14
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
     transitivePeerDependencies:
       - '@algolia/client-search'
 
@@ -9739,9 +10003,9 @@ snapshots:
   '@esbuild/win32-x64@0.28.1':
     optional: true
 
-  '@eslint-community/eslint-utils@4.9.1(eslint@10.5.0(jiti@2.6.1))':
+  '@eslint-community/eslint-utils@4.9.1(eslint@10.5.0(jiti@2.7.0))':
     dependencies:
-      eslint: 10.5.0(jiti@2.6.1)
+      eslint: 10.5.0(jiti@2.7.0)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
@@ -9969,6 +10233,7 @@ snapshots:
       '@rushstack/node-core-library': 5.23.1(@types/node@25.9.4)
     transitivePeerDependencies:
       - '@types/node'
+    optional: true
 
   '@microsoft/api-extractor@7.58.9(@types/node@20.19.43)':
     dependencies:
@@ -10024,6 +10289,7 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - '@types/node'
+    optional: true
 
   '@microsoft/tsdoc-config@0.18.1':
     dependencies:
@@ -10038,12 +10304,12 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@monaco-editor/react@4.7.0(monaco-editor@0.56.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@monaco-editor/react@4.7.0(monaco-editor@0.56.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@monaco-editor/loader': 1.7.0
       monaco-editor: 0.56.0
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -10154,6 +10420,12 @@ snapshots:
   '@radix-ui/react-compose-refs@1.1.2(@types/react@19.2.14)(react@19.2.4)':
     dependencies:
       react: 19.2.4
+    optionalDependencies:
+      '@types/react': 19.2.14
+
+  '@radix-ui/react-compose-refs@1.1.2(@types/react@19.2.14)(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -10515,6 +10787,13 @@ snapshots:
     dependencies:
       '@radix-ui/react-compose-refs': 1.1.2(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
+    optionalDependencies:
+      '@types/react': 19.2.14
+
+  '@radix-ui/react-slot@1.2.4(@types/react@19.2.14)(react@19.2.8)':
+    dependencies:
+      '@radix-ui/react-compose-refs': 1.1.2(@types/react@19.2.14)(react@19.2.8)
+      react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -10962,6 +11241,7 @@ snapshots:
       semver: 7.7.4
     optionalDependencies:
       '@types/node': 25.9.4
+    optional: true
 
   '@rushstack/problem-matcher@0.2.1(@types/node@20.19.43)':
     optionalDependencies:
@@ -10975,6 +11255,7 @@ snapshots:
   '@rushstack/problem-matcher@0.2.1(@types/node@25.9.4)':
     optionalDependencies:
       '@types/node': 25.9.4
+    optional: true
 
   '@rushstack/rig-package@0.7.3':
     dependencies:
@@ -11005,6 +11286,7 @@ snapshots:
       supports-color: 8.1.1
     optionalDependencies:
       '@types/node': 25.9.4
+    optional: true
 
   '@rushstack/ts-command-line@5.3.10(@types/node@20.19.43)':
     dependencies:
@@ -11033,6 +11315,7 @@ snapshots:
       string-argv: 0.3.2
     transitivePeerDependencies:
       - '@types/node'
+    optional: true
 
   '@shikijs/core@2.5.0':
     dependencies:
@@ -11088,40 +11371,86 @@ snapshots:
       source-map-js: 1.2.1
       tailwindcss: 4.2.2
 
+  '@tailwindcss/node@4.3.3':
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      enhanced-resolve: 5.24.5
+      jiti: 2.7.0
+      lightningcss: 1.32.0
+      magic-string: 0.30.21
+      source-map-js: 1.2.1
+      tailwindcss: 4.3.3
+
   '@tailwindcss/oxide-android-arm64@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-android-arm64@4.3.3':
     optional: true
 
   '@tailwindcss/oxide-darwin-arm64@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-darwin-arm64@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-darwin-x64@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-darwin-x64@4.3.3':
     optional: true
 
   '@tailwindcss/oxide-freebsd-x64@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-freebsd-x64@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-linux-arm-gnueabihf@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-linux-arm-gnueabihf@4.3.3':
     optional: true
 
   '@tailwindcss/oxide-linux-arm64-gnu@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-linux-arm64-gnu@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-linux-arm64-musl@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-linux-arm64-musl@4.3.3':
     optional: true
 
   '@tailwindcss/oxide-linux-x64-gnu@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-linux-x64-gnu@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-linux-x64-musl@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-linux-x64-musl@4.3.3':
     optional: true
 
   '@tailwindcss/oxide-wasm32-wasi@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-wasm32-wasi@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-win32-arm64-msvc@4.2.2':
     optional: true
 
+  '@tailwindcss/oxide-win32-arm64-msvc@4.3.3':
+    optional: true
+
   '@tailwindcss/oxide-win32-x64-msvc@4.2.2':
+    optional: true
+
+  '@tailwindcss/oxide-win32-x64-msvc@4.3.3':
     optional: true
 
   '@tailwindcss/oxide@4.2.2':
@@ -11139,24 +11468,46 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.2.2
       '@tailwindcss/oxide-win32-x64-msvc': 4.2.2
 
-  '@tailwindcss/typography@0.5.20(tailwindcss@4.2.2)':
+  '@tailwindcss/oxide@4.3.3':
+    optionalDependencies:
+      '@tailwindcss/oxide-android-arm64': 4.3.3
+      '@tailwindcss/oxide-darwin-arm64': 4.3.3
+      '@tailwindcss/oxide-darwin-x64': 4.3.3
+      '@tailwindcss/oxide-freebsd-x64': 4.3.3
+      '@tailwindcss/oxide-linux-arm-gnueabihf': 4.3.3
+      '@tailwindcss/oxide-linux-arm64-gnu': 4.3.3
+      '@tailwindcss/oxide-linux-arm64-musl': 4.3.3
+      '@tailwindcss/oxide-linux-x64-gnu': 4.3.3
+      '@tailwindcss/oxide-linux-x64-musl': 4.3.3
+      '@tailwindcss/oxide-wasm32-wasi': 4.3.3
+      '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
+      '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
+
+  '@tailwindcss/typography@0.5.20(tailwindcss@4.3.3)':
     dependencies:
       postcss-selector-parser: 6.0.10
-      tailwindcss: 4.2.2
+      tailwindcss: 4.3.3
 
-  '@tailwindcss/vite@4.2.2(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@tailwindcss/vite@4.2.2(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
       '@tailwindcss/node': 4.2.2
       '@tailwindcss/oxide': 4.2.2
       tailwindcss: 4.2.2
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
-  '@tailwindcss/vite@4.2.2(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@tailwindcss/vite@4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
-      '@tailwindcss/node': 4.2.2
-      '@tailwindcss/oxide': 4.2.2
-      tailwindcss: 4.2.2
-      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      '@tailwindcss/node': 4.3.3
+      '@tailwindcss/oxide': 4.3.3
+      tailwindcss: 4.3.3
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  '@tailwindcss/vite@4.3.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
+    dependencies:
+      '@tailwindcss/node': 4.3.3
+      '@tailwindcss/oxide': 4.3.3
+      tailwindcss: 4.3.3
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   '@tanstack/react-table@8.21.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
@@ -11282,12 +11633,34 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
+  '@testing-library/jest-dom@7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
+    dependencies:
+      '@adobe/css-tools': 4.5.0
+      '@testing-library/dom': 10.4.1
+      aria-query: 5.3.2
+      css.escape: 1.5.1
+      dom-accessibility-api: 0.6.3
+      picocolors: 1.1.1
+      redent: 3.0.0
+    optionalDependencies:
+      vitest: 4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+
   '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@babel/runtime': 7.29.2
       '@testing-library/dom': 10.4.1
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+    optionalDependencies:
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+
+  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@babel/runtime': 7.29.2
+      '@testing-library/dom': 10.4.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
       '@types/react': 19.2.14
       '@types/react-dom': 19.2.3(@types/react@19.2.14)
@@ -11605,15 +11978,15 @@ snapshots:
 
   '@types/web-bluetooth@0.0.21': {}
 
-  '@typescript-eslint/eslint-plugin@8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3))(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/scope-manager': 8.61.0
-      '@typescript-eslint/type-utils': 8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
+      '@typescript-eslint/type-utils': 8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.61.0
-      eslint: 10.5.0(jiti@2.6.1)
+      eslint: 10.5.0(jiti@2.7.0)
       ignore: 7.0.5
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@6.0.3)
@@ -11621,14 +11994,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)':
+  '@typescript-eslint/parser@8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.61.0
       '@typescript-eslint/types': 8.61.0
       '@typescript-eslint/typescript-estree': 8.61.0(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.61.0
       debug: 4.4.3
-      eslint: 10.5.0(jiti@2.6.1)
+      eslint: 10.5.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -11651,13 +12024,13 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@typescript-eslint/type-utils@8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)':
+  '@typescript-eslint/type-utils@8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/types': 8.61.0
       '@typescript-eslint/typescript-estree': 8.61.0(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
       debug: 4.4.3
-      eslint: 10.5.0(jiti@2.6.1)
+      eslint: 10.5.0(jiti@2.7.0)
       ts-api-utils: 2.5.0(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -11680,13 +12053,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.61.0(eslint@10.5.0(jiti@2.6.1))(typescript@6.0.3)':
+  '@typescript-eslint/utils@8.61.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.5.0(jiti@2.6.1))
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.5.0(jiti@2.7.0))
       '@typescript-eslint/scope-manager': 8.61.0
       '@typescript-eslint/types': 8.61.0
       '@typescript-eslint/typescript-estree': 8.61.0(typescript@6.0.3)
-      eslint: 10.5.0(jiti@2.6.1)
+      eslint: 10.5.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -11715,7 +12088,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@5.2.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitejs/plugin-react@5.2.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -11723,19 +12096,24 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitejs/plugin-react@6.0.1(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.7
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
-  '@vitejs/plugin-react@6.0.1(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitejs/plugin-react@6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
-      '@rolldown/pluginutils': 1.0.0-rc.7
-      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  '@vitejs/plugin-react@6.1.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
   '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@25.7.0)(lightningcss@1.32.0)(terser@5.49.0))(vue@3.5.32(typescript@6.0.2))':
     dependencies:
@@ -11747,6 +12125,15 @@ snapshots:
       vite: 5.4.21(@types/node@25.9.4)(lightningcss@1.32.0)(terser@5.49.0)
       vue: 3.5.32(typescript@6.0.3)
 
+  '@vitest/expect@4.1.11':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
+      chai: 6.2.2
+      tinyrainbow: 3.1.0
+
   '@vitest/expect@4.1.8':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -11756,37 +12143,61 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.8(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.11(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
-      '@vitest/spy': 4.1.8
+      '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.5(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
-  '@vitest/mocker@4.1.8(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
 
-  '@vitest/mocker@4.1.8(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+
+  '@vitest/mocker@4.1.8(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))':
+    dependencies:
+      '@vitest/spy': 4.1.8
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+
+  '@vitest/pretty-format@4.1.11':
+    dependencies:
+      tinyrainbow: 3.1.0
 
   '@vitest/pretty-format@4.1.8':
     dependencies:
       tinyrainbow: 3.1.0
 
+  '@vitest/runner@4.1.11':
+    dependencies:
+      '@vitest/utils': 4.1.11
+      pathe: 2.0.3
+
   '@vitest/runner@4.1.8':
     dependencies:
       '@vitest/utils': 4.1.8
+      pathe: 2.0.3
+
+  '@vitest/snapshot@4.1.11':
+    dependencies:
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/utils': 4.1.11
+      magic-string: 0.30.21
       pathe: 2.0.3
 
   '@vitest/snapshot@4.1.8':
@@ -11796,7 +12207,15 @@ snapshots:
       magic-string: 0.30.21
       pathe: 2.0.3
 
+  '@vitest/spy@4.1.11': {}
+
   '@vitest/spy@4.1.8': {}
+
+  '@vitest/utils@4.1.11':
+    dependencies:
+      '@vitest/pretty-format': 4.1.11
+      convert-source-map: 2.0.0
+      tinyrainbow: 3.1.0
 
   '@vitest/utils@4.1.8':
     dependencies:
@@ -11868,19 +12287,6 @@ snapshots:
   '@vue/devtools-shared@7.7.9':
     dependencies:
       rfdc: 1.4.1
-
-  '@vue/language-core@2.2.0(typescript@5.8.3)':
-    dependencies:
-      '@volar/language-core': 2.4.28
-      '@vue/compiler-dom': 3.5.32
-      '@vue/compiler-vue2': 2.7.16
-      '@vue/shared': 3.5.32
-      alien-signals: 0.4.14
-      minimatch: 9.0.9
-      muggle-string: 0.4.1
-      path-browserify: 1.0.1
-    optionalDependencies:
-      typescript: 5.8.3
 
   '@vue/language-core@2.2.0(typescript@6.0.2)':
     dependencies:
@@ -12514,6 +12920,11 @@ snapshots:
       graceful-fs: 4.2.11
       tapable: 2.3.2
 
+  enhanced-resolve@5.24.5:
+    dependencies:
+      graceful-fs: 4.2.11
+      tapable: 2.3.3
+
   entities@7.0.1: {}
 
   entities@8.0.0: {}
@@ -12627,9 +13038,9 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.5.0(jiti@2.6.1):
+  eslint@10.5.0(jiti@2.7.0):
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.5.0(jiti@2.6.1))
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.5.0(jiti@2.7.0))
       '@eslint-community/regexpp': 4.12.2
       '@eslint/config-array': 0.23.5
       '@eslint/config-helpers': 0.6.0
@@ -12660,7 +13071,7 @@ snapshots:
       natural-compare: 1.4.0
       optionator: 0.9.4
     optionalDependencies:
-      jiti: 2.6.1
+      jiti: 2.7.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12956,6 +13367,8 @@ snapshots:
 
   jiti@2.6.1: {}
 
+  jiti@2.7.0: {}
+
   jju@1.4.0: {}
 
   js-tokens@4.0.0: {}
@@ -13127,13 +13540,17 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  lucide-react@0.546.0(react@19.2.4):
+  lucide-react@1.42.0(react@19.2.8):
     dependencies:
-      react: 19.2.4
+      react: 19.2.8
 
   lucide-react@1.7.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  lucide-react@1.7.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   lz-string@1.5.0: {}
 
@@ -13798,35 +14215,44 @@ snapshots:
       react: 19.2.4
       scheduler: 0.27.0
 
+  react-dom@19.2.8(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+      scheduler: 0.27.0
+
   react-hook-form@7.75.0(react@19.2.4):
     dependencies:
       react: 19.2.4
 
-  react-i18next@17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3):
+  react-hook-form@7.87.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
+  react-i18next@17.0.11(i18next@26.3.6(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3):
     dependencies:
       '@babel/runtime': 7.29.2
       html-parse-stringify: 4.0.1
       i18next: 26.3.6(typescript@6.0.3)
-      react: 19.2.4
-      use-sync-external-store: 1.6.0(react@19.2.4)
+      react: 19.2.8
+      use-sync-external-store: 1.6.0(react@19.2.8)
     optionalDependencies:
-      react-dom: 19.2.4(react@19.2.4)
+      react-dom: 19.2.8(react@19.2.8)
       typescript: 6.0.3
 
-  react-i18next@17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3):
+  react-i18next@17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3):
     dependencies:
       '@babel/runtime': 7.29.2
       html-parse-stringify: 3.0.1
       i18next: 26.3.1(typescript@6.0.3)
-      react: 19.2.4
-      use-sync-external-store: 1.6.0(react@19.2.4)
+      react: 19.2.8
+      use-sync-external-store: 1.6.0(react@19.2.8)
     optionalDependencies:
-      react-dom: 19.2.4(react@19.2.4)
+      react-dom: 19.2.8(react@19.2.8)
       typescript: 6.0.3
 
   react-is@17.0.2: {}
 
-  react-markdown@10.1.0(@types/react@19.2.14)(react@19.2.4):
+  react-markdown@10.1.0(@types/react@19.2.14)(react@19.2.8):
     dependencies:
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
@@ -13835,7 +14261,7 @@ snapshots:
       hast-util-to-jsx-runtime: 2.3.6
       html-url-attributes: 3.0.1
       mdast-util-to-hast: 13.2.1
-      react: 19.2.4
+      react: 19.2.8
       remark-parse: 11.0.0
       remark-rehype: 11.1.2
       unified: 11.0.5
@@ -13878,11 +14304,11 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       react-router: 7.18.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
-  react-router-dom@7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  react-router-dom@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      react-router: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      react-router: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
   react-router@7.18.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -13892,21 +14318,13 @@ snapshots:
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
 
-  react-router@7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       cookie: 1.1.1
-      react: 19.2.4
+      react: 19.2.8
       set-cookie-parser: 2.7.2
     optionalDependencies:
-      react-dom: 19.2.4(react@19.2.4)
-
-  react-router@7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
-      cookie: 1.1.1
-      react: 19.2.4
-      set-cookie-parser: 2.7.2
-    optionalDependencies:
-      react-dom: 19.2.4(react@19.2.4)
+      react-dom: 19.2.8(react@19.2.8)
 
   react-style-singleton@2.2.3(@types/react@19.2.14)(react@19.2.4):
     dependencies:
@@ -13916,14 +14334,14 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  react-syntax-highlighter@16.1.1(react@19.2.4):
+  react-syntax-highlighter@16.1.1(react@19.2.8):
     dependencies:
       '@babel/runtime': 7.29.2
       highlight.js: 10.7.3
       highlightjs-vue: 1.0.0
       lowlight: 1.20.0
       prismjs: 1.30.0
-      react: 19.2.4
+      react: 19.2.8
       refractor: 5.0.0
 
   react@18.3.1:
@@ -13931,6 +14349,8 @@ snapshots:
       loose-envify: 1.4.0
 
   react@19.2.4: {}
+
+  react@19.2.8: {}
 
   readable-stream@3.6.2:
     dependencies:
@@ -14275,9 +14695,15 @@ snapshots:
 
   tailwind-merge@3.5.0: {}
 
+  tailwind-merge@3.6.0: {}
+
   tailwindcss@4.2.2: {}
 
+  tailwindcss@4.3.3: {}
+
   tapable@2.3.2: {}
+
+  tapable@2.3.3: {}
 
   tar@6.2.1:
     dependencies:
@@ -14350,6 +14776,12 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
+  tsx@4.23.13:
+    dependencies:
+      esbuild: 0.28.1
+    optionalDependencies:
+      fsevents: 2.3.3
+
   type-check@0.4.0:
     dependencies:
       prelude-ls: 1.2.1
@@ -14409,7 +14841,7 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unplugin-dts@1.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)):
+  unplugin-dts@1.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@4.62.4)
       '@volar/typescript': 2.4.28
@@ -14425,7 +14857,27 @@ snapshots:
       esbuild: 0.28.1
       rolldown: 1.1.5
       rollup: 4.62.4
-      vite: 7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+    transitivePeerDependencies:
+      - supports-color
+
+  unplugin-dts@1.0.3(@microsoft/api-extractor@7.58.9(@types/node@25.9.4))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
+    dependencies:
+      '@rollup/pluginutils': 5.3.0(rollup@4.62.4)
+      '@volar/typescript': 2.4.28
+      compare-versions: 6.1.1
+      debug: 4.4.3
+      kolorist: 1.8.0
+      local-pkg: 1.2.1
+      magic-string: 0.30.21
+      typescript: 6.0.3
+      unplugin: 2.3.11
+    optionalDependencies:
+      '@microsoft/api-extractor': 7.58.9(@types/node@25.9.4)
+      esbuild: 0.28.1
+      rolldown: 1.1.5
+      rollup: 4.62.4
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
 
@@ -14469,9 +14921,9 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  use-sync-external-store@1.6.0(react@19.2.4):
+  use-sync-external-store@1.6.0(react@19.2.8):
     dependencies:
-      react: 19.2.4
+      react: 19.2.8
 
   util-deprecate@1.0.2: {}
 
@@ -14489,7 +14941,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plugin-dts@4.5.4(@types/node@25.7.0)(rollup@4.62.4)(typescript@6.0.2)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)):
+  vite-plugin-dts@4.5.4(@types/node@25.7.0)(rollup@4.62.4)(typescript@6.0.2)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
     dependencies:
       '@microsoft/api-extractor': 7.58.9(@types/node@25.7.0)
       '@rollup/pluginutils': 5.3.0(rollup@4.62.4)
@@ -14502,38 +14954,35 @@ snapshots:
       magic-string: 0.30.21
       typescript: 6.0.2
     optionalDependencies:
-      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@types/node'
       - rollup
       - supports-color
 
-  vite-plugin-dts@4.5.4(@types/node@25.9.4)(rollup@4.62.4)(typescript@5.8.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)):
+  vite-plugin-dts@5.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
     dependencies:
-      '@microsoft/api-extractor': 7.58.9(@types/node@25.9.4)
-      '@rollup/pluginutils': 5.3.0(rollup@4.62.4)
-      '@volar/typescript': 2.4.28
-      '@vue/language-core': 2.2.0(typescript@5.8.3)
-      compare-versions: 6.1.1
-      debug: 4.4.3
-      kolorist: 1.8.0
-      local-pkg: 1.2.1
-      magic-string: 0.30.21
-      typescript: 5.8.3
-    optionalDependencies:
-      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - '@types/node'
-      - rollup
-      - supports-color
-
-  vite-plugin-dts@5.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)):
-    dependencies:
-      unplugin-dts: 1.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
+      unplugin-dts: 1.0.3(@microsoft/api-extractor@7.58.9(@types/node@20.19.43))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
     optionalDependencies:
       '@microsoft/api-extractor': 7.58.9(@types/node@20.19.43)
       rollup: 4.62.4
-      vite: 7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+    transitivePeerDependencies:
+      - '@rspack/core'
+      - '@vue/language-core'
+      - esbuild
+      - rolldown
+      - supports-color
+      - typescript
+      - webpack
+
+  vite-plugin-dts@5.0.3(@microsoft/api-extractor@7.58.9(@types/node@25.9.4))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
+    dependencies:
+      unplugin-dts: 1.0.3(@microsoft/api-extractor@7.58.9(@types/node@25.9.4))(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+    optionalDependencies:
+      '@microsoft/api-extractor': 7.58.9(@types/node@25.9.4)
+      rollup: 4.62.4
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@rspack/core'
       - '@vue/language-core'
@@ -14565,7 +15014,7 @@ snapshots:
       lightningcss: 1.32.0
       terser: 5.49.0
 
-  vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
@@ -14576,13 +15025,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.43
       fsevents: 2.3.3
-      jiti: 2.6.1
+      jiti: 2.7.0
       lightningcss: 1.32.0
       terser: 5.49.0
-      tsx: 4.21.0
+      tsx: 4.23.13
       yaml: 2.8.3
 
-  vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -14593,28 +15042,28 @@ snapshots:
       '@types/node': 25.9.4
       esbuild: 0.28.1
       fsevents: 2.3.3
-      jiti: 2.6.1
+      jiti: 2.7.0
       terser: 5.49.0
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
-      picomatch: 4.0.5
-      postcss: 8.5.22
-      rolldown: 1.1.5
+      picomatch: 4.0.4
+      postcss: 8.5.15
+      rolldown: 1.0.3
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 20.19.43
+      '@types/node': 25.9.4
       esbuild: 0.28.1
       fsevents: 2.3.3
-      jiti: 2.6.1
+      jiti: 2.7.0
       terser: 5.49.0
-      tsx: 4.21.0
+      tsx: 4.23.13
       yaml: 2.8.3
 
-  vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
@@ -14625,12 +15074,12 @@ snapshots:
       '@types/node': 25.7.0
       esbuild: 0.28.1
       fsevents: 2.3.3
-      jiti: 2.6.1
+      jiti: 2.7.0
       terser: 5.49.0
-      tsx: 4.21.0
+      tsx: 4.23.13
       yaml: 2.8.3
 
-  vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
@@ -14641,9 +15090,9 @@ snapshots:
       '@types/node': 25.9.4
       esbuild: 0.28.1
       fsevents: 2.3.3
-      jiti: 2.6.1
+      jiti: 2.7.0
       terser: 5.49.0
-      tsx: 4.21.0
+      tsx: 4.23.13
       yaml: 2.8.3
 
   vitepress@1.6.4(@algolia/client-search@5.50.1)(@types/node@25.7.0)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(terser@5.49.0)(typescript@6.0.2):
@@ -14695,10 +15144,10 @@ snapshots:
       - typescript
       - universal-cookie
 
-  vitepress@1.6.4(@algolia/client-search@5.50.1)(@types/node@25.9.4)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(terser@5.49.0)(typescript@6.0.3):
+  vitepress@1.6.4(@algolia/client-search@5.50.1)(@types/node@25.9.4)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.22)(qrcode@1.5.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(terser@5.49.0)(typescript@6.0.3):
     dependencies:
       '@docsearch/css': 3.8.2
-      '@docsearch/js': 3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@docsearch/js': 3.8.2(@algolia/client-search@5.50.1)(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@iconify-json/simple-icons': 1.2.77
       '@shikijs/core': 2.5.0
       '@shikijs/transformers': 2.5.0
@@ -14744,105 +15193,27 @@ snapshots:
       - typescript
       - universal-cookie
 
-  vitest@4.1.8(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
+  vitest@4.1.11(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3):
     dependencies:
-      '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.8
-      '@vitest/runner': 4.1.8
-      '@vitest/snapshot': 4.1.8
-      '@vitest/spy': 4.1.8
-      '@vitest/utils': 4.1.8
+      '@vitest/expect': 4.1.11
+      '@vitest/mocker': 4.1.11(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/runner': 4.1.11
+      '@vitest/snapshot': 4.1.11
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
       es-module-lexer: 2.1.0
       expect-type: 1.3.0
       magic-string: 0.30.21
       obug: 2.1.3
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.1.0
       tinybench: 2.9.0
       tinyexec: 1.2.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.1.5(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 20.19.43
-      jsdom: 29.1.1
-    transitivePeerDependencies:
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
-      - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
-
-  vitest@4.1.8(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
-    dependencies:
-      '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.8
-      '@vitest/runner': 4.1.8
-      '@vitest/snapshot': 4.1.8
-      '@vitest/spy': 4.1.8
-      '@vitest/utils': 4.1.8
-      es-module-lexer: 2.1.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.3
-      pathe: 2.0.3
-      picomatch: 4.0.4
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.2.4
-      tinyglobby: 0.2.15
-      tinyrainbow: 3.1.0
-      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 25.7.0
-      jsdom: 29.1.1
-    transitivePeerDependencies:
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
-      - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
-
-  vitest@4.1.8(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3):
-    dependencies:
-      '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.8
-      '@vitest/runner': 4.1.8
-      '@vitest/snapshot': 4.1.8
-      '@vitest/spy': 4.1.8
-      '@vitest/utils': 4.1.8
-      es-module-lexer: 2.1.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.3
-      pathe: 2.0.3
-      picomatch: 4.0.4
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.2.4
-      tinyglobby: 0.2.15
-      tinyrainbow: 3.1.0
-      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.49.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.4
@@ -14860,6 +15231,90 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vitest@4.1.8(@types/node@20.19.43)(jsdom@29.1.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.8
+      '@vitest/mocker': 4.1.8(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.8
+      '@vitest/runner': 4.1.8
+      '@vitest/snapshot': 4.1.8
+      '@vitest/spy': 4.1.8
+      '@vitest/utils': 4.1.8
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.3
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.2.4
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.1.0
+      vite: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 20.19.43
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.8(@types/node@25.7.0)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.8
+      '@vitest/mocker': 4.1.8(vite@8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.8
+      '@vitest/runner': 4.1.8
+      '@vitest/snapshot': 4.1.8
+      '@vitest/spy': 4.1.8
+      '@vitest/utils': 4.1.8
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.3
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.2.4
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.1.0
+      vite: 8.1.5(@types/node@25.7.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 25.7.0
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.8
+      '@vitest/mocker': 4.1.8(vite@8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.8
+      '@vitest/runner': 4.1.8
+      '@vitest/snapshot': 4.1.8
+      '@vitest/spy': 4.1.8
+      '@vitest/utils': 4.1.8
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.3
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.2.4
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.1.0
+      vite: 8.1.5(@types/node@25.9.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.13)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 25.9.4
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
 
   void-elements@3.1.0: {}
 

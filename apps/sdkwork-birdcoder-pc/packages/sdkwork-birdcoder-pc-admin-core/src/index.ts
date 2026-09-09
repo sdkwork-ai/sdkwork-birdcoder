@@ -1,3 +1,5 @@
+import { resolveBaseUrlWithAlignProtocol } from '@sdkwork/sdk-common';
+
 export const PC_ADMIN_CORE_VERSION = '0.1.0';
 
 export interface AdminConfig {
@@ -7,7 +9,7 @@ export interface AdminConfig {
 
 export function createDefaultAdminConfig(): AdminConfig {
   return {
-    apiBaseUrl: 'http://localhost:10240',
+    apiBaseUrl: resolveBaseUrlWithAlignProtocol().url,
     operatorId: '',
   };
 }

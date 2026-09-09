@@ -1,4 +1,4 @@
-import { resolveBaseUrl } from '@sdkwork/sdk-common';
+import {resolveBaseUrlWithAlignProtocol} from '@sdkwork/sdk-common';
 
 const BIRDCODER_APPLICATION_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL';
@@ -74,7 +74,7 @@ export function resolveBirdCoderSharedSdkBaseUrl(): string | undefined {
     return undefined;
   }
 
-  const { url } = resolveBaseUrl({
+  const { url } = resolveBaseUrlWithAlignProtocol({
     envKey: SDKWORK_API_BASE_URL_ENV,
     readEnv: readBirdCoderRuntimeEnv,
   });

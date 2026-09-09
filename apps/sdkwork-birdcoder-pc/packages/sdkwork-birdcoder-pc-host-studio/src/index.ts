@@ -2,6 +2,7 @@ import {
   createBirdHostDescriptorFromDistribution,
   type BirdHostDescriptor,
 } from '@sdkwork/birdcoder-pc-host-core';
+import {resolveBaseUrlWithAlignProtocol} from '@sdkwork/sdk-common';
 
 export const HOST_STUDIO_PREVIEW_ADAPTER_ID = 'host.studio.preview';
 export const HOST_STUDIO_SIMULATOR_ADAPTER_ID = 'host.studio.simulator';
@@ -68,20 +69,24 @@ export interface ResolveHostStudioSimulatorSessionInput {
   isLandscape?: boolean | null;
 }
 
-const HOST_STUDIO_DISTRIBUTIONS = {
-  global: {
-    id: 'global',
-    appId: 'sdkwork-birdcoder',
-    appName: 'Birdcoder',
-    apiBaseUrl: 'http://127.0.0.1:10240',
-  },
-  cn: {
-    id: 'cn',
-    appId: 'sdkwork-birdcoder-cn',
-    appName: 'Birdcoder',
-    apiBaseUrl: 'http://127.0.0.1:10240',
-  },
-} as const;
+function createHostStudioDistributions() {
+  const apiBaseUrl = resolveBaseUrlWithAlignProtocol().url;
+
+  return {
+    global: {
+      id: 'global',
+      appId: 'sdkwork-birdcoder',
+      appName: 'Birdcoder',
+      apiBaseUrl,
+    },
+    cn: {
+      id: 'cn',
+      appId: 'sdkwork-birdcoder-cn',
+      appName: 'Birdcoder',
+      apiBaseUrl,
+    },
+  };
+}
 
 function normalizeDistributionId(
   value: HostStudioDistributionId | string | null | undefined,

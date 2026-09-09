@@ -35,5 +35,8 @@
       "default": "./src/composition/index.ts"
     }
   },
+  "dependencies": {
+    "@sdkwork/sdk-common": "workspace:*"
+  },
   "scripts": {}
 }
