@@ -1,10 +1,14 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-birdcoder-router-context"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+
+[lints]
+workspace = true
 [dependencies]
 axum = { workspace = true }
 sdkwork_iam_context_service = { workspace = true }

@@ -42,15 +42,15 @@
     "build:capacitor-android:full": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile standalone --runtime-target capacitor-android && cap sync && cap copy android",
     "start:browser": "node ../../scripts/run-vite-host.mjs serve --mode development",
     "start:browser:check": "node ../../scripts/run-vite-host.mjs serve --mode test",
-    "dev:browser": "pnpm dev:browser:standalone",
+    "dev:browser": "pnpm dev:browser:postgres:standalone",
     "build:local": "tsc && node ../../scripts/run-vite-host.mjs build --mode development --environment development --deployment-profile standalone --runtime-target browser",
     "build:cloud": "tsc && node ../../scripts/run-vite-host.mjs build --mode production --environment production --deployment-profile cloud --runtime-target browser",
     "build:test": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test",
     "build:staging": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging",
-    "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone",
-    "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile cloud",
-    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone",
-    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile cloud",
+    "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",
+    "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile cloud",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
     "stop": "pnpm exec sdkwork-app stop --root ../..",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "verify": "pnpm check",
@@ -60,7 +60,8 @@
     "build:test:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test --deployment-profile cloud",
     "build:staging:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging --deployment-profile cloud",
     "build:demo:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment demo --deployment-profile cloud",
-    "build:prod:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod --deployment-profile cloud"
+    "build:prod:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod --deployment-profile cloud",
+    "dev:browser:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone"
   },
   "exports": {
     ".": {

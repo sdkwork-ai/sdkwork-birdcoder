@@ -8,9 +8,9 @@
     "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",
     "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile cloud",
     "dev:test-runner": "pnpm exec sdkwork-app dev --root ../.. --runtime-target test-runner --deployment-profile standalone",
-    "dev:desktop": "pnpm dev:desktop:standalone",
-    "dev:desktop:standalone": "pnpm exec sdkwork-app stop --root ../.. && pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile standalone",
-    "dev:desktop:cloud": "pnpm exec sdkwork-app stop --root ../.. && pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile cloud",
+    "dev:desktop": "pnpm dev:desktop:postgres:standalone",
+    "dev:desktop:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile standalone",
+    "dev:desktop:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile cloud",
     "check:component-spec-paths": "node scripts/check-component-spec-canonical-paths.mjs",
     "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit",
     "build": "node ../../scripts/prepare-shared-sdk-packages.mjs && node ../../scripts/run-vite-host.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web build --mode production",
@@ -37,7 +37,8 @@
     "build:test:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test --deployment-profile cloud",
     "build:staging:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging --deployment-profile cloud",
     "build:demo:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment demo --deployment-profile cloud",
-    "build:prod:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod --deployment-profile cloud"
+    "build:prod:cloud": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod --deployment-profile cloud",
+    "dev:desktop:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile standalone"
   },
   "dependencies": {
     "@sdkwork/birdcoder-pc-auth": "workspace:*",

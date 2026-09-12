@@ -31,6 +31,27 @@ runtime:
   # runtime validation.
   allowedOrigins:
     - "https://code.sdkwork.com"
+    - "https://code.birdcoder.com"
+    - "https://code.dtupay.com"
+    - "https://code.noaper.com"
+    - "https://code.sdkwork.cn"
+    - "https://code.birdcoder.cn"
+    - "https://code.dtupay.cn"
+    - "https://code.noaper.cn"
+    - "https://code.skubc.com"
+    - "https://code.skubc.cn"
+    - "https://code.zowalk.com"
+    - "https://code.zowalk.cn"
+    - "https://code.offer86.com"
+    - "https://code.offer86.cn"
+    - "https://code.86offer.com"
+    - "https://code.86offer.cn"
+    - "app://dsh"
+    - "app://birdcoder"
+    - "app://sdkwork"
+    - "app://dtupay"
+    - "tauri://localhost"
+    - "https://servicewechat.com"
 
 auth:
   manageUsername: ""

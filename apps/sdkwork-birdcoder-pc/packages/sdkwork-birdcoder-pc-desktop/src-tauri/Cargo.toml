@@ -1,8 +1,12 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-birdcoder-pc-desktop"
 version = "0.1.0"
 edition = "2021"
 
+
+[lints]
+workspace = true
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

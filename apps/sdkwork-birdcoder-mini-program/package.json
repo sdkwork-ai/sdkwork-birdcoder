@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm dev:standalone",
-    "dev:standalone": "node scripts/build-mini-program.mjs --deployment-profile standalone --environment development --watch",
-    "dev:cloud": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment development --watch",
-    "stop": "node scripts/stop-dev.mjs",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
+    "stop": "pnpm exec sdkwork-app stop --root ../..",
     "build": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment production",
     "build:staging": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment staging",
     "build:demo": "pnpm build",
