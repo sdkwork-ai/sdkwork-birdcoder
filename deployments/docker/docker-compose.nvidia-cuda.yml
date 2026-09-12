@@ -1,4 +1,13 @@
+# Shared log rotation policy (OPERATIONS_SPEC.md §2.3): every service rotates
+# at 10MB, keeping 3 files, so container logs cannot fill the host disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   sdkwork-birdcoder:
     environment:
       SDKWORK_BIRD_ACCELERATOR: nvidia-cuda
+    logging: *default-logging

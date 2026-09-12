@@ -93,7 +93,16 @@ configuration instead of assuming a development default.
 
 ## Docker And Kubernetes
 
-The Docker image is read-only and declares no persistent volume:
+The Docker image is read-only and declares no persistent volume. The
+canonical container path is the `bin/` entrypoints (`MODULE_BIN_SPEC.md`):
+
+```bash
+bin/docker-image.sh build                                            # build the release image
+bin/docker-deploy.sh install --environment staging --yes             # install/upgrade on WSL or remote Ubuntu
+bin/docker-deploy.sh status   --environment staging                  # verify the release gate
+```
+
+Direct compose remains a local development fallback only:
 
 ```bash
 docker compose -f deployments/docker/docker-compose.yml up -d

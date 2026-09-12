@@ -14,6 +14,14 @@
 # 127.0.0.1:10243; the three test domains reach it through the Windows hosts
 # binding (see deployments/docker/README.md).
 
+# Shared log rotation policy (OPERATIONS_SPEC.md §2.3): every service rotates
+# at 10MB, keeping 3 files, so container logs cannot fill the host disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -40,6 +48,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    logging: *default-logging
 
   birdcoder:
     image: birdcoder:local

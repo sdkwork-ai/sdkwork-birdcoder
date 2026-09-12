@@ -89,7 +89,7 @@ This performs:
 Bind the Windows hosts file (admin; UAC prompt):
 
 ```bash
-pnpm hosts:bind
+pnpm workflow:hosts:bind
 ```
 
 Then verify:
@@ -110,7 +110,7 @@ Other commands:
 pnpm deploy:plan:standalone       # print the deployment plan
 pnpm deploy:rollback:standalone   # compose down + restore previous nginx config
 pnpm nginx:plan | render | deploy # render/deploy the nginx config standalone
-pnpm hosts:check                  # inspect current hosts binding state
+pnpm workflow:hosts:check                  # inspect current hosts binding state
 ```
 
 ## Configuration
