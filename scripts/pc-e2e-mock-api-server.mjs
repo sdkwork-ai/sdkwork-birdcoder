@@ -22,6 +22,12 @@ import {
   isAuthenticatedRequest,
 } from './pc-e2e-mock-api-fixtures.mjs';
 
+// The repository root, derived from this file's own location. The mock payloads
+// below quote a working directory and a documentation path back to the client,
+// so they must name wherever this checkout actually lives rather than the drive
+// it was authored on.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
 const port = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const host = process.env.PC_E2E_MOCK_API_HOST ?? '127.0.0.1';
 const allowedOrigins = new Set(
@@ -803,7 +809,7 @@ const sessionItemsBySessionId = new Map([
             { type: 'unknown', command: 'pnpm typecheck' },
             { type: 'unknown', command: 'pnpm test -- --runInBand' },
           ],
-          cwd: 'E:\\sdkwork-space\\sdkwork-birdcoder',
+          cwd: REPO_ROOT,
           processId: 'e2e-codex-command-process-1',
           status: 'completed',
           aggregatedOutput: 'TypeScript check passed.\nAll focused tests passed.',
@@ -949,7 +955,7 @@ const sessionItemsBySessionId = new Map([
             '',
             '## codex-screenshot.png: C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png',
             '',
-            '## codex-protocol-notes.md: E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md',
+            `## codex-protocol-notes.md: ${path.join(REPO_ROOT, 'docs', 'codex-protocol-notes.md')}`,
             '',
             '## My request for Codex:',
             'Inspect this Codex screenshot and the attached protocol notes.',

@@ -1,3 +1,4 @@
+// WORKSPACE-PATH:allow-fixture: fixtures name a foreign checkout root, drive, or home directory to exercise path handling, so the literal is the value under assertion rather than a binding this build resolves
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);

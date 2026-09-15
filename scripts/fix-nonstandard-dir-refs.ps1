@@ -2,7 +2,7 @@
 # Updates all script references from config/, deploy/, server/ to standard locations
 
 $ErrorActionPreference = "Stop"
-$rootDir = "E:\sdkwork-space\sdkwork-birdcoder"
+$rootDir = Split-Path -Parent $PSScriptRoot
 
 # Get all .mjs, .ts, .tsx files in scripts/
 $files = Get-ChildItem -Path "$rootDir\scripts" -Recurse -Include "*.mjs","*.ts","*.tsx" -ErrorAction SilentlyContinue

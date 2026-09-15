@@ -1,5 +1,7 @@
 const fs = require('fs');
-const f = 'E:/sdkwork-space/sdkwork-birdcoder/scripts/pc-e2e-mock-api-server.mjs';
+const path = require('path');
+// Resolved next to this script so the patch target follows the checkout.
+const f = path.join(__dirname, 'pc-e2e-mock-api-server.mjs');
 let t = fs.readFileSync(f, 'utf8');
 
 // 1. length 120 → 123

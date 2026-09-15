@@ -1,3 +1,4 @@
+// WORKSPACE-PATH:allow-fixture: fixtures name a foreign checkout root, drive, or home directory to exercise path handling, so the literal is the value under assertion rather than a binding this build resolves
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 function createE2eJwt(claims: Record<string, unknown>): string {

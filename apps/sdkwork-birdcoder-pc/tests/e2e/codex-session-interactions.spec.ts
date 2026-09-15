@@ -1,3 +1,6 @@
+// WORKSPACE-PATH:allow-fixture - this file is a test fixture that simulates a foreign
+// checkout root, so the sdkwork-<name> segment below is the value under assertion rather
+// than a binding to a real sibling checkout. PORTABILITY_SPEC.md section 5.2 governs it.
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);

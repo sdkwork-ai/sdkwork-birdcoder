@@ -605,7 +605,7 @@ pub(crate) fn resolve_desktop_runtime_location_root(
     )
 }
 
-#[cfg(test)]
+#[cfg(test)] // WORKSPACE-PATH:allow-fixture-block: this module is the file's #[cfg(test)] unit-test fixture data
 mod tests {
     use super::{
         create_prefixed_uuid, is_valid_prefixed_uuid, local_store_scope_and_key_are_allowed,

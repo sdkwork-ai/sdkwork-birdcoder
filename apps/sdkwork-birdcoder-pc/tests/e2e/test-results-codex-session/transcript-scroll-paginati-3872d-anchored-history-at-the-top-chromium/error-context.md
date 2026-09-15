@@ -563,11 +563,11 @@
                         - 'button "Preview image: codex-screenshot.png" [ref=e1263]'
                     - list "Message resources" [ref=e1264]:
                       - listitem [ref=e1265]:
-                        - 'button "Open file in editor: E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md" [ref=e1266]':
+                        - 'button "Open file in editor: <workspace-root>/sdkwork-birdcoder\\docs\\codex-protocol-notes.md" [ref=e1266]':
                           - img [ref=e1268]
                           - generic [ref=e1271]:
                             - generic "codex-protocol-notes.md" [ref=e1272]
-                            - generic "E:\\sdkwork-space\\sdkwork-birdcoder\\docs\\codex-protocol-notes.md" [ref=e1273]
+                            - generic "<workspace-root>/sdkwork-birdcoder\\docs\\codex-protocol-notes.md" [ref=e1273]
                   - generic [ref=e1276]: Inspect this Codex screenshot and the attached protocol notes.
                   - button "Copy" [ref=e1278]:
                     - img [ref=e1279]

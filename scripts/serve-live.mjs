@@ -1,7 +1,9 @@
 // 启动 mock + vite（保持运行，供浏览器查看真实应用）
-import { pathToFileURL } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const repoRoot = 'E:/sdkwork-space/sdkwork-birdcoder';
+// Derived from this script's own location so the dev server follows the checkout.
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(repoRoot);
 
 // 1. mock server
@@ -11,7 +13,7 @@ console.log('mock api on', mockServer.address?.());
 
 // 2. vite host with the same env the E2E runner uses
 const { mergeRepoBootstrapAccessTokenEnv } = await import(
-  'file:///E:/sdkwork-space/sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/node-bootstrap.mjs'
+  '../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/node-bootstrap.mjs'
 );
 const { SDKWORK_ACCESS_TOKEN } = mergeRepoBootstrapAccessTokenEnv({
   allowTestTokenGeneration: true,

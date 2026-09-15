@@ -68,7 +68,7 @@ The `policyJson` value uses this shape:
   "scopeType": "tenant",
   "scopeId": "authenticated-tenant-id",
   "accessMode": "directories",
-  "allowedDirectories": ["D:\\approved-workspaces"]
+  "allowedDirectories": ["<device-state-dir>/approved-workspaces"]
 }
 ```
 

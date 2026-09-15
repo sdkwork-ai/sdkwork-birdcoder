@@ -37,14 +37,20 @@ export const BUILTIN_TERMINAL_PROFILES: ReadonlyArray<TerminalProfileDefinition>
     id: 'powershell',
     title: 'Windows PowerShell',
     shortcut: 'Ctrl+Shift+1',
-    defaultCwd: 'C:\\Users\\Developer\\sdkwork-birdcoder',
+    // Home-relative, not an absolute path: the previous value pinned one
+    // author's own checkout (a `<drive>:\Users\<name>\sdkwork-birdcoder` path)
+    // into a shipped default, so a terminal on any other machine started outside
+    // the repository. Matches the `~/sdkwork-birdcoder` convention the `ubuntu`
+    // and `bash` entries below already use; callers that pass an explicit `cwd`
+    // (the normal path) never reach this fallback.
+    defaultCwd: '~/sdkwork-birdcoder',
     kind: 'shell',
   },
   {
     id: 'cmd',
     title: 'Command Prompt',
     shortcut: 'Ctrl+Shift+2',
-    defaultCwd: 'C:\\Users\\Developer\\sdkwork-birdcoder',
+    defaultCwd: '~/sdkwork-birdcoder',
     kind: 'shell',
   },
   {
