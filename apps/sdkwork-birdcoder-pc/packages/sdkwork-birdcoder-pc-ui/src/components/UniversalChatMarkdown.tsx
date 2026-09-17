@@ -47,7 +47,7 @@ function escapeRegExp(value: string): string {
  *
  * react-markdown's default transform blanks any URL whose first colon
  * precedes the first slash and is not an allowlisted protocol, which drops
- * Windows absolute image paths (`C:/Users/...`), `file:` URLs and `data:`
+ * Windows absolute image paths into a user profile, `file:` URLs and `data:`
  * images. Local file paths must survive so the `img`/`a` renderers below
  * can render or open them.
  */

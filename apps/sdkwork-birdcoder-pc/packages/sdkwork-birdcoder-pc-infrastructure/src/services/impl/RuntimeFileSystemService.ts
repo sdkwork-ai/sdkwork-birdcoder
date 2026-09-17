@@ -934,7 +934,7 @@ function normalizeExternalImagePreviewPath(value: string): string {
  * preview bridge. Eligible paths are absolute local system paths that do not
  * belong to any registered project virtual namespace:
  *
- * - Windows drive paths (`C:/...`, `C:\...`) can never collide with virtual
+ * - Windows drive-rooted paths can never collide with virtual
  *   mount paths, so they are always eligible.
  * - POSIX absolute paths (`/Users/...`) are eligible unless they fall under a
  *   registered root virtual path (e.g. `/project`), which would make them

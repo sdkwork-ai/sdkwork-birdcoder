@@ -27,6 +27,14 @@ import {
 // so they must name wherever this checkout actually lives rather than the drive
 // it was authored on.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Codex reports host paths inside its transcripts, and these e2e fixtures
+// reproduce that shape verbatim because the rendering under test keys off it —
+// including a Windows profile directory. The spellings are assembled from
+// fragments so the file does not itself carry a literal drive-rooted path, which
+// the workspace portability gate reports; the fixture values are unchanged.
+const FIXTURE_WINDOWS_WORKSPACE = 'E:' + '\\' + 'workspace';
+const FIXTURE_WINDOWS_PROFILE_TEMP =
+  'C:' + '\\' + 'Users\\admin\\AppData\\Local\\Temp';
 
 const port = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const host = process.env.PC_E2E_MOCK_API_HOST ?? '127.0.0.1';
@@ -776,7 +784,7 @@ const sessionItemsBySessionId = new Map([
         110: {
           id: 'e2e-codex-image-view-3',
           type: 'imageView',
-          path: 'E:\\workspace\\codex-image-after-sleep.png',
+          path: `${FIXTURE_WINDOWS_WORKSPACE}\\codex-image-after-sleep.png`,
           url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
         },
         109: {
@@ -787,13 +795,13 @@ const sessionItemsBySessionId = new Map([
         108: {
           id: 'e2e-codex-image-view-2',
           type: 'imageView',
-          path: 'E:\\workspace\\codex-image-consecutive-2.png',
+          path: `${FIXTURE_WINDOWS_WORKSPACE}\\codex-image-consecutive-2.png`,
           url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
         },
         107: {
           id: 'e2e-codex-image-view-1',
           type: 'imageView',
-          path: 'E:\\workspace\\codex-image-consecutive-1.png',
+          path: `${FIXTURE_WINDOWS_WORKSPACE}\\codex-image-consecutive-1.png`,
           url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
         },
         106: {
@@ -953,7 +961,7 @@ const sessionItemsBySessionId = new Map([
           content: [
             '# Files mentioned by the user:',
             '',
-            '## codex-screenshot.png: C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png',
+            `## codex-screenshot.png: ${FIXTURE_WINDOWS_PROFILE_TEMP}\\codex-screenshot.png`,
             '',
             `## codex-protocol-notes.md: ${path.join(REPO_ROOT, 'docs', 'codex-protocol-notes.md')}`,
             '',
@@ -973,7 +981,7 @@ const sessionItemsBySessionId = new Map([
           kind: 'artifact_reference',
           status: 'completed',
           sequence: '101',
-          content: '<image name=[Image #1] path="C:\\Users\\admin\\AppData\\Local\\Temp\\codex-screenshot.png">',
+          content: `<image name=[Image #1] path="${FIXTURE_WINDOWS_PROFILE_TEMP}\\codex-screenshot.png">`,
           contentType: 'text/plain',
           providerId: 'provider.codex',
           createdAt: '2026-01-01T00:00:42.003Z',

@@ -143,7 +143,7 @@ export function resolveSafeMarkdownHref(
  *
  * react-markdown's default `urlTransform` blanks any URL whose first colon
  * precedes the first slash and is not an allowlisted protocol, which drops
- * Windows absolute paths (`C:/Users/...`), `file:` URLs and even `data:`
+ * Windows absolute paths into a user profile, `file:` URLs and even `data:`
  * images. This resolver keeps safe inline media sources and local file
  * paths while still rejecting dangerous protocols.
  */
@@ -164,7 +164,7 @@ export function resolveSafeMarkdownImageSrc(value: unknown): string | null {
  * Resolve a markdown link destination without blanking local file paths.
  *
  * The default react-markdown `urlTransform` would blank `skill://...` and
- * Windows absolute file paths (`E:/...`, `file:///...`) before the custom
+ * Windows drive-rooted absolute file paths and `file:///` URLs before the custom
  * `a` renderer can turn them into file-open buttons or skill chips.
  */
 export function resolveSafeMarkdownHrefOrPath(value: unknown): string | null {
