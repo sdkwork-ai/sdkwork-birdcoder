@@ -3,10 +3,7 @@ import type {
   DriveUploaderProfile,
 } from '@sdkwork/drive-app-sdk';
 import { getBirdCoderH5DriveAppClient } from './dependencySdkClients.ts';
-
-const APP_RESOURCE_TYPE = 'birdcoder-agent-session-item';
-const UPLOAD_SCENE = 'birdcoder_agent_session_attachment';
-const UPLOAD_SOURCE = 'birdcoder_h5_local_file';
+import { BIRDCODER_H5_AGENT_SESSION_ATTACHMENT_UPLOAD } from './uploadDeclaration.ts';
 
 export interface BirdCoderAgentSessionAttachmentUploadOptions {
   file: File;
@@ -74,10 +71,10 @@ export async function uploadBirdCoderAgentSessionAttachmentToDrive(
   );
   const result = await upload({
     file: options.file,
-    appResourceType: APP_RESOURCE_TYPE,
+    appResourceType: BIRDCODER_H5_AGENT_SESSION_ATTACHMENT_UPLOAD.appResourceType,
     appResourceId: sessionId,
-    scene: UPLOAD_SCENE,
-    source: UPLOAD_SOURCE,
+    scene: BIRDCODER_H5_AGENT_SESSION_ATTACHMENT_UPLOAD.scene,
+    source: BIRDCODER_H5_AGENT_SESSION_ATTACHMENT_UPLOAD.source,
     fileFingerprint: buildUploaderFingerprint(options.file),
     originalFileName: options.file.name,
     contentType: options.file.type.trim() || undefined,

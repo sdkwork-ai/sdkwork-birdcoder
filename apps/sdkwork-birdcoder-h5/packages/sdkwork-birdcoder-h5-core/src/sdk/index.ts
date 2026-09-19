@@ -17,3 +17,10 @@ export {
   type BirdCoderAgentSessionAttachmentUploadOptions,
   type BirdCoderAgentSessionAttachmentUploadResult,
 } from './agentSessionAttachmentService.ts';
+export {
+  BIRDCODER_H5_AGENT_SESSION_ATTACHMENT_UPLOAD,
+  BIRDCODER_H5_APP_ID,
+  BIRDCODER_H5_UPLOAD_DECLARATIONS,
+  BIRDCODER_H5_UPLOAD_SOURCE,
+  type BirdCoderH5UploadDeclarationEntry,
+} from './uploadDeclaration.ts';

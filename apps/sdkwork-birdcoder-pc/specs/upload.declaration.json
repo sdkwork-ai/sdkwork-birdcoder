@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "appId": "sdkwork-birdcoder-pc",
+  "declarations": [
+    {
+      "appResourceType": "birdcoder.chat_composer_attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "attachment",
+      "retention": "long_term",
+      "purpose": "File attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    }
+  ]
+}

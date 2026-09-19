@@ -1,16 +1,14 @@
-import type {
-  DriveUploaderClient,
-  DriveUploaderProfile,
-  MediaResource,
-  SdkworkDriveAppClient,
+import {
+  BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD,
+  type DriveUploaderClient,
+  type DriveUploaderProfile,
+  type MediaResource,
+  type SdkworkDriveAppClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/drive-app';
 import { getPath } from '@sdkwork/utils/object';
 import { isBlank } from '@sdkwork/utils/string';
 import { getBirdCoderDriveAppClient } from './iamRuntime.ts';
 
-const BIRDCODER_CHAT_APP_RESOURCE_TYPE = 'birdcoder-chat-composer';
-const BIRDCODER_CHAT_UPLOAD_SCENE = 'birdcoder_chat_attachment';
-const BIRDCODER_CHAT_UPLOAD_SOURCE = 'birdcoder_pc_local_file';
 const CHAT_DOWNLOAD_GRANT_TTL_SECONDS = 3600;
 
 export interface BirdCoderChatDriveUploadOptions {
@@ -127,10 +125,10 @@ export async function uploadBirdCoderChatAttachmentToDrive(
   const upload = resolveUploaderMethod(client.uploader, options.profile);
   const uploadResult = await upload({
     file: options.file,
-    appResourceType: BIRDCODER_CHAT_APP_RESOURCE_TYPE,
+    appResourceType: BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD.appResourceType,
     appResourceId: resolveChatAppResourceId(options.resourceId),
-    scene: BIRDCODER_CHAT_UPLOAD_SCENE,
-    source: BIRDCODER_CHAT_UPLOAD_SOURCE,
+    scene: BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD.scene,
+    source: BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD.source,
     originalFileName: options.file.name,
     contentType: options.file.type.trim() || undefined,
     retention: { mode: 'long_term' },

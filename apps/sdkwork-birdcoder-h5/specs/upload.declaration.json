@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "appId": "sdkwork-birdcoder-h5",
+  "declarations": [
+    {
+      "appResourceType": "birdcoder.session_item",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-h5",
+      "uploadProfileCode": "attachment",
+      "retention": "long_term",
+      "purpose": "File attached to a BirdCoder agent session from the H5 surface so the conversation can reference it."
+    }
+  ]
+}
