@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
       createSdkworkCredentialEntryBootstrapVitePlugin({
         accessToken: env.SDKWORK_ACCESS_TOKEN,
         allowTestInjection: mode === 'test',
-        environment: mode,
+        environment: resolveViteEnvironment(mode, process.env),
       }),
       ...createBirdcoderVitePlugins({
         appRootDir: __dirname,

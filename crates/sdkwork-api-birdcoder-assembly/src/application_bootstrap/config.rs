@@ -309,9 +309,10 @@ fn parse_bind_address(value: &str) -> Result<(String, u16), BirdServerConfigErro
         })?;
         (host, port)
     } else {
-        value.rsplit_once(':').ok_or_else(|| {
+        let separator = value.rsplit_once(':').ok_or_else(|| {
             BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
-        })?
+        })?;
+        separator
     };
     if host.trim().is_empty() {
         return Err(BirdServerConfigError::InvalidApplicationPublicIngressBind(
@@ -321,10 +322,18 @@ fn parse_bind_address(value: &str) -> Result<(String, u16), BirdServerConfigErro
     let port = port
         .parse::<u16>()
         .ok()
+        // `service_base_url::bind_port` accepts port 0 as a valid "let the OS
+        // choose" bind, but a published application ingress must name a real
+        // port, so the stricter rule stays local.
         .filter(|port| *port != 0)
         .ok_or_else(|| {
             BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
         })?;
+    debug_assert_eq!(
+        Some(port),
+        sdkwork_utils_rust::service_base_url::bind_port(value),
+        "the shared bind parser disagrees with this listener's split"
+    );
     Ok((host.to_owned(), port))
 }
 
