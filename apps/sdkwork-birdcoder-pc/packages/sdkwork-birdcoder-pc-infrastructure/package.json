@@ -213,25 +213,26 @@
     }
   },
   "dependencies": {
-    "@sdkwork/deployments-app-sdk": "workspace:*",
-    "@sdkwork/iam-app-sdk": "workspace:*",
-    "@sdkwork/iam-backend-sdk": "workspace:*",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
+    "@sdkwork/deployments-app-sdk": "workspace:*",
     "@sdkwork/drive-pc-sandbox-contracts": "workspace:*",
-    "@sdkwork/auth-runtime-pc-react": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": "workspace:*",
+    "@sdkwork/drive-upload-image-core": "workspace:*",
+    "@sdkwork/iam-app-sdk": "workspace:*",
+    "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/iam-runtime": "workspace:*",
-    "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
-    "@sdkwork/sdk-common": "workspace:*",
-    "@sdkwork/utils": "workspace:*",
+    "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/order-service": "workspace:*",
-    "@tauri-apps/api": "catalog:",
-    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
-    "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": "workspace:*"
+    "@sdkwork/sdk-common": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
+    "@tauri-apps/api": "catalog:"
   },
   "devDependencies": {
     "vitest": "catalog:"

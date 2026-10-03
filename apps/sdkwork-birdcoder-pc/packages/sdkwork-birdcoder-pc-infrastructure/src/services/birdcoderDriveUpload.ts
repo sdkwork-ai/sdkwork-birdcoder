@@ -1,10 +1,12 @@
 import {
   BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_IMAGE_UPLOAD,
   type DriveUploaderClient,
   type DriveUploaderProfile,
   type MediaResource,
   type SdkworkDriveAppClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/drive-app';
+import { createDriveUploadImageService, type DriveUploadImageService } from '@sdkwork/drive-upload-image-core';
 import { getPath } from '@sdkwork/utils/object';
 import { isBlank } from '@sdkwork/utils/string';
 import { getBirdCoderDriveAppClient } from './iamRuntime.ts';
@@ -108,6 +110,56 @@ async function resolveChatAttachmentPreviewUrl(
   }
 }
 
+let chatImageUploadService: DriveUploadImageService | null = null;
+
+/**
+ * Image-family composer attachments (image/avatar/thumbnail) upload through
+ * the shared drive upload-image service, bound to the declared image entry;
+ * the declared retention travels with it. Previews stay on the
+ * download-grant path below.
+ */
+function getChatImageUploadService(): DriveUploadImageService {
+  if (chatImageUploadService === null) {
+    chatImageUploadService = createDriveUploadImageService({
+      uploader: getBirdCoderDriveAppClient().uploader,
+      declaration: BIRDCODER_PC_CHAT_COMPOSER_IMAGE_UPLOAD,
+    });
+  }
+  return chatImageUploadService;
+}
+
+function isImageFamilyProfile(profile: DriveUploaderProfile): boolean {
+  return profile === 'image' || profile === 'avatar' || profile === 'thumbnail';
+}
+
+function buildChatDriveUploadResult(
+  profile: DriveUploaderProfile,
+  fields: {
+    driveSpaceId: string;
+    nodeId: string;
+    fileName?: string;
+    mimeType?: string;
+    sizeBytes?: string;
+    checksumSha256Hex?: string;
+  },
+): BirdCoderChatDriveUploadResult {
+  const mediaResource: MediaResource = {
+    id: fields.nodeId,
+    kind: mapProfileToMediaKind(profile),
+    source: 'drive',
+    uri: `drive://spaces/${encodeURIComponent(fields.driveSpaceId)}/nodes/${encodeURIComponent(fields.nodeId)}`,
+    fileName: fields.fileName,
+    mimeType: fields.mimeType,
+    sizeBytes: fields.sizeBytes,
+    checksumSha256: fields.checksumSha256Hex,
+  };
+  return {
+    driveSpaceId: fields.driveSpaceId,
+    mediaResource,
+    nodeId: fields.nodeId,
+  };
+}
+
 export async function resolveBirdCoderChatAttachmentPreviewUrl(
   nodeId: string,
 ): Promise<string | undefined> {
@@ -122,6 +174,28 @@ export async function uploadBirdCoderChatAttachmentToDrive(
   options: BirdCoderChatDriveUploadOptions,
 ): Promise<BirdCoderChatDriveUploadResult> {
   const client = getBirdCoderDriveAppClient();
+  if (isImageFamilyProfile(options.profile)) {
+    const value = await getChatImageUploadService().upload({
+      file: options.file,
+      appResourceId: resolveChatAppResourceId(options.resourceId),
+      signal: options.signal,
+    });
+    const drive = value.metadata?.drive;
+    const driveSpaceId = drive?.spaceId ?? '';
+    const nodeId = drive?.nodeId ?? '';
+    if (!driveSpaceId || !nodeId) {
+      throw new Error('Drive upload did not return a stable Space and Node identity.');
+    }
+    return buildChatDriveUploadResult(options.profile, {
+      driveSpaceId,
+      nodeId,
+      fileName: drive?.originalFileName ?? options.file.name,
+      mimeType: drive?.contentType ?? options.file.type.trim() || undefined,
+      sizeBytes: drive?.contentLength,
+      checksumSha256Hex: drive?.checksumSha256Hex,
+    });
+  }
+
   const upload = resolveUploaderMethod(client.uploader, options.profile);
   const uploadResult = await upload({
     file: options.file,
@@ -140,22 +214,14 @@ export async function uploadBirdCoderChatAttachmentToDrive(
   if (!driveSpaceId || !nodeId) {
     throw new Error('Drive upload did not return a stable Space and Node identity.');
   }
-  const mediaResource: MediaResource = {
-    id: nodeId,
-    kind: mapProfileToMediaKind(options.profile),
-    source: 'drive',
-    uri: `drive://spaces/${encodeURIComponent(driveSpaceId)}/nodes/${encodeURIComponent(nodeId)}`,
+  return buildChatDriveUploadResult(options.profile, {
+    driveSpaceId,
+    nodeId,
     fileName: uploadResult.uploadItem.originalFileName,
     mimeType: uploadResult.uploadItem.contentType,
     sizeBytes: uploadResult.uploadItem.contentLength,
-    checksumSha256: uploadResult.uploadItem.checksumSha256Hex,
-  };
-
-  return {
-    driveSpaceId,
-    mediaResource,
-    nodeId,
-  };
+    checksumSha256Hex: uploadResult.uploadItem.checksumSha256Hex,
+  });
 }
 
 export function buildDriveMediaResourceContentBlock(mediaResource: MediaResource): string {
