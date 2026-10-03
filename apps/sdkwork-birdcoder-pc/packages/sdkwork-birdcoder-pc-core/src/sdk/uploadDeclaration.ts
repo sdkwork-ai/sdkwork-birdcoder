@@ -41,7 +41,7 @@ export const BIRDCODER_PC_UPLOAD_SOURCE = 'sdkwork-birdcoder-pc' as const;
  */
 export const BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD = {
   appResourceIdKind: 'entity',
-  appResourceType: 'birdcoder.chat_composer_attachment',
+  appResourceType: 'birdcoder.chat-composer-attachment',
   purpose: 'File attached to a chat composer message from the BirdCoder PC surface.',
   retention: 'long_term',
   scene: 'agent-session-attachment',
@@ -49,7 +49,91 @@ export const BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD = {
   uploadProfileCode: 'attachment',
 } as const satisfies BirdCoderPcUploadDeclarationEntry;
 
+/** Chat composer attachment carried by the standard `image` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_IMAGE_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Image attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'image',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `video` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_VIDEO_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Video attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'video',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `audio` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_AUDIO_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Audio attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'audio',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `document` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_DOCUMENT_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Document attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'document',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `archive` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_ARCHIVE_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Archive attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'archive',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `text` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_TEXT_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Text file attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'text',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
+/** Chat composer attachment carried by the standard `dataset` profile. */
+export const BIRDCODER_PC_CHAT_COMPOSER_DATASET_UPLOAD = {
+  appResourceIdKind: 'entity',
+  appResourceType: 'birdcoder.chat-composer-attachment',
+  purpose: 'Dataset attached to a chat composer message from the BirdCoder PC surface.',
+  retention: 'long_term',
+  scene: 'agent-session-attachment',
+  source: BIRDCODER_PC_UPLOAD_SOURCE,
+  uploadProfileCode: 'dataset',
+} as const satisfies BirdCoderPcUploadDeclarationEntry;
+
 /** Every declared upload purpose for this application. */
 export const BIRDCODER_PC_UPLOAD_DECLARATIONS: readonly BirdCoderPcUploadDeclarationEntry[] = [
   BIRDCODER_PC_CHAT_COMPOSER_ATTACHMENT_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_IMAGE_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_VIDEO_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_AUDIO_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_DOCUMENT_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_ARCHIVE_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_TEXT_UPLOAD,
+  BIRDCODER_PC_CHAT_COMPOSER_DATASET_UPLOAD,
 ];

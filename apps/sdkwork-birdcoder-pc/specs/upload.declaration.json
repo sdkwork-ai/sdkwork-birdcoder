@@ -3,13 +3,76 @@
   "appId": "sdkwork-birdcoder-pc",
   "declarations": [
     {
-      "appResourceType": "birdcoder.chat_composer_attachment",
+      "appResourceType": "birdcoder.chat-composer-attachment",
       "appResourceIdKind": "entity",
       "scene": "agent-session-attachment",
       "source": "sdkwork-birdcoder-pc",
       "uploadProfileCode": "attachment",
       "retention": "long_term",
       "purpose": "File attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "image",
+      "retention": "long_term",
+      "purpose": "Image attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "video",
+      "retention": "long_term",
+      "purpose": "Video attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "audio",
+      "retention": "long_term",
+      "purpose": "Audio attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "document",
+      "retention": "long_term",
+      "purpose": "Document attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "archive",
+      "retention": "long_term",
+      "purpose": "Archive attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "text",
+      "retention": "long_term",
+      "purpose": "Text file attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
+    },
+    {
+      "appResourceType": "birdcoder.chat-composer-attachment",
+      "appResourceIdKind": "entity",
+      "scene": "agent-session-attachment",
+      "source": "sdkwork-birdcoder-pc",
+      "uploadProfileCode": "dataset",
+      "retention": "long_term",
+      "purpose": "Dataset attached from the BirdCoder desktop chat composer so the agent session can reference it as a media block."
     }
   ]
 }

@@ -79,6 +79,7 @@ packages:
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout"
   - "../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-core"
   - "../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth"
+  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-desktop-auth"
 
 catalog:
   react: ^19.2.8
