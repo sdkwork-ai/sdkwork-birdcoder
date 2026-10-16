@@ -143,3 +143,7 @@ diag-out.txt
 # Added by repo-commit task 2026-09-25; targeted rules only, compliant with check-gitignore-standard
 apps/**/packages/**/src/**/*.js
 apps/**/packages/**/src/**/*.d.ts
+
+# --- SDKWork: gitignore completeness (2026-10-16) ---
+# Added by repo-commit task; targeted rules only, compliant with check-gitignore-standard
+__pycache__/
