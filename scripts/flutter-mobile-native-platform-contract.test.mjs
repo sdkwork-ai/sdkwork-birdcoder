@@ -27,12 +27,12 @@ const androidGradle = read(`${flutterRoot}/android/app/build.gradle.kts`);
 const iosInfoPlist = read(`${flutterRoot}/ios/Runner/Info.plist`);
 const iosEntitlements = read(`${flutterRoot}/ios/Runner/Runner.entitlements`);
 const iosProject = read(`${flutterRoot}/ios/Runner.xcodeproj/project.pbxproj`);
-const appManifest = JSON.parse(read(`${flutterRoot}/sdkwork.app.config.json`));
+const appManifest = JSON.parse(read(`${flutterRoot}/agent.app.config.json`));
 
 assert.match(
   androidGradle,
   /applicationId = "com\.sdkwork\.birdcoder\.mobile"/u,
-  'Android applicationId must match sdkwork.app.config identifiers.packageName.',
+  'Android applicationId must match agent.app.config identifiers.packageName.',
 );
 assert.equal(
   appManifest.app.identifiers.packageName,

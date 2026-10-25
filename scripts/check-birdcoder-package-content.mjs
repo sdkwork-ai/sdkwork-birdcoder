@@ -7,7 +7,7 @@
  *   - forbidden content absent (node_modules/, .git/, target/, build state,
  *     secrets, dev env files, source trees, test fixtures)
  *   - required content present (gateway binary, portal dist, database
- *     modules, sdkwork.app.config.json, install-manifest.json)
+ *     modules, agent.app.config.json, install-manifest.json)
  *   - staged gateway binary is a Linux ELF
  *   - install-manifest.json matches the archive (every file has path, size,
  *     sha256)
@@ -85,7 +85,7 @@ const FORBIDDEN_FILE_NAMES = [
 const REQUIRED_ENTRIES = [
   `bin/${EDGE_BINARY_BASENAME}`,
   'portal/dist/index.html',
-  'sdkwork.app.config.json',
+  'agent.app.config.json',
   'database-modules/sdkwork-iam/database/database.manifest.json',
   'database-modules/sdkwork-agents/database/database.manifest.json',
   'database-modules/sdkwork-models/database/database.manifest.json',

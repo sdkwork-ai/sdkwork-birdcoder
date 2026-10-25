@@ -11,7 +11,7 @@ const { SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken } = mergeRepoBootstrapAcce
     SDKWORK_ACCESS_TOKEN: process.env.SDKWORK_ACCESS_TOKEN,
   },
   environment: 'test',
-  manifestPath: 'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
+  manifestPath: 'apps/sdkwork-birdcoder-pc/agent.app.config.json',
   repoRoot: repositoryRoot,
   runtimeTarget: 'browser',
 });

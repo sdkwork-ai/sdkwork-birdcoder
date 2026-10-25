@@ -84,7 +84,7 @@ function materializedFiles(relativePath) {
 
 for (const relativePath of [
   'AGENTS.md',
-  'sdkwork.app.config.json',
+  'agent.app.config.json',
   'specs/component.spec.json',
   'specs/domain-ownership.spec.json',
   'specs/agents-birdcoder-alignment.spec.json',
@@ -98,7 +98,7 @@ for (const relativePath of [
   'sdks/sdkwork-birdcoder-app-sdk/specs/component.spec.json',
   'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
   'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json',
-  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-pc/agent.app.config.json',
   'apps/sdkwork-birdcoder-pc/specs/component.spec.json',
   'crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml',
   'crates/sdkwork-api-birdcoder-assembly/assembly-manifest.json',
@@ -140,7 +140,7 @@ for (const relativePath of [
   assert.equal(fs.existsSync(resolvePath(relativePath)), false, `Retired local authority remains: ${relativePath}`);
 }
 
-const appManifest = readJson('sdkwork.app.config.json');
+const appManifest = readJson('agent.app.config.json');
 const rootComponent = readJson('specs/component.spec.json');
 const ownership = readJson('specs/domain-ownership.spec.json');
 const iamManifest = readJson('specs/iam.module.manifest.json');

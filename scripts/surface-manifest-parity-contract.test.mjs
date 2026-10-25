@@ -9,33 +9,33 @@ import {
 
 const rootDir = process.cwd();
 const requiredManifestPaths = [
-  'sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json',
+  'agent.app.config.json',
+  'apps/sdkwork-birdcoder-pc/agent.app.config.json',
+  'apps/sdkwork-birdcoder-h5/agent.app.config.json',
+  'apps/sdkwork-birdcoder-flutter-mobile/agent.app.config.json',
+  'apps/sdkwork-birdcoder-mini-program/agent.app.config.json',
 ];
 const releaseBlockers = [
   'signed-production-artifact-evidence-missing',
 ];
 
 const expectedSurfacePackages = {
-  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json': [
+  'apps/sdkwork-birdcoder-pc/agent.app.config.json': [
     ['WEB', 'browser', 'web', 'pc-web'],
     ['DESKTOP_WINDOWS', 'desktop', 'windows', 'tauri'],
     ['DESKTOP_MACOS', 'desktop', 'macos', 'tauri'],
     ['DESKTOP_LINUX', 'desktop', 'linux', 'tauri'],
   ],
-  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json': [
+  'apps/sdkwork-birdcoder-h5/agent.app.config.json': [
     ['H5', 'browser', 'h5', 'h5'],
     ['APP_IOS', 'capacitor-ios', 'ios', 'capacitor'],
     ['APP_ANDROID', 'capacitor-android', 'android', 'capacitor'],
   ],
-  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json': [
+  'apps/sdkwork-birdcoder-flutter-mobile/agent.app.config.json': [
     ['APP_ANDROID', 'flutter-android', 'android', 'flutter'],
     ['APP_IOS', 'flutter-ios', 'ios', 'flutter'],
   ],
-  'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json': [
+  'apps/sdkwork-birdcoder-mini-program/agent.app.config.json': [
     ['MP_WEIXIN', 'mini-program', 'mp-weixin', 'mini-program'],
   ],
 };
@@ -54,7 +54,7 @@ for (const relativePath of requiredManifestPaths) {
   assert.equal(manifest.publish?.preLaunch, true, `${relativePath} must remain pre-launch.`);
   assert.equal(manifest.metadata?.preLaunch, true, `${relativePath} metadata must remain pre-launch.`);
   assert.equal(manifest.metadata?.deploymentConfig, 'etc/sdkwork.deployment.config.json');
-  const expectedReleaseEvidence = relativePath === 'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json'
+  const expectedReleaseEvidence = relativePath === 'apps/sdkwork-birdcoder-mini-program/agent.app.config.json'
     ? {
         status: 'blocked',
         verifiedAt: '2026-07-26',
@@ -98,7 +98,7 @@ for (const relativePath of requiredManifestPaths) {
   }
 }
 
-const rootManifest = readSdkworkAppManifest(path.join(rootDir, 'sdkwork.app.config.json'));
+const rootManifest = readSdkworkAppManifest(path.join(rootDir, 'agent.app.config.json'));
 assert.deepEqual(rootManifest.metadata?.domainOwnership?.apiOperationCounts, {
   appApi: 4,
   backendApi: 0,

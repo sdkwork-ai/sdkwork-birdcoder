@@ -72,7 +72,7 @@ assert.equal(
 assert.match(
   preLaunchContract,
   /listSdkworkAppManifestPaths/u,
-  'Pre-launch contract must validate every sdkwork.app.config.json surface manifest.',
+  'Pre-launch contract must validate every agent.app.config.json surface manifest.',
 );
 assert.match(
   preLaunchContract,

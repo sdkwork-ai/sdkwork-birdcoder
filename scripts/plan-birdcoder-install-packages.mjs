@@ -181,8 +181,8 @@ export function createInstallPackagePlan({
         required: true,
       },
       {
-        archivePath: 'sdkwork.app.config.json',
-        sourcePath: path.join(workspaceRootDir, 'sdkwork.app.config.json'),
+        archivePath: 'agent.app.config.json',
+        sourcePath: path.join(workspaceRootDir, 'agent.app.config.json'),
         mode: 0o644,
         required: true,
       },

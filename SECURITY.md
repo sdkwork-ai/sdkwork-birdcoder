@@ -8,7 +8,7 @@
 | < 0.1.0 | No |
 
 Security fixes are delivered through the SDKWork BirdCoder release train documented in
-`sdkwork.app.config.json` and verified by `pnpm run check:release-flow`.
+`agent.app.config.json` and verified by `pnpm run check:release-flow`.
 
 ## Reporting a Vulnerability
 

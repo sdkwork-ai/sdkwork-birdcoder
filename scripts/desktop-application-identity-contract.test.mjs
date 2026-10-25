@@ -8,8 +8,8 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
 }
 
-const rootManifest = readJson('sdkwork.app.config.json');
-const pcManifest = readJson('apps/sdkwork-birdcoder-pc/sdkwork.app.config.json');
+const rootManifest = readJson('agent.app.config.json');
+const pcManifest = readJson('apps/sdkwork-birdcoder-pc/agent.app.config.json');
 const tauriConfig = readJson(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/tauri.conf.json',
 );

@@ -11,7 +11,7 @@ function read(relativePath) {
 const packageJson = JSON.parse(read('package.json'));
 const ciWorkflow = read('.github/workflows/ci.yml');
 const assembleScript = read('scripts/run-h5-capacitor-android-assemble.mjs');
-const h5AppConfig = JSON.parse(read('apps/sdkwork-birdcoder-h5/sdkwork.app.config.json'));
+const h5AppConfig = JSON.parse(read('apps/sdkwork-birdcoder-h5/agent.app.config.json'));
 
 assert.equal(
   packageJson.scripts['build:capacitor-android'],

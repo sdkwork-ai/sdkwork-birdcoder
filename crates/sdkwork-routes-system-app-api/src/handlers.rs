@@ -31,7 +31,7 @@ pub struct SystemAppState {
 
 impl SystemAppState {
     pub fn new(routes: &'static [HttpRoute]) -> Self {
-        Self::with_runtime(routes, "127.0.0.1", 10_240, "sdkwork.app.config.json")
+        Self::with_runtime(routes, "127.0.0.1", 10_240, "agent.app.config.json")
     }
 
     pub fn with_runtime(

@@ -13,7 +13,7 @@ fn test_state() -> SystemAppState {
         SYSTEM_APP_API_ROUTES,
         "127.0.0.1",
         10_240,
-        "sdkwork.app.config.json",
+        "agent.app.config.json",
     )
 }
 

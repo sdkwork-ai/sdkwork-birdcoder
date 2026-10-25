@@ -34,8 +34,8 @@ Do not copy root standard text into this application. If these relative paths do
 
 This is the WeChat-native Mini Program application root for sdkwork-birdcoder.
 
-Read `sdkwork.app.config.json` for mini-program surface identity and
-`../../sdkwork.app.config.json` for repository-wide application identity before
+Read `agent.app.config.json` for mini-program surface identity and
+`../../agent.app.config.json` for repository-wide application identity before
 changing application behavior, runtime config, SDK wiring, or release metadata.
 
 ## Local Dictionary Structure

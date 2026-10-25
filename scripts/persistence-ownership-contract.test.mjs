@@ -118,7 +118,7 @@ for (const disabledPattern of [
 }
 
 const rootComponent = readJson(rootDir, 'specs/component.spec.json');
-const appManifest = readJson(rootDir, 'sdkwork.app.config.json');
+const appManifest = readJson(rootDir, 'agent.app.config.json');
 assert.equal(rootComponent.ownership.databaseTableCount, 0);
 assert.equal(appManifest.metadata?.domainOwnership?.databaseTableCount, 0);
 

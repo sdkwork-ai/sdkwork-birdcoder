@@ -12,7 +12,7 @@ SDKWork BirdCoder 遵循包优先架构纪律，所有 SDKWork 平台能力通�
 ## 规范参考
 
 - [AGENTS.md](AGENTS.md) — 本地 Agent 入口和规范索引
-- [sdkwork.app.config.json](sdkwork.app.config.json) — 应用身份和能力元数据
+- [agent.app.config.json](agent.app.config.json) — 应用身份和能力元数据
 - [技术架构文档](docs/architecture/tech/TECH_ARCHITECTURE.md) — 系统技术架构规范
 - [产品需求文档](docs/product/prd/PRD.md) — 产品设计定义
 - [docs/README.md](docs/README.md) — 文档结构总览

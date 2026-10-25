@@ -20,7 +20,7 @@
     "generated": false,
     "private": true,
     "manifests": [
-      "sdkwork.app.config.json",
+      "agent.app.config.json",
       "package.json",
       "Cargo.toml"
     ]
@@ -166,7 +166,7 @@
         }
       ],
       "bootstrapAccessTokenScope": {
-        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+        "inheritFrom": "agent.app.config.json#backend.accessTokenPermissionScope",
         "supplement": [],
         "overrideReplace": false
       }
@@ -175,7 +175,7 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
-      "sdkwork.app.config.json"
+      "agent.app.config.json"
     ]
   },
   "ownership": {

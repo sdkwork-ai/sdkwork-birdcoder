@@ -90,7 +90,7 @@ assert.match(runtimeBindingGuide, /opaque (?:runtime )?location id|opaque id/u);
 const ownership = readJson('specs/domain-ownership.spec.json');
 const appOpenApi = readJson(ownership.apiOwnership.appApi.authorityFile);
 const iamManifest = readJson('specs/iam.module.manifest.json');
-const rootManifest = readJson('sdkwork.app.config.json');
+const rootManifest = readJson('agent.app.config.json');
 const manifestOwnership = rootManifest.metadata?.domainOwnership;
 
 assert.equal(manifestOwnership?.owner, ownership.ownedBoundedContext.owner);

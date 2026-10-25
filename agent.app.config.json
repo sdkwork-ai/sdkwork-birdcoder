@@ -1,21 +1,22 @@
 {
   "schemaVersion": 3,
-  "kind": "sdkwork.app",
+  "kind": "agent.app",
   "app": {
-    "key": "sdkwork-birdcoder-pc",
-    "name": "SDKWork BirdCoder PC",
-    "displayName": "SDKWork BirdCoder PC",
-    "description": "SDKWork BirdCoder PC desktop and browser application.",
+    "key": "sdkwork-birdcoder",
+    "name": "SDKWork Birdcoder",
+    "displayName": "SDKWork Birdcoder",
+    "description": "SDKWork BirdCoder coding workbench application.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
     "supportUrl": "https://sdkwork.com/support",
     "privacyPolicyUrl": "https://sdkwork.com/privacy",
     "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-1024.png",
     "appType": "APP_REACT",
     "versionSource": "package.json",
     "identifiers": {
-      "packageName": "com.sdkwork.birdcoder.pc",
-      "bundleId": "com.sdkwork.birdcoder.pc",
+      "packageName": null,
+      "bundleId": null,
       "desktopAppId": "com.sdkwork.birdcoder.desktop",
       "containerImage": "registry.sdkwork.com/apps/sdkwork-birdcoder"
     }
@@ -25,7 +26,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "WEB",
-    "appId": "sdkwork-birdcoder-pc",
+    "appId": "sdkwork-birdcoder",
     "tenantId": "100001",
     "organizationId": "0",
     "accessTokenPermissionScope": [
@@ -57,7 +58,7 @@
   "media": {
     "icons": {
       "primary": {
-        "id": "sdkwork-birdcoder-pc-primary-icon",
+        "id": "sdkwork-birdcoder-primary-icon",
         "type": "ICON",
         "purpose": "PRIMARY",
         "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-1024.png",
@@ -69,16 +70,62 @@
         "fileSizeBytes": 524288,
         "alphaChannel": false,
         "sortOrder": 0,
-        "enabled": false,
+        "enabled": true,
         "metadata": {
-          "generatedPlaceholder": true,
-          "preLaunch": true
+          "generatedPlaceholder": true
         }
       },
-      "platform": []
+      "platform": [],
+      "metadata": {
+        "generatedPlaceholder": true
+      }
     },
-    "screenshots": [],
-    "previews": [],
+    "screenshots": [
+      {
+        "id": "sdkwork-birdcoder-web-screenshot",
+        "type": "SCREENSHOT",
+        "purpose": "CATALOG_SCREENSHOT",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/web-screenshot.png",
+        "platform": "WEB",
+        "locale": "en-US",
+        "deviceClass": "BROWSER",
+        "displayType": "WEB_DESKTOP",
+        "width": 1920,
+        "height": 1080,
+        "format": "PNG",
+        "fileSizeBytes": 1048576,
+        "alphaChannel": false,
+        "caption": "SDKWork Birdcoder product screenshot.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true,
+          "altText": "SDKWork Birdcoder app screenshot."
+        }
+      }
+    ],
+    "previews": [
+      {
+        "id": "sdkwork-birdcoder-catalog-preview",
+        "type": "PREVIEW_IMAGE",
+        "purpose": "CATALOG_PREVIEW",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/preview-cover.png",
+        "platform": "WEB",
+        "locale": "en-US",
+        "width": 1600,
+        "height": 900,
+        "format": "PNG",
+        "fileSizeBytes": 786432,
+        "alphaChannel": false,
+        "caption": "SDKWork Birdcoder preview.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true,
+          "altText": "SDKWork Birdcoder preview cover."
+        }
+      }
+    ],
     "metadata": {
       "assetVersion": "0.1.0",
       "defaultLocale": "en-US"
@@ -108,8 +155,7 @@
     "stores": [],
     "config": {
       "workspaceRoot": "apps/sdkwork-birdcoder-pc",
-      "framework": "react-tauri",
-      "managedBy": "sdkwork-app-standard-v3"
+      "framework": "react-tauri"
     }
   },
   "artifacts": {
@@ -211,6 +257,7 @@
         "workspaceRoot": "apps/sdkwork-birdcoder-pc",
         "framework": "react-tauri",
         "packageManager": "pnpm@10.30.2",
+        "migratedFromLegacyConfig": true,
         "preLaunch": true
       }
     }
@@ -219,19 +266,20 @@
     "currentVersion": "0.1.0",
     "defaultChannel": "INTERNAL",
     "latest": {
+      "STABLE": "0.1.0",
       "INTERNAL": "0.1.0"
     },
     "notes": [
       {
         "version": "0.1.0",
         "releaseChannel": "INTERNAL",
-        "title": "SDKWork BirdCoder PC 0.1.0 pre-launch",
-        "summary": "Internal pre-launch build; browser and desktop packages remain disabled pending governed artifacts.",
-        "content": "The PC surface consumes BirdCoder coding-workbench APIs and dependency-owned SDKs. It does not own AI session, skill, or human-message persistence.",
+        "title": "SDKWork Birdcoder 0.1.0",
+        "summary": "SDKWork Birdcoder initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder.",
         "highlights": [
-          "Browser and Tauri desktop surfaces",
-          "BirdCoder owner API contains 4 System App API operations",
-          "Agent Session and Session Item workflows use sdkwork-agents"
+          "SDKWork App Standard v3 configuration initialized",
+          "platform_app projection metadata standardized",
+          "Download package matrix normalized"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -239,6 +287,7 @@
           "macos-universal-standalone-desktop-dmg",
           "linux-x64-standalone-desktop-appimage"
         ],
+        "publishedAt": "2026-05-07T00:00:00Z",
         "current": true,
         "forceUpdate": false,
         "minSupportedVersion": "0.1.0",
@@ -262,6 +311,29 @@
     "initializedAt": "2026-05-07T00:00:00Z",
     "deploymentConfig": "etc/sdkwork.deployment.config.json",
     "preLaunch": true,
+    "domainOwnership": {
+      "owner": "sdkwork-birdcoder",
+      "capability": "coding-workbench",
+      "databaseTableCount": 0,
+      "apiOperationCounts": {
+        "appApi": 4,
+        "backendApi": 0,
+        "openApi": 0
+      },
+      "permissionCount": 4,
+      "dependencyAuthorities": {
+        "agentWorkspaces": "sdkwork-agents",
+        "agentProjects": "sdkwork-agents",
+        "agentProjectComposition": "sdkwork-agents",
+        "agentSessions": "sdkwork-agents",
+        "agentSessionItems": "sdkwork-agents",
+        "agentRuntimeBindings": "sdkwork-agents",
+        "skills": "sdkwork-skills",
+        "savedPrompts": "sdkwork-prompts",
+        "documentContent": "sdkwork-documents",
+        "humanMessaging": "sdkwork-im"
+      }
+    },
     "releaseEvidence": {
       "status": "blocked",
       "verifiedAt": "2026-07-22",

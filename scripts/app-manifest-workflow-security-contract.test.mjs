@@ -8,7 +8,7 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
 }
 
-const manifest = readJson('sdkwork.app.config.json');
+const manifest = readJson('agent.app.config.json');
 const workflow = readJson('sdkwork.workflow.json');
 
 assert.equal(workflow.security?.sbomRequired, true, 'Release workflow must require SBOM evidence.');

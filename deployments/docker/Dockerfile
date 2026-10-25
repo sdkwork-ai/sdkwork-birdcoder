@@ -2,7 +2,7 @@
 # sdkwork-birdcoder standalone container image.
 # runtimeTarget = "container", deploymentProfile = "standalone".
 # Build context: an unpacked install-package container directory containing
-# bin/, portal/, database-modules/, data/sdkwork-models/, sdkwork.app.config.json
+# bin/, portal/, database-modules/, data/sdkwork-models/, agent.app.config.json
 # and container/ (entrypoint + metadata.json). Assemble the context with
 # `pnpm build:container` (scripts/build-birdcoder-container.mjs); the committed
 # copy is the build input and the package builder regenerates an equivalent
@@ -46,7 +46,7 @@ RUN chmod 0755 ${INSTALL_ROOT}/bin/${GATEWAY_BINARY} \
 
 ENV SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE=standalone
 ENV SDKWORK_BIRDCODER_RUNTIME_TARGET=container
-# Application identity root: sdkwork.app.config.json is installed at the
+# Application identity root: agent.app.config.json is installed at the
 # install root; IAM tenant provisioning resolves it via SDKWORK_APP_ROOT.
 ENV SDKWORK_APP_ROOT=${INSTALL_ROOT}
 ENV SDKWORK_BIRDCODER_APP_ROOT=${INSTALL_ROOT}

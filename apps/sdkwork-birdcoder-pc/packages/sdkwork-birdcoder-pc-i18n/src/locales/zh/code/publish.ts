@@ -64,7 +64,7 @@ export default defineLocaleModule('code/publish', {
       selectApp: '选择要发布的应用',
       selectTarget: '选择发布目标',
       site: '站点',
-      setupRequired: '已发现此应用，但 sdkwork.app.config.json 尚未声明完整的构建目标。',
+      setupRequired: '已发现此应用，但 agent.app.config.json 尚未声明完整的构建目标。',
       setupTitle: '需要完善发布配置',
       stageBuilding: '正在构建应用',
       stageCompleted: '发布完成',

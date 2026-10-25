@@ -19,9 +19,9 @@ const developmentTopology = read('etc/topology/standalone.development.env');
 const flutterRunnerSource = read('scripts/run-flutter-mobile-command.mjs');
 const topology = JSON.parse(read('specs/topology.spec.json'));
 const surfaceManifestPaths = [
-  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-pc/agent.app.config.json',
+  'apps/sdkwork-birdcoder-h5/agent.app.config.json',
+  'apps/sdkwork-birdcoder-flutter-mobile/agent.app.config.json',
 ];
 
 assert.match(
@@ -73,7 +73,7 @@ assert.match(
 );
 assert.match(
   flutterRunnerSource,
-  /apps\/sdkwork-birdcoder-flutter-mobile\/sdkwork\.app\.config\.json/u,
+  /apps\/sdkwork-birdcoder-flutter-mobile\/agent\.app\.config\.json/u,
   'Flutter development must select its own surface manifest explicitly.',
 );
 

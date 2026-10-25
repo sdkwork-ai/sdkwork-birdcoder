@@ -149,10 +149,10 @@ const canonicalManifestPath = path.join(canonicalReleaseAssetsDir, 'release-mani
 // pre-launch (releaseEvidence blocked), so the missing evidence is an honest
 // blocked state instead of a silently passing or silently failing gate.
 if (!fs.existsSync(canonicalReleaseAssetsDir)) {
-  const appConfigPath = path.join(rootDir, 'sdkwork.app.config.json');
+  const appConfigPath = path.join(rootDir, 'agent.app.config.json');
   assert.ok(
     fs.existsSync(appConfigPath),
-    'release-openapi-canonical quality evidence contract requires sdkwork.app.config.json.',
+    'release-openapi-canonical quality evidence contract requires agent.app.config.json.',
   );
   const appConfig = readJson(appConfigPath);
   const releaseStatus = String(

@@ -1,6 +1,6 @@
 # Development
 
-Read the root `AGENTS.md`, `sdkwork.app.config.json`, the local component
+Read the root `AGENTS.md`, `agent.app.config.json`, the local component
 spec, and the task-selected SDKWork standard before editing.
 
 ## Integration Rule

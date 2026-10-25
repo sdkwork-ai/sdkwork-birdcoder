@@ -64,7 +64,7 @@ export default defineLocaleModule('code/publish', {
       selectApp: 'Select an application',
       selectTarget: 'Select a release target',
       site: 'Site',
-      setupRequired: 'This app is visible, but its sdkwork.app.config.json does not declare a complete build target yet.',
+      setupRequired: 'This app is visible, but its agent.app.config.json does not declare a complete build target yet.',
       setupTitle: 'Publishing setup required',
       stageBuilding: 'Building application',
       stageCompleted: 'Publication complete',

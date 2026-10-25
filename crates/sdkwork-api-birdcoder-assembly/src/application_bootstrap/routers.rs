@@ -21,7 +21,7 @@ pub async fn build_router(
         owned_routes,
         config.host.clone(),
         config.port,
-        "sdkwork.app.config.json",
+        "agent.app.config.json",
     );
     if let Some(readiness_check) = readiness_check {
         state = state.with_readiness_check(readiness_check);

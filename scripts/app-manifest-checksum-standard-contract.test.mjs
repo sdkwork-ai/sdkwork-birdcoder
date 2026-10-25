@@ -43,12 +43,12 @@ function assertManifestChecksumPolicy(manifestPath) {
   }
 }
 
-assertManifestChecksumPolicy('sdkwork.app.config.json');
+assertManifestChecksumPolicy('agent.app.config.json');
 
 for (const scaffoldManifestPath of [
-  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
-  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-pc/agent.app.config.json',
+  'apps/sdkwork-birdcoder-h5/agent.app.config.json',
+  'apps/sdkwork-birdcoder-flutter-mobile/agent.app.config.json',
 ]) {
   const manifest = readJson(scaffoldManifestPath);
   assert.equal(

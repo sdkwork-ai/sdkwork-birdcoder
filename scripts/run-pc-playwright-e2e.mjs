@@ -259,7 +259,7 @@ export async function runCli({
       SDKWORK_ACCESS_TOKEN: env.SDKWORK_ACCESS_TOKEN,
     },
     environment: 'test',
-    manifestPath: 'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
+    manifestPath: 'apps/sdkwork-birdcoder-pc/agent.app.config.json',
     repoRoot: rootDir,
     runtimeTarget: 'browser',
   });

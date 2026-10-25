@@ -132,7 +132,7 @@ assert.deepEqual(workflowConfig.app, {
   name: 'SDKWork BirdCoder',
   repository: 'sdkwork-ai/sdkwork-birdcoder',
   sourcePath: '.',
-  configPath: 'sdkwork.app.config.json',
+  configPath: 'agent.app.config.json',
 });
 assert.equal(workflowConfig.release.artifactPrefix, 'sdkwork-birdcoder');
 assert.equal(workflowConfig.release.defaultVersion, '0.1.0');
@@ -395,7 +395,7 @@ try {
 
 // The committed container Dockerfile copies the unpacked install-package
 // context (bin/, portal/, database-modules/, data/sdkwork-models/, openapi/,
-// sdkwork.app.config.json, container/) into /opt/sdkwork/birdcoder and runs
+// agent.app.config.json, container/) into /opt/sdkwork/birdcoder and runs
 // as the non-root `sdkwork` user. These assertions pin that real layout so a
 // future refactor cannot silently break the release-flow contract.
 assert.match(

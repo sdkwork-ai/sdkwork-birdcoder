@@ -20,7 +20,7 @@ const flutterMobileRoot = path.join(
   "apps/sdkwork-birdcoder-flutter-mobile",
 );
 const flutterMobileManifestPath =
-  "apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json";
+  "apps/sdkwork-birdcoder-flutter-mobile/agent.app.config.json";
 
 const [command, ...args] = process.argv.slice(2);
 if (!command) {

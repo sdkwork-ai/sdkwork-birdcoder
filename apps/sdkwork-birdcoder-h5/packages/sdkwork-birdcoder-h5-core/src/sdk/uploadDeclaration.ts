@@ -23,7 +23,7 @@ export interface BirdCoderH5UploadDeclarationEntry {
   readonly uploadProfileCode: string;
 }
 
-/** This application's canonical appId, from `sdkwork.app.config.json` `backend.appId`. */
+/** This application's canonical appId, from `agent.app.config.json` `backend.appId`. */
 export const BIRDCODER_H5_APP_ID = 'sdkwork-birdcoder-h5' as const;
 
 /** The single call-origin label for every upload from this application. */

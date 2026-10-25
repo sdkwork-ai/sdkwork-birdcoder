@@ -9,7 +9,7 @@ function read(relativePath) {
 }
 
 const packageJson = JSON.parse(read('package.json'));
-const appConfig = JSON.parse(read('sdkwork.app.config.json'));
+const appConfig = JSON.parse(read('agent.app.config.json'));
 const ciWorkflow = read('.github/workflows/ci.yml');
 const governanceReport = read('scripts/governance-regression-report.mjs');
 

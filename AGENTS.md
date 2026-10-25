@@ -31,7 +31,7 @@ Do not copy root standard text into this repository. If these relative paths do 
 
 ## Application Identity
 
-This is a multi-surface SDKWork application repository. Read `sdkwork.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
+This is a multi-surface SDKWork application repository. Read `agent.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
 
 ### Application Surfaces
 
@@ -53,7 +53,7 @@ This is a multi-surface SDKWork application repository. Read `sdkwork.app.config
 - `CLAUDE.md`: Claude Code compatibility shim that points to `AGENTS.md` and must not duplicate rules.
 - `GEMINI.md`: Gemini CLI compatibility shim that points to `AGENTS.md` and must not duplicate rules.
 - `CODEX.md`: Codex compatibility shim that points to `AGENTS.md` and must not duplicate rules.
-- `sdkwork.app.config.json`: application identity and owned capability metadata.
+- `agent.app.config.json`: application identity and owned capability metadata.
 - `.sdkwork/`: reserved local dictionary folder; create only for local skills, plugins, manifests, or AI workspace metadata.
 - `specs/`: local application/component contracts and narrowing rules.
 - `package.json`, `pnpm-workspace.yaml`: language/build manifests.
@@ -75,13 +75,13 @@ This is a multi-surface SDKWork application repository. Read `sdkwork.app.config
 Use dynamic progressive loading for the current task: resolve the selected root and task category before reading broad source context.
 
 1. Read this `AGENTS.md` routing material and classify the owned surface.
-2. Read `sdkwork.app.config.json`, module `specs/`, repository/application `specs/`, and `.sdkwork/` only when the task reaches the contract each item governs.
+2. Read `agent.app.config.json`, module `specs/`, repository/application `specs/`, and `.sdkwork/` only when the task reaches the contract each item governs.
 3. Locate only the relevant task-matrix row or navigation heading in `../sdkwork-specs/README.md`; do not load the full catalog.
 4. Read only the task-specific global spec sections selected by that route, then inspect implementation files.
 <!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
 
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
-2. Read `sdkwork.app.config.json` when present.
+2. Read `agent.app.config.json` when present.
 3. Read local `specs/README.md` and `specs/component.spec.json` when present.
 4. Read local `.sdkwork/README.md`, `.sdkwork/skills/`, and `.sdkwork/plugins/` when relevant.
 5. Read `../sdkwork-specs/README.md` and the task-specific root specs.

@@ -20,7 +20,7 @@
     "generated": false,
     "private": true,
     "manifests": [
-      "sdkwork.app.config.json",
+      "agent.app.config.json",
       "package.json",
       "packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml",
       "vite.config.ts"
@@ -531,7 +531,7 @@
         }
       ],
       "bootstrapAccessTokenScope": {
-        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+        "inheritFrom": "agent.app.config.json#backend.accessTokenPermissionScope",
         "supplement": [],
         "overrideReplace": false
       },

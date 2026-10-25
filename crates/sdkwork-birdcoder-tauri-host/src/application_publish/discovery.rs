@@ -218,7 +218,7 @@ fn inspect_candidate(
             )
         }
         Ok(None) => {
-            issues.push("sdkwork.app.config.json is required before publishing.".to_string());
+            issues.push("agent.app.config.json is required before publishing.".to_string());
             ("missing".to_string(), Vec::new(), None)
         }
         Err(message) => {
@@ -266,7 +266,7 @@ fn collect_candidates(project_root: &Path) -> (BTreeSet<PathBuf>, bool, usize) {
             break;
         }
         scanned += 1;
-        if depth > 0 && directory.join("sdkwork.app.config.json").is_file() {
+        if depth > 0 && directory.join("agent.app.config.json").is_file() {
             candidates.insert(directory.clone());
         }
         if depth >= MAX_DISCOVERY_DEPTH {
@@ -345,10 +345,10 @@ mod tests {
             fs::create_dir_all(apps.join(name)).expect("application fixture directory");
         }
         fs::write(
-            root.join("sdkwork.app.config.json"),
+            root.join("agent.app.config.json"),
             r#"{
               "schemaVersion":3,
-              "kind":"sdkwork.app",
+              "kind":"agent.app",
               "app":{"key":"fixture-workspace","name":"Fixture workspace"},
               "devApp":{"build":{"targets":[]}}
             }"#,
@@ -417,10 +417,10 @@ mod tests {
         ));
         fs::create_dir_all(&root).expect("application fixture directory");
         fs::write(
-            root.join("sdkwork.app.config.json"),
+            root.join("agent.app.config.json"),
             r#"{
               "schemaVersion":3,
-              "kind":"sdkwork.app",
+              "kind":"agent.app",
               "app":{"key":"fixture-web","name":"Fixture web","appType":"APP_REACT"},
               "runtime":{"framework":"react"},
               "devApp":{"build":{"targets":[

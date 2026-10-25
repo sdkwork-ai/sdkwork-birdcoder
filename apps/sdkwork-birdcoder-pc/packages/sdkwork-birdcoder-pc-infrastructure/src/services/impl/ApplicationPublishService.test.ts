@@ -202,7 +202,7 @@ describe('ApplicationPublishService', () => {
     expect(discovery.applications[0]).toEqual({
       appKey: 'customer-web',
       framework: 'react',
-      manifestRelativePath: 'apps/customer-web/sdkwork.app.config.json',
+      manifestRelativePath: 'apps/customer-web/agent.app.config.json',
       name: 'Customer Web',
       readiness: 'ready',
       relativePath: 'apps/customer-web',

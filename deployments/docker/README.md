@@ -140,7 +140,7 @@ bin/sdkwork-birdcoder-standalone-gateway   gateway executable (stripped Linux EL
 portal/dist/                               portal SPA dist (served by nginx)
 database-modules/<repo>/database/          federated database modules
 data/sdkwork-models/                       bundled models catalog
-sdkwork.app.config.json                    application identity manifest
+agent.app.config.json                    application identity manifest
 container/entrypoint                       container entrypoint
 container/Containerfile                    equivalent container file
 container/metadata.json                    container metadata

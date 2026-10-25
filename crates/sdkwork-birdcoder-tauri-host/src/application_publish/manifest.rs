@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 use super::types::{ApplicationPublishOutputSnapshot, ApplicationPublishTargetSnapshot};
 
-pub(crate) const APPLICATION_MANIFEST_FILE_NAME: &str = "sdkwork.app.config.json";
+pub(crate) const APPLICATION_MANIFEST_FILE_NAME: &str = "agent.app.config.json";
 const MAX_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_COMMAND_BYTES: usize = 8 * 1024;
 const MAX_TARGET_OUTPUTS: usize = 32;
@@ -88,7 +88,7 @@ fn read_non_empty_string(value: Option<&Value>) -> Option<String> {
 /// executable plus space-separated arguments: no shell operators, pipes,
 /// redirection, command substitution, environment assignment, or quote
 /// characters that a `sh -c` / `cmd /C` layer would interpret. This keeps a
-/// renderer-controlled `sdkwork.app.config.json` from escalating to arbitrary
+/// renderer-controlled `agent.app.config.json` from escalating to arbitrary
 /// shell execution.
 fn is_safe_manifest_command(value: &str) -> bool {
     if value.trim() != value || value.is_empty() {
@@ -411,7 +411,7 @@ pub(crate) fn read_application_manifest(
     if value.get("schemaVersion").and_then(Value::as_u64) != Some(3) {
         issues.push("Manifest schemaVersion must be 3.".to_string());
     }
-    if read_non_empty_string(value.get("kind")).as_deref() != Some("sdkwork.app") {
+    if read_non_empty_string(value.get("kind")).as_deref() != Some("agent.app") {
         issues.push("Manifest kind must be sdkwork.app.".to_string());
     }
 
@@ -624,7 +624,7 @@ mod tests {
             root.join(APPLICATION_MANIFEST_FILE_NAME),
             r#"{
               "schemaVersion":3,
-              "kind":"sdkwork.app",
+              "kind":"agent.app",
               "app":{"key":"fixture","name":"Fixture","appType":"APP_REACT"},
               "runtime":{"framework":"react"},
               "devApp":{"build":{"targets":[
@@ -658,7 +658,7 @@ mod tests {
         let root = fixture_root();
         fs::write(
             root.join(APPLICATION_MANIFEST_FILE_NAME),
-            r#"{"kind":"sdkwork.app","app":{"key":"fixture"},"devApp":{"build":{"targets":[{"id":"web","command":"build","packageId":"web","outputs":[{"path":"dist","type":"directory","archive":"zip","fileName":"web.zip"}]}]}}}"#,
+            r#"{"kind":"agent.app","app":{"key":"fixture"},"devApp":{"build":{"targets":[{"id":"web","command":"build","packageId":"web","outputs":[{"path":"dist","type":"directory","archive":"zip","fileName":"web.zip"}]}]}}}"#,
         )
         .expect("manifest fixture");
 
@@ -678,7 +678,7 @@ mod tests {
         let root = fixture_root();
         fs::write(
             root.join(APPLICATION_MANIFEST_FILE_NAME),
-            r#"{"schemaVersion":3,"kind":"sdkwork.app","app":{"key":"fixture"},"devApp":{"build":{"targets":[{"id":"web","command":"build","packageId":"web","outputs":[{"path":"dist","type":"directory","fileName":"web.zip"}]}]}}}"#,
+            r#"{"schemaVersion":3,"kind":"agent.app","app":{"key":"fixture"},"devApp":{"build":{"targets":[{"id":"web","command":"build","packageId":"web","outputs":[{"path":"dist","type":"directory","fileName":"web.zip"}]}]}}}"#,
         )
         .expect("manifest fixture");
         let manifest = read_application_manifest(&root)
@@ -700,7 +700,7 @@ mod tests {
             root.join(APPLICATION_MANIFEST_FILE_NAME),
             r#"{
               "schemaVersion":3,
-              "kind":"sdkwork.app",
+              "kind":"agent.app",
               "app":{"key":"fixture"},
               "devApp":{"build":{"targets":[
                 {"id":"web","command":"build-a","packageId":"web-a","outputs":[{"path":"dist-a","type":"directory","archive":"zip","fileName":"a.zip"}]},

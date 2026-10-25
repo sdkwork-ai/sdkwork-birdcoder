@@ -25,7 +25,7 @@ export interface BirdCoderPcUploadDeclarationEntry {
   readonly uploadProfileCode: string;
 }
 
-/** This application's canonical appId, from `sdkwork.app.config.json` `backend.appId`. */
+/** This application's canonical appId, from `agent.app.config.json` `backend.appId`. */
 export const BIRDCODER_PC_APP_ID = 'sdkwork-birdcoder-pc' as const;
 
 /** The single call-origin label for every upload from this application. */

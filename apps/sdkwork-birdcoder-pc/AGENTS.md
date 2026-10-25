@@ -36,8 +36,8 @@ This is the PC application root for sdkwork-birdcoder. It supports:
 - Browser web mode (Vite dev server + production build)
 - Desktop mode (Tauri native host)
 
-Read `sdkwork.app.config.json` for PC-surface identity and
-`../../sdkwork.app.config.json` for repository-wide application identity before
+Read `agent.app.config.json` for PC-surface identity and
+`../../agent.app.config.json` for repository-wide application identity before
 changing application behavior, runtime config, SDK wiring, or release metadata.
 
 ## Local Dictionary Structure
@@ -93,13 +93,13 @@ Do not infer a recursive workspace scan or a broad validation suite from the pre
 Use dynamic progressive loading for the current task: resolve the selected root and task category before reading broad source context.
 
 1. Read this `AGENTS.md` routing material and classify the owned surface.
-2. Read `sdkwork.app.config.json`, module `specs/`, repository/application `specs/`, and `.sdkwork/` only when the task reaches the contract each item governs.
+2. Read `agent.app.config.json`, module `specs/`, repository/application `specs/`, and `.sdkwork/` only when the task reaches the contract each item governs.
 3. Locate only the relevant task-matrix row or navigation heading in `../../../sdkwork-specs/README.md`; do not load the full catalog.
 4. Read only the task-specific global spec sections selected by that route, then inspect implementation files.
 <!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
 
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
-2. Read local `sdkwork.app.config.json` and `../../sdkwork.app.config.json` when the task reaches application identity.
+2. Read local `agent.app.config.json` and `../../agent.app.config.json` when the task reaches application identity.
 3. Read local `specs/README.md` and `specs/component.spec.json` when present.
 4. Read `../../../sdkwork-specs/README.md` and the task-specific root specs.
 5. Inspect implementation files only after the relevant dictionary entries are clear.

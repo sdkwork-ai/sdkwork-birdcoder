@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export function listSdkworkAppManifestPaths(rootDir = process.cwd()) {
-  const manifests = [path.join(rootDir, 'sdkwork.app.config.json')];
+  const manifests = [path.join(rootDir, 'agent.app.config.json')];
   const appsDir = path.join(rootDir, 'apps');
 
   if (fs.existsSync(appsDir)) {
@@ -11,7 +11,7 @@ export function listSdkworkAppManifestPaths(rootDir = process.cwd()) {
         continue;
       }
 
-      const manifestPath = path.join(appsDir, entry.name, 'sdkwork.app.config.json');
+      const manifestPath = path.join(appsDir, entry.name, 'agent.app.config.json');
       if (fs.existsSync(manifestPath)) {
         manifests.push(manifestPath);
       }

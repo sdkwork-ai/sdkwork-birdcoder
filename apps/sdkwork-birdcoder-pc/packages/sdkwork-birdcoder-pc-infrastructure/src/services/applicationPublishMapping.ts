@@ -75,8 +75,8 @@ function manifestRelativePath(
     return undefined;
   }
   return application.relativePath === '.'
-    ? 'sdkwork.app.config.json'
-    : `${application.relativePath}/sdkwork.app.config.json`;
+    ? 'agent.app.config.json'
+    : `${application.relativePath}/agent.app.config.json`;
 }
 
 export function mapPublishableApplication(

@@ -88,7 +88,7 @@ pub(crate) fn preflight_application(
         resolve_application_root(&project_root, application_relative_path.trim())?;
     let manifest = read_application_manifest(&application_root)
         .map_err(|_| setup_required("The application manifest could not be validated."))?
-        .ok_or_else(|| setup_required("sdkwork.app.config.json is required before publishing."))?;
+        .ok_or_else(|| setup_required("agent.app.config.json is required before publishing."))?;
     if !manifest.issues.is_empty() {
         return Err(setup_required(
             "The application manifest is incomplete and requires setup.",
@@ -535,10 +535,10 @@ mod tests {
         )
         .expect("publish fixture not-selected script");
         fs::write(
-            root.join("sdkwork.app.config.json"),
+            root.join("agent.app.config.json"),
             serde_json::json!({
                 "schemaVersion": 3,
-                "kind": "sdkwork.app",
+                "kind": "agent.app",
                 "app": {"key": "fixture", "name": "Fixture", "appType": "APP_REACT"},
                 "runtime": {"framework": "react"},
                 "devApp": {"build": {"targets": [

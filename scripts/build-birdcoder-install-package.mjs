@@ -216,7 +216,7 @@ function renderInstallReadme(packageItem, installRoot = POSIX_INSTALL_ROOT) {
 - \`portal/dist\` — portal SPA dist (served by the deployment nginx)
 - \`database-modules/\` — federated database modules resolved by app-root envs
 - \`data/sdkwork-models/\` — bundled models catalog
-- \`sdkwork.app.config.json\` — application identity manifest
+- \`agent.app.config.json\` — application identity manifest
 - \`container/entrypoint\` — container entrypoint script
 - \`container/Containerfile\` — equivalent container file (committed Dockerfile is canonical)
 - \`install-manifest.json\` — per-file content manifest (path, size, sha256)

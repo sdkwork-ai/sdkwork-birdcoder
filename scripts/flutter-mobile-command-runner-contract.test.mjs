@@ -51,7 +51,7 @@ assert.match(
 );
 assert.match(
   runnerSource,
-  /apps\/sdkwork-birdcoder-flutter-mobile\/sdkwork\.app\.config\.json/u,
+  /apps\/sdkwork-birdcoder-flutter-mobile\/agent\.app\.config\.json/u,
   "Flutter development runner must select the Flutter surface manifest explicitly.",
 );
 

@@ -12,7 +12,7 @@ function readJson(relativePath) {
   return JSON.parse(readText(relativePath));
 }
 
-const manifest = readJson('sdkwork.app.config.json');
+const manifest = readJson('agent.app.config.json');
 const settingsSource = readText(
   'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat/src/screens/SettingsPage.tsx',
 );

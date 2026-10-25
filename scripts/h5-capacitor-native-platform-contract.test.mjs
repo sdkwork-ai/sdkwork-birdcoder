@@ -28,7 +28,7 @@ const androidGradle = read(`${capacitorRoot}/android/app/build.gradle`);
 const iosInfoPlist = read(`${capacitorRoot}/ios/App/App/Info.plist`);
 const iosEntitlements = read(`${capacitorRoot}/ios/App/App/App.entitlements`);
 const iosProject = read(`${capacitorRoot}/ios/App/App.xcodeproj/project.pbxproj`);
-const appManifest = JSON.parse(read('apps/sdkwork-birdcoder-h5/sdkwork.app.config.json'));
+const appManifest = JSON.parse(read('apps/sdkwork-birdcoder-h5/agent.app.config.json'));
 
 assert.match(
   packageConfig,
@@ -49,7 +49,7 @@ assert.match(
 assert.match(
   androidGradle,
   /applicationId "com\.sdkwork\.birdcoder\.h5"/u,
-  'Android applicationId must match sdkwork.app.config identifiers.packageName.',
+  'Android applicationId must match agent.app.config identifiers.packageName.',
 );
 assert.equal(
   appManifest.app.identifiers.packageName,
