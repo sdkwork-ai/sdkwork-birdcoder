@@ -132,11 +132,11 @@ function assertCargoWorkspaceOnlyProtocol(relativePath) {
 }
 
 function assertDependencyDeclaration() {
-  const workflow = readJson('sdkwork.workflow.json');
-  assert(Array.isArray(workflow.dependencies), 'sdkwork.workflow.json must declare dependencies[]');
+  const workflow = readJson('agent.workflow.json');
+  assert(Array.isArray(workflow.dependencies), 'agent.workflow.json must declare dependencies[]');
   const dependencyIds = new Set((workflow.dependencies || []).map((dependency) => dependency.id));
   for (const expectedId of expectedDependencyIds) {
-    assert(dependencyIds.has(expectedId), `sdkwork.workflow.json must declare ${expectedId}`);
+    assert(dependencyIds.has(expectedId), `agent.workflow.json must declare ${expectedId}`);
   }
   for (const dependency of workflow.dependencies || []) {
     assert(typeof dependency.id === 'string' && expectedDependencyIds.includes(dependency.id), `unexpected dependency id ${dependency.id}`);

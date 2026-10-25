@@ -1,6 +1,6 @@
 {
-  "$schema": "../sdkwork-github-workflow/schemas/sdkwork-workflow.schema.json",
-  "schemaVersion": "2026-06-06.sdkwork.workflow.v1",
+  "$schema": "../sdkwork-github-workflow/schemas/agent-workflow.schema.json",
+  "schemaVersion": "2026-06-06.agent.workflow.v1",
   "app": {
     "id": "sdkwork-birdcoder",
     "name": "SDKWork BirdCoder",
@@ -269,56 +269,56 @@
       {
         "name": "Run BirdCoder package preflight",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs preflight"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs preflight"
       }
     ],
     "install": [
       {
         "name": "Install BirdCoder workspace dependencies",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs install"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs install"
       }
     ],
     "build": [
       {
         "name": "Build selected BirdCoder release target",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs build"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs build"
       }
     ],
     "package": [
       {
         "name": "Package selected BirdCoder release target",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs package"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs package"
       }
     ],
     "sign": [
       {
         "name": "Write BirdCoder package signing evidence",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs sign"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs sign"
       }
     ],
     "sbom": [
       {
         "name": "Write BirdCoder package SBOM evidence",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs sbom"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs sbom"
       }
     ],
     "validate": [
       {
         "name": "Validate selected BirdCoder release target",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs validate"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs validate"
       }
     ],
     "publish": [
       {
         "name": "Finalize BirdCoder aggregate release assets",
         "shell": "node",
-        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs publish"
+        "run": "node scripts/release/agent-workflow-lifecycle.mjs publish"
       }
     ],
     "deploy": [

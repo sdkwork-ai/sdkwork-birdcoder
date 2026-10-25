@@ -53,10 +53,10 @@ if (!pnpmWorkspace.includes('../sdkwork-utils/packages/sdkwork-utils-typescript'
   fail('pnpm-workspace.yaml must include sdkwork-utils-typescript package');
 }
 
-const workflow = JSON.parse(read('sdkwork.workflow.json'));
+const workflow = JSON.parse(read('agent.workflow.json'));
 const dependencyIds = new Set((workflow.dependencies || []).map((dependency) => dependency.id));
 if (!dependencyIds.has('sdkwork-utils')) {
-  fail('sdkwork.workflow.json must declare sdkwork-utils dependency');
+  fail('agent.workflow.json must declare sdkwork-utils dependency');
 }
 
 const packageJson = JSON.parse(read('package.json'));

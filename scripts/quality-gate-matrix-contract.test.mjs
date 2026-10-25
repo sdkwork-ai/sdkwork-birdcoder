@@ -296,7 +296,7 @@ assert.equal(
 );
 assert.equal(
   report.tiers.find((tier) => tier.id === 'release')?.workflow.bindingKind,
-  'standard-sdkwork-workflow',
+  'standard-agent-workflow',
 );
 assert.match(
   report.tiers.find((tier) => tier.id === 'release')?.focus.join(' ') ?? '',

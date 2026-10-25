@@ -806,7 +806,7 @@ export async function runLifecycle(phase, { env = process.env } = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const phase = process.argv[2];
   if (!phase) {
-    console.error('Usage: node scripts/release/sdkwork-workflow-lifecycle.mjs <preflight|install|build|package|sign|sbom|validate|publish>');
+    console.error('Usage: node scripts/release/agent-workflow-lifecycle.mjs <preflight|install|build|package|sign|sbom|validate|publish>');
     process.exit(1);
   }
 

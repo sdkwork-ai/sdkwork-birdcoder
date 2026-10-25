@@ -130,8 +130,8 @@ export function validateLatestReleaseRegistryAgainstCanonicalTruth(
 
 function main() {
   const workflow = read('.github/workflows/package.yml');
-  const workflowConfig = read('sdkwork.workflow.json');
-  const lifecycle = read('scripts/release/sdkwork-workflow-lifecycle.mjs');
+  const workflowConfig = read('agent.workflow.json');
+  const lifecycle = read('scripts/release/agent-workflow-lifecycle.mjs');
   const releasePackager = read('scripts/release/package-release-assets.mjs');
   const canonicalAppApiOpenApi = read(
     'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',

@@ -34,7 +34,7 @@ const requiredPackages = [
 const requiredPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/package.yml',
-  'sdkwork.workflow.json',
+  'agent.workflow.json',
   'deployments/docker/Dockerfile',
   'deployments/docker/docker-compose.yml',
   'deployments/kubernetes/Chart.yaml',
@@ -93,7 +93,7 @@ const requiredPaths = [
   'scripts/shared-sdk-mode.mjs',
   'scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
   'scripts/release-flow-contract.test.mjs',
-  'scripts/release/sdkwork-workflow-lifecycle.mjs',
+  'scripts/release/agent-workflow-lifecycle.mjs',
   'scripts/release/finalize-release-assets.mjs',
   'scripts/release/finalize-release-assets.test.mjs',
   'scripts/release/desktop-installer-smoke-contract.mjs',

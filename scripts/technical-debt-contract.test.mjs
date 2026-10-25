@@ -138,7 +138,7 @@ assert.deepEqual(
 const governedCommandFiles = [
   'package.json',
   'Cargo.toml',
-  'sdkwork.workflow.json',
+  'agent.workflow.json',
   'scripts/run-quality-fast-check.mjs',
   'scripts/run-quality-standard-check.mjs',
   'scripts/run-quality-release-check.mjs',
@@ -146,7 +146,7 @@ const governedCommandFiles = [
   'scripts/run-release-flow-check.mjs',
   'scripts/pc-e2e-mock-api-fixtures.mjs',
   'scripts/pc-e2e-mock-api-server.mjs',
-  'scripts/release/sdkwork-workflow-lifecycle.mjs',
+  'scripts/release/agent-workflow-lifecycle.mjs',
   'scripts/release/write-package-sbom-evidence.mjs',
 ];
 const retiredCommandPattern = /sdkwork-birdcoder-(?:coding-sessions|chat|skill-packages|kernel-bridge)|run-cloud-server|coding-server-openapi|provider-runtime|test:birdcoder-agents-integration|coding-session-prompt-history|flutter-mobile-chat-api|check:data-kernel|appRuntimeTransport|ProviderBackedProjectService|auth-workspace-loading-gating|project-agent-project-composition|workspace-realtime-browser-auth|code-local-folder-import-workspace|composed-sdk-project-runtime-location-registration|createWorkspaceFixture|createProjectFixture|ProjectRuntimeLocationPreference|ProjectGitOverviewFixture|\/app\/v3\/api\/(?:workspaces|projects)/iu;

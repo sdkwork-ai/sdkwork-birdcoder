@@ -92,10 +92,10 @@ export const QUALITY_GATE_TIERS = Object.freeze([
     governanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
     rerunPolicy: 'Any release-gate failure blocks packaging or publish; rerun the full release gate after the fix to keep release evidence coherent.',
     workflowBinding: Object.freeze({
-      kind: 'standard-sdkwork-workflow',
+      kind: 'standard-agent-workflow',
       requiredCommands: Object.freeze([
         'sdkwork-ai/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33',
-        'config_path: sdkwork.workflow.json',
+        'config_path: agent.workflow.json',
         'publish_release: true',
         'upload_artifact: true',
       ]),
@@ -160,7 +160,7 @@ function hasWorkflowBinding(workflowSource, tier) {
     return false;
   }
 
-  if (tier.workflowBinding?.kind === 'standard-sdkwork-workflow') {
+  if (tier.workflowBinding?.kind === 'standard-agent-workflow') {
     return requiredCommands.every((command) => workflowSource.includes(command));
   }
 

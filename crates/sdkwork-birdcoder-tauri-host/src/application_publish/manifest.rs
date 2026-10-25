@@ -412,7 +412,7 @@ pub(crate) fn read_application_manifest(
         issues.push("Manifest schemaVersion must be 3.".to_string());
     }
     if read_non_empty_string(value.get("kind")).as_deref() != Some("agent.app") {
-        issues.push("Manifest kind must be sdkwork.app.".to_string());
+        issues.push("Manifest kind must be agent.app.".to_string());
     }
 
     let app = value.get("app");

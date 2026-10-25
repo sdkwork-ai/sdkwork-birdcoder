@@ -45,10 +45,10 @@ function relativeFromRoot(absolutePath) {
   return path.relative(rootDir, absolutePath).split(path.sep).join('/');
 }
 
-const workflow = JSON.parse(read('sdkwork.workflow.json'));
+const workflow = JSON.parse(read('agent.workflow.json'));
 const dependencyIds = new Set((workflow.dependencies || []).map((dependency) => dependency.id));
 if (!dependencyIds.has('sdkwork-drive')) {
-  fail('sdkwork.workflow.json must declare sdkwork-drive dependency');
+  fail('agent.workflow.json must declare sdkwork-drive dependency');
 }
 
 const pnpmWorkspace = read('pnpm-workspace.yaml');

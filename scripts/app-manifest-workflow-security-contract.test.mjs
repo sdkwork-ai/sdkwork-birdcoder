@@ -9,7 +9,7 @@ function readJson(relativePath) {
 }
 
 const manifest = readJson('agent.app.config.json');
-const workflow = readJson('sdkwork.workflow.json');
+const workflow = readJson('agent.workflow.json');
 
 assert.equal(workflow.security?.sbomRequired, true, 'Release workflow must require SBOM evidence.');
 assert.equal(workflow.security?.signingRequired, true, 'Release workflow must require signing evidence.');

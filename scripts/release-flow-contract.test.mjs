@@ -8,8 +8,8 @@ import { pathToFileURL } from 'node:url';
 const rootDir = process.cwd();
 const frameworkRef = 'b1bdb5887f0f9e5683a46a02eaeb818c042b8a33';
 const packageWorkflowPath = '.github/workflows/package.yml';
-const workflowConfigPath = 'sdkwork.workflow.json';
-const lifecyclePath = 'scripts/release/sdkwork-workflow-lifecycle.mjs';
+const workflowConfigPath = 'agent.workflow.json';
+const lifecyclePath = 'scripts/release/agent-workflow-lifecycle.mjs';
 
 function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8').replaceAll('\r\n', '\n');
@@ -33,14 +33,14 @@ function assertFileMissing(relativePath) {
 
 function lifecycleRunForPhase(config, phase) {
   const steps = config.lifecycle?.[phase];
-  assert.ok(Array.isArray(steps), `sdkwork.workflow.json must declare lifecycle.${phase}.`);
+  assert.ok(Array.isArray(steps), `agent.workflow.json must declare lifecycle.${phase}.`);
   assert.equal(steps.length, 1, `lifecycle.${phase} must delegate through one governed dispatcher step.`);
   return String(steps[0]?.run ?? '');
 }
 
 function findTarget(config, targetId) {
   const target = config.targets.find((candidate) => candidate.id === targetId);
-  assert.ok(target, `sdkwork.workflow.json must include standard target ${targetId}.`);
+  assert.ok(target, `agent.workflow.json must include standard target ${targetId}.`);
   return target;
 }
 
@@ -126,7 +126,7 @@ for (const forbiddenLocalAction of [
   );
 }
 
-assert.equal(workflowConfig.schemaVersion, '2026-06-06.sdkwork.workflow.v1');
+assert.equal(workflowConfig.schemaVersion, '2026-06-06.agent.workflow.v1');
 assert.deepEqual(workflowConfig.app, {
   id: 'sdkwork-birdcoder',
   name: 'SDKWork BirdCoder',
@@ -147,7 +147,7 @@ assert.equal(workflowConfig.security.artifactAttestations, true);
 for (const phase of ['preflight', 'install', 'build', 'package', 'sign', 'sbom', 'validate', 'publish']) {
   assertSourceIncludes(
     lifecycleRunForPhase(workflowConfig, phase),
-    `node scripts/release/sdkwork-workflow-lifecycle.mjs ${phase}`,
+    `node scripts/release/agent-workflow-lifecycle.mjs ${phase}`,
     `lifecycle.${phase} must route through the governed BirdCoder lifecycle dispatcher.`,
   );
 }
