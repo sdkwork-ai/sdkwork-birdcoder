@@ -170,7 +170,7 @@ assert.match(ciWorkflow, /pnpm check:server/);
 assert.match(ciWorkflow, /pnpm build/);
 assert.match(ciWorkflow, /pnpm docs:build/);
 assert.match(releaseWorkflow, /sdkwork-ai\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33/);
-assert.match(releaseWorkflow, /config_path:\s*sdkwork\.workflow\.json/);
+assert.match(releaseWorkflow, /config_path:\s*agent\.workflow\.json/);
 assert.match(releaseWorkflow, /publish_release:\s*true/);
 assert.match(releaseWorkflow, /upload_artifact:\s*true/);
 assert.doesNotMatch(releaseWorkflow, /Run release verification/);
