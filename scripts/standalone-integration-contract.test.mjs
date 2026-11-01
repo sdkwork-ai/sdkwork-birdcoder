@@ -136,7 +136,7 @@ assert.deepEqual(
 );
 
 {
-  const postgresExamplePath = path.join(rootDir, '.env.postgres.example');
+  const postgresExamplePath = path.join(rootDir, 'config/host/postgres.env.example');
   assert.equal(
     fs.existsSync(postgresExamplePath),
     true,
@@ -157,24 +157,24 @@ assert.deepEqual(
     assert.match(
       postgresExampleSource,
       new RegExp(`^${key}=`, 'mu'),
-      `.env.postgres.example must declare ${key}.`,
+      `config/host/postgres.env.example must declare ${key}.`,
     );
   }
   assert.doesNotMatch(
     postgresExampleSource,
     /^SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_/mu,
-    '.env.postgres.example must not declare application- or module-prefixed database keys.',
+    'config/host/postgres.env.example must not declare application- or module-prefixed database keys.',
   );
 
   const rootPackage = readJson('package.json');
   assert.equal(
     rootPackage.scripts?.['db:postgres:init'],
-    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .',
+    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config config/host/postgres.env --app-root .',
     'BirdCoder must expose the standard PostgreSQL initialization command.',
   );
   assert.equal(
     rootPackage.scripts?.['db:postgres:plan'],
-    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run',
+    'node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config config/host/postgres.env --app-root . --dry-run',
     'BirdCoder must expose the standard PostgreSQL plan command.',
   );
   assert.equal(

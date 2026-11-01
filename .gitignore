@@ -37,12 +37,12 @@ packages/sdkwork-birdcoder-pc-server/.local/
 NUL
 # SDKWork environment (real credentials �?do not commit)
 .env
-.env.postgres
+config/host/postgres.env
 .env.*.local
 
 # SDKWork environment templates (keep only the root .env.example tracked)
 !.env.example
-!.env.postgres.example
+!config/host/postgres.env.example
 !apps/sdkwork-birdcoder-pc/.env.standalone.*
 !apps/sdkwork-birdcoder-pc/.env.cloud.*
 !apps/sdkwork-birdcoder-h5/.env.standalone.*
@@ -62,7 +62,7 @@ pnpm_install_output.txt
 .env.test.local
 .env.staging.local
 .env.production.local
-.env.postgres
+config/host/postgres.env
 .env.release.local
 configs/*.local.toml
 

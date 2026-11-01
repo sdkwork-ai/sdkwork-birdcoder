@@ -100,7 +100,7 @@ for (const configRoot of serverConfigRoots) {
 }
 
 for (const retiredPath of [
-  // Note: `.env.postgres.example` is intentionally NOT listed here. It is the
+  // Note: `config/host/postgres.env.example` is intentionally NOT listed here. It is the
   // unified workspace PostgreSQL development template mandated by
   // `standalone-integration-contract.test.mjs` (and the standard
   // `db:postgres:init` command); deployment statelessness is enforced by the

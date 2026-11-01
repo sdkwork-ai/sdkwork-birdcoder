@@ -28,7 +28,7 @@ Each `topology/<profile>.env` file declares the `SDKWORK_DEPLOY_*` keys for that
   own Drive API (`application.public-ingress` origin); remaining production runtime values
   (ingress tokens, web runtime URLs) are injected by the deployment platform.
 
-`SDKWORK_DATABASE_URL` and friends are shared with every other module (see `.env.postgres`);
+`SDKWORK_DATABASE_URL` and friends are shared with every other module (see `config/host/postgres.env`);
 the Deploy module registers `deploy_*` tables in the same database.
 
 ## Client materialization

@@ -69,7 +69,7 @@ const FORBIDDEN_FILE_NAMES = [
   '.env.development',
   '.env.production',
   '.env.test',
-  '.env.postgres',
+  'config/host/postgres.env',
   '.dockerignore',
   '.gitignore',
   '.gitattributes',
