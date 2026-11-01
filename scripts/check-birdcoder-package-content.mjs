@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// env-naming:allow-file — the guard names the retired env-file spellings it refuses from a package
+
 /**
  * sdkwork-birdcoder package content standard checker (PACKAGING_SPEC §6/§7).
  *

@@ -198,7 +198,7 @@ assert.equal(
 
 assert.deepEqual(
   parseKeyValuePreviewValue({
-    path: '/workspace/.env.local',
+    path: '/workspace/.env.standalone.development',
     language: 'env',
     value: 'PORT=3000\nAPI_URL=\"https://example.com\"\nEMPTY=\n',
   }),

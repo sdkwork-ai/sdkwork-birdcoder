@@ -187,7 +187,7 @@ export function createInstallPackagePlan({
         required: true,
       },
       {
-        archivePath: '.env.release.example',
+        archivePath: '.env.example',
         sourcePath: path.join(workspaceRootDir, 'deployments', 'docker', 'docker', '.env.example'),
         mode: 0o644,
         required: false,
