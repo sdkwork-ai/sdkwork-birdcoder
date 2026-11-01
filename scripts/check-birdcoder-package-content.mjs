@@ -64,14 +64,14 @@ const FORBIDDEN_PATH_MARKERS = [
   '/.cargo/',
 ];
 
+// Packages never carry dotenv files: runtime configuration ships as
+// config.toml plus resources/sdkwork-release.env, so every `.env*` shape
+// (including the canonical `.env.<deployment-profile>.<environment>` names)
+// is forbidden (ENVIRONMENT_SPEC section 5.1.7). The `postgres.env` host
+// config is developer-only and must not ship either.
+const FORBIDDEN_ENV_FILE_BASENAMES = [/^\.env(\..+)?$/, /^postgres\.env(\..+)?$/];
+
 const FORBIDDEN_FILE_NAMES = [
-  '.env',
-  '.env.local',
-  '.env.release',
-  '.env.development',
-  '.env.production',
-  '.env.test',
-  'config/host/postgres.env',
   '.dockerignore',
   '.gitignore',
   '.gitattributes',
@@ -172,7 +172,8 @@ function isForbidden(relativePath) {
     return true;
   }
   const basename = path.posix.basename(relativePath);
-  return FORBIDDEN_FILE_NAMES.some((name) => basename === name);
+  return FORBIDDEN_FILE_NAMES.some((name) => basename === name)
+    || FORBIDDEN_ENV_FILE_BASENAMES.some((pattern) => pattern.test(basename));
 }
 
 function sha256Of(absolutePath) {
