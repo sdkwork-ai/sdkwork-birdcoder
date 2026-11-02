@@ -17,6 +17,14 @@ void main() {
     expect(find.text('chat page'), findsOneWidget);
     expect(find.byType(BottomNavigationBar), findsOneWidget);
 
+    final bar =
+        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar));
+    expect(bar.items, hasLength(2));
+    expect((bar.items[0].icon as Icon).icon, Icons.chat_bubble_outline);
+    expect((bar.items[0].activeIcon as Icon).icon, Icons.chat_bubble);
+    expect((bar.items[1].icon as Icon).icon, Icons.settings_outlined);
+    expect((bar.items[1].activeIcon as Icon).icon, Icons.settings);
+
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
