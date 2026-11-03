@@ -128,6 +128,36 @@
           "iam.permissions.read"
         ]
       }
+    },
+    {
+      "id": "sdkwork-birdcoder-flutter-mobile",
+      "root": "apps/sdkwork-birdcoder-flutter-mobile",
+      "format": "flutter",
+      "runtimeTarget": "flutter-android",
+      "bindings": {},
+      "accessToken": {
+        "appId": "sdkwork-birdcoder-flutter-mobile",
+        "tenantId": "100001",
+        "organizationId": "0",
+        "permissionScope": [
+          "iam:self"
+        ]
+      }
+    },
+    {
+      "id": "sdkwork-birdcoder-mini-program",
+      "root": "apps/sdkwork-birdcoder-mini-program",
+      "format": "mini-program",
+      "runtimeTarget": "mini-program",
+      "bindings": {},
+      "accessToken": {
+        "appId": "sdkwork-birdcoder-mini-program",
+        "tenantId": "100001",
+        "organizationId": "0",
+        "permissionScope": [
+          "iam:self"
+        ]
+      }
     }
   ]
 }
